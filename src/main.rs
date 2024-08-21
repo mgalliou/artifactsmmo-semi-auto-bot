@@ -1,3 +1,5 @@
+use std::thread;
+
 use artifactsmmo_sdk::Account;
 
 pub mod artifactsmmo_sdk {
@@ -9,19 +11,23 @@ pub mod artifactsmmo_sdk {
             configuration::Configuration,
             my_characters_api::{
                 self, get_my_characters_my_characters_get, ActionFightMyNameActionFightPostError,
-                ActionGatheringMyNameActionGatheringPostError, GetMyCharactersMyCharactersGetError,
+                ActionGatheringMyNameActionGatheringPostError, ActionMoveMyNameActionMovePostError,
+                GetMyCharactersMyCharactersGetError,
             },
             Error,
         },
-        models::{CharacterFightResponseSchema, CharacterSchema, SkillResponseSchema},
+        models::{
+            CharacterFightResponseSchema, CharacterMovementResponseSchema, CharacterSchema,
+            DestinationSchema, SkillResponseSchema,
+        },
     };
 
     impl Account {
-        pub async fn get_character(
+        pub fn get_character(
             &self,
             index: usize,
         ) -> Result<Character, Error<GetMyCharactersMyCharactersGetError>> {
-            let chars = match get_my_characters_my_characters_get(&self.configuration).await {
+            let chars = match get_my_characters_my_characters_get(&self.configuration) {
                 Ok(c) => Ok(c.data),
                 Err(e) => Err(e),
             };
@@ -53,48 +59,64 @@ pub mod artifactsmmo_sdk {
     }
 
     impl Character {
-        pub async fn remaining_cooldown(
+        pub fn remaining_cooldown(
             &self,
         ) -> Result<i32, Error<characters_api::GetCharacterCharactersNameGetError>> {
             match characters_api::get_character_characters_name_get(
                 &self.account.configuration,
                 &self.name,
-            )
-            .await
-            {
+            ) {
                 Ok(res) => Ok(res.data.cooldown),
                 Err(e) => Err(e),
             }
         }
-        pub async fn fight(
+
+        pub fn fight(
             &self,
         ) -> Result<CharacterFightResponseSchema, Error<ActionFightMyNameActionFightPostError>>
         {
             let res = my_characters_api::action_fight_my_name_action_fight_post(
                 &self.account.configuration,
                 &self.name,
-            )
-            .await;
+            );
             match res {
                 Ok(ref res) => println!("{} fought and {:?}", self.name, res.data.fight.result),
-                Err(_) => println!("error during fight"),
+                Err(ref e) => println!("{}: error during fight: {}", self.name, e),
             };
             res
         }
 
-        pub async fn gather(
+        pub fn gather(
             &self,
         ) -> Result<SkillResponseSchema, Error<ActionGatheringMyNameActionGatheringPostError>>
         {
             let res = my_characters_api::action_gathering_my_name_action_gathering_post(
                 &self.account.configuration,
                 &self.name,
-            )
-            .await;
+            );
             match res {
-                Ok(ref res) => println!("{} gathered {:?}", self.name, res.data.details.items),
-                Err(_) => println!("error during gathering"),
+                Ok(ref res) => println!("{}: gathered {:?}", self.name, res.data.details.items),
+                Err(ref e) => println!("{}: error during gathering: {}", self.name, e),
             };
+            res
+        }
+
+        pub fn move_to(
+            &self,
+            x: i32,
+            y: i32,
+        ) -> Result<CharacterMovementResponseSchema, Error<ActionMoveMyNameActionMovePostError>>
+        {
+            let dest = DestinationSchema::new(x, y);
+            let res = my_characters_api::action_move_my_name_action_move_post(
+                &self.account.configuration,
+                &self.name,
+                dest,
+            );
+            match res {
+                Ok(_) => println!("{}: moved to {},{}", self.name, x, y),
+                Err(ref e) => println!("{}: error while moving: {}", self.name, e),
+            }
             res
         }
 
@@ -106,106 +128,106 @@ pub mod artifactsmmo_sdk {
             }
         }
 
-        pub async fn fight_until_unsuccessful(&self) {
+        pub fn fight_until_unsuccessful(&self) {
             loop {
-                let res = self.fight().await;
-                match res {
+                match self.fight() {
                     Ok(res) => {
-                        let s = res.data.cooldown.remaining_seconds.try_into().unwrap();
-                        println!("cooling for {} secondes", s);
-                        sleep(Duration::from_secs(s));
+                        self.cool_down(res.data.cooldown.remaining_seconds);
                     }
                     Err(res) => match res {
-                        Error::Reqwest(_) => return,
-                        Error::Serde(_) => return,
-                        Error::Io(_) => return,
                         Error::ResponseError(res) => match res.entity {
                             Some(e) => match e {
-                                ActionFightMyNameActionFightPostError::Status499() => {
-                                    let s = Duration::from_secs(
-                                        self.remaining_cooldown()
-                                            .await
-                                            .unwrap()
-                                            .try_into()
-                                            .unwrap(),
-                                    );
-                                    sleep(s)
+                                ActionFightMyNameActionFightPostError::UnknownValue(json) => {
+                                    self.handle_error(json);
                                 }
-                                _ => { println!("{:?}", e);
-                                    return; 
+                                _ => {
+                                    println!("unrecoverable error: {:?}", e);
+                                    return;
                                 }
                             },
                             None => return,
                         },
+                        _ => return,
                     },
                 }
             }
         }
 
-        pub async fn gather_until_unsucessful(&self) {
+        pub fn gather_until_unsuccessful(&self) {
             loop {
-                let res = self.gather().await;
-                match res {
+                match self.gather() {
                     Ok(res) => {
-                        let s = res.data.cooldown.remaining_seconds.try_into().unwrap();
-                        println!("cooling for {} secondes", s);
-                        sleep(Duration::from_secs(s));
+                        self.cool_down(res.data.cooldown.remaining_seconds);
                     }
                     Err(res) => match res {
-                        Error::Reqwest(_) => return,
-                        Error::Serde(_) => return,
-                        Error::Io(_) => return,
                         Error::ResponseError(res) => match res.entity {
                             Some(e) => match e {
-                                ActionGatheringMyNameActionGatheringPostError::Status499() => {
-                                    let s = Duration::from_secs(
-                                        self.remaining_cooldown()
-                                            .await
-                                            .unwrap()
-                                            .try_into()
-                                            .unwrap(),
-                                    );
-                                    sleep(s)
+                                ActionGatheringMyNameActionGatheringPostError::UnknownValue(
+                                    json,
+                                ) => {
+                                    self.handle_error(json);
                                 }
-                                _ => { println!("{:?}", e);
-                                    return; 
+                                _ => {
+                                    println!("unrecoverable error: {:?}", e);
+                                    return;
                                 }
                             },
                             None => return,
                         },
+                        _ => return,
                     },
                 }
-                // if let Ok(ref res) = res {
-                //     let s = res.data.cooldown.remaining_seconds.try_into().unwrap();
-                //     println!("cooling for {} secondes", s);
-                //     sleep(Duration::new(s, 0));
-                // }
-                // if let Err(ref res) = res {
-                //     let tmp = res.source().unwrap()
-                //     return;
-                // }
             }
+        }
+
+        fn handle_error(&self, json: serde_json::Value) {
+            let code = json.get("error").unwrap().get("code").unwrap();
+            println!("code: {}", code);
+            if code == 499 {
+                println!("{}: needs to cooldown", self.name);
+                self.cool_down(self.remaining_cooldown().unwrap());
+            }
+        }
+
+        fn cool_down(&self, s: i32) {
+            println!("{}: cooling down for {} secondes", self.name, s);
+            sleep(Duration::from_secs(s.try_into().unwrap()));
         }
     }
 }
 
-async fn run() {
+fn run() {
     let base_url = "https://api.artifactsmmo.com";
     let token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6InBvZEppbyIsInBhc3N3b3JkX2NoYW5nZWQiOiIifQ.Qy1Hm2-QYm84O_9aLP076TczjYDCpSuZ75dKkh9toUY";
     let account = Account::new(base_url, token);
-    let char1 = account.get_character(1).await;
-    let char2 = account.get_character(2).await;
-    let handle1 = tokio::spawn(async {
-        char1.unwrap().fight_until_unsuccessful().await;
+    let char1 = account.get_character(1).unwrap();
+    let char2 = account.get_character(2).unwrap();
+    let char3 = account.get_character(3).unwrap();
+    let char4 = account.get_character(4).unwrap();
+    let char5 = account.get_character(5).unwrap();
+
+    let t1 = thread::spawn(move || {
+        char1.fight_until_unsuccessful();
     });
-    let handle2 = tokio::spawn(async {
-        char2.unwrap().fight_until_unsuccessful().await;
-    });                                   
-    handle1.await.unwrap();
-    handle2.await.unwrap();
+    let t2 = thread::spawn(move || {
+        char2.gather_until_unsuccessful();
+    });
+    let t3 = thread::spawn(move || {
+        char3.gather_until_unsuccessful();
+    });
+    let t4 = thread::spawn(move || {
+        char4.gather_until_unsuccessful();
+    });
+    let t5 = thread::spawn(move || {
+        char5.gather_until_unsuccessful();
+    });
+    t1.join().unwrap();
+    t2.join().unwrap();
+    t3.join().unwrap();
+    t4.join().unwrap();
+    t5.join().unwrap();
 }
 
-#[tokio::main]
-async fn main() {
-    run().await;
+fn main() {
+    run()
 }
