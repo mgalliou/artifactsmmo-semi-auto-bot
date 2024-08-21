@@ -51,6 +51,7 @@ version = "0.1.0"
 dependencies = [
  "artifactsmmo-openapi",
  "futures",
+ "reqwest",
  "serde_json",
 ]
 

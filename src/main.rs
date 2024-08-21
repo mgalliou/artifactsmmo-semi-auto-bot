@@ -7,20 +7,45 @@ pub mod artifactsmmo_sdk {
 
     use artifactsmmo_openapi::{
         apis::{
-            characters_api,
+            characters_api::{self, GetCharacterCharactersNameGetError},
             configuration::Configuration,
             my_characters_api::{
-                self, get_my_characters_my_characters_get, ActionFightMyNameActionFightPostError,
+                self, get_my_characters_my_characters_get,
+                ActionDepositBankMyNameActionBankDepositPostError,
+                ActionFightMyNameActionFightPostError,
                 ActionGatheringMyNameActionGatheringPostError, ActionMoveMyNameActionMovePostError,
                 GetMyCharactersMyCharactersGetError,
             },
             Error,
         },
         models::{
-            CharacterFightResponseSchema, CharacterMovementResponseSchema, CharacterSchema,
-            DestinationSchema, SkillResponseSchema,
+            ActionItemBankResponseSchema, CharacterFightResponseSchema,
+            CharacterMovementResponseSchema, CharacterSchema, DestinationSchema, InventorySlot,
+            SimpleItemSchema, SkillResponseSchema,
         },
     };
+    use reqwest::StatusCode;
+
+    pub trait UnkownError {
+        fn get_json(&self) -> Option<&serde_json::Value>;
+    }
+
+    impl UnkownError for ActionFightMyNameActionFightPostError {
+        fn get_json(&self) -> Option<&serde_json::Value> {
+            match self {
+                ActionFightMyNameActionFightPostError::UnknownValue(s) => Some(s),
+                _ => None,
+            }
+        }
+    }
+    impl UnkownError for ActionGatheringMyNameActionGatheringPostError {
+        fn get_json(&self) -> Option<&serde_json::Value> {
+            match self {
+                ActionGatheringMyNameActionGatheringPostError::UnknownValue(s) => Some(s),
+                _ => None,
+            }
+        }
+    }
 
     impl Account {
         pub fn get_character(
@@ -35,6 +60,11 @@ pub mod artifactsmmo_sdk {
                 Ok(c) => Ok(Character::from_schema(c[index - 1].clone(), self.clone())),
                 Err(e) => Err(e),
             }
+        }
+
+        pub fn get_character_by_name(&self, name: &str) -> Option<CharacterSchema> {
+            let chars = get_my_characters_my_characters_get(&self.configuration).unwrap();
+            chars.data.iter().find(|c| c.name == name).cloned()
         }
     }
 
@@ -59,9 +89,7 @@ pub mod artifactsmmo_sdk {
     }
 
     impl Character {
-        pub fn remaining_cooldown(
-            &self,
-        ) -> Result<i32, Error<characters_api::GetCharacterCharactersNameGetError>> {
+        pub fn remaining_cooldown(&self) -> Result<i32, Error<GetCharacterCharactersNameGetError>> {
             match characters_api::get_character_characters_name_get(
                 &self.account.configuration,
                 &self.name,
@@ -80,7 +108,10 @@ pub mod artifactsmmo_sdk {
                 &self.name,
             );
             match res {
-                Ok(ref res) => println!("{} fought and {:?}", self.name, res.data.fight.result),
+                Ok(ref res) => {
+                    println!("{} fought and {:?}", self.name, res.data.fight.result);
+                    self.cool_down(res.data.cooldown.remaining_seconds);
+                }
                 Err(ref e) => println!("{}: error during fight: {}", self.name, e),
             };
             res
@@ -95,7 +126,10 @@ pub mod artifactsmmo_sdk {
                 &self.name,
             );
             match res {
-                Ok(ref res) => println!("{}: gathered {:?}", self.name, res.data.details.items),
+                Ok(ref res) => {
+                    println!("{}: gathered {:?}", self.name, res.data.details.items);
+                    self.cool_down(res.data.cooldown.remaining_seconds);
+                }
                 Err(ref e) => println!("{}: error during gathering: {}", self.name, e),
             };
             res
@@ -114,7 +148,10 @@ pub mod artifactsmmo_sdk {
                 dest,
             );
             match res {
-                Ok(_) => println!("{}: moved to {},{}", self.name, x, y),
+                Ok(ref res) => {
+                    println!("{}: moved to {},{}", self.name, x, y);
+                    self.cool_down(res.data.cooldown.remaining_seconds)
+                }
                 Err(ref e) => println!("{}: error while moving: {}", self.name, e),
             }
             res
@@ -128,64 +165,73 @@ pub mod artifactsmmo_sdk {
             }
         }
 
-        pub fn fight_until_unsuccessful(&self) {
+        pub fn fight_until_unsuccessful(&self, x: i32, y: i32) {
             loop {
-                match self.fight() {
-                    Ok(res) => {
-                        self.cool_down(res.data.cooldown.remaining_seconds);
+                if let Err(Error::ResponseError(res)) = self.fight() {
+                    if res.status.eq(&StatusCode::from_u16(499).unwrap()) {
+                        println!("{}: needs to cooldown", self.name);
+                        self.cool_down(self.remaining_cooldown().unwrap());
                     }
-                    Err(res) => match res {
-                        Error::ResponseError(res) => match res.entity {
-                            Some(e) => match e {
-                                ActionFightMyNameActionFightPostError::UnknownValue(json) => {
-                                    self.handle_error(json);
-                                }
-                                _ => {
-                                    println!("unrecoverable error: {:?}", e);
-                                    return;
-                                }
-                            },
-                            None => return,
-                        },
-                        _ => return,
-                    },
+                    if res.status.eq(&StatusCode::from_u16(497).unwrap()) {
+                        println!("{}: inventory is full", self.name);
+                        let _ = self.move_to(4, 1);
+                        self.deposit_all();
+                        let _ = self.move_to(x, y);
+                    }
                 }
             }
         }
 
-        pub fn gather_until_unsuccessful(&self) {
+        pub fn gather_until_unsuccessful(&self, x: i32, y: i32) {
             loop {
-                match self.gather() {
-                    Ok(res) => {
-                        self.cool_down(res.data.cooldown.remaining_seconds);
+                if let Err(Error::ResponseError(res)) = self.gather() {
+                    if res.status.eq(&StatusCode::from_u16(499).unwrap()) {
+                        println!("{}: needs to cooldown", self.name);
+                        self.cool_down(self.remaining_cooldown().unwrap());
                     }
-                    Err(res) => match res {
-                        Error::ResponseError(res) => match res.entity {
-                            Some(e) => match e {
-                                ActionGatheringMyNameActionGatheringPostError::UnknownValue(
-                                    json,
-                                ) => {
-                                    self.handle_error(json);
-                                }
-                                _ => {
-                                    println!("unrecoverable error: {:?}", e);
-                                    return;
-                                }
-                            },
-                            None => return,
-                        },
-                        _ => return,
-                    },
+                    if res.status.eq(&StatusCode::from_u16(497).unwrap()) {
+                        println!("{}: inventory is full", self.name);
+                        let _ = self.move_to(4, 1);
+                        self.deposit_all();
+                        let _ = self.move_to(x, y);
+                    }
                 }
             }
         }
 
-        fn handle_error(&self, json: serde_json::Value) {
-            let code = json.get("error").unwrap().get("code").unwrap();
-            println!("code: {}", code);
-            if code == 499 {
-                println!("{}: needs to cooldown", self.name);
-                self.cool_down(self.remaining_cooldown().unwrap());
+        pub fn deposit(
+            &self,
+            item_code: String,
+            quantity: i32,
+        ) -> Result<
+            ActionItemBankResponseSchema,
+            Error<ActionDepositBankMyNameActionBankDepositPostError>,
+        > {
+            let res = my_characters_api::action_deposit_bank_my_name_action_bank_deposit_post(
+                &self.account.configuration,
+                &self.name,
+                SimpleItemSchema::new(item_code.clone(), quantity),
+            );
+            match res {
+                Ok(ref res) => {
+                    println!("{}: deposited {} {}", self.name, item_code, quantity);
+                    self.cool_down(res.data.cooldown.remaining_seconds)
+                }
+                Err(ref e) => println!("{}: error while depositing: {}", self.name, e),
+            }
+            res
+        }
+
+        pub fn inventory(&self) -> Vec<InventorySlot> {
+            let chars = self.account.get_character_by_name(&self.name).unwrap();
+            chars.inventory.unwrap()
+        }
+
+        pub fn deposit_all(&self) {
+            for i in self.inventory() {
+                if i.quantity > 1 {
+                    let _ = self.deposit(i.code, i.quantity);
+                }
             }
         }
 
@@ -207,19 +253,19 @@ fn run() {
     let char5 = account.get_character(5).unwrap();
 
     let t1 = thread::spawn(move || {
-        char1.fight_until_unsuccessful();
+        char1.fight_until_unsuccessful(0, -1);
     });
     let t2 = thread::spawn(move || {
-        char2.gather_until_unsuccessful();
+        char2.gather_until_unsuccessful(2, 0);
     });
     let t3 = thread::spawn(move || {
-        char3.gather_until_unsuccessful();
+        char3.gather_until_unsuccessful(6, 1);
     });
     let t4 = thread::spawn(move || {
-        char4.gather_until_unsuccessful();
+        char4.gather_until_unsuccessful(4, 2);
     });
     let t5 = thread::spawn(move || {
-        char5.gather_until_unsuccessful();
+        char5.gather_until_unsuccessful(2, 0);
     });
     t1.join().unwrap();
     t2.join().unwrap();
