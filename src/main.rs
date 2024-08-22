@@ -1,8 +1,5 @@
+use artifactsmmo_playground::artifactsmmo_sdk::account::Account;
 use std::thread;
-
-use artifactsmmo_sdk::Account;
-
-pub mod artifactsmmo_sdk;
 
 fn run() {
     let base_url = "https://api.artifactsmmo.com";
