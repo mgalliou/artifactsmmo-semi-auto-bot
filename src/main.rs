@@ -15,16 +15,16 @@ fn run() {
         char1.fight_until_unsuccessful(2, -1);
     });
     let t2 = thread::spawn(move || {
-        char2.gather_until_unsuccessful(2, 0);
+        char2.gather_until_unsuccessful(1, 7);
     });
     let t3 = thread::spawn(move || {
-        char3.gather_until_unsuccessful(6, 1);
+        char3.gather_until_unsuccessful(-2, 5);
     });
     let t4 = thread::spawn(move || {
-        char4.gather_until_unsuccessful(4, 2);
+        char4.gather_until_unsuccessful(5, 2);
     });
     let t5 = thread::spawn(move || {
-        char5.gather_until_unsuccessful(2, 0);
+        char5.gather_until_unsuccessful(6, 1);
     });
     t1.join().unwrap();
     t2.join().unwrap();

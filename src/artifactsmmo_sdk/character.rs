@@ -203,6 +203,7 @@ impl Character {
     }
 
     pub fn fight_until_unsuccessful(&self, x: i32, y: i32) {
+        let _ = self.move_to(x, y);
         loop {
             if let Err(Error::ResponseError(res)) = self.fight() {
                 if res.status.eq(&StatusCode::from_u16(499).unwrap()) {
@@ -220,6 +221,7 @@ impl Character {
     }
 
     pub fn gather_until_unsuccessful(&self, x: i32, y: i32) {
+        let _ = self.move_to(x, y);
         loop {
             if let Err(Error::ResponseError(res)) = self.gather() {
                 if res.status.eq(&StatusCode::from_u16(499).unwrap()) {
