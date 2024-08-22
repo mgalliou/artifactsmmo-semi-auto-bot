@@ -5,10 +5,11 @@ use artifactsmmo_openapi::{
     apis::{
         characters_api::{self, GetCharacterCharactersNameGetError},
         my_characters_api::{
-            self, ActionCraftingMyNameActionCraftingPostError,
+            self as api, ActionCraftingMyNameActionCraftingPostError,
             ActionDepositBankMyNameActionBankDepositPostError,
             ActionFightMyNameActionFightPostError, ActionGatheringMyNameActionGatheringPostError,
             ActionMoveMyNameActionMovePostError,
+            ActionWithdrawBankMyNameActionBankWithdrawPostError,
         },
         Error,
     },
@@ -41,7 +42,7 @@ impl Character {
         y: i32,
     ) -> Result<CharacterMovementResponseSchema, Error<ActionMoveMyNameActionMovePostError>> {
         let dest = DestinationSchema::new(x, y);
-        let res = my_characters_api::action_move_my_name_action_move_post(
+        let res = api::action_move_my_name_action_move_post(
             &self.account.configuration,
             &self.name,
             dest,
@@ -63,10 +64,8 @@ impl Character {
     pub fn fight(
         &self,
     ) -> Result<CharacterFightResponseSchema, Error<ActionFightMyNameActionFightPostError>> {
-        let res = my_characters_api::action_fight_my_name_action_fight_post(
-            &self.account.configuration,
-            &self.name,
-        );
+        let res =
+            api::action_fight_my_name_action_fight_post(&self.account.configuration, &self.name);
         match res {
             Ok(ref res) => {
                 println!("{} fought and {:?}", self.name, res.data.fight.result);
@@ -80,7 +79,7 @@ impl Character {
     pub fn gather(
         &self,
     ) -> Result<SkillResponseSchema, Error<ActionGatheringMyNameActionGatheringPostError>> {
-        let res = my_characters_api::action_gathering_my_name_action_gathering_post(
+        let res = api::action_gathering_my_name_action_gathering_post(
             &self.account.configuration,
             &self.name,
         );
@@ -103,7 +102,7 @@ impl Character {
             code: code.to_owned(),
             quantity: Some(quantity),
         };
-        let res = my_characters_api::action_crafting_my_name_action_crafting_post(
+        let res = api::action_crafting_my_name_action_crafting_post(
             &self.account.configuration,
             &self.name,
             schema,
@@ -138,7 +137,7 @@ impl Character {
     ) -> Result<SkillResponseSchema, Error<ActionCraftingMyNameActionCraftingPostError>> {
         let info = self.account.get_item_info(code).unwrap();
         let mut n = 0;
-        let mut new_n = 0;
+        let mut new_n;
 
         for i in info.data.item.craft.unwrap().unwrap().items.unwrap() {
             if i.quantity <= self.number_in_inventory(&i.code) {
@@ -159,7 +158,7 @@ impl Character {
         ActionItemBankResponseSchema,
         Error<ActionDepositBankMyNameActionBankDepositPostError>,
     > {
-        let res = my_characters_api::action_deposit_bank_my_name_action_bank_deposit_post(
+        let res = api::action_deposit_bank_my_name_action_bank_deposit_post(
             &self.account.configuration,
             &self.name,
             SimpleItemSchema::new(item_code.clone(), quantity),
@@ -170,6 +169,29 @@ impl Character {
                 self.cool_down(res.data.cooldown.remaining_seconds)
             }
             Err(ref e) => println!("{}: error while depositing: {}", self.name, e),
+        }
+        res
+    }
+
+    pub fn withdraw(
+        &self,
+        item_code: String,
+        quantity: i32,
+    ) -> Result<
+        ActionItemBankResponseSchema,
+        Error<ActionWithdrawBankMyNameActionBankWithdrawPostError>,
+    > {
+        let res = api::action_withdraw_bank_my_name_action_bank_withdraw_post(
+            &self.account.configuration,
+            &self.name,
+            SimpleItemSchema::new(item_code.clone(), quantity),
+        );
+        match res {
+            Ok(ref res) => {
+                println!("{}: withdrawed {} {}", self.name, item_code, quantity);
+                self.cool_down(res.data.cooldown.remaining_seconds)
+            }
+            Err(ref e) => println!("{}: error while withdrawing: {}", self.name, e),
         }
         res
     }
