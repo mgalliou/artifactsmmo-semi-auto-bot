@@ -1,4 +1,4 @@
-use std::{thread::sleep, time::Duration};
+use std::{option::Option, thread::sleep, time::Duration, vec::Vec};
 
 use super::account::Account;
 use artifactsmmo_openapi::{
@@ -14,9 +14,7 @@ use artifactsmmo_openapi::{
         Error,
     },
     models::{
-        ActionItemBankResponseSchema, CharacterFightResponseSchema,
-        CharacterMovementResponseSchema, CharacterSchema, CraftingSchema, DestinationSchema,
-        InventorySlot, SimpleItemSchema, SkillResponseSchema,
+        craft_schema::Skill::{Cooking, Gearcrafting, Jewelrycrafting, Mining, Weaponcrafting, Woodcutting}, ActionItemBankResponseSchema, CharacterFightResponseSchema, CharacterMovementResponseSchema, CharacterSchema, CraftingSchema, DestinationSchema, InventorySlot, SimpleItemSchema, SkillResponseSchema
     },
 };
 use reqwest::StatusCode;
@@ -152,7 +150,7 @@ impl Character {
 
     pub fn deposit(
         &self,
-        item_code: String,
+        item_code: &str,
         quantity: i32,
     ) -> Result<
         ActionItemBankResponseSchema,
@@ -161,7 +159,7 @@ impl Character {
         let res = api::action_deposit_bank_my_name_action_bank_deposit_post(
             &self.account.configuration,
             &self.name,
-            SimpleItemSchema::new(item_code.clone(), quantity),
+            SimpleItemSchema::new(item_code.to_owned(), quantity),
         );
         match res {
             Ok(ref res) => {
@@ -175,7 +173,7 @@ impl Character {
 
     pub fn withdraw(
         &self,
-        item_code: String,
+        item_code: &str,
         quantity: i32,
     ) -> Result<
         ActionItemBankResponseSchema,
@@ -184,7 +182,7 @@ impl Character {
         let res = api::action_withdraw_bank_my_name_action_bank_withdraw_post(
             &self.account.configuration,
             &self.name,
-            SimpleItemSchema::new(item_code.clone(), quantity),
+            SimpleItemSchema::new(item_code.to_owned(), quantity),
         );
         match res {
             Ok(ref res) => {
@@ -199,7 +197,7 @@ impl Character {
     pub fn deposit_all(&self) {
         for i in self.inventory() {
             if i.quantity > 1 {
-                let _ = self.deposit(i.code, i.quantity);
+                let _ = self.deposit(&i.code, i.quantity);
             }
         }
     }
@@ -212,6 +210,11 @@ impl Character {
     pub fn inventory(&self) -> Vec<InventorySlot> {
         let chars = self.account.get_character_by_name(&self.name).unwrap();
         chars.inventory.unwrap()
+    }
+
+    pub fn inventory_max_items(&self) -> i32 {
+        let chars = self.account.get_character_by_name(&self.name).unwrap();
+        chars.inventory_max_items
     }
 
     pub fn remaining_cooldown(&self) -> Result<i32, Error<GetCharacterCharactersNameGetError>> {
@@ -257,6 +260,38 @@ impl Character {
                     let _ = self.move_to(x, y);
                 }
             }
+        }
+    }
+
+    pub fn craft_all_repeat(&self, code: &str) {
+        loop {
+            self.move_to_bank();
+            self.deposit_all();
+            let required_items = self.get_required_item_for(code).unwrap();
+            let info = self.account.get_item_info(code).unwrap();
+            for i in required_items {
+                let _ = self.withdraw(&i.code, self.inventory_max_items());
+            }
+            let _ = match info.data.item.craft.unwrap().unwrap().skill.unwrap() {
+                Weaponcrafting => self.move_to(2, 1),
+                Gearcrafting => self.move_to(2, 2),
+                Jewelrycrafting => self.move_to(1, 3),
+                Cooking => self.move_to(1, 1),
+                Woodcutting => self.move_to(-2, -3),
+                Mining => self.move_to(1, 5),
+            };
+            let _ = self.craft_all(code);
+        }
+    }
+
+    fn get_required_item_for(&self, code: &str) -> Option<Vec<SimpleItemSchema>> {
+        match self.account.get_item_info(code) {
+            Ok(info) => match info.data.item.craft {
+                Some(Some(craft)) => craft.items,
+                Some(None) => None,
+                None => None,
+            }
+            Err(_) => None,
         }
     }
 }

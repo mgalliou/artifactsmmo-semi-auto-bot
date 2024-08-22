@@ -15,10 +15,12 @@ fn run() {
         char1.fight_until_unsuccessful(2, -1);
     });
     let t2 = thread::spawn(move || {
-        char2.gather_until_unsuccessful(1, 7);
+        //char2.gather_until_unsuccessful(1, 7);
+        char2.craft_all_repeat("copper")
     });
     let t3 = thread::spawn(move || {
-        char3.gather_until_unsuccessful(-2, 5);
+        //char3.gather_until_unsuccessful(-2, 5);
+        char3.craft_all_repeat("ash_plank")
     });
     let t4 = thread::spawn(move || {
         char4.gather_until_unsuccessful(5, 2);
