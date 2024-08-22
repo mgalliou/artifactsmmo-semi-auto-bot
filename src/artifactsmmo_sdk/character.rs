@@ -1,3 +1,5 @@
+use std::{thread::sleep, time::Duration};
+
 use super::account::Account;
 use artifactsmmo_openapi::{
     apis::{
@@ -17,7 +19,6 @@ use artifactsmmo_openapi::{
     },
 };
 use reqwest::StatusCode;
-use std::{thread::sleep, time::Duration};
 
 pub struct Character {
     account: Account,
@@ -53,6 +54,10 @@ impl Character {
             Err(ref e) => println!("{}: error while moving: {}", self.name, e),
         }
         res
+    }
+
+    fn move_to_bank(&self) {
+        let _ = self.move_to(4, 1);
     }
 
     pub fn fight(
@@ -91,24 +96,59 @@ impl Character {
 
     pub fn craft(
         &self,
-        item_code: String,
+        code: &str,
         quantity: i32,
     ) -> Result<SkillResponseSchema, Error<ActionCraftingMyNameActionCraftingPostError>> {
-        let mut schema = CraftingSchema::new(item_code.clone());
-        schema.quantity = Some(quantity);
+        let schema = CraftingSchema {
+            code: code.to_owned(),
+            quantity: Some(quantity),
+        };
         let res = my_characters_api::action_crafting_my_name_action_crafting_post(
             &self.account.configuration,
             &self.name,
             schema,
         );
+
         match res {
             Ok(ref res) => {
-                println!("{}: crafted {}, {}", self.name, quantity, item_code);
+                println!("{}: crafted {}, {}", self.name, quantity, code);
                 self.cool_down(res.data.cooldown.remaining_seconds);
             }
             Err(ref e) => println!("{}: error during crafting: {}", self.name, e),
         };
         res
+    }
+
+    pub fn number_in_inventory(&self, code: &str) -> i32 {
+        let inv = self.inventory();
+        let mut quantity: i32;
+
+        quantity = 0;
+        for i in inv {
+            if i.code == code {
+                quantity += i.quantity;
+            }
+        }
+        quantity
+    }
+
+    pub fn craft_all(
+        &self,
+        code: &str,
+    ) -> Result<SkillResponseSchema, Error<ActionCraftingMyNameActionCraftingPostError>> {
+        let info = self.account.get_item_info(code).unwrap();
+        let mut n = 0;
+        let mut new_n = 0;
+
+        for i in info.data.item.craft.unwrap().unwrap().items.unwrap() {
+            if i.quantity <= self.number_in_inventory(&i.code) {
+                new_n = self.number_in_inventory(&i.code) / i.quantity;
+                if n == 0 || new_n < n {
+                    n = new_n;
+                }
+            }
+        }
+        self.craft(code, n)
     }
 
     pub fn deposit(
@@ -171,7 +211,7 @@ impl Character {
                 }
                 if res.status.eq(&StatusCode::from_u16(497).unwrap()) {
                     println!("{}: inventory is full", self.name);
-                    let _ = self.move_to(4, 1);
+                    self.move_to_bank();
                     self.deposit_all();
                     let _ = self.move_to(x, y);
                 }
@@ -188,7 +228,7 @@ impl Character {
                 }
                 if res.status.eq(&StatusCode::from_u16(497).unwrap()) {
                     println!("{}: inventory is full", self.name);
-                    let _ = self.move_to(4, 1);
+                    self.move_to_bank();
                     self.deposit_all();
                     let _ = self.move_to(x, y);
                 }

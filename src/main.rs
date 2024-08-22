@@ -12,7 +12,7 @@ fn run() {
     let char5 = account.get_character(5).unwrap();
 
     let t1 = thread::spawn(move || {
-        char1.fight_until_unsuccessful(0, -1);
+        char1.fight_until_unsuccessful(2, -1);
     });
     let t2 = thread::spawn(move || {
         char2.gather_until_unsuccessful(2, 0);
