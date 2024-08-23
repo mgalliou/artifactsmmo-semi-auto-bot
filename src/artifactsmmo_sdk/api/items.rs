@@ -19,17 +19,30 @@ impl ItemsApi {
         ItemsApi { configuration }
     }
 
-    pub fn all(&self) -> Result<artifactsmmo_openapi::models::DataPageItemSchema, Error<artifactsmmo_openapi::apis::items_api::GetAllItemsItemsGetError>> {
+    pub fn all(
+        &self,
+        min_level: Option<i32>,
+        max_level: Option<i32>,
+        name: Option<&str>,
+        r#type: Option<&str>,
+        craft_skill: Option<&str>,
+        craft_material: Option<&str>,
+        page: Option<i32>,
+        size: Option<i32>,
+    ) -> Result<
+        artifactsmmo_openapi::models::DataPageItemSchema,
+        Error<artifactsmmo_openapi::apis::items_api::GetAllItemsItemsGetError>,
+    > {
         get_all_items_items_get(
             &self.configuration,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
+            min_level,
+            max_level,
+            name,
+            r#type,
+            craft_skill,
+            craft_material,
+            page,
+            size,
         )
     }
 
