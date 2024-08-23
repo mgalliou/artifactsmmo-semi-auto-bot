@@ -1,13 +1,11 @@
 use artifactsmmo_openapi::{
     apis::{
-        configuration::Configuration,
-        my_characters_api::
-            GetMyCharactersMyCharactersGetError
-        ,
-        Error,
+        configuration::Configuration, default_api::{get_status_get, GetStatusGetError}, my_characters_api::
+            GetMyCharactersMyCharactersGetError, Error
     },
-    models::CharacterSchema,
+    models::{CharacterSchema, StatusResponseSchema},
 };
+use chrono::{DateTime, FixedOffset};
 
 use super::{api::{characters::CharactersApi, my_character::MyCharacterApi}, character::Character};
 
@@ -27,6 +25,20 @@ impl Account {
             configuration,
             character_api: CharactersApi::new(base_path, token),
             my_characters_api: MyCharacterApi::new(base_path, token),
+        }
+    }
+
+    pub fn server_status(&self) -> Result<StatusResponseSchema, Error<GetStatusGetError>> {
+        get_status_get(&self.configuration)
+    }
+
+    pub fn server_time(&self) -> Option<DateTime<FixedOffset>> {
+        match get_status_get(&self.configuration) {
+            Ok(s) => match DateTime::parse_from_rfc3339(&s.data.server_time.unwrap()) {
+                Ok(t) => Some(t),
+                Err(_) => None,
+            },
+            Err(_) => None,
         }
     }
 

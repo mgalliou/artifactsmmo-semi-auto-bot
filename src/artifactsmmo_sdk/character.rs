@@ -1,12 +1,9 @@
-use std::{option::Option, thread::sleep, time::Duration, vec::Vec};
-
 use super::{
     account::Account,
     api::{characters::CharactersApi, items::ItemsApi, my_character::MyCharacterApi},
 };
 use artifactsmmo_openapi::{
     apis::{
-        characters_api::GetCharacterCharactersNameGetError,
         my_characters_api::{
             ActionCraftingMyNameActionCraftingPostError,
             ActionDepositBankMyNameActionBankDepositPostError,
@@ -24,9 +21,12 @@ use artifactsmmo_openapi::{
         CharacterMovementResponseSchema, InventorySlot, SimpleItemSchema, SkillResponseSchema,
     },
 };
+use chrono::{DateTime, FixedOffset};
 use reqwest::StatusCode;
+use std::{cmp::Ordering, option::Option, thread::sleep, time::Duration, vec::Vec};
 
 pub struct Character {
+    account: Account,
     api: CharactersApi,
     my_api: MyCharacterApi,
     items_api: ItemsApi,
@@ -36,6 +36,7 @@ pub struct Character {
 impl Character {
     pub fn new(account: &Account, name: &str) -> Character {
         Character {
+            account: account.clone(),
             api: CharactersApi::new(
                 &account.configuration.base_path,
                 &account.configuration.bearer_access_token.clone().unwrap(),
@@ -61,7 +62,9 @@ impl Character {
         match res {
             Ok(ref res) => {
                 println!("{}: moved to {},{}", self.name, x, y);
-                self.cool_down(res.data.cooldown.remaining_seconds)
+                self.cool_down(Duration::from_secs(
+                    res.data.cooldown.remaining_seconds.try_into().unwrap(),
+                ))
             }
             Err(ref e) => println!("{}: error while moving: {}", self.name, e),
         }
@@ -79,7 +82,9 @@ impl Character {
         match res {
             Ok(ref res) => {
                 println!("{} fought and {:?}", self.name, res.data.fight.result);
-                self.cool_down(res.data.cooldown.remaining_seconds);
+                self.cool_down(Duration::from_secs(
+                    res.data.cooldown.remaining_seconds.try_into().unwrap(),
+                ))
             }
             Err(ref e) => println!("{}: error during fight: {}", self.name, e),
         };
@@ -93,7 +98,9 @@ impl Character {
         match res {
             Ok(ref res) => {
                 println!("{}: gathered {:?}", self.name, res.data.details.items);
-                self.cool_down(res.data.cooldown.remaining_seconds);
+                self.cool_down(Duration::from_secs(
+                    res.data.cooldown.remaining_seconds.try_into().unwrap(),
+                ))
             }
             Err(ref e) => println!("{}: error during gathering: {}", self.name, e),
         };
@@ -109,7 +116,9 @@ impl Character {
         match res {
             Ok(ref res) => {
                 println!("{}: crafted {}, {}", self.name, quantity, code);
-                self.cool_down(res.data.cooldown.remaining_seconds);
+                self.cool_down(Duration::from_secs(
+                    res.data.cooldown.remaining_seconds.try_into().unwrap(),
+                ))
             }
             Err(ref e) => println!("{}: error during crafting: {}", self.name, e),
         };
@@ -160,7 +169,9 @@ impl Character {
         match res {
             Ok(ref res) => {
                 println!("{}: deposited {} {}", self.name, code, quantity);
-                self.cool_down(res.data.cooldown.remaining_seconds)
+                self.cool_down(Duration::from_secs(
+                    res.data.cooldown.remaining_seconds.try_into().unwrap(),
+                ))
             }
             Err(ref e) => println!("{}: error while depositing: {}", self.name, e),
         }
@@ -179,7 +190,9 @@ impl Character {
         match res {
             Ok(ref res) => {
                 println!("{}: withdrawed {} {}", self.name, code, quantity);
-                self.cool_down(res.data.cooldown.remaining_seconds)
+                self.cool_down(Duration::from_secs(
+                    res.data.cooldown.remaining_seconds.try_into().unwrap(),
+                ))
             }
             Err(ref e) => println!("{}: error while withdrawing: {}", self.name, e),
         }
@@ -194,9 +207,14 @@ impl Character {
         }
     }
 
-    fn cool_down(&self, s: i32) {
-        println!("{}: cooling down for {} secondes", self.name, s);
-        sleep(Duration::from_secs(s.try_into().unwrap()));
+    fn cool_down(&self, s: Duration) {
+        println!(
+            "{}: cooling down for {}.{} secondes",
+            self.name,
+            s.as_secs(),
+            s.subsec_millis()
+        );
+        sleep(s);
     }
 
     pub fn inventory(&self) -> Vec<InventorySlot> {
@@ -209,11 +227,28 @@ impl Character {
         char.data.inventory_max_items
     }
 
-    pub fn remaining_cooldown(&self) -> Result<i32, Error<GetCharacterCharactersNameGetError>> {
+    pub fn cooldown_expiration(&self) -> Option<DateTime<FixedOffset>> {
         match self.api.get(&self.name) {
-            Ok(res) => Ok(res.data.cooldown),
-            Err(e) => Err(e),
+            Ok(res) => match res.data.cooldown_expiration {
+                Some(cd) => match DateTime::parse_from_rfc3339(&cd) {
+                    Ok(cd) => Some(cd),
+                    Err(_) => None,
+                },
+                None => None,
+            },
+            Err(_) => None,
         }
+    }
+
+    pub fn remaining_cooldown(&self) -> Duration {
+        if let Some(server_time) = self.account.server_time() {
+            if let Some(cd) = self.cooldown_expiration() {
+                if server_time.cmp(&cd) == Ordering::Less {
+                    return (cd - server_time).to_std().unwrap();
+                }
+            }
+        };
+        Duration::default()
     }
 
     pub fn fight_until_unsuccessful(&self, x: i32, y: i32) {
@@ -222,7 +257,7 @@ impl Character {
             if let Err(Error::ResponseError(res)) = self.fight() {
                 if res.status.eq(&StatusCode::from_u16(499).unwrap()) {
                     println!("{}: needs to cooldown", self.name);
-                    self.cool_down(self.remaining_cooldown().unwrap());
+                    self.cool_down(self.remaining_cooldown());
                 }
                 if res.status.eq(&StatusCode::from_u16(497).unwrap()) {
                     println!("{}: inventory is full", self.name);
@@ -240,7 +275,7 @@ impl Character {
             if let Err(Error::ResponseError(res)) = self.gather() {
                 if res.status.eq(&StatusCode::from_u16(499).unwrap()) {
                     println!("{}: needs to cooldown", self.name);
-                    self.cool_down(self.remaining_cooldown().unwrap());
+                    self.cool_down(self.remaining_cooldown());
                 }
                 if res.status.eq(&StatusCode::from_u16(497).unwrap()) {
                     println!("{}: inventory is full", self.name);
@@ -253,6 +288,7 @@ impl Character {
     }
 
     pub fn craft_all_repeat(&self, code: &str) {
+        self.cool_down(self.remaining_cooldown());
         loop {
             self.move_to_bank();
             self.deposit_all();
