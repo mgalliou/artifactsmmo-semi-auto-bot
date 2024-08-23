@@ -1,4 +1,11 @@
-use artifactsmmo_openapi::{apis::{characters_api::{get_character_characters_name_get, GetCharacterCharactersNameGetError}, configuration::Configuration, Error}, models::CharacterResponseSchema};
+use artifactsmmo_openapi::{
+    apis::{
+        characters_api::{get_character_characters_name_get, GetCharacterCharactersNameGetError},
+        configuration::Configuration,
+        Error,
+    },
+    models::CharacterResponseSchema,
+};
 
 #[derive(Clone)]
 pub struct CharactersApi {
@@ -13,7 +20,10 @@ impl CharactersApi {
         CharactersApi { configuration }
     }
 
-    pub fn get(&self, name: &str) -> Result<CharacterResponseSchema, Error<GetCharacterCharactersNameGetError>> {
+    pub fn get(
+        &self,
+        name: &str,
+    ) -> Result<CharacterResponseSchema, Error<GetCharacterCharactersNameGetError>> {
         get_character_characters_name_get(&self.configuration, name)
     }
 }
