@@ -1,11 +1,14 @@
 use std::{option::Option, thread::sleep, time::Duration, vec::Vec};
 
-use super::account::Account;
+use super::{
+    account::Account,
+    api::{characters::CharactersApi, items::ItemsApi, my_character::MyCharacterApi},
+};
 use artifactsmmo_openapi::{
     apis::{
-        characters_api::{self, GetCharacterCharactersNameGetError},
+        characters_api::GetCharacterCharactersNameGetError,
         my_characters_api::{
-            self as api, ActionCraftingMyNameActionCraftingPostError,
+            ActionCraftingMyNameActionCraftingPostError,
             ActionDepositBankMyNameActionBankDepositPostError,
             ActionFightMyNameActionFightPostError, ActionGatheringMyNameActionGatheringPostError,
             ActionMoveMyNameActionMovePostError,
@@ -14,23 +17,38 @@ use artifactsmmo_openapi::{
         Error,
     },
     models::{
-        craft_schema::Skill::{Cooking, Gearcrafting, Jewelrycrafting, Mining, Weaponcrafting, Woodcutting}, ActionItemBankResponseSchema, CharacterFightResponseSchema, CharacterMovementResponseSchema, CharacterSchema, CraftingSchema, DestinationSchema, InventorySlot, SimpleItemSchema, SkillResponseSchema
+        craft_schema::Skill::{
+            Cooking, Gearcrafting, Jewelrycrafting, Mining, Weaponcrafting, Woodcutting,
+        },
+        ActionItemBankResponseSchema, CharacterFightResponseSchema,
+        CharacterMovementResponseSchema, InventorySlot, SimpleItemSchema, SkillResponseSchema,
     },
 };
 use reqwest::StatusCode;
 
 pub struct Character {
-    account: Account,
+    api: CharactersApi,
+    my_api: MyCharacterApi,
+    items_api: ItemsApi,
     name: String,
-    level: i32,
 }
 
 impl Character {
-    pub fn from_schema(value: CharacterSchema, account: Account) -> Self {
+    pub fn new(account: &Account, name: &str) -> Character {
         Character {
-            account,
-            name: value.name,
-            level: value.level,
+            api: CharactersApi::new(
+                &account.configuration.base_path,
+                &account.configuration.bearer_access_token.clone().unwrap(),
+            ),
+            my_api: MyCharacterApi::new(
+                &account.configuration.base_path,
+                &account.configuration.bearer_access_token.clone().unwrap(),
+            ),
+            items_api: ItemsApi::new(
+                &account.configuration.base_path,
+                &account.configuration.bearer_access_token.clone().unwrap(),
+            ),
+            name: name.to_owned(),
         }
     }
 
@@ -39,12 +57,7 @@ impl Character {
         x: i32,
         y: i32,
     ) -> Result<CharacterMovementResponseSchema, Error<ActionMoveMyNameActionMovePostError>> {
-        let dest = DestinationSchema::new(x, y);
-        let res = api::action_move_my_name_action_move_post(
-            &self.account.configuration,
-            &self.name,
-            dest,
-        );
+        let res = self.my_api.move_to(&self.name, x, y);
         match res {
             Ok(ref res) => {
                 println!("{}: moved to {},{}", self.name, x, y);
@@ -62,8 +75,7 @@ impl Character {
     pub fn fight(
         &self,
     ) -> Result<CharacterFightResponseSchema, Error<ActionFightMyNameActionFightPostError>> {
-        let res =
-            api::action_fight_my_name_action_fight_post(&self.account.configuration, &self.name);
+        let res = self.my_api.fight(&self.name);
         match res {
             Ok(ref res) => {
                 println!("{} fought and {:?}", self.name, res.data.fight.result);
@@ -77,10 +89,7 @@ impl Character {
     pub fn gather(
         &self,
     ) -> Result<SkillResponseSchema, Error<ActionGatheringMyNameActionGatheringPostError>> {
-        let res = api::action_gathering_my_name_action_gathering_post(
-            &self.account.configuration,
-            &self.name,
-        );
+        let res = self.my_api.gather(&self.name);
         match res {
             Ok(ref res) => {
                 println!("{}: gathered {:?}", self.name, res.data.details.items);
@@ -96,16 +105,7 @@ impl Character {
         code: &str,
         quantity: i32,
     ) -> Result<SkillResponseSchema, Error<ActionCraftingMyNameActionCraftingPostError>> {
-        let schema = CraftingSchema {
-            code: code.to_owned(),
-            quantity: Some(quantity),
-        };
-        let res = api::action_crafting_my_name_action_crafting_post(
-            &self.account.configuration,
-            &self.name,
-            schema,
-        );
-
+        let res = self.my_api.craft(&self.name, code, quantity);
         match res {
             Ok(ref res) => {
                 println!("{}: crafted {}, {}", self.name, quantity, code);
@@ -133,7 +133,7 @@ impl Character {
         &self,
         code: &str,
     ) -> Result<SkillResponseSchema, Error<ActionCraftingMyNameActionCraftingPostError>> {
-        let info = self.account.get_item_info(code).unwrap();
+        let info = self.items_api.info(code).unwrap();
         let mut n = 0;
         let mut new_n;
 
@@ -150,20 +150,16 @@ impl Character {
 
     pub fn deposit(
         &self,
-        item_code: &str,
+        code: &str,
         quantity: i32,
     ) -> Result<
         ActionItemBankResponseSchema,
         Error<ActionDepositBankMyNameActionBankDepositPostError>,
     > {
-        let res = api::action_deposit_bank_my_name_action_bank_deposit_post(
-            &self.account.configuration,
-            &self.name,
-            SimpleItemSchema::new(item_code.to_owned(), quantity),
-        );
+        let res = self.my_api.deposit(&self.name, code, quantity);
         match res {
             Ok(ref res) => {
-                println!("{}: deposited {} {}", self.name, item_code, quantity);
+                println!("{}: deposited {} {}", self.name, code, quantity);
                 self.cool_down(res.data.cooldown.remaining_seconds)
             }
             Err(ref e) => println!("{}: error while depositing: {}", self.name, e),
@@ -173,20 +169,16 @@ impl Character {
 
     pub fn withdraw(
         &self,
-        item_code: &str,
+        code: &str,
         quantity: i32,
     ) -> Result<
         ActionItemBankResponseSchema,
         Error<ActionWithdrawBankMyNameActionBankWithdrawPostError>,
     > {
-        let res = api::action_withdraw_bank_my_name_action_bank_withdraw_post(
-            &self.account.configuration,
-            &self.name,
-            SimpleItemSchema::new(item_code.to_owned(), quantity),
-        );
+        let res = self.my_api.withdraw(&self.name, code, quantity);
         match res {
             Ok(ref res) => {
-                println!("{}: withdrawed {} {}", self.name, item_code, quantity);
+                println!("{}: withdrawed {} {}", self.name, code, quantity);
                 self.cool_down(res.data.cooldown.remaining_seconds)
             }
             Err(ref e) => println!("{}: error while withdrawing: {}", self.name, e),
@@ -208,20 +200,17 @@ impl Character {
     }
 
     pub fn inventory(&self) -> Vec<InventorySlot> {
-        let chars = self.account.get_character_by_name(&self.name).unwrap();
-        chars.inventory.unwrap()
+        let char = self.api.get(&self.name).unwrap();
+        char.data.inventory.unwrap()
     }
 
     pub fn inventory_max_items(&self) -> i32 {
-        let chars = self.account.get_character_by_name(&self.name).unwrap();
-        chars.inventory_max_items
+        let char = self.api.get(&self.name).unwrap();
+        char.data.inventory_max_items
     }
 
     pub fn remaining_cooldown(&self) -> Result<i32, Error<GetCharacterCharactersNameGetError>> {
-        match characters_api::get_character_characters_name_get(
-            &self.account.configuration,
-            &self.name,
-        ) {
+        match self.api.get(&self.name) {
             Ok(res) => Ok(res.data.cooldown),
             Err(e) => Err(e),
         }
@@ -268,7 +257,7 @@ impl Character {
             self.move_to_bank();
             self.deposit_all();
             let required_items = self.get_required_item_for(code).unwrap();
-            let info = self.account.get_item_info(code).unwrap();
+            let info = self.items_api.info(code).unwrap();
             for i in required_items {
                 let _ = self.withdraw(&i.code, self.inventory_max_items());
             }
@@ -285,12 +274,12 @@ impl Character {
     }
 
     fn get_required_item_for(&self, code: &str) -> Option<Vec<SimpleItemSchema>> {
-        match self.account.get_item_info(code) {
+        match self.items_api.info(code) {
             Ok(info) => match info.data.item.craft {
                 Some(Some(craft)) => craft.items,
                 Some(None) => None,
                 None => None,
-            }
+            },
             Err(_) => None,
         }
     }
