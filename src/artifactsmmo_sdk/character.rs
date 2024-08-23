@@ -1,6 +1,10 @@
 use super::{
     account::Account,
-    api::{characters::CharactersApi, items::ItemsApi, my_character::MyCharacterApi},
+    api::{
+        characters::CharactersApi, items::ItemsApi, maps::MapsApi, monsters::MonstersApi,
+        my_character::MyCharacterApi, resources::ResourcesApi,
+    },
+    task::{Resource, Task},
 };
 use artifactsmmo_openapi::{
     apis::{
@@ -18,7 +22,8 @@ use artifactsmmo_openapi::{
             Cooking, Gearcrafting, Jewelrycrafting, Mining, Weaponcrafting, Woodcutting,
         },
         ActionItemBankResponseSchema, CharacterFightResponseSchema,
-        CharacterMovementResponseSchema, InventorySlot, SimpleItemSchema, SkillResponseSchema,
+        CharacterMovementResponseSchema, InventorySlot, MapSchema, SimpleItemSchema,
+        SkillResponseSchema,
     },
 };
 use chrono::{DateTime, FixedOffset};
@@ -30,6 +35,9 @@ pub struct Character {
     api: CharactersApi,
     my_api: MyCharacterApi,
     items_api: ItemsApi,
+    maps_api: MapsApi,
+    resources_api: ResourcesApi,
+    monsters_api: MonstersApi,
     name: String,
 }
 
@@ -46,6 +54,18 @@ impl Character {
                 &account.configuration.bearer_access_token.clone().unwrap(),
             ),
             items_api: ItemsApi::new(
+                &account.configuration.base_path,
+                &account.configuration.bearer_access_token.clone().unwrap(),
+            ),
+            maps_api: MapsApi::new(
+                &account.configuration.base_path,
+                &account.configuration.bearer_access_token.clone().unwrap(),
+            ),
+            resources_api: ResourcesApi::new(
+                &account.configuration.base_path,
+                &account.configuration.bearer_access_token.clone().unwrap(),
+            ),
+            monsters_api: MonstersApi::new(
                 &account.configuration.base_path,
                 &account.configuration.bearer_access_token.clone().unwrap(),
             ),
@@ -251,6 +271,68 @@ impl Character {
         Duration::default()
     }
 
+    fn ressources_dropping(&self, code: &str) -> Option<Vec<String>> {
+        let mut codes: Vec<String> = vec![];
+
+        if let Ok(resources) = self
+            .resources_api
+            .all(None, None, None, Some(code), None, None)
+        {
+            for r in resources.data {
+                codes.push(r.code)
+            }
+            return Some(codes);
+        }
+        None
+    }
+
+    fn closest(&self, maps: Vec<MapSchema>) -> Option<MapSchema> {
+        let (x, y) = self.coordinates();
+        let mut delta_total;
+        let mut min_delta = -1;
+        let mut target_map = None;
+
+        for map in maps {
+            delta_total = i32::abs(map.x - x) + i32::abs(map.y - y);
+            if min_delta == -1 || delta_total < min_delta {
+                min_delta = delta_total;
+                target_map = Some(map);
+            }
+        }
+        target_map
+    }
+
+    fn get_cordinate_for_drop(&self, code: &str) -> Option<(i32, i32)> {
+        let (mut x, mut y): (i32, i32) = (0, 0);
+
+        if let Some(resources) = self.ressources_dropping(code) {
+            for r in resources {
+                (x, y) = self.get_cordinate_for_resources(&r).unwrap();
+            }
+            return Some((x, y));
+        }
+        None
+    }
+
+    fn get_cordinate_for_resources(&self, code: &str) -> Option<(i32, i32)> {
+        if let Ok(maps) = self.maps_api.all(None, Some(code), None, None) {
+            let map = self.closest(maps.data).unwrap();
+            return Some((map.x, map.y));
+        }
+        None
+    }
+
+    pub fn execute(&self, task: Task) {
+        match task.action {
+            super::task::Action::Gather => {
+                if let Some(resource) = task.resource {
+                    let (x, y) = self.get_cordinate_for_resources(&resource).unwrap();
+                }
+            }
+            super::task::Action::Fight => todo!(),
+        }
+    }
+
     pub fn fight_until_unsuccessful(&self, x: i32, y: i32) {
         let _ = self.move_to(x, y);
         loop {
@@ -269,7 +351,26 @@ impl Character {
         }
     }
 
-    pub fn gather_until_unsuccessful(&self, x: i32, y: i32) {
+    pub fn gather_until_at(&self, x: i32, y: i32) {
+        let _ = self.move_to(x, y);
+        loop {
+            if let Err(Error::ResponseError(res)) = self.gather() {
+                if res.status.eq(&StatusCode::from_u16(499).unwrap()) {
+                    println!("{}: needs to cooldown", self.name);
+                    self.cool_down(self.remaining_cooldown());
+                }
+                if res.status.eq(&StatusCode::from_u16(497).unwrap()) {
+                    println!("{}: inventory is full", self.name);
+                    self.move_to_bank();
+                    self.deposit_all();
+                    let _ = self.move_to(x, y);
+                }
+            }
+        }
+    }
+
+    pub fn gather_until_code(&self, code: &str) {
+        let (x, y) = self.get_cordinate_for_drop(code).unwrap();
         let _ = self.move_to(x, y);
         loop {
             if let Err(Error::ResponseError(res)) = self.gather() {
@@ -318,5 +419,10 @@ impl Character {
             },
             Err(_) => None,
         }
+    }
+
+    fn coordinates(&self) -> (i32, i32) {
+        let data = self.api.get(&self.name).unwrap().data;
+        (data.x, data.y)
     }
 }

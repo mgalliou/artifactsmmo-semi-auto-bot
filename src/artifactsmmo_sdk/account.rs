@@ -1,13 +1,18 @@
 use artifactsmmo_openapi::{
     apis::{
-        configuration::Configuration, default_api::{get_status_get, GetStatusGetError}, my_characters_api::
-            GetMyCharactersMyCharactersGetError, Error
+        configuration::Configuration,
+        default_api::{get_status_get, GetStatusGetError},
+        my_characters_api::GetMyCharactersMyCharactersGetError,
+        Error,
     },
     models::{CharacterSchema, StatusResponseSchema},
 };
 use chrono::{DateTime, FixedOffset};
 
-use super::{api::{characters::CharactersApi, my_character::MyCharacterApi}, character::Character};
+use super::{
+    api::{characters::CharactersApi, my_character::MyCharacterApi},
+    character::Character,
+};
 
 #[derive(Clone)]
 pub struct Account {
