@@ -1,15 +1,44 @@
-use artifactsmmo_openapi::{apis::{configuration::Configuration, resources_api::{get_all_resources_resources_get, get_resource_resources_code_get, GetAllResourcesResourcesGetError, GetResourceResourcesCodeGetError}, Error}, models::{DataPageResourceSchema, ResourceResponseSchema}};
+use artifactsmmo_openapi::{
+    apis::{
+        configuration::Configuration,
+        resources_api::{
+            get_all_resources_resources_get, get_resource_resources_code_get,
+            GetAllResourcesResourcesGetError, GetResourceResourcesCodeGetError,
+        },
+        Error,
+    },
+    models::{DataPageResourceSchema, ResourceResponseSchema},
+};
 
 pub struct ResourcesApi {
-  configuration: Configuration
+    configuration: Configuration,
 }
 
-impl ResourcesApi{
-    pub fn all(&self) -> Result<DataPageResourceSchema, Error<GetAllResourcesResourcesGetError>> {
-        get_all_resources_resources_get(&self.configuration, None, None, None, None, None, None)
+impl ResourcesApi {
+    pub fn all(
+        &self,
+        min_level: Option<i32>,
+        max_level: Option<i32>,
+        skill: Option<&str>,
+        drop: Option<&str>,
+        page: Option<i32>,
+        size: Option<i32>,
+    ) -> Result<DataPageResourceSchema, Error<GetAllResourcesResourcesGetError>> {
+        get_all_resources_resources_get(
+            &self.configuration,
+            min_level,
+            max_level,
+            skill,
+            drop,
+            page,
+            size,
+        )
     }
 
-    pub fn info(&self, code: &str) -> Result<ResourceResponseSchema, Error<GetResourceResourcesCodeGetError>> {
+    pub fn info(
+        &self,
+        code: &str,
+    ) -> Result<ResourceResponseSchema, Error<GetResourceResourcesCodeGetError>> {
         get_resource_resources_code_get(&self.configuration, code)
     }
 }
