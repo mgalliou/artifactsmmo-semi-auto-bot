@@ -278,26 +278,26 @@ impl Character {
         None
     }
 
-    fn closest(&self, maps: Vec<MapSchema>) -> Option<MapSchema> {
+    fn closest_map_among(&self, maps: Vec<MapSchema>) -> Option<MapSchema> {
         let (x, y) = self.coordinates();
         self.maps.closest_from_amoung(x, y, maps)
     }
 
-    fn get_cordinate_for_drop(&self, code: &str) -> Option<(i32, i32)> {
+    fn closest_map_dropping(&self, code: &str) -> Option<(i32, i32)> {
         let (mut x, mut y): (i32, i32) = (0, 0);
 
         if let Some(resources) = self.ressources_dropping(code) {
             for r in resources {
-                (x, y) = self.get_cordinate_for_resources(&r).unwrap();
+                (x, y) = self.closest_map_with_resource(&r).unwrap();
             }
             return Some((x, y));
         }
         None
     }
 
-    fn get_cordinate_for_resources(&self, code: &str) -> Option<(i32, i32)> {
-        if let Ok(maps) = self.maps.get_cordinate_for_resources(code) {
-            let map = self.closest(maps.data).unwrap();
+    fn closest_map_with_resource(&self, code: &str) -> Option<(i32, i32)> {
+        if let Ok(maps) = self.maps.with_ressource(code) {
+            let map = self.closest_map_among(maps.data).unwrap();
             return Some((map.x, map.y));
         }
         None
@@ -340,7 +340,7 @@ impl Character {
     }
 
     pub fn gather_until_code(&self, code: &str) {
-        let (x, y) = self.get_cordinate_for_drop(code).unwrap();
+        let (x, y) = self.closest_map_dropping(code).unwrap();
         let _ = self.move_to(x, y);
         loop {
             if let Err(Error::ResponseError(res)) = self.gather() {

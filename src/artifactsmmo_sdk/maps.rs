@@ -34,7 +34,7 @@ impl Maps {
         target_map
     }
 
-    pub fn get_cordinate_for_resources(
+    pub fn with_ressource(
         &self,
         code: &str,
     ) -> Result<DataPageMapSchema, Error<GetAllMapsMapsGetError>> {
