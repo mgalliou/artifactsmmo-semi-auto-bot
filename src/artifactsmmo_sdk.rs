@@ -1,4 +1,4 @@
 pub mod account;
 pub mod api;
 pub mod character;
-pub mod task;
+pub mod maps;

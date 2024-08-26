@@ -1,10 +1,10 @@
 use super::{
     account::Account,
     api::{
-        characters::CharactersApi, items::ItemsApi, maps::MapsApi, monsters::MonstersApi,
+        characters::CharactersApi, items::ItemsApi, monsters::MonstersApi,
         my_character::MyCharacterApi, resources::ResourcesApi,
     },
-    task::{Resource, Task},
+    maps::Maps,
 };
 use artifactsmmo_openapi::{
     apis::{
@@ -21,7 +21,7 @@ use artifactsmmo_openapi::{
         craft_schema::Skill::{
             Cooking, Gearcrafting, Jewelrycrafting, Mining, Weaponcrafting, Woodcutting,
         },
-        ActionItemBankResponseSchema, CharacterFightResponseSchema,
+        BankItemTransactionResponseSchema, CharacterFightResponseSchema,
         CharacterMovementResponseSchema, InventorySlot, MapSchema, SimpleItemSchema,
         SkillResponseSchema,
     },
@@ -34,8 +34,8 @@ pub struct Character {
     account: Account,
     api: CharactersApi,
     my_api: MyCharacterApi,
+    maps: Maps,
     items_api: ItemsApi,
-    maps_api: MapsApi,
     resources_api: ResourcesApi,
     monsters_api: MonstersApi,
     name: String,
@@ -53,11 +53,8 @@ impl Character {
                 &account.configuration.base_path,
                 &account.configuration.bearer_access_token.clone().unwrap(),
             ),
+            maps: Maps::new(account),
             items_api: ItemsApi::new(
-                &account.configuration.base_path,
-                &account.configuration.bearer_access_token.clone().unwrap(),
-            ),
-            maps_api: MapsApi::new(
                 &account.configuration.base_path,
                 &account.configuration.bearer_access_token.clone().unwrap(),
             ),
@@ -182,7 +179,7 @@ impl Character {
         code: &str,
         quantity: i32,
     ) -> Result<
-        ActionItemBankResponseSchema,
+        BankItemTransactionResponseSchema,
         Error<ActionDepositBankMyNameActionBankDepositPostError>,
     > {
         let res = self.my_api.deposit(&self.name, code, quantity);
@@ -203,7 +200,7 @@ impl Character {
         code: &str,
         quantity: i32,
     ) -> Result<
-        ActionItemBankResponseSchema,
+        BankItemTransactionResponseSchema,
         Error<ActionWithdrawBankMyNameActionBankWithdrawPostError>,
     > {
         let res = self.my_api.withdraw(&self.name, code, quantity);
@@ -288,18 +285,7 @@ impl Character {
 
     fn closest(&self, maps: Vec<MapSchema>) -> Option<MapSchema> {
         let (x, y) = self.coordinates();
-        let mut delta_total;
-        let mut min_delta = -1;
-        let mut target_map = None;
-
-        for map in maps {
-            delta_total = i32::abs(map.x - x) + i32::abs(map.y - y);
-            if min_delta == -1 || delta_total < min_delta {
-                min_delta = delta_total;
-                target_map = Some(map);
-            }
-        }
-        target_map
+        self.maps.closest_from_amoung(x, y, maps)
     }
 
     fn get_cordinate_for_drop(&self, code: &str) -> Option<(i32, i32)> {
@@ -315,22 +301,11 @@ impl Character {
     }
 
     fn get_cordinate_for_resources(&self, code: &str) -> Option<(i32, i32)> {
-        if let Ok(maps) = self.maps_api.all(None, Some(code), None, None) {
+        if let Ok(maps) = self.maps.get_cordinate_for_resources(code) {
             let map = self.closest(maps.data).unwrap();
             return Some((map.x, map.y));
         }
         None
-    }
-
-    pub fn execute(&self, task: Task) {
-        match task.action {
-            super::task::Action::Gather => {
-                if let Some(resource) = task.resource {
-                    let (x, y) = self.get_cordinate_for_resources(&resource).unwrap();
-                }
-            }
-            super::task::Action::Fight => todo!(),
-        }
     }
 
     pub fn fight_until_unsuccessful(&self, x: i32, y: i32) {

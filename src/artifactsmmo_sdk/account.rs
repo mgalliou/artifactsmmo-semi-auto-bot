@@ -39,7 +39,7 @@ impl Account {
 
     pub fn server_time(&self) -> Option<DateTime<FixedOffset>> {
         match get_status_get(&self.configuration) {
-            Ok(s) => match DateTime::parse_from_rfc3339(&s.data.server_time.unwrap()) {
+            Ok(s) => match DateTime::parse_from_rfc3339(&s.data.server_time) {
                 Ok(t) => Some(t),
                 Err(_) => None,
             },

@@ -12,22 +12,22 @@ fn run() {
     let char5 = account.get_character(5).unwrap();
 
     let t1 = thread::spawn(move || {
-        char1.fight_until_unsuccessful(1, -1);
+        char1.fight_until_unsuccessful(0, 1);
     });
     let t2 = thread::spawn(move || {
-        char2.gather_until_code("iron_ore");
+        char2.gather_until_code("copper_ore");
         //char2.craft_all_repeat("copper")
     });
     let t3 = thread::spawn(move || {
-        char3.gather_until_code("spruce_wood");
+        char3.gather_until_code("ash_wood");
         //char3.craft_all_repeat("ash_plank")
     });
     let t4 = thread::spawn(move || {
-        char4.gather_until_code("golden_shrimp");
+        char4.gather_until_code("gudgeon");
     });
     let t5 = thread::spawn(move || {
         //char5.gather_until_unsuccessful(6, 1);
-        char5.gather_until_code("ash_wood");
+        char5.gather_until_code("copper_ore");
     });
     t1.join().unwrap();
     t2.join().unwrap();

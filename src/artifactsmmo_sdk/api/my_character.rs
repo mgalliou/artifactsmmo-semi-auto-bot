@@ -17,7 +17,7 @@ use artifactsmmo_openapi::{
         Error,
     },
     models::{
-        ActionItemBankResponseSchema, CharacterFightResponseSchema,
+        BankItemTransactionResponseSchema, CharacterFightResponseSchema,
         CharacterMovementResponseSchema, CraftingSchema, DestinationSchema, MyCharactersListSchema,
         SimpleItemSchema, SkillResponseSchema,
     },
@@ -85,7 +85,7 @@ impl MyCharacterApi {
         item_code: &str,
         quantity: i32,
     ) -> Result<
-        ActionItemBankResponseSchema,
+        BankItemTransactionResponseSchema,
         Error<ActionDepositBankMyNameActionBankDepositPostError>,
     > {
         action_deposit_bank_my_name_action_bank_deposit_post(
@@ -101,7 +101,7 @@ impl MyCharacterApi {
         item_code: &str,
         quantity: i32,
     ) -> Result<
-        ActionItemBankResponseSchema,
+        BankItemTransactionResponseSchema,
         Error<ActionWithdrawBankMyNameActionBankWithdrawPostError>,
     > {
         action_withdraw_bank_my_name_action_bank_withdraw_post(
