@@ -6,13 +6,13 @@ use artifactsmmo_openapi::{
 use super::{account::Account, api::maps::MapsApi};
 
 pub struct Maps {
-    maps_api: MapsApi,
+    api: MapsApi,
 }
 
 impl Maps {
     pub fn new(account: &Account) -> Maps {
         Maps {
-            maps_api: MapsApi::new(
+            api: MapsApi::new(
                 &account.configuration.base_path,
                 &account.configuration.bearer_access_token.clone().unwrap(),
             ),
@@ -38,6 +38,6 @@ impl Maps {
         &self,
         code: &str,
     ) -> Result<DataPageMapSchema, Error<GetAllMapsMapsGetError>> {
-        self.maps_api.all(None, Some(code), None, None)
+        self.api.all(None, Some(code), None, None)
     }
 }

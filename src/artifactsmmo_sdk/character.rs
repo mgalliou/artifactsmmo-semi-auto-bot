@@ -1,10 +1,8 @@
 use super::{
     account::Account,
-    api::{
-        characters::CharactersApi, items::ItemsApi, my_character::MyCharacterApi,
-        resources::ResourcesApi,
-    },
+    api::{characters::CharactersApi, items::ItemsApi, my_character::MyCharacterApi},
     maps::Maps,
+    resources::Resources,
 };
 use artifactsmmo_openapi::{
     apis::{
@@ -35,8 +33,8 @@ pub struct Character {
     api: CharactersApi,
     my_api: MyCharacterApi,
     maps: Maps,
+    resources: Resources,
     items_api: ItemsApi,
-    resources_api: ResourcesApi,
     name: String,
 }
 
@@ -57,10 +55,7 @@ impl Character {
                 &account.configuration.base_path,
                 &account.configuration.bearer_access_token.clone().unwrap(),
             ),
-            resources_api: ResourcesApi::new(
-                &account.configuration.base_path,
-                &account.configuration.bearer_access_token.clone().unwrap(),
-            ),
+            resources: Resources::new(account),
             name: name.to_owned(),
         }
     }
@@ -263,21 +258,6 @@ impl Character {
         Duration::default()
     }
 
-    fn ressources_dropping(&self, code: &str) -> Option<Vec<String>> {
-        let mut codes: Vec<String> = vec![];
-
-        if let Ok(resources) = self
-            .resources_api
-            .all(None, None, None, Some(code), None, None)
-        {
-            for r in resources.data {
-                codes.push(r.code)
-            }
-            return Some(codes);
-        }
-        None
-    }
-
     fn closest_map_among(&self, maps: Vec<MapSchema>) -> Option<MapSchema> {
         let (x, y) = self.coordinates();
         self.maps.closest_from_amoung(x, y, maps)
@@ -286,7 +266,7 @@ impl Character {
     fn closest_map_dropping(&self, code: &str) -> Option<(i32, i32)> {
         let (mut x, mut y): (i32, i32) = (0, 0);
 
-        if let Some(resources) = self.ressources_dropping(code) {
+        if let Some(resources) = self.resources.dropping(code) {
             for r in resources {
                 (x, y) = self.closest_map_with_resource(&r).unwrap();
             }
