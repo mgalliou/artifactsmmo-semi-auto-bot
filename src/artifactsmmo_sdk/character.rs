@@ -64,10 +64,10 @@ impl Character {
         if self.coordinates() == (x, y) {
             return true;
         }
-        self.wait_for_cooldown();
+        self.cooldown();
         match self.my_api.move_to(&self.name, x, y) {
-            Ok(_) => {
-                println!("{}: moved to {},{}", self.name, x, y);
+            Ok(res) => {
+                println!("{}: moved to {},{} ({})", self.name, x, y, res.data.destination.name);
             }
             Err(ref e) => println!("{}: error while moving: {}", self.name, e),
         }
@@ -81,7 +81,7 @@ impl Character {
     pub fn fight(
         &self,
     ) -> Result<CharacterFightResponseSchema, Error<ActionFightMyNameActionFightPostError>> {
-        self.wait_for_cooldown();
+        self.cooldown();
         let res = self.my_api.fight(&self.name);
         match res {
             Ok(ref res) => {
@@ -95,7 +95,7 @@ impl Character {
     pub fn gather(
         &self,
     ) -> Result<SkillResponseSchema, Error<ActionGatheringMyNameActionGatheringPostError>> {
-        self.wait_for_cooldown();
+        self.cooldown();
         let res = self.my_api.gather(&self.name);
         match res {
             Ok(ref res) => {
@@ -111,7 +111,7 @@ impl Character {
         code: &str,
         quantity: i32,
     ) -> Result<SkillResponseSchema, Error<ActionCraftingMyNameActionCraftingPostError>> {
-        self.wait_for_cooldown();
+        self.cooldown();
         let res = self.my_api.craft(&self.name, code, quantity);
         match res {
             Ok(_) => {
@@ -161,11 +161,11 @@ impl Character {
         BankItemTransactionResponseSchema,
         Error<ActionDepositBankMyNameActionBankDepositPostError>,
     > {
-        self.wait_for_cooldown();
+        self.cooldown();
         let res = self.my_api.deposit(&self.name, code, quantity);
         match res {
             Ok(_) => {
-                println!("{}: deposited {} {}", self.name, code, quantity);
+                println!("{}: deposited {} * {}", self.name, code, quantity);
             }
             Err(ref e) => println!("{}: error while depositing: {}", self.name, e),
         }
@@ -180,7 +180,7 @@ impl Character {
         BankItemTransactionResponseSchema,
         Error<ActionWithdrawBankMyNameActionBankWithdrawPostError>,
     > {
-        self.wait_for_cooldown();
+        self.cooldown();
         let res = self.my_api.withdraw(&self.name, code, quantity);
         match res {
             Ok(_) => {
@@ -199,8 +199,11 @@ impl Character {
         }
     }
 
-    fn wait_for_cooldown(&self) {
+    fn cooldown(&self) {
         let s = self.remaining_cooldown();
+        if s.is_zero() {
+            return;
+        }
         println!(
             "{}: cooling down for {}.{} secondes",
             self.name,
@@ -208,16 +211,6 @@ impl Character {
             s.subsec_millis()
         );
         sleep(self.remaining_cooldown());
-    }
-
-    fn cool_down(&self, s: Duration) {
-        println!(
-            "{}: cooling down for {}.{} secondes",
-            self.name,
-            s.as_secs(),
-            s.subsec_millis()
-        );
-        sleep(s);
     }
 
     pub fn inventory(&self) -> Vec<InventorySlot> {
