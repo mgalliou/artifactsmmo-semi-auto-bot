@@ -1,6 +1,6 @@
 use super::{
     account::Account,
-    api::{characters::CharactersApi, my_character::MyCharacterApi, resources},
+    api::{characters::CharactersApi, my_character::MyCharacterApi},
     items::Items,
     maps::Maps,
     monsters::Monsters,
@@ -12,7 +12,6 @@ use artifactsmmo_openapi::{
             ActionCraftingMyNameActionCraftingPostError,
             ActionDepositBankMyNameActionBankDepositPostError,
             ActionFightMyNameActionFightPostError, ActionGatheringMyNameActionGatheringPostError,
-            ActionMoveMyNameActionMovePostError,
             ActionWithdrawBankMyNameActionBankWithdrawPostError,
         },
         Error,
@@ -22,11 +21,10 @@ use artifactsmmo_openapi::{
             Cooking, Gearcrafting, Jewelrycrafting, Mining, Weaponcrafting, Woodcutting,
         },
         BankItemTransactionResponseSchema, CharacterFightResponseSchema,
-        CharacterMovementResponseSchema, InventorySlot, MapSchema, SkillResponseSchema,
+        InventorySlot, MapSchema, SkillResponseSchema,
     },
 };
 use chrono::{DateTime, FixedOffset};
-use reqwest::StatusCode;
 use std::{cmp::Ordering, option::Option, thread::sleep, time::Duration, vec::Vec};
 
 pub struct Character {
@@ -122,37 +120,6 @@ impl Character {
         res
     }
 
-    pub fn number_in_inventory(&self, code: &str) -> i32 {
-        let inv = self.inventory();
-        let mut quantity: i32;
-
-        quantity = 0;
-        for i in inv {
-            if i.code == code {
-                quantity += i.quantity;
-            }
-        }
-        quantity
-    }
-
-    pub fn craft_all(
-        &self,
-        code: &str,
-    ) -> Result<SkillResponseSchema, Error<ActionCraftingMyNameActionCraftingPostError>> {
-        let mut n = 0;
-        let mut new_n;
-
-        for i in self.items.mats_for(code).unwrap() {
-            if i.quantity <= self.number_in_inventory(&i.code) {
-                new_n = self.number_in_inventory(&i.code) / i.quantity;
-                if n == 0 || new_n < n {
-                    n = new_n;
-                }
-            }
-        }
-        self.craft(code, n)
-    }
-
     pub fn deposit(
         &self,
         code: &str,
@@ -190,6 +157,25 @@ impl Character {
         }
         res
     }
+
+    pub fn craft_all(
+        &self,
+        code: &str,
+    ) -> Result<SkillResponseSchema, Error<ActionCraftingMyNameActionCraftingPostError>> {
+        let mut n = 0;
+        let mut new_n;
+
+        for i in self.items.mats_for(code).unwrap() {
+            if i.quantity <= self.amount_in_inventory(&i.code) {
+                new_n = self.amount_in_inventory(&i.code) / i.quantity;
+                if n == 0 || new_n < n {
+                    n = new_n;
+                }
+            }
+        }
+        self.craft(code, n)
+    }
+
 
     pub fn deposit_all(&self) {
         for i in self.inventory() {
@@ -232,6 +218,20 @@ impl Character {
         i
     }
 
+    pub fn amount_in_inventory(&self, code: &str) -> i32 {
+        let inv = self.inventory();
+        let mut quantity: i32;
+
+        quantity = 0;
+        for i in inv {
+            if i.code == code {
+                quantity += i.quantity;
+            }
+        }
+        quantity
+    }
+
+
     pub fn inventory_is_full(&self) -> bool {
         self.inventory_total() == self.inventory_max_items()
     }
@@ -260,22 +260,32 @@ impl Character {
         Duration::from_secs(0)
     }
 
+    fn coordinates(&self) -> (i32, i32) {
+        let data = self.api.get(&self.name).unwrap().data;
+        (data.x, data.y)
+    }
+
+    fn level(&self) -> i32 {
+        self.api.get(&self.name).unwrap().data.level
+    }
+
+
     fn closest_map_among(&self, maps: Vec<MapSchema>) -> Option<MapSchema> {
         let (x, y) = self.coordinates();
         self.maps.closest_from_amoung(x, y, maps)
     }
 
-    fn closest_map_dropping(&self, code: &str) -> Option<(i32, i32)> {
-        let (mut x, mut y): (i32, i32) = (0, 0);
+    // fn closest_map_dropping(&self, code: &str) -> Option<(i32, i32)> {
+    //     let (mut x, mut y): (i32, i32) = (0, 0);
 
-        if let Some(resources) = self.resources.dropping(code) {
-            for r in resources {
-                (x, y) = self.closest_map_with_resource(&r).unwrap();
-            }
-            return Some((x, y));
-        }
-        None
-    }
+    //     if let Some(resources) = self.resources.dropping(code) {
+    //         for r in resources {
+    //             (x, y) = self.closest_map_with_resource(&r).unwrap();
+    //         }
+    //         return Some((x, y));
+    //     }
+    //     None
+    // }
 
     fn closest_map_with_resource(&self, code: &str) -> Option<(i32, i32)> {
         if let Ok(maps) = self.maps.with_ressource(code) {
@@ -285,63 +295,26 @@ impl Character {
         None
     }
 
-    pub fn fight_until_unsuccessful(&self, x: i32, y: i32) {
-        let _ = self.move_to(x, y);
-        loop {
-            if let Err(Error::ResponseError(res)) = self.fight() {
-                if res.status.eq(&StatusCode::from_u16(499).unwrap()) {
-                    println!("{}: needs to cooldown", self.name);
-                    self.cool_down(self.remaining_cooldown());
-                }
-                if res.status.eq(&StatusCode::from_u16(497).unwrap()) {
-                    println!("{}: inventory is full", self.name);
-                    self.move_to_bank();
-                    self.deposit_all();
-                    let _ = self.move_to(x, y);
-                }
-            }
-        }
-    }
-
-    pub fn gather_until_at(&self, x: i32, y: i32) {
-        let _ = self.move_to(x, y);
-        loop {
-            if let Err(Error::ResponseError(res)) = self.gather() {
-                if res.status.eq(&StatusCode::from_u16(499).unwrap()) {
-                    println!("{}: needs to cooldown", self.name);
-                    self.cool_down(self.remaining_cooldown());
-                }
-                if res.status.eq(&StatusCode::from_u16(497).unwrap()) {
-                    println!("{}: inventory is full", self.name);
-                    self.move_to_bank();
-                    self.deposit_all();
-                    let _ = self.move_to(x, y);
-                }
-            }
-        }
-    }
-
-    pub fn gather_until_code(&self, code: &str) {
-        let (x, y) = self.closest_map_dropping(code).unwrap();
-        let _ = self.move_to(x, y);
-        loop {
-            if let Err(Error::ResponseError(res)) = self.gather() {
-                if res.status.eq(&StatusCode::from_u16(499).unwrap()) {
-                    println!("{}: needs to cooldown", self.name);
-                    self.cool_down(self.remaining_cooldown());
-                }
-                if res.status.eq(&StatusCode::from_u16(497).unwrap()) {
-                    println!("{}: inventory is full", self.name);
-                    self.move_to_bank();
-                    self.deposit_all();
-                    let _ = self.move_to(x, y);
-                }
-            }
-        }
-    }
+    // pub fn fight_until_unsuccessful(&self, x: i32, y: i32) {
+    //     let _ = self.move_to(x, y);
+    //     loop {
+    //         if let Err(Error::ResponseError(res)) = self.fight() {
+    //             if res.status.eq(&StatusCode::from_u16(499).unwrap()) {
+    //                 println!("{}: needs to cooldown", self.name);
+    //                 self.cool_down(self.remaining_cooldown());
+    //             }
+    //             if res.status.eq(&StatusCode::from_u16(497).unwrap()) {
+    //                 println!("{}: inventory is full", self.name);
+    //                 self.move_to_bank();
+    //                 self.deposit_all();
+    //                 let _ = self.move_to(x, y);
+    //             }
+    //         }
+    //     }
+    // }
 
     pub fn craft_all_repeat(&self, code: &str) {
-        self.cool_down(self.remaining_cooldown());
+        self.cooldown();
         loop {
             self.move_to_bank();
             self.deposit_all();
@@ -359,11 +332,6 @@ impl Character {
             };
             let _ = self.craft_all(code);
         }
-    }
-
-    fn coordinates(&self) -> (i32, i32) {
-        let data = self.api.get(&self.name).unwrap().data;
-        (data.x, data.y)
     }
 
     pub fn run(&self, role: Role) {
@@ -415,10 +383,6 @@ impl Character {
                 Role::Crafter => todo!(),
             };
         }
-    }
-
-    fn level(&self) -> i32 {
-        self.api.get(&self.name).unwrap().data.level
     }
 }
 
