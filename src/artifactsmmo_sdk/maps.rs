@@ -40,4 +40,11 @@ impl Maps {
     ) -> Result<DataPageMapSchema, Error<GetAllMapsMapsGetError>> {
         self.api.all(None, Some(code), None, None)
     }
+
+    pub fn with_monster(
+        &self,
+        code: &str,
+    ) -> Result<DataPageMapSchema, Error<GetAllMapsMapsGetError>> {
+        self.api.all(None, Some(code), None, None)
+    }
 }

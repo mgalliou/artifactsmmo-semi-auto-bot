@@ -1,8 +1,9 @@
 use super::{
     account::Account,
-    api::{characters::CharactersApi, my_character::MyCharacterApi},
+    api::{characters::CharactersApi, my_character::MyCharacterApi, resources},
     items::Items,
     maps::Maps,
+    monsters::Monsters,
     resources::Resources,
 };
 use artifactsmmo_openapi::{
@@ -35,6 +36,7 @@ pub struct Character {
     maps: Maps,
     resources: Resources,
     items: Items,
+    monsters: Monsters,
     name: String,
 }
 
@@ -53,6 +55,7 @@ impl Character {
             maps: Maps::new(account),
             items: Items::new(account),
             resources: Resources::new(account),
+            monsters: Monsters::new(account),
             name: name.to_owned(),
         }
     }
@@ -62,13 +65,11 @@ impl Character {
         x: i32,
         y: i32,
     ) -> Result<CharacterMovementResponseSchema, Error<ActionMoveMyNameActionMovePostError>> {
+        self.wait_for_cooldown();
         let res = self.my_api.move_to(&self.name, x, y);
         match res {
-            Ok(ref res) => {
+            Ok(_) => {
                 println!("{}: moved to {},{}", self.name, x, y);
-                self.cool_down(Duration::from_secs(
-                    res.data.cooldown.remaining_seconds.try_into().unwrap(),
-                ))
             }
             Err(ref e) => println!("{}: error while moving: {}", self.name, e),
         }
@@ -82,13 +83,11 @@ impl Character {
     pub fn fight(
         &self,
     ) -> Result<CharacterFightResponseSchema, Error<ActionFightMyNameActionFightPostError>> {
+        self.wait_for_cooldown();
         let res = self.my_api.fight(&self.name);
         match res {
             Ok(ref res) => {
                 println!("{} fought and {:?}", self.name, res.data.fight.result);
-                self.cool_down(Duration::from_secs(
-                    res.data.cooldown.remaining_seconds.try_into().unwrap(),
-                ))
             }
             Err(ref e) => println!("{}: error during fight: {}", self.name, e),
         };
@@ -98,13 +97,11 @@ impl Character {
     pub fn gather(
         &self,
     ) -> Result<SkillResponseSchema, Error<ActionGatheringMyNameActionGatheringPostError>> {
+        self.wait_for_cooldown();
         let res = self.my_api.gather(&self.name);
         match res {
             Ok(ref res) => {
                 println!("{}: gathered {:?}", self.name, res.data.details.items);
-                self.cool_down(Duration::from_secs(
-                    res.data.cooldown.remaining_seconds.try_into().unwrap(),
-                ))
             }
             Err(ref e) => println!("{}: error during gathering: {}", self.name, e),
         };
@@ -116,13 +113,11 @@ impl Character {
         code: &str,
         quantity: i32,
     ) -> Result<SkillResponseSchema, Error<ActionCraftingMyNameActionCraftingPostError>> {
+        self.wait_for_cooldown();
         let res = self.my_api.craft(&self.name, code, quantity);
         match res {
-            Ok(ref res) => {
+            Ok(_) => {
                 println!("{}: crafted {}, {}", self.name, quantity, code);
-                self.cool_down(Duration::from_secs(
-                    res.data.cooldown.remaining_seconds.try_into().unwrap(),
-                ))
             }
             Err(ref e) => println!("{}: error during crafting: {}", self.name, e),
         };
@@ -168,13 +163,11 @@ impl Character {
         BankItemTransactionResponseSchema,
         Error<ActionDepositBankMyNameActionBankDepositPostError>,
     > {
+        self.wait_for_cooldown();
         let res = self.my_api.deposit(&self.name, code, quantity);
         match res {
-            Ok(ref res) => {
+            Ok(_) => {
                 println!("{}: deposited {} {}", self.name, code, quantity);
-                self.cool_down(Duration::from_secs(
-                    res.data.cooldown.remaining_seconds.try_into().unwrap(),
-                ))
             }
             Err(ref e) => println!("{}: error while depositing: {}", self.name, e),
         }
@@ -189,13 +182,11 @@ impl Character {
         BankItemTransactionResponseSchema,
         Error<ActionWithdrawBankMyNameActionBankWithdrawPostError>,
     > {
+        self.wait_for_cooldown();
         let res = self.my_api.withdraw(&self.name, code, quantity);
         match res {
-            Ok(ref res) => {
+            Ok(_) => {
                 println!("{}: withdrawed {} {}", self.name, code, quantity);
-                self.cool_down(Duration::from_secs(
-                    res.data.cooldown.remaining_seconds.try_into().unwrap(),
-                ))
             }
             Err(ref e) => println!("{}: error while withdrawing: {}", self.name, e),
         }
@@ -208,6 +199,17 @@ impl Character {
                 let _ = self.deposit(&i.code, i.quantity);
             }
         }
+    }
+
+    fn wait_for_cooldown(&self) {
+        let s = self.remaining_cooldown();
+        println!(
+            "{}: cooling down for {}.{} secondes",
+            self.name,
+            s.as_secs(),
+            s.subsec_millis()
+        );
+        sleep(self.remaining_cooldown());
     }
 
     fn cool_down(&self, s: Duration) {
@@ -228,6 +230,19 @@ impl Character {
     pub fn inventory_max_items(&self) -> i32 {
         let char = self.api.get(&self.name).unwrap();
         char.data.inventory_max_items
+    }
+
+    pub fn inventory_total(&self) -> i32 {
+        let mut i = 0;
+
+        for item in self.inventory() {
+            i += item.quantity
+        }
+        i
+    }
+
+    pub fn inventory_is_full(&self) -> bool {
+        self.inventory_total() == self.inventory_max_items()
     }
 
     pub fn cooldown_expiration(&self) -> Option<DateTime<FixedOffset>> {
@@ -251,7 +266,7 @@ impl Character {
                 }
             }
         };
-        Duration::default()
+        Duration::from_secs(0)
     }
 
     fn closest_map_among(&self, maps: Vec<MapSchema>) -> Option<MapSchema> {
@@ -359,4 +374,73 @@ impl Character {
         let data = self.api.get(&self.name).unwrap().data;
         (data.x, data.y)
     }
+
+    pub fn run(&self, role: Role) {
+        self.move_to_bank();
+        self.deposit_all();
+        loop {
+            if self.inventory_is_full() {
+                self.move_to_bank();
+                self.deposit_all();
+            }
+            match role {
+                Role::Fighter => {
+                    let monster = self.monsters.below_or_equal(self.level()).unwrap();
+                    let (x, y) = self.closest_map_with_resource(&monster.code).unwrap();
+                    let _ = self.move_to(x, y);
+                    let _ = self.fight();
+                }
+                Role::Miner => {
+                    let resource = self
+                        .resources
+                        .below_or_equal(self.level(), "mining")
+                        .unwrap();
+                    let (x, y) = self.closest_map_with_resource(&resource.code).unwrap();
+                    let _ = self.move_to(x, y);
+                    let _ = self.gather();
+                }
+                Role::Woodcutter => {
+                    let resource = self
+                        .resources
+                        .below_or_equal(self.level(), "woodcutting")
+                        .unwrap();
+                    let (x, y) = self.closest_map_with_resource(&resource.code).unwrap();
+                    let _ = self.move_to(x, y);
+                    let _ = self.gather();
+                }
+                Role::Fisher => {
+                    let resource = self
+                        .resources
+                        .below_or_equal(self.level(), "fishing")
+                        .unwrap();
+                    let (x, y) = self.closest_map_with_resource(&resource.code).unwrap();
+                    let _ = self.move_to(x, y);
+                    let _ = self.gather();
+                }
+                Role::Crafter => todo!(),
+            };
+        }
+    }
+
+    fn level(&self) -> i32 {
+        self.api.get(&self.name).unwrap().data.level
+    }
 }
+
+pub enum Role {
+    Fighter,
+    Miner,
+    Woodcutter,
+    Fisher,
+    Crafter,
+}
+
+pub enum Action {
+    Fight,
+    Gather,
+    Craft,
+    Withdraw,
+    Deposit,
+}
+
+pub struct Order {}

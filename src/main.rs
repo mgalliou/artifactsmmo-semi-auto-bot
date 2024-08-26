@@ -1,4 +1,4 @@
-use artifactsmmo_playground::artifactsmmo_sdk::account::Account;
+use artifactsmmo_playground::artifactsmmo_sdk::{account::Account, character::Role};
 use std::thread;
 
 fn run() {
@@ -12,22 +12,20 @@ fn run() {
     let char5 = account.get_character(5).unwrap();
 
     let t1 = thread::spawn(move || {
-        char1.fight_until_unsuccessful(0, 1);
+        char1.run(Role::Fighter);
     });
     let t2 = thread::spawn(move || {
-        char2.gather_until_code("copper_ore");
-        //char2.craft_all_repeat("copper")
+        char2.run(Role::Miner);
     });
     let t3 = thread::spawn(move || {
-        char3.gather_until_code("ash_wood");
-        //char3.craft_all_repeat("ash_plank")
+        char3.run(Role::Woodcutter)
     });
     let t4 = thread::spawn(move || {
-        char4.gather_until_code("gudgeon");
+        char4.run(Role::Fisher)
     });
     let t5 = thread::spawn(move || {
         //char5.gather_until_unsuccessful(6, 1);
-        char5.gather_until_code("copper_ore");
+        char5.run(Role::Miner)
     });
     t1.join().unwrap();
     t2.join().unwrap();
