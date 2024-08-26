@@ -4,3 +4,4 @@ pub mod character;
 pub mod maps;
 pub mod resources;
 pub mod items;
+pub mod monsters;
