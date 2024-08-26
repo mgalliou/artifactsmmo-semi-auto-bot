@@ -21,8 +21,7 @@ use artifactsmmo_openapi::{
             Cooking, Gearcrafting, Jewelrycrafting, Mining, Weaponcrafting, Woodcutting,
         },
         BankItemTransactionResponseSchema, CharacterFightResponseSchema,
-        CharacterMovementResponseSchema, InventorySlot, MapSchema, SimpleItemSchema,
-        SkillResponseSchema,
+        CharacterMovementResponseSchema, InventorySlot, MapSchema, SkillResponseSchema,
     },
 };
 use chrono::{DateTime, FixedOffset};
