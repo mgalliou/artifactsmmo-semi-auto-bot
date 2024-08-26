@@ -11,7 +11,9 @@ use artifactsmmo_openapi::{
         my_characters_api::{
             ActionCraftingMyNameActionCraftingPostError,
             ActionDepositBankMyNameActionBankDepositPostError,
-            ActionFightMyNameActionFightPostError, ActionGatheringMyNameActionGatheringPostError,
+            ActionEquipItemMyNameActionEquipPostError, ActionFightMyNameActionFightPostError,
+            ActionGatheringMyNameActionGatheringPostError,
+            ActionUnequipItemMyNameActionUnequipPostError,
             ActionWithdrawBankMyNameActionBankWithdrawPostError,
         },
         Error,
@@ -20,8 +22,9 @@ use artifactsmmo_openapi::{
         craft_schema::Skill::{
             Cooking, Gearcrafting, Jewelrycrafting, Mining, Weaponcrafting, Woodcutting,
         },
-        BankItemTransactionResponseSchema, CharacterFightResponseSchema,
-        InventorySlot, MapSchema, SkillResponseSchema,
+        equip_schema, unequip_schema, BankItemTransactionResponseSchema,
+        CharacterFightResponseSchema, EquipmentResponseSchema, InventorySlot, MapSchema,
+        SkillResponseSchema,
     },
 };
 use chrono::{DateTime, FixedOffset};
@@ -65,7 +68,10 @@ impl Character {
         self.cooldown();
         match self.my_api.move_to(&self.name, x, y) {
             Ok(res) => {
-                println!("{}: moved to {},{} ({})", self.name, x, y, res.data.destination.name);
+                println!(
+                    "{}: moved to {},{} ({})",
+                    self.name, x, y, res.data.destination.name
+                );
             }
             Err(ref e) => println!("{}: error while moving: {}", self.name, e),
         }
@@ -139,6 +145,43 @@ impl Character {
         res
     }
 
+    pub fn equip(
+        &self,
+        code: &str,
+        slot: equip_schema::Slot,
+    ) -> Result<EquipmentResponseSchema, Error<ActionEquipItemMyNameActionEquipPostError>> {
+        self.cooldown();
+        let res = self.my_api.equip(&self.name, code, slot, None);
+        match res {
+            Ok(ref res) => {
+                println!(
+                    "{}: equiped {} in {:?} slot",
+                    self.name, res.data.item.code, res.data.slot
+                );
+            }
+            Err(ref e) => println!("{}: error while unequiping: {}", self.name, e),
+        }
+        res
+    }
+
+    pub fn unequip(
+        &self,
+        slot: unequip_schema::Slot,
+    ) -> Result<EquipmentResponseSchema, Error<ActionUnequipItemMyNameActionUnequipPostError>> {
+        self.cooldown();
+        let res = self.my_api.unequip(&self.name, slot, None);
+        match res {
+            Ok(ref res) => {
+                println!(
+                    "{}: unequiped {} from {:?} slot",
+                    self.name, res.data.item.code, res.data.slot
+                );
+            }
+            Err(ref e) => println!("{}: error while unequiping: {}", self.name, e),
+        }
+        res
+    }
+
     pub fn withdraw(
         &self,
         code: &str,
@@ -175,7 +218,6 @@ impl Character {
         }
         self.craft(code, n)
     }
-
 
     pub fn deposit_all(&self) {
         for i in self.inventory() {
@@ -231,7 +273,6 @@ impl Character {
         quantity
     }
 
-
     pub fn inventory_is_full(&self) -> bool {
         self.inventory_total() == self.inventory_max_items()
     }
@@ -268,7 +309,6 @@ impl Character {
     fn level(&self) -> i32 {
         self.api.get(&self.name).unwrap().data.level
     }
-
 
     fn closest_map_among(&self, maps: Vec<MapSchema>) -> Option<MapSchema> {
         let (x, y) = self.coordinates();
