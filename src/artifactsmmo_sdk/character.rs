@@ -1,8 +1,8 @@
 use super::{
     account::Account,
     api::{
-        characters::CharactersApi, items::ItemsApi, monsters::MonstersApi,
-        my_character::MyCharacterApi, resources::ResourcesApi,
+        characters::CharactersApi, items::ItemsApi, my_character::MyCharacterApi,
+        resources::ResourcesApi,
     },
     maps::Maps,
 };
@@ -37,7 +37,6 @@ pub struct Character {
     maps: Maps,
     items_api: ItemsApi,
     resources_api: ResourcesApi,
-    monsters_api: MonstersApi,
     name: String,
 }
 
@@ -59,10 +58,6 @@ impl Character {
                 &account.configuration.bearer_access_token.clone().unwrap(),
             ),
             resources_api: ResourcesApi::new(
-                &account.configuration.base_path,
-                &account.configuration.bearer_access_token.clone().unwrap(),
-            ),
-            monsters_api: MonstersApi::new(
                 &account.configuration.base_path,
                 &account.configuration.bearer_access_token.clone().unwrap(),
             ),

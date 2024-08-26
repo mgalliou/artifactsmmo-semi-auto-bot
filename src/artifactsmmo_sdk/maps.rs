@@ -6,14 +6,12 @@ use artifactsmmo_openapi::{
 use super::{account::Account, api::maps::MapsApi};
 
 pub struct Maps {
-    account: Account,
     maps_api: MapsApi,
 }
 
 impl Maps {
     pub fn new(account: &Account) -> Maps {
         Maps {
-            account: account.clone(),
             maps_api: MapsApi::new(
                 &account.configuration.base_path,
                 &account.configuration.bearer_access_token.clone().unwrap(),
