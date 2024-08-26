@@ -1,5 +1,9 @@
 use super::{
-    account::Account, api::{characters::CharactersApi, my_character::MyCharacterApi}, items::Items, maps::Maps, resources::Resources
+    account::Account,
+    api::{characters::CharactersApi, my_character::MyCharacterApi},
+    items::Items,
+    maps::Maps,
+    resources::Resources,
 };
 use artifactsmmo_openapi::{
     apis::{

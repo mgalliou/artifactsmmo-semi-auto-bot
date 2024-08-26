@@ -18,7 +18,7 @@ impl Monsters {
     pub fn dropping(&self, code: &str) -> Option<Vec<MonsterSchema>> {
         if let Ok(schemas) = self.api.all(None, None, Some(code), None, None) {
             return Some(schemas.data);
-        } 
+        }
         None
     }
 }

@@ -2,7 +2,6 @@ use artifactsmmo_openapi::models::{craft_schema::Skill, CraftSchema, SimpleItemS
 
 use super::{account::Account, api::items::ItemsApi};
 
-
 pub struct Items {
     api: ItemsApi,
 }
@@ -20,7 +19,7 @@ impl Items {
     pub fn craft_schema(&self, code: &str) -> Option<CraftSchema> {
         if let Ok(info) = self.api.info(code) {
             if let Some(Some(craft)) = info.data.item.craft {
-                return Some(*craft)
+                return Some(*craft);
             }
         };
         None
