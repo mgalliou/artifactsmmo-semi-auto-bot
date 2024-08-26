@@ -60,20 +60,18 @@ impl Character {
         }
     }
 
-    pub fn move_to(
-        &self,
-        x: i32,
-        y: i32,
-    ) -> Result<CharacterMovementResponseSchema, Error<ActionMoveMyNameActionMovePostError>> {
+    pub fn move_to(&self, x: i32, y: i32) -> bool {
+        if self.coordinates() == (x, y) {
+            return true;
+        }
         self.wait_for_cooldown();
-        let res = self.my_api.move_to(&self.name, x, y);
-        match res {
+        match self.my_api.move_to(&self.name, x, y) {
             Ok(_) => {
                 println!("{}: moved to {},{}", self.name, x, y);
             }
             Err(ref e) => println!("{}: error while moving: {}", self.name, e),
         }
-        res
+        false
     }
 
     fn move_to_bank(&self) {
@@ -387,8 +385,9 @@ impl Character {
                 Role::Fighter => {
                     let monster = self.monsters.below_or_equal(self.level()).unwrap();
                     let (x, y) = self.closest_map_with_resource(&monster.code).unwrap();
-                    let _ = self.move_to(x, y);
-                    let _ = self.fight();
+                    if self.move_to(x, y) {
+                        let _ = self.fight();
+                    }
                 }
                 Role::Miner => {
                     let resource = self
@@ -396,8 +395,9 @@ impl Character {
                         .below_or_equal(self.level(), "mining")
                         .unwrap();
                     let (x, y) = self.closest_map_with_resource(&resource.code).unwrap();
-                    let _ = self.move_to(x, y);
-                    let _ = self.gather();
+                    if self.move_to(x, y) {
+                        let _ = self.gather();
+                    }
                 }
                 Role::Woodcutter => {
                     let resource = self
@@ -405,8 +405,9 @@ impl Character {
                         .below_or_equal(self.level(), "woodcutting")
                         .unwrap();
                     let (x, y) = self.closest_map_with_resource(&resource.code).unwrap();
-                    let _ = self.move_to(x, y);
-                    let _ = self.gather();
+                    if self.move_to(x, y) {
+                        let _ = self.gather();
+                    }
                 }
                 Role::Fisher => {
                     let resource = self
@@ -414,8 +415,9 @@ impl Character {
                         .below_or_equal(self.level(), "fishing")
                         .unwrap();
                     let (x, y) = self.closest_map_with_resource(&resource.code).unwrap();
-                    let _ = self.move_to(x, y);
-                    let _ = self.gather();
+                    if self.move_to(x, y) {
+                        let _ = self.gather();
+                    }
                 }
                 Role::Crafter => todo!(),
             };
