@@ -15,9 +15,6 @@ impl Bank {
     }
 
     pub fn has_item(&self, code: &str) -> bool {
-        match self.api.items(Some(code), None, None) {
-            Ok(item) => true,
-            Err(_) => false,
-        }
+        self.api.items(Some(code), None, None).is_ok()
     }
 }

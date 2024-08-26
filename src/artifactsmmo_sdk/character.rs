@@ -22,7 +22,11 @@ use artifactsmmo_openapi::{
         Error,
     },
     models::{
-        craft_schema, equip_schema, unequip_schema, BankItemTransactionResponseSchema, CharacterFightResponseSchema, CharacterResponseSchema, EquipmentResponseSchema, InventorySlot, ItemResponseSchema, MapSchema, SkillResponseSchema
+        craft_schema,
+        equip_schema::{self, Slot},
+        unequip_schema, BankItemTransactionResponseSchema, CharacterFightResponseSchema,
+        CharacterResponseSchema, EquipmentResponseSchema, InventorySlot, ItemSchema, MapSchema,
+        SingleItemSchema, SkillResponseSchema,
     },
 };
 use chrono::{DateTime, FixedOffset};
@@ -402,36 +406,77 @@ impl Character {
         }
     }
 
-    pub fn improve_weapon(&self) {
-        let equiped_weapon_code = self.info().unwrap().data.weapon_slot;
-        let equiped_weapon_schema = self.items.api.info(&equiped_weapon_code).unwrap();
-        let equipable_weapons = self
-            .items
-            .api
-            .all(
-                Some(equiped_weapon_schema.data.item.level),
-                Some(self.level()),
-                None,
-                Some(&Type::Weapon.to_string()),
-                None,
-                None,
-                None,
-                None,
-            )
-            .unwrap();
-        let mut best_equipable_weapon_in_bank: Option<String> = None;
-        for weapon in equipable_weapons.data {
-            if self.bank.has_item(&weapon.code)
-                && self.items.damages(&equiped_weapon_code).unwrap()
-                    < self.items.damages(&weapon.code).unwrap()
-            {
-                best_equipable_weapon_in_bank = Some(weapon.code.clone());
-            };
+    pub fn weapons_upgrades(&self) -> Option<Vec<ItemSchema>> {
+        let equiped_weapon = self.equiped_in(Slot::Weapon);
+        let min_level = equiped_weapon.map(|equiped_weapon| equiped_weapon.item.level);
+        match self.items.api.all(
+            min_level,
+            Some(self.level()),
+            None,
+            Some(&Type::Weapon.to_string()),
+            None,
+            None,
+            None,
+            None,
+        ) {
+            Ok(items) => Some(items.data),
+            Err(_) => None,
         }
-        if let Some(code) = best_equipable_weapon_in_bank {
+    }
+
+    pub fn equiped_in(&self, slot: Slot) -> Option<Box<SingleItemSchema>> {
+        let data = self.info().unwrap().data;
+        let code = match slot {
+            Slot::Weapon => data.weapon_slot,
+            Slot::Shield => data.shield_slot,
+            Slot::Helmet => data.helmet_slot,
+            Slot::BodyArmor => data.body_armor_slot,
+            Slot::LegArmor => data.leg_armor_slot,
+            Slot::Boots => data.boots_slot,
+            Slot::Ring1 => data.ring1_slot,
+            Slot::Ring2 => data.ring2_slot,
+            Slot::Amulet => data.amulet_slot,
+            Slot::Artifact1 => data.artifact1_slot,
+            Slot::Artifact2 => data.artifact2_slot,
+            Slot::Artifact3 => data.artifact3_slot,
+            Slot::Consumable1 => data.consumable1_slot,
+            Slot::Consumable2 => data.consumable2_slot,
+        };
+        match self.items.api.info(&code) {
+            Ok(code) => Some(code.data),
+            Err(_) => None,
+        }
+    }
+
+    pub fn weapon_damage(&self) -> i32 {
+        match &self.equiped_in(Slot::Weapon) {
+            Some(weapon) => self.items.damages(&weapon.item.code),
+            None => 0,
+        }
+    }
+
+    pub fn weapon_upgrade_in_bank(&self) -> Option<String> {
+        let mut weapon_upgrade_in_bank: Option<String> = None;
+
+        if let Some(weapon_upgrade) = self.weapons_upgrades() {
+            for weapon in weapon_upgrade {
+                if self.bank.has_item(&weapon.code)
+                    && self.weapon_damage() < self.items.damages(&weapon.code)
+                {
+                    weapon_upgrade_in_bank = Some(weapon.code.clone());
+                };
+            }
+        }
+        weapon_upgrade_in_bank
+    }
+
+    pub fn improve_weapon(&self) {
+        if let Some(code) = self.weapon_upgrade_in_bank() {
             self.move_to_bank();
-            let _ = self.unequip(unequip_schema::Slot::Weapon);
-            let _ = self.deposit(&equiped_weapon_code, 1);
+            if let Some(equiped_weapon) = &self.equiped_in(Slot::Weapon) {
+                let _ = self.unequip(unequip_schema::Slot::Weapon);
+                let _ = self.deposit(&equiped_weapon.item.code, 1);
+            }
             let _ = self.withdraw(&code, 1);
             let _ = self.equip(&code, equip_schema::Slot::Weapon);
         }

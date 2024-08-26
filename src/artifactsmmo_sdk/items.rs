@@ -1,8 +1,8 @@
 use artifactsmmo_openapi::models::{
-    craft_schema::Skill, CraftSchema, ItemEffectSchema, ItemSchema, SimpleItemSchema
+    craft_schema::Skill, CraftSchema, ItemEffectSchema, ItemSchema, SimpleItemSchema,
 };
 use enum_stringify::EnumStringify;
-use strum_macros::{AsRefStr, EnumIter, EnumString};
+use strum_macros::EnumIter;
 
 use super::{account::Account, api::items::ItemsApi};
 
@@ -20,13 +20,13 @@ impl Items {
         }
     }
 
-    pub fn best_equipable_at_level(&self, level: i32, r#type: Type) -> Option<Vec<ItemSchema>> {
-        let mut highest_lvl = 0;
-        let mut best_schemas: Vec<ItemSchema> = vec![];
+    // pub fn best_equipable_at_level(&self, level: i32, r#type: Type) -> Option<Vec<ItemSchema>> {
+    //     let mut highest_lvl = 0;
+    //     let mut best_schemas: Vec<ItemSchema> = vec![];
 
-        todo!();
-        best_schemas;
-    }
+    //     todo!();
+    //     best_schemas;
+    // }
 
     pub fn best_craftable_at_level(&self, level: i32, skill: &str) -> Option<Vec<ItemSchema>> {
         let mut highest_lvl = 0;
@@ -72,24 +72,23 @@ impl Items {
         }
     }
 
-    pub fn effects(&self, code: &str) -> Option<Vec<ItemEffectSchema>> {
+    pub fn effects_of(&self, code: &str) -> Option<Vec<ItemEffectSchema>> {
         match self.api.info(code) {
             Ok(info) => info.data.item.effects,
             Err(_) => None,
         }
     }
 
-    pub fn damages(&self, code: &str) -> Option<i32> {
+    pub fn damages(&self, code: &str) -> i32 {
         let mut total = 0;
-        for effect in self.effects(code)? {
-            if effect.name.starts_with("attack_"){
-                total += effect.value;
-            }
-            if total > 0 {
-                return Some(total)
+        if let Some(effects) = self.effects_of(code) {
+            for effect in effects {
+                if effect.name.starts_with("attack_") {
+                    total += effect.value;
+                }
             }
         }
-        None
+        total
     }
 }
 
