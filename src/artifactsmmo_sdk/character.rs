@@ -1,8 +1,5 @@
 use super::{
-    account::Account,
-    api::{characters::CharactersApi, items::ItemsApi, my_character::MyCharacterApi},
-    maps::Maps,
-    resources::Resources,
+    account::Account, api::{characters::CharactersApi, my_character::MyCharacterApi}, items::Items, maps::Maps, resources::Resources
 };
 use artifactsmmo_openapi::{
     apis::{
@@ -34,7 +31,7 @@ pub struct Character {
     my_api: MyCharacterApi,
     maps: Maps,
     resources: Resources,
-    items_api: ItemsApi,
+    items: Items,
     name: String,
 }
 
@@ -51,10 +48,7 @@ impl Character {
                 &account.configuration.bearer_access_token.clone().unwrap(),
             ),
             maps: Maps::new(account),
-            items_api: ItemsApi::new(
-                &account.configuration.base_path,
-                &account.configuration.bearer_access_token.clone().unwrap(),
-            ),
+            items: Items::new(account),
             resources: Resources::new(account),
             name: name.to_owned(),
         }
@@ -149,11 +143,10 @@ impl Character {
         &self,
         code: &str,
     ) -> Result<SkillResponseSchema, Error<ActionCraftingMyNameActionCraftingPostError>> {
-        let info = self.items_api.info(code).unwrap();
         let mut n = 0;
         let mut new_n;
 
-        for i in info.data.item.craft.unwrap().unwrap().items.unwrap() {
+        for i in self.items.mats_for(code).unwrap() {
             if i.quantity <= self.number_in_inventory(&i.code) {
                 new_n = self.number_in_inventory(&i.code) / i.quantity;
                 if n == 0 || new_n < n {
@@ -343,12 +336,11 @@ impl Character {
         loop {
             self.move_to_bank();
             self.deposit_all();
-            let required_items = self.get_required_item_for(code).unwrap();
-            let info = self.items_api.info(code).unwrap();
+            let required_items = self.items.mats_for(code).unwrap();
             for i in required_items {
                 let _ = self.withdraw(&i.code, self.inventory_max_items());
             }
-            let _ = match info.data.item.craft.unwrap().unwrap().skill.unwrap() {
+            let _ = match self.items.skill_to_craft(code).unwrap() {
                 Weaponcrafting => self.move_to(2, 1),
                 Gearcrafting => self.move_to(2, 2),
                 Jewelrycrafting => self.move_to(1, 3),
@@ -357,17 +349,6 @@ impl Character {
                 Mining => self.move_to(1, 5),
             };
             let _ = self.craft_all(code);
-        }
-    }
-
-    fn get_required_item_for(&self, code: &str) -> Option<Vec<SimpleItemSchema>> {
-        match self.items_api.info(code) {
-            Ok(info) => match info.data.item.craft {
-                Some(Some(craft)) => craft.items,
-                Some(None) => None,
-                None => None,
-            },
-            Err(_) => None,
         }
     }
 
