@@ -1,4 +1,6 @@
-use artifactsmmo_openapi::models::{craft_schema::Skill, CraftSchema, SimpleItemSchema};
+use artifactsmmo_openapi::models::{
+    craft_schema::Skill, CraftSchema, ItemSchema, SimpleItemSchema,
+};
 
 use super::{account::Account, api::items::ItemsApi};
 
@@ -13,6 +15,27 @@ impl Items {
                 &account.configuration.base_path,
                 &account.configuration.bearer_access_token.clone().unwrap(),
             ),
+        }
+    }
+
+    pub fn best_craftable_at_level(&self, level: i32, skill: &str) -> Option<Vec<ItemSchema>> {
+        let mut highest_lvl = 0;
+        let mut best_schemas: Vec<ItemSchema> = vec![];
+
+        match self
+            .api
+            .all(None, Some(level), None, None, Some(skill), None, None, None)
+        {
+            Ok(schemas) => { 
+                for schema in schemas.data {
+                    if highest_lvl == 0 || highest_lvl <= schema.level {
+                        highest_lvl = schema.level;
+                        best_schemas.push(schema);
+                    }
+                };
+                Some(best_schemas)
+            },
+            _ => None,
         }
     }
 

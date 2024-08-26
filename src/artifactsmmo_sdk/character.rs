@@ -20,7 +20,7 @@ use artifactsmmo_openapi::{
     },
     models::{
         craft_schema::Skill::{
-            Cooking, Gearcrafting, Jewelrycrafting, Mining, Weaponcrafting, Woodcutting,
+            self, Cooking, Gearcrafting, Jewelrycrafting, Mining, Weaponcrafting, Woodcutting,
         },
         equip_schema, unequip_schema, BankItemTransactionResponseSchema,
         CharacterFightResponseSchema, EquipmentResponseSchema, InventorySlot, MapSchema,
@@ -140,7 +140,10 @@ impl Character {
             Ok(_) => {
                 println!("{}: deposited {} * {}", self.name, code, quantity);
             }
-            Err(ref e) => println!("{}: error while depositing: {}", self.name, e),
+            Err(ref e) => println!(
+                "{}: error while depositing {} * {}: {}",
+                self.name, code, quantity, e
+            ),
         }
         res
     }
@@ -196,7 +199,10 @@ impl Character {
             Ok(_) => {
                 println!("{}: withdrawed {} {}", self.name, code, quantity);
             }
-            Err(ref e) => println!("{}: error while withdrawing: {}", self.name, e),
+            Err(ref e) => println!(
+                "{}: error while withdrawing {} * {}: {}",
+                self.name, code, quantity, e
+            ),
         }
         res
     }
@@ -221,7 +227,7 @@ impl Character {
 
     pub fn deposit_all(&self) {
         for i in self.inventory() {
-            if i.quantity > 1 {
+            if i.quantity > 0 {
                 let _ = self.deposit(&i.code, i.quantity);
             }
         }
@@ -277,6 +283,11 @@ impl Character {
         self.inventory_total() == self.inventory_max_items()
     }
 
+    pub fn weapon_equiped(&self) -> String {
+        let char = self.api.get(&self.name).unwrap();
+        char.data.weapon_slot
+    }
+
     pub fn cooldown_expiration(&self) -> Option<DateTime<FixedOffset>> {
         match self.api.get(&self.name) {
             Ok(res) => match res.data.cooldown_expiration {
@@ -308,6 +319,18 @@ impl Character {
 
     fn level(&self) -> i32 {
         self.api.get(&self.name).unwrap().data.level
+    }
+
+    fn skill_level(&self, skill: Skill) -> i32 {
+        let data = self.api.get(&self.name).unwrap().data;
+        match skill {
+            Weaponcrafting => data.weaponcrafting_level,
+            Gearcrafting => data.gearcrafting_level,
+            Jewelrycrafting => data.jewelrycrafting_level,
+            Cooking => data.cooking_level,
+            Woodcutting => data.woodcutting_level,
+            Mining => data.mining_level,
+        }
     }
 
     fn closest_map_among(&self, maps: Vec<MapSchema>) -> Option<MapSchema> {
@@ -376,6 +399,9 @@ impl Character {
 
     pub fn run(&self, role: Role) {
         self.move_to_bank();
+        if Role::Fighter != role {
+            let _ = self.unequip(unequip_schema::Slot::Weapon);
+        };
         self.deposit_all();
         loop {
             if self.inventory_is_full() {
@@ -420,18 +446,37 @@ impl Character {
                         let _ = self.gather();
                     }
                 }
-                Role::Crafter => todo!(),
+                Role::Weaponcrafter => {
+                    let items = self
+                        .items
+                        .best_craftable_at_level(self.skill_level(Weaponcrafting), "weaponcrafting")
+                        .unwrap();
+                    for item in &items {
+                        println!("{} withdrawing mats for {}", self.name, item.code);
+                        let mats = self.items.mats_for(&item.code).unwrap();
+                        for mat in mats {
+                            let _ = self.withdraw(&mat.code, mat.quantity);
+                        }
+                    }
+                    self.move_to(2, 1);
+                    for item in items {
+                        let _ = self.craft_all(&item.code);
+                    }
+                    self.move_to_bank();
+                    self.deposit_all();
+                }
             };
         }
     }
 }
 
+#[derive(PartialEq)]
 pub enum Role {
     Fighter,
     Miner,
     Woodcutter,
     Fisher,
-    Crafter,
+    Weaponcrafter,
 }
 
 pub enum Action {

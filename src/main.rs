@@ -25,7 +25,7 @@ fn run() {
     });
     let t5 = thread::spawn(move || {
         //char5.gather_until_unsuccessful(6, 1);
-        char5.run(Role::Miner)
+        char5.run(Role::Crafter)
     });
     t1.join().unwrap();
     t2.join().unwrap();
