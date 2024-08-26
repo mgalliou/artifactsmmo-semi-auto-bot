@@ -5,6 +5,7 @@ use super::{
     maps::Maps,
     monsters::Monsters,
     resources::Resources,
+    skill::Skill,
 };
 use artifactsmmo_openapi::{
     apis::{
@@ -19,10 +20,7 @@ use artifactsmmo_openapi::{
         Error,
     },
     models::{
-        craft_schema::Skill::{
-            self, Cooking, Gearcrafting, Jewelrycrafting, Mining, Weaponcrafting, Woodcutting,
-        },
-        equip_schema, unequip_schema, BankItemTransactionResponseSchema,
+        craft_schema, equip_schema, unequip_schema, BankItemTransactionResponseSchema,
         CharacterFightResponseSchema, EquipmentResponseSchema, InventorySlot, MapSchema,
         SkillResponseSchema,
     },
@@ -324,12 +322,13 @@ impl Character {
     fn skill_level(&self, skill: Skill) -> i32 {
         let data = self.api.get(&self.name).unwrap().data;
         match skill {
-            Weaponcrafting => data.weaponcrafting_level,
-            Gearcrafting => data.gearcrafting_level,
-            Jewelrycrafting => data.jewelrycrafting_level,
-            Cooking => data.cooking_level,
-            Woodcutting => data.woodcutting_level,
-            Mining => data.mining_level,
+            Skill::Cooking => data.cooking_level,
+            Skill::Fishing => data.fishing_level,
+            Skill::Gearcrafting => data.gearcrafting_level,
+            Skill::Jewelrycrafting => data.jewelrycrafting_level,
+            Skill::Mining => data.mining_level,
+            Skill::Weaponcrafting => data.weaponcrafting_level,
+            Skill::Woodcutting => data.woodcutting_level,
         }
     }
 
@@ -386,12 +385,12 @@ impl Character {
                 let _ = self.withdraw(&i.code, self.inventory_max_items());
             }
             let _ = match self.items.skill_to_craft(code).unwrap() {
-                Weaponcrafting => self.move_to(2, 1),
-                Gearcrafting => self.move_to(2, 2),
-                Jewelrycrafting => self.move_to(1, 3),
-                Cooking => self.move_to(1, 1),
-                Woodcutting => self.move_to(-2, -3),
-                Mining => self.move_to(1, 5),
+                craft_schema::Skill::Weaponcrafting => self.move_to(2, 1),
+                craft_schema::Skill::Gearcrafting => self.move_to(2, 2),
+                craft_schema::Skill::Jewelrycrafting => self.move_to(1, 3),
+                craft_schema::Skill::Cooking => self.move_to(1, 1),
+                craft_schema::Skill::Woodcutting => self.move_to(-2, -3),
+                craft_schema::Skill::Mining => self.move_to(1, 5),
             };
             let _ = self.craft_all(code);
         }
@@ -419,7 +418,7 @@ impl Character {
                 Role::Miner => {
                     let resource = self
                         .resources
-                        .below_or_equal(self.level(), "mining")
+                        .below_or_equal(self.skill_level(Skill::Mining), "mining")
                         .unwrap();
                     let (x, y) = self.closest_map_with_resource(&resource.code).unwrap();
                     if self.move_to(x, y) {
@@ -429,7 +428,7 @@ impl Character {
                 Role::Woodcutter => {
                     let resource = self
                         .resources
-                        .below_or_equal(self.level(), "woodcutting")
+                        .below_or_equal(self.skill_level(Skill::Woodcutting), "woodcutting")
                         .unwrap();
                     let (x, y) = self.closest_map_with_resource(&resource.code).unwrap();
                     if self.move_to(x, y) {
@@ -439,7 +438,7 @@ impl Character {
                 Role::Fisher => {
                     let resource = self
                         .resources
-                        .below_or_equal(self.level(), "fishing")
+                        .below_or_equal(self.skill_level(Skill::Fishing), "fishing")
                         .unwrap();
                     let (x, y) = self.closest_map_with_resource(&resource.code).unwrap();
                     if self.move_to(x, y) {
@@ -449,7 +448,10 @@ impl Character {
                 Role::Weaponcrafter => {
                     let items = self
                         .items
-                        .best_craftable_at_level(self.skill_level(Weaponcrafting), "weaponcrafting")
+                        .best_craftable_at_level(
+                            self.skill_level(Skill::Weaponcrafting),
+                            "weaponcrafting",
+                        )
                         .unwrap();
                     for item in &items {
                         println!("{} withdrawing mats for {}", self.name, item.code);
