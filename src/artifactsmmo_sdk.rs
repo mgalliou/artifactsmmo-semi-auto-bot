@@ -6,3 +6,4 @@ pub mod maps;
 pub mod monsters;
 pub mod resources;
 pub mod skill;
+pub mod bank;

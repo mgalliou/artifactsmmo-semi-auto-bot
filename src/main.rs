@@ -11,22 +11,22 @@ fn run() {
     let char4 = account.get_character(4).unwrap();
     let char5 = account.get_character(5).unwrap();
 
-    let t1 = thread::spawn(move || {
+    let t1 = thread::Builder::new().name(char1.name.to_string()).spawn(move || {
         char1.run(Role::Fighter);
-    });
-    let t2 = thread::spawn(move || {
+    }).unwrap();
+    let t2 = thread::Builder::new().name(char2.name.to_string()).spawn(move || {
         char2.run(Role::Miner);
-    });
-    let t3 = thread::spawn(move || {
+    }).unwrap();
+    let t3 = thread::Builder::new().name(char3.name.to_string()).spawn(move || {
         char3.run(Role::Woodcutter)
-    });
-    let t4 = thread::spawn(move || {
+    }).unwrap();
+    let t4 = thread::Builder::new().name(char4.name.to_string()).spawn(move || {
         char4.run(Role::Fisher)
-    });
-    let t5 = thread::spawn(move || {
+    }).unwrap();
+    let t5 = thread::Builder::new().name(char5.name.to_string()).spawn(move || {
         //char5.gather_until_unsuccessful(6, 1);
-        char5.run(Role::Crafter)
-    });
+        char5.run(Role::Weaponcrafter)
+    }).unwrap();
     t1.join().unwrap();
     t2.join().unwrap();
     t3.join().unwrap();

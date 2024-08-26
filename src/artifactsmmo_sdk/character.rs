@@ -1,7 +1,8 @@
 use super::{
     account::Account,
     api::{characters::CharactersApi, my_character::MyCharacterApi},
-    items::Items,
+    bank::Bank,
+    items::{Items, Type},
     maps::Maps,
     monsters::Monsters,
     resources::Resources,
@@ -9,6 +10,7 @@ use super::{
 };
 use artifactsmmo_openapi::{
     apis::{
+        characters_api::GetCharacterCharactersNameGetError,
         my_characters_api::{
             ActionCraftingMyNameActionCraftingPostError,
             ActionDepositBankMyNameActionBankDepositPostError,
@@ -20,9 +22,7 @@ use artifactsmmo_openapi::{
         Error,
     },
     models::{
-        craft_schema, equip_schema, unequip_schema, BankItemTransactionResponseSchema,
-        CharacterFightResponseSchema, EquipmentResponseSchema, InventorySlot, MapSchema,
-        SkillResponseSchema,
+        craft_schema, equip_schema, unequip_schema, BankItemTransactionResponseSchema, CharacterFightResponseSchema, CharacterResponseSchema, EquipmentResponseSchema, InventorySlot, ItemResponseSchema, MapSchema, SkillResponseSchema
     },
 };
 use chrono::{DateTime, FixedOffset};
@@ -36,7 +36,8 @@ pub struct Character {
     resources: Resources,
     items: Items,
     monsters: Monsters,
-    name: String,
+    bank: Bank,
+    pub name: String,
 }
 
 impl Character {
@@ -55,6 +56,7 @@ impl Character {
             items: Items::new(account),
             resources: Resources::new(account),
             monsters: Monsters::new(account),
+            bank: Bank::new(account),
             name: name.to_owned(),
         }
     }
@@ -246,8 +248,12 @@ impl Character {
     }
 
     pub fn inventory(&self) -> Vec<InventorySlot> {
-        let char = self.api.get(&self.name).unwrap();
+        let char = self.info().unwrap();
         char.data.inventory.unwrap()
+    }
+
+    fn info(&self) -> Result<CharacterResponseSchema, Error<GetCharacterCharactersNameGetError>> {
+        self.api.get(&self.name)
     }
 
     pub fn inventory_max_items(&self) -> i32 {
@@ -282,7 +288,7 @@ impl Character {
     }
 
     pub fn weapon_equiped(&self) -> String {
-        let char = self.api.get(&self.name).unwrap();
+        let char = self.info().unwrap();
         char.data.weapon_slot
     }
 
@@ -396,6 +402,41 @@ impl Character {
         }
     }
 
+    pub fn improve_weapon(&self) {
+        let equiped_weapon_code = self.info().unwrap().data.weapon_slot;
+        let equiped_weapon_schema = self.items.api.info(&equiped_weapon_code).unwrap();
+        let equipable_weapons = self
+            .items
+            .api
+            .all(
+                Some(equiped_weapon_schema.data.item.level),
+                Some(self.level()),
+                None,
+                Some(&Type::Weapon.to_string()),
+                None,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+        let mut best_equipable_weapon_in_bank: Option<String> = None;
+        for weapon in equipable_weapons.data {
+            if self.bank.has_item(&weapon.code)
+                && self.items.damages(&equiped_weapon_code).unwrap()
+                    < self.items.damages(&weapon.code).unwrap()
+            {
+                best_equipable_weapon_in_bank = Some(weapon.code.clone());
+            };
+        }
+        if let Some(code) = best_equipable_weapon_in_bank {
+            self.move_to_bank();
+            let _ = self.unequip(unequip_schema::Slot::Weapon);
+            let _ = self.deposit(&equiped_weapon_code, 1);
+            let _ = self.withdraw(&code, 1);
+            let _ = self.equip(&code, equip_schema::Slot::Weapon);
+        }
+    }
+
     pub fn run(&self, role: Role) {
         self.move_to_bank();
         if Role::Fighter != role {
@@ -409,6 +450,7 @@ impl Character {
             }
             match role {
                 Role::Fighter => {
+                    self.improve_weapon();
                     let monster = self.monsters.below_or_equal(self.level()).unwrap();
                     let (x, y) = self.closest_map_with_resource(&monster.code).unwrap();
                     if self.move_to(x, y) {

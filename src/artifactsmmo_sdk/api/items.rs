@@ -1,10 +1,13 @@
 use artifactsmmo_openapi::{
     apis::{
         configuration::Configuration,
-        items_api::{get_all_items_items_get, get_item_items_code_get, GetItemItemsCodeGetError},
+        items_api::{
+            get_all_items_items_get, get_item_items_code_get, GetAllItemsItemsGetError,
+            GetItemItemsCodeGetError,
+        },
         Error,
     },
-    models::ItemResponseSchema,
+    models::{DataPageItemSchema, ItemResponseSchema},
 };
 
 pub struct ItemsApi {
@@ -29,10 +32,7 @@ impl ItemsApi {
         craft_material: Option<&str>,
         page: Option<i32>,
         size: Option<i32>,
-    ) -> Result<
-        artifactsmmo_openapi::models::DataPageItemSchema,
-        Error<artifactsmmo_openapi::apis::items_api::GetAllItemsItemsGetError>,
-    > {
+    ) -> Result<DataPageItemSchema, Error<GetAllItemsItemsGetError>> {
         get_all_items_items_get(
             &self.configuration,
             min_level,
