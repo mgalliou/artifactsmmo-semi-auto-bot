@@ -407,7 +407,7 @@ impl Character {
     }
 
     pub fn weapons_upgrades(&self) -> Option<Vec<ItemSchema>> {
-        let equiped_weapon = self.equiped_in(Slot::Weapon);
+        let equiped_weapon = self.equipment_in(Slot::Weapon);
         let min_level = equiped_weapon.map(|equiped_weapon| equiped_weapon.item.level);
         match self.items.api.all(
             min_level,
@@ -424,7 +424,7 @@ impl Character {
         }
     }
 
-    pub fn equiped_in(&self, slot: Slot) -> Option<Box<SingleItemSchema>> {
+    pub fn equipment_in(&self, slot: Slot) -> Option<Box<SingleItemSchema>> {
         let data = self.info().unwrap().data;
         let code = match slot {
             Slot::Weapon => data.weapon_slot,
@@ -449,7 +449,7 @@ impl Character {
     }
 
     pub fn weapon_damage(&self) -> i32 {
-        match &self.equiped_in(Slot::Weapon) {
+        match &self.equipment_in(Slot::Weapon) {
             Some(weapon) => self.items.damages(&weapon.item.code),
             None => 0,
         }
@@ -473,7 +473,7 @@ impl Character {
     pub fn improve_weapon(&self) {
         if let Some(code) = self.weapon_upgrade_in_bank() {
             self.move_to_bank();
-            if let Some(equiped_weapon) = &self.equiped_in(Slot::Weapon) {
+            if let Some(equiped_weapon) = &self.equipment_in(Slot::Weapon) {
                 let _ = self.unequip(unequip_schema::Slot::Weapon);
                 let _ = self.deposit(&equiped_weapon.item.code, 1);
             }
