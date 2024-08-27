@@ -65,6 +65,12 @@ impl Items {
         }
     }
 
+    pub fn mats_quantity_for(&self, code: &str) -> i32 {
+        self.mats_for(code)
+        .map(|mats| mats.iter().map(|mat| mat.quantity).sum::<i32>())
+        .unwrap_or(0)
+    }
+
     pub fn skill_to_craft(&self, code: &str) -> Option<Skill> {
         match self.craft_schema(code) {
             Some(schema) => schema.skill,

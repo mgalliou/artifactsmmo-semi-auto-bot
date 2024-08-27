@@ -291,6 +291,10 @@ impl Character {
         self.inventory_total() == self.inventory_max_items()
     }
 
+    pub fn inventory_space_available(&self) -> i32 {
+        self.inventory_max_items() - self.inventory_total()
+    }
+
     pub fn weapon_equiped(&self) -> String {
         let char = self.info().unwrap();
         char.data.weapon_slot
@@ -459,7 +463,7 @@ impl Character {
         self.weapons_upgrades()?
             .iter()
             .find(|weapon| {
-                self.bank.has_item(&weapon.code)
+                self.bank.has_item(&weapon.code).is_some()
                     && self.weapon_damage() < self.items.damages(&weapon.code)
             })
             .map(|weapon| weapon.code.clone())
@@ -498,13 +502,31 @@ impl Character {
                     }
                 }
                 Role::Miner => {
-                    let resource = self
-                        .resources
-                        .below_or_equal(self.skill_level(Skill::Mining), "mining")
+                    let items = self
+                        .items
+                        .best_craftable_at_level(self.skill_level(Skill::Mining), "mining")
                         .unwrap();
-                    let (x, y) = self.closest_map_with_resource(&resource.code).unwrap();
-                    if self.move_to(x, y) {
-                        let _ = self.gather();
+                    if items.is_empty() {
+                        let resource = self
+                            .resources
+                            .below_or_equal(self.skill_level(Skill::Mining), "mining")
+                            .unwrap();
+                        let (x, y) = self.closest_map_with_resource(&resource.code).unwrap();
+                        if self.move_to(x, y) {
+                            let _ = self.gather();
+                        }
+                    } else {
+                        for item in &items {
+                            if self.bank.has_mats_for(&item.code) {
+                                self.move_to_bank();
+                                self.deposit_all();
+                                self.withdraw_max_mats_for(&item.code);
+                            }
+                        }
+                        self.move_to(1, 5);
+                        for item in &items {
+                            let _ = self.craft_all(&item.code);
+                        }
                     }
                 }
                 Role::Woodcutter => {
@@ -536,11 +558,7 @@ impl Character {
                         )
                         .unwrap();
                     for item in &items {
-                        println!("{} withdrawing mats for {}", self.name, item.code);
-                        let mats = self.items.mats_for(&item.code).unwrap();
-                        for mat in mats {
-                            let _ = self.withdraw(&mat.code, mat.quantity);
-                        }
+                        self.withdraw_max_mats_for(&item.code);
                     }
                     self.move_to(2, 1);
                     for item in items {
@@ -551,6 +569,21 @@ impl Character {
                 }
             };
         }
+    }
+
+    fn withdraw_mats_for(&self, code: &str, quantity: i32) {
+        println!("{} withdrawing mats for {} * {}", self.name, code, quantity);
+        let mats = self.items.mats_for(code).unwrap();
+        for mat in mats {
+            let _ = self.withdraw(&mat.code, mat.quantity * quantity);
+        }
+    }
+
+    fn withdraw_max_mats_for(&self, code: &str) {
+        let n = self.items.mats_quantity_for(code);
+        let max = self.inventory_space_available() / n;
+        self.withdraw_mats_for(code, max)
+
     }
 }
 
