@@ -456,18 +456,13 @@ impl Character {
     }
 
     pub fn weapon_upgrade_in_bank(&self) -> Option<String> {
-        let mut weapon_upgrade_in_bank: Option<String> = None;
-
-        if let Some(weapon_upgrade) = self.weapons_upgrades() {
-            for weapon in weapon_upgrade {
-                if self.bank.has_item(&weapon.code)
+        self.weapons_upgrades()?
+            .iter()
+            .find(|weapon| {
+                self.bank.has_item(&weapon.code)
                     && self.weapon_damage() < self.items.damages(&weapon.code)
-                {
-                    weapon_upgrade_in_bank = Some(weapon.code.clone());
-                };
-            }
-        }
-        weapon_upgrade_in_bank
+            })
+            .map(|weapon| weapon.code.clone())
     }
 
     pub fn improve_weapon(&self) {
