@@ -506,9 +506,7 @@ impl Character {
                         .items
                         .best_craftable_at_level(self.skill_level(Skill::Mining), "mining")
                         .unwrap();
-                    if !items.is_empty() && items.iter().all(|i| self.bank.has_mats_for(&i.code)) {
-                    } else {
-                        self.gather_best_ressource_for(Skill::Mining);
+                    if !items.is_empty() && items.iter().any(|i| self.bank.has_mats_for(&i.code)) {
                         for item in &items {
                             if self.bank.has_mats_for(&item.code) {
                                 self.move_to_bank();
@@ -520,6 +518,8 @@ impl Character {
                         for item in &items {
                             let _ = self.craft_all(&item.code);
                         }
+                    } else {
+                        self.gather_best_ressource_for(Skill::Mining);
                     }
                 }
                 Role::Woodcutter => {
