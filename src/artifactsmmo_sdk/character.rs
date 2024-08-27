@@ -506,16 +506,9 @@ impl Character {
                         .items
                         .best_craftable_at_level(self.skill_level(Skill::Mining), "mining")
                         .unwrap();
-                    if items.is_empty() {
-                        let resource = self
-                            .resources
-                            .below_or_equal(self.skill_level(Skill::Mining), "mining")
-                            .unwrap();
-                        let (x, y) = self.closest_map_with_resource(&resource.code).unwrap();
-                        if self.move_to(x, y) {
-                            let _ = self.gather();
-                        }
+                    if !items.is_empty() && items.iter().all(|i| self.bank.has_mats_for(&i.code)) {
                     } else {
+                        self.gather_best_ressource_for(Skill::Mining);
                         for item in &items {
                             if self.bank.has_mats_for(&item.code) {
                                 self.move_to_bank();
@@ -567,7 +560,21 @@ impl Character {
                     self.move_to_bank();
                     self.deposit_all();
                 }
+                Role::Idle => {
+                    return;
+                }
             };
+        }
+    }
+
+    fn gather_best_ressource_for(&self, skill: Skill) {
+        let resource = self
+            .resources
+            .below_or_equal(self.skill_level(skill), &skill.to_string())
+            .unwrap();
+        let (x, y) = self.closest_map_with_resource(&resource.code).unwrap();
+        if self.move_to(x, y) {
+            let _ = self.gather();
         }
     }
 
@@ -583,7 +590,6 @@ impl Character {
         let n = self.items.mats_quantity_for(code);
         let max = self.inventory_space_available() / n;
         self.withdraw_mats_for(code, max)
-
     }
 }
 
@@ -594,6 +600,7 @@ pub enum Role {
     Woodcutter,
     Fisher,
     Weaponcrafter,
+    Idle,
 }
 
 pub enum Action {
