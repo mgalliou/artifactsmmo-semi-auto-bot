@@ -22,9 +22,15 @@ impl Monsters {
             .map(|schemas| schemas.data)
     }
 
-    pub fn below_or_equal(&self, level: i32) -> Option<MonsterSchema> {
-        let mut highest_lvl = 0;
-        let mut best_schema: Option<MonsterSchema> = None;
+    pub fn lower_providing_exp(&self, level: i32) -> Option<MonsterSchema> {
+        let min = if level > 11 { level } else { 1 };
+        self.api
+            .all(Some(min), Some(level), None, None, None)
+            .ok()?
+            .data
+            .into_iter()
+            .min_by(|a, b| a.level.cmp(&b.level))
+    }
 
     pub fn below_or_equal(&self, level: i32) -> Option<MonsterSchema> {
         self.api

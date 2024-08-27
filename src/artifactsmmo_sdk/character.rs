@@ -491,7 +491,7 @@ impl Character {
             match role {
                 Role::Fighter => {
                     self.improve_weapon();
-                    let monster = self.monsters.below_or_equal(self.level()).unwrap();
+                    let monster = self.monsters.lower_providing_exp(self.level()).unwrap();
                     let (x, y) = self.closest_map_with_resource(&monster.code).unwrap();
                     if self.move_to(x, y) {
                         let _ = self.fight();
