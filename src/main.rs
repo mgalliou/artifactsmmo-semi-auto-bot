@@ -5,11 +5,11 @@ fn run() {
     let base_url = "https://api.artifactsmmo.com";
     let token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6InBvZEppbyIsInBhc3N3b3JkX2NoYW5nZWQiOiIifQ.Qy1Hm2-QYm84O_9aLP076TczjYDCpSuZ75dKkh9toUY";
     let account = Account::new(base_url, token);
-    let char1 = account.get_character(1).unwrap();
-    let char2 = account.get_character(2).unwrap();
-    let char3 = account.get_character(3).unwrap();
-    let char4 = account.get_character(4).unwrap();
-    let char5 = account.get_character(5).unwrap();
+    let mut char1 = account.get_character(1).unwrap();
+    let mut char2 = account.get_character(2).unwrap();
+    let mut char3 = account.get_character(3).unwrap();
+    let mut char4 = account.get_character(4).unwrap();
+    let mut char5 = account.get_character(5).unwrap();
 
     let t1 = thread::Builder::new().name(char1.name.to_string()).spawn(move || {
         char1.run(Role::Fighter);

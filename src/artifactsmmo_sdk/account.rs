@@ -7,7 +7,7 @@ use artifactsmmo_openapi::{
     },
     models::{CharacterSchema, StatusResponseSchema},
 };
-use chrono::{DateTime, FixedOffset};
+use chrono::{DateTime, TimeDelta, Utc};
 
 use super::{
     api::{characters::CharactersApi, my_character::MyCharacterApi},
@@ -19,6 +19,7 @@ pub struct Account {
     pub configuration: Configuration,
     pub character_api: CharactersApi,
     pub my_characters_api: MyCharacterApi,
+    pub server_offset: TimeDelta,
 }
 
 impl Account {
@@ -26,21 +27,30 @@ impl Account {
         let mut configuration = Configuration::new();
         configuration.base_path = base_path.to_owned();
         configuration.bearer_access_token = Some(token.to_owned());
-        Account {
+        let mut account = Account {
             configuration,
             character_api: CharactersApi::new(base_path, token),
             my_characters_api: MyCharacterApi::new(base_path, token),
-        }
+            server_offset: TimeDelta::default(),
+        };
+        let server_time = account.server_time().unwrap();
+        let now = Utc::now();
+        account.server_offset = now - server_time;
+        println!("system time: {}", now);
+        println!("server time: {}", account.server_time().unwrap());
+        println!("time offset: {}s and {}ms", account.server_offset.num_seconds(), account.server_offset.subsec_nanos() / 1000000);
+        println!("synced time: {}", now - account.server_offset);
+        account
     }
 
     pub fn server_status(&self) -> Result<StatusResponseSchema, Error<GetStatusGetError>> {
         get_status_get(&self.configuration)
     }
 
-    pub fn server_time(&self) -> Option<DateTime<FixedOffset>> {
+    pub fn server_time(&self) -> Option<DateTime<Utc>> {
         match get_status_get(&self.configuration) {
             Ok(s) => match DateTime::parse_from_rfc3339(&s.data.server_time) {
-                Ok(t) => Some(t),
+                Ok(t) => Some(t.to_utc()),
                 Err(_) => None,
             },
             Err(_) => None,

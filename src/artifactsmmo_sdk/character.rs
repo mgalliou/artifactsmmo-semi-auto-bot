@@ -28,7 +28,7 @@ use artifactsmmo_openapi::{
         SingleItemSchema, SkillResponseSchema,
     },
 };
-use chrono::{DateTime, FixedOffset};
+use chrono::{DateTime, Utc};
 use log::{info, warn};
 use std::{cmp::Ordering, option::Option, thread::sleep, time::Duration, vec::Vec};
 
@@ -42,11 +42,12 @@ pub struct Character {
     monsters: Monsters,
     bank: Bank,
     pub name: String,
+    pub cooldown_expiration: Option<DateTime<Utc>>,
 }
 
 impl Character {
     pub fn new(account: &Account, name: &str) -> Character {
-        Character {
+        let mut char = Character {
             account: account.clone(),
             api: CharactersApi::new(
                 &account.configuration.base_path,
@@ -62,10 +63,13 @@ impl Character {
             monsters: Monsters::new(account),
             bank: Bank::new(account),
             name: name.to_owned(),
-        }
+            cooldown_expiration: None,
+        };
+        char.cooldown_expiration = char.cooldown_expiration();
+        char
     }
 
-    pub fn move_to(&self, x: i32, y: i32) -> bool {
+    pub fn move_to(&mut self, x: i32, y: i32) -> bool {
         if self.coordinates() == (x, y) {
             return true;
         }
@@ -76,6 +80,10 @@ impl Character {
                     "{}: moved to {},{} ({})",
                     self.name, x, y, res.data.destination.name
                 );
+                self.cooldown_expiration =
+                    DateTime::parse_from_rfc3339(&res.data.cooldown.expiration)
+                        .ok()
+                        .map(|d| d.to_utc());
                 return true;
             }
             Err(ref e) => println!("{}: error while moving: {}", self.name, e),
@@ -83,18 +91,22 @@ impl Character {
         false
     }
 
-    fn move_to_bank(&self) {
+    fn move_to_bank(&mut self) {
         let _ = self.move_to(4, 1);
     }
 
     pub fn fight(
-        &self,
+        &mut self,
     ) -> Result<CharacterFightResponseSchema, Error<ActionFightMyNameActionFightPostError>> {
         self.cooldown();
         let res = self.my_api.fight(&self.name);
         match res {
             Ok(ref res) => {
                 println!("{} fought and {:?}", self.name, res.data.fight.result);
+                self.cooldown_expiration =
+                    DateTime::parse_from_rfc3339(&res.data.cooldown.expiration)
+                        .ok()
+                        .map(|d| d.to_utc());
             }
             Err(ref e) => println!("{}: error during fight: {}", self.name, e),
         };
@@ -102,13 +114,17 @@ impl Character {
     }
 
     pub fn gather(
-        &self,
+        &mut self,
     ) -> Result<SkillResponseSchema, Error<ActionGatheringMyNameActionGatheringPostError>> {
         self.cooldown();
         let res = self.my_api.gather(&self.name);
         match res {
             Ok(ref res) => {
                 println!("{}: gathered {:?}", self.name, res.data.details.items);
+                self.cooldown_expiration =
+                    DateTime::parse_from_rfc3339(&res.data.cooldown.expiration)
+                        .ok()
+                        .map(|d| d.to_utc());
             }
             Err(ref e) => println!("{}: error during gathering: {}", self.name, e),
         };
@@ -116,15 +132,19 @@ impl Character {
     }
 
     pub fn craft(
-        &self,
+        &mut self,
         code: &str,
         quantity: i32,
     ) -> Result<SkillResponseSchema, Error<ActionCraftingMyNameActionCraftingPostError>> {
         self.cooldown();
         let res = self.my_api.craft(&self.name, code, quantity);
         match res {
-            Ok(_) => {
+            Ok(ref res) => {
                 println!("{}: crafted {}, {}", self.name, quantity, code);
+                self.cooldown_expiration =
+                    DateTime::parse_from_rfc3339(&res.data.cooldown.expiration)
+                        .ok()
+                        .map(|d| d.to_utc());
             }
             Err(ref e) => println!("{}: error during crafting: {}", self.name, e),
         };
@@ -132,7 +152,7 @@ impl Character {
     }
 
     pub fn deposit(
-        &self,
+        &mut self,
         code: &str,
         quantity: i32,
     ) -> Result<
@@ -142,8 +162,12 @@ impl Character {
         self.cooldown();
         let res = self.my_api.deposit(&self.name, code, quantity);
         match res {
-            Ok(_) => {
+            Ok(ref res) => {
                 println!("{}: deposited {} * {}", self.name, code, quantity);
+                self.cooldown_expiration =
+                    DateTime::parse_from_rfc3339(&res.data.cooldown.expiration)
+                        .ok()
+                        .map(|d| d.to_utc());
             }
             Err(ref e) => println!(
                 "{}: error while depositing {} * {}: {}",
@@ -154,7 +178,7 @@ impl Character {
     }
 
     pub fn equip(
-        &self,
+        &mut self,
         code: &str,
         slot: equip_schema::Slot,
     ) -> Result<EquipmentResponseSchema, Error<ActionEquipItemMyNameActionEquipPostError>> {
@@ -166,6 +190,10 @@ impl Character {
                     "{}: equiped {} in {:?} slot",
                     self.name, res.data.item.code, res.data.slot
                 );
+                self.cooldown_expiration =
+                    DateTime::parse_from_rfc3339(&res.data.cooldown.expiration)
+                        .ok()
+                        .map(|d| d.to_utc());
             }
             Err(ref e) => println!("{}: error while unequiping: {}", self.name, e),
         }
@@ -173,7 +201,7 @@ impl Character {
     }
 
     pub fn unequip(
-        &self,
+        &mut self,
         slot: unequip_schema::Slot,
     ) -> Result<EquipmentResponseSchema, Error<ActionUnequipItemMyNameActionUnequipPostError>> {
         self.cooldown();
@@ -184,6 +212,10 @@ impl Character {
                     "{}: unequiped {} from {:?} slot",
                     self.name, res.data.item.code, res.data.slot
                 );
+                self.cooldown_expiration =
+                    DateTime::parse_from_rfc3339(&res.data.cooldown.expiration)
+                        .ok()
+                        .map(|d| d.to_utc());
             }
             Err(ref e) => println!("{}: error while unequiping: {}", self.name, e),
         }
@@ -191,7 +223,7 @@ impl Character {
     }
 
     pub fn withdraw(
-        &self,
+        &mut self,
         code: &str,
         quantity: i32,
     ) -> Result<
@@ -201,8 +233,12 @@ impl Character {
         self.cooldown();
         let res = self.my_api.withdraw(&self.name, code, quantity);
         match res {
-            Ok(_) => {
+            Ok(ref res) => {
                 println!("{}: withdrawed {} {}", self.name, code, quantity);
+                self.cooldown_expiration =
+                    DateTime::parse_from_rfc3339(&res.data.cooldown.expiration)
+                        .ok()
+                        .map(|d| d.to_utc());
             }
             Err(ref e) => println!(
                 "{}: error while withdrawing {} * {}: {}",
@@ -212,7 +248,7 @@ impl Character {
         res
     }
 
-    pub fn craft_all(&self, code: &str) -> bool {
+    pub fn craft_all(&mut self, code: &str) -> bool {
         println!("{} crafting all {}", self.name, code);
         let n = self.has_mats_for(code);
         if n > 0 && self.move_to_craft(code) {
@@ -239,7 +275,7 @@ impl Character {
         n
     }
 
-    pub fn deposit_all(&self) {
+    pub fn deposit_all(&mut self) {
         if self.inventory_total() > 0 {
             self.move_to_bank();
             println!("{} depositing all to bank", self.name);
@@ -262,7 +298,7 @@ impl Character {
             s.as_secs(),
             s.subsec_millis()
         );
-        sleep(self.remaining_cooldown());
+        sleep(s);
     }
 
     pub fn inventory(&self) -> Vec<InventorySlot> {
@@ -314,11 +350,11 @@ impl Character {
         char.data.weapon_slot
     }
 
-    pub fn cooldown_expiration(&self) -> Option<DateTime<FixedOffset>> {
+    pub fn cooldown_expiration(&self) -> Option<DateTime<Utc>> {
         match self.api.get(&self.name) {
             Ok(res) => match res.data.cooldown_expiration {
                 Some(cd) => match DateTime::parse_from_rfc3339(&cd) {
-                    Ok(cd) => Some(cd),
+                    Ok(cd) => Some(cd.to_utc()),
                     Err(_) => None,
                 },
                 None => None,
@@ -328,13 +364,12 @@ impl Character {
     }
 
     pub fn remaining_cooldown(&self) -> Duration {
-        if let Some(server_time) = self.account.server_time() {
-            if let Some(cd) = self.cooldown_expiration() {
-                if server_time.cmp(&cd) == Ordering::Less {
-                    return (cd - server_time).to_std().unwrap();
-                }
+        if let Some(exp) = self.cooldown_expiration {
+            let synced = Utc::now() - self.account.server_offset;
+            if synced.cmp(&exp.to_utc()) == Ordering::Less {
+                return (exp.to_utc() - synced).to_std().unwrap();
             }
-        };
+        }
         Duration::from_secs(0)
     }
 
@@ -403,7 +438,7 @@ impl Character {
     //     }
     // }
 
-    pub fn craft_all_repeat(&self, code: &str) {
+    pub fn craft_all_repeat(&mut self, code: &str) {
         self.cooldown();
         loop {
             self.deposit_all();
@@ -415,7 +450,7 @@ impl Character {
         }
     }
 
-    fn move_to_craft(&self, code: &str) -> bool {
+    fn move_to_craft(&mut self, code: &str) -> bool {
         let skill = self.items.skill_to_craft(code);
         println!(
             "{}: moving to craft {}: skill found {:?}",
@@ -491,7 +526,7 @@ impl Character {
             .map(|weapon| weapon.code.clone())
     }
 
-    pub fn improve_weapon(&self) {
+    pub fn improve_weapon(&mut self) {
         if let Some(code) = self.weapon_upgrade_in_bank() {
             self.move_to_bank();
             if let Some(equiped_weapon) = &self.equipment_in(Slot::Weapon) {
@@ -503,7 +538,7 @@ impl Character {
         }
     }
 
-    pub fn run(&self, role: Role) {
+    pub fn run(&mut self, role: Role) {
         if Role::Fighter != role
             && self
                 .equipment_in(Slot::Weapon)
@@ -539,7 +574,7 @@ impl Character {
         }
     }
 
-    fn fighter_routin(&self) {
+    fn fighter_routin(&mut self) {
         self.improve_weapon();
         let monster = self.monsters.lower_providing_exp(self.level()).unwrap();
         let (x, y) = self.closest_map_with_resource(&monster.code).unwrap();
@@ -548,7 +583,7 @@ impl Character {
         }
     }
 
-    fn weaponcraft_routin(&self) {
+    fn weaponcraft_routin(&mut self) {
         let items = self
             .items
             .best_craftable_at_level(
@@ -563,7 +598,7 @@ impl Character {
         }
     }
 
-    fn levelup_skill(&self, skill: Skill) -> bool {
+    fn levelup_skill(&mut self, skill: Skill) -> bool {
         let items = self
             .items
             .best_craftable_at_level(self.skill_level(skill), skill)
@@ -583,13 +618,13 @@ impl Character {
         false
     }
 
-    fn fisher_routin(&self) {
+    fn fisher_routin(&mut self) {
         if !self.levelup_skill(Skill::Cooking) {
             self.gather_best_ressource_for(Skill::Fishing);
         }
     }
 
-    fn woodcutter_routin(&self) {
+    fn woodcutter_routin(&mut self) {
         let resource = self
             .resources
             .below_or_equal(self.skill_level(Skill::Woodcutting), Skill::Woodcutting)
@@ -600,13 +635,13 @@ impl Character {
         }
     }
 
-    fn miner_routin(&self) {
+    fn miner_routin(&mut self) {
         if !self.levelup_skill(Skill::Mining) {
             self.gather_best_ressource_for(Skill::Mining);
         }
     }
 
-    fn gather_best_ressource_for(&self, skill: Skill) -> bool {
+    fn gather_best_ressource_for(&mut self, skill: Skill) -> bool {
         let resource = self
             .resources
             .below_or_equal(self.skill_level(skill), skill)
@@ -619,7 +654,7 @@ impl Character {
         false
     }
 
-    fn withdraw_mats_for(&self, code: &str, quantity: i32) -> bool {
+    fn withdraw_mats_for(&mut self, code: &str, quantity: i32) -> bool {
         println!(
             "{}: withdrawing mats for {} * {}",
             self.name, code, quantity
@@ -638,7 +673,7 @@ impl Character {
     }
 
     /// .withdraw the maximum available amount of mats used to craft the item `code`
-    fn withdraw_max_mats_for(&self, code: &str) -> bool {
+    fn withdraw_max_mats_for(&mut self, code: &str) -> bool {
         println!(
             "{}: getting maximum amount of mats in bank to craft {}",
             self.name, code
