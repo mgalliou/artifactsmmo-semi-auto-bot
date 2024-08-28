@@ -1,15 +1,16 @@
-use artifactsmmo_playground::artifactsmmo_sdk::{account::Account, character::Role};
-use std::thread;
+use artifactsmmo_playground::artifactsmmo_sdk::{account::Account, bank::Bank, character::{Character, Role}};
+use std::{sync::{Arc, RwLock}, thread};
 
 fn run() {
     let base_url = "https://api.artifactsmmo.com";
     let token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6InBvZEppbyIsInBhc3N3b3JkX2NoYW5nZWQiOiIifQ.Qy1Hm2-QYm84O_9aLP076TczjYDCpSuZ75dKkh9toUY";
     let account = Account::new(base_url, token);
-    let mut char1 = account.get_character(1).unwrap();
-    let mut char2 = account.get_character(2).unwrap();
-    let mut char3 = account.get_character(3).unwrap();
-    let mut char4 = account.get_character(4).unwrap();
-    let mut char5 = account.get_character(5).unwrap();
+    let bank = Arc::new(RwLock::new(Bank::new(&account)));
+    let mut char1 = Character::new(&account, &account.get_character(1).unwrap().name, bank.clone());
+    let mut char2 = Character::new(&account, &account.get_character(2).unwrap().name, bank.clone());
+    let mut char3 = Character::new(&account, &account.get_character(3).unwrap().name, bank.clone());
+    let mut char4 = Character::new(&account, &account.get_character(4).unwrap().name, bank.clone());
+    let mut char5 = Character::new(&account, &account.get_character(5).unwrap().name, bank.clone());
 
     let t1 = thread::Builder::new()
         .name(char1.name.to_string())

@@ -29,7 +29,14 @@ use artifactsmmo_openapi::{
 };
 use chrono::{DateTime, Utc};
 use log::{info, warn};
-use std::{cmp::Ordering, option::Option, thread::sleep, time::Duration, vec::Vec};
+use std::{
+    cmp::Ordering,
+    option::Option,
+    sync::{Arc, RwLock},
+    thread::sleep,
+    time::Duration,
+    vec::Vec,
+};
 
 pub struct Character {
     account: Account,
@@ -38,13 +45,13 @@ pub struct Character {
     resources: Resources,
     items: Items,
     monsters: Monsters,
-    bank: Bank,
+    bank: Arc<RwLock<Bank>>,
     pub name: String,
     pub info: CharacterSchema,
 }
 
 impl Character {
-    pub fn new(account: &Account, name: &str) -> Character {
+    pub fn new(account: &Account, name: &str, bank: Arc<RwLock<Bank>>) -> Character {
         let api = CharactersApi::new(
             &account.configuration.base_path,
             &account.configuration.bearer_access_token.clone().unwrap(),
@@ -59,7 +66,7 @@ impl Character {
             items: Items::new(account),
             resources: Resources::new(account),
             monsters: Monsters::new(account),
-            bank: Bank::new(account),
+            bank,
             name: name.to_owned(),
             info: *api.get(name).unwrap().data,
         }
@@ -148,7 +155,9 @@ impl Character {
             Ok(ref res) => {
                 println!("{}: deposited {} * {}", self.name, code, quantity);
                 self.info = *res.data.character.clone();
-                self.bank.content = res.data.bank.clone();
+                let _ = self.bank
+                    .write()
+                    .map(|mut bank| bank.content = res.data.bank.clone());
             }
             Err(ref e) => println!(
                 "{}: error while depositing {} * {}: {}",
@@ -211,7 +220,9 @@ impl Character {
             Ok(ref res) => {
                 println!("{}: withdrawed {} {}", self.name, code, quantity);
                 self.info = *res.data.character.clone();
-                self.bank.content = res.data.bank.clone();
+                let _ = self.bank
+                    .write()
+                    .map(|mut bank| bank.content = res.data.bank.clone());
             }
             Err(ref e) => println!(
                 "{}: error while withdrawing {} * {}: {}",
@@ -480,7 +491,9 @@ impl Character {
         self.weapons_upgrades()?
             .iter()
             .find(|weapon| {
-                self.bank.has_item(&weapon.code).is_some()
+                self.bank
+                    .read()
+                    .is_ok_and(|b| b.has_item(&weapon.code).is_some())
                     && self.weapon_damage() < self.items.damages(&weapon.code)
             })
             .map(|weapon| weapon.code.clone())
@@ -584,9 +597,17 @@ impl Character {
             .items
             .best_craftable_at_level(self.skill_level(skill), skill)
             .unwrap();
-        if !items.is_empty() && items.iter().any(|i| self.bank.has_mats_for(&i.code) > 0) {
+        if !items.is_empty()
+            && items
+                .iter()
+                .any(|i| self.bank.read().is_ok_and(|b| b.has_mats_for(&i.code) > 0))
+        {
             for item in &items {
-                if self.bank.has_mats_for(&item.code) > 0 {
+                if self
+                    .bank
+                    .read()
+                    .is_ok_and(|b| b.has_mats_for(&item.code) > 0)
+                {
                     self.deposit_all();
                     if self.withdraw_max_mats_for(&item.code) {
                         let _ = self.craft_all(&item.code);
@@ -619,7 +640,11 @@ impl Character {
         );
         let mats = self.items.mats_for(code).unwrap();
         for mat in &mats {
-            if self.bank.has_item(&mat.code).unwrap().quantity < mat.quantity * quantity {
+            if self
+                .bank
+                .read()
+                .is_ok_and(|b| b.has_item(&mat.code).unwrap().quantity < mat.quantity * quantity)
+            {
                 warn!("not enough resources in bank to withdraw the materials required to craft [{code}] * {quantity}");
                 return false;
             }
@@ -638,7 +663,7 @@ impl Character {
         );
         let n = self.items.mats_quantity_for(code);
         let can_carry = self.inventory_free_space() / n;
-        let total_craftable = self.bank.has_mats_for(code);
+        let total_craftable = self.bank.read().map_or(0, |b| b.has_mats_for(code));
         let max = if total_craftable < can_carry {
             total_craftable
         } else {

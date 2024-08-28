@@ -64,13 +64,13 @@ impl Account {
     pub fn get_character(
         &self,
         index: usize,
-    ) -> Result<Character, Error<GetMyCharactersMyCharactersGetError>> {
+    ) -> Result<CharacterSchema, Error<GetMyCharactersMyCharactersGetError>> {
         let chars = match self.my_characters_api.all() {
             Ok(c) => Ok(c.data),
             Err(e) => Err(e),
         };
         match chars {
-            Ok(c) => Ok(Character::new(self, &c[index - 1].name)),
+            Ok(c) => Ok(c[0].clone()),
             Err(e) => Err(e),
         }
     }
