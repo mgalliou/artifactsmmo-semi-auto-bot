@@ -1,6 +1,6 @@
 use artifactsmmo_openapi::models::ResourceSchema;
 
-use super::{account::Account, api::resources::ResourcesApi};
+use super::{account::Account, api::resources::ResourcesApi, skill::Skill};
 
 pub struct Resources {
     api: ResourcesApi,
@@ -28,11 +28,11 @@ impl Resources {
         None
     }
 
-    pub fn below_or_equal(&self, level: i32, skill: &str) -> Option<ResourceSchema> {
+    pub fn below_or_equal(&self, level: i32, skill: Skill) -> Option<ResourceSchema> {
         let mut highest_lvl = 0;
         let mut best_schema: Option<ResourceSchema> = None;
 
-        match self.api.all(None, Some(level), Some(skill), None, None, None) {
+        match self.api.all(None, Some(level), Some(&skill.to_string()), None, None, None) {
             Ok(schemas) => { 
                 for schema in schemas.data {
                     if highest_lvl == 0 || highest_lvl < schema.level {

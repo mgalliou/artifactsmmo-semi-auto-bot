@@ -28,14 +28,20 @@ impl Items {
     //     best_schemas;
     // }
 
-    pub fn best_craftable_at_level(&self, level: i32, skill: &str) -> Option<Vec<ItemSchema>> {
+    pub fn best_craftable_at_level(&self, level: i32, skill: super::skill::Skill) -> Option<Vec<ItemSchema>> {
         let mut highest_lvl = 0;
         let mut best_schemas: Vec<ItemSchema> = vec![];
 
-        match self
-            .api
-            .all(None, Some(level), None, None, Some(skill), None, None, None)
-        {
+        match self.api.all(
+            None,
+            Some(level),
+            None,
+            None,
+            Some(&skill.to_string()),
+            None,
+            None,
+            None,
+        ) {
             Ok(schemas) => {
                 for schema in schemas.data {
                     if highest_lvl == 0 || highest_lvl <= schema.level {
@@ -67,14 +73,24 @@ impl Items {
 
     pub fn mats_quantity_for(&self, code: &str) -> i32 {
         self.mats_for(code)
-        .map(|mats| mats.iter().map(|mat| mat.quantity).sum::<i32>())
-        .unwrap_or(0)
+            .map(|mats| mats.iter().map(|mat| mat.quantity).sum::<i32>())
+            .unwrap_or(0)
     }
 
-    pub fn skill_to_craft(&self, code: &str) -> Option<Skill> {
-        match self.craft_schema(code) {
-            Some(schema) => schema.skill,
-            None => None,
+    pub fn skill_to_craft(&self, code: &str) -> Option<super::skill::Skill> {
+        self.craft_schema(code)
+            .and_then(|schema| schema.skill)
+            .map(|skill| self.schema_skill_to_skill(skill))
+    }
+
+    fn schema_skill_to_skill(&self, skill: Skill) -> super::skill::Skill {
+        match skill {
+            Skill::Weaponcrafting => super::skill::Skill::Weaponcrafting,
+            Skill::Gearcrafting => super::skill::Skill::Gearcrafting,
+            Skill::Jewelrycrafting => super::skill::Skill::Jewelrycrafting,
+            Skill::Cooking => super::skill::Skill::Cooking,
+            Skill::Woodcutting => super::skill::Skill::Woodcutting,
+            Skill::Mining => super::skill::Skill::Mining,
         }
     }
 

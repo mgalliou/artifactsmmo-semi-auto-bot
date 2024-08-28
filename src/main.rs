@@ -24,7 +24,6 @@ fn run() {
         char4.run(Role::Fisher)
     }).unwrap();
     let t5 = thread::Builder::new().name(char5.name.to_string()).spawn(move || {
-        //char5.gather_until_unsuccessful(6, 1);
         char5.run(Role::Idle)
     }).unwrap();
     t1.join().unwrap();

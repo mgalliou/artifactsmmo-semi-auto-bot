@@ -53,6 +53,7 @@ dependencies = [
  "chrono",
  "enum_stringify",
  "futures",
+ "log",
  "reqwest",
  "serde_json",
  "strum",

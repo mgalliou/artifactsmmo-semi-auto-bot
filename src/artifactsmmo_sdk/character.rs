@@ -22,7 +22,6 @@ use artifactsmmo_openapi::{
         Error,
     },
     models::{
-        craft_schema,
         equip_schema::{self, Slot},
         unequip_schema, BankItemTransactionResponseSchema, CharacterFightResponseSchema,
         CharacterResponseSchema, EquipmentResponseSchema, InventorySlot, ItemSchema, MapSchema,
@@ -30,6 +29,7 @@ use artifactsmmo_openapi::{
     },
 };
 use chrono::{DateTime, FixedOffset};
+use log::warn;
 use std::{cmp::Ordering, option::Option, thread::sleep, time::Duration, vec::Vec};
 
 pub struct Character {
@@ -398,13 +398,14 @@ impl Character {
             for i in required_items {
                 let _ = self.withdraw(&i.code, self.inventory_max_items());
             }
-            let _ = match self.items.skill_to_craft(code).unwrap() {
-                craft_schema::Skill::Weaponcrafting => self.move_to(2, 1),
-                craft_schema::Skill::Gearcrafting => self.move_to(2, 2),
-                craft_schema::Skill::Jewelrycrafting => self.move_to(1, 3),
-                craft_schema::Skill::Cooking => self.move_to(1, 1),
-                craft_schema::Skill::Woodcutting => self.move_to(-2, -3),
-                craft_schema::Skill::Mining => self.move_to(1, 5),
+            let _ = match self.items.skill_to_craft(code) {
+                Some(Skill::Weaponcrafting) => self.move_to(2, 1),
+                Some(Skill::Gearcrafting) => self.move_to(2, 2),
+                Some(Skill::Jewelrycrafting) => self.move_to(1, 3),
+                Some(Skill::Cooking) => self.move_to(1, 1),
+                Some(Skill::Woodcutting) => self.move_to(-2, -3),
+                Some(Skill::Mining) => self.move_to(1, 5),
+                _ => false,
             };
             let _ = self.craft_all(code);
         }
@@ -494,71 +495,19 @@ impl Character {
             }
             match role {
                 Role::Fighter => {
-                    self.improve_weapon();
-                    let monster = self.monsters.lower_providing_exp(self.level()).unwrap();
-                    let (x, y) = self.closest_map_with_resource(&monster.code).unwrap();
-                    if self.move_to(x, y) {
-                        let _ = self.fight();
-                    }
+                    self.fighter_routin();
                 }
                 Role::Miner => {
-                    let items = self
-                        .items
-                        .best_craftable_at_level(self.skill_level(Skill::Mining), "mining")
-                        .unwrap();
-                    if !items.is_empty() && items.iter().any(|i| self.bank.has_mats_for(&i.code)) {
-                        for item in &items {
-                            if self.bank.has_mats_for(&item.code) {
-                                self.move_to_bank();
-                                self.deposit_all();
-                                self.withdraw_max_mats_for(&item.code);
-                            }
-                        }
-                        self.move_to(1, 5);
-                        for item in &items {
-                            let _ = self.craft_all(&item.code);
-                        }
-                    } else {
-                        self.gather_best_ressource_for(Skill::Mining);
-                    }
+                    self.miner_routin();
                 }
                 Role::Woodcutter => {
-                    let resource = self
-                        .resources
-                        .below_or_equal(self.skill_level(Skill::Woodcutting), "woodcutting")
-                        .unwrap();
-                    let (x, y) = self.closest_map_with_resource(&resource.code).unwrap();
-                    if self.move_to(x, y) {
-                        let _ = self.gather();
-                    }
+                    self.woodcutter_routin();
                 }
                 Role::Fisher => {
-                    let resource = self
-                        .resources
-                        .below_or_equal(self.skill_level(Skill::Fishing), "fishing")
-                        .unwrap();
-                    let (x, y) = self.closest_map_with_resource(&resource.code).unwrap();
-                    if self.move_to(x, y) {
-                        let _ = self.gather();
-                    }
+                    self.fisher_routin();
                 }
                 Role::Weaponcrafter => {
-                    let items = self
-                        .items
-                        .best_craftable_at_level(
-                            self.skill_level(Skill::Weaponcrafting),
-                            "weaponcrafting",
-                        )
-                        .unwrap();
-                    for item in &items {
-                        self.withdraw_max_mats_for(&item.code);
-                    }
-                    self.move_to(2, 1);
-                    for item in items {
-                        let _ = self.craft_all(&item.code);
-                    }
-                    self.move_to_bank();
-                    self.deposit_all();
+                    self.weaponcraft_routin();
                 }
                 Role::Idle => {
                     return;
@@ -567,10 +516,35 @@ impl Character {
         }
     }
 
-    fn gather_best_ressource_for(&self, skill: Skill) {
+    fn fighter_routin(&self) {
+        self.improve_weapon();
+        let monster = self.monsters.lower_providing_exp(self.level()).unwrap();
+        let (x, y) = self.closest_map_with_resource(&monster.code).unwrap();
+        if self.move_to(x, y) {
+            let _ = self.fight();
+        }
+    }
+
+    fn weaponcraft_routin(&self) {
+        let items = self
+            .items
+            .best_craftable_at_level(self.skill_level(Skill::Weaponcrafting), Skill::Weaponcrafting)
+            .unwrap();
+        for item in &items {
+            self.withdraw_max_mats_for(&item.code);
+        }
+        self.move_to(2, 1);
+        for item in items {
+            let _ = self.craft_all(&item.code);
+        }
+        self.move_to_bank();
+        self.deposit_all();
+    }
+
+    fn fisher_routin(&self) {
         let resource = self
             .resources
-            .below_or_equal(self.skill_level(skill), &skill.to_string())
+            .below_or_equal(self.skill_level(Skill::Fishing), Skill::Fishing)
             .unwrap();
         let (x, y) = self.closest_map_with_resource(&resource.code).unwrap();
         if self.move_to(x, y) {
@@ -578,15 +552,68 @@ impl Character {
         }
     }
 
-    fn withdraw_mats_for(&self, code: &str, quantity: i32) {
-        println!("{} withdrawing mats for {} * {}", self.name, code, quantity);
-        let mats = self.items.mats_for(code).unwrap();
-        for mat in mats {
-            let _ = self.withdraw(&mat.code, mat.quantity * quantity);
+    fn woodcutter_routin(&self) {
+        let resource = self
+            .resources
+            .below_or_equal(self.skill_level(Skill::Woodcutting), Skill::Woodcutting)
+            .unwrap();
+        let (x, y) = self.closest_map_with_resource(&resource.code).unwrap();
+        if self.move_to(x, y) {
+            let _ = self.gather();
         }
     }
 
-    fn withdraw_max_mats_for(&self, code: &str) {
+    fn miner_routin(&self) {
+        let items = self
+            .items
+            .best_craftable_at_level(self.skill_level(Skill::Mining), Skill::Mining)
+            .unwrap();
+        if !items.is_empty() && items.iter().any(|i| self.bank.has_mats_for(&i.code)) {
+            for item in &items {
+                if self.bank.has_mats_for(&item.code) {
+                    self.move_to_bank();
+                    self.deposit_all();
+                    self.withdraw_max_mats_for(&item.code);
+                }
+            }
+            self.move_to(1, 5);
+            for item in &items {
+                let _ = self.craft_all(&item.code);
+            }
+        } else {
+            self.gather_best_ressource_for(Skill::Mining);
+        }
+    }
+
+    fn gather_best_ressource_for(&self, skill: Skill) -> bool {
+        let resource = self
+            .resources
+            .below_or_equal(self.skill_level(skill), skill)
+            .unwrap();
+        let (x, y) = self.closest_map_with_resource(&resource.code).unwrap();
+        if self.move_to(x, y) {
+            let _ = self.gather();
+            return true
+        }
+        false
+    }
+
+    fn withdraw_mats_for(&self, code: &str, quantity: i32) -> bool {
+        println!("{} withdrawing mats for {} * {}", self.name, code, quantity);
+        let mats = self.items.mats_for(code).unwrap();
+        for mat in &mats {
+            if self.bank.has_item(&mat.code).unwrap().quantity < mat.quantity * quantity {
+                warn!("not enough resources in bank to withdraw the materials required to craft [{code}] * {quantity}");
+                return false;
+            }
+        }
+        for mat in &mats {
+            let _ = self.withdraw(&mat.code, mat.quantity * quantity);
+        }
+        true
+    }
+
+    fn withdraw_max_mats_for(&self, code: &str) -> bool {
         let n = self.items.mats_quantity_for(code);
         let max = self.inventory_space_available() / n;
         self.withdraw_mats_for(code, max)
