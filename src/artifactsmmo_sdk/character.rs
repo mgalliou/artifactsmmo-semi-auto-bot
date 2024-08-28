@@ -22,10 +22,7 @@ use artifactsmmo_openapi::{
         Error,
     },
     models::{
-        equip_schema::{self, Slot},
-        unequip_schema, BankItemTransactionResponseSchema, CharacterFightResponseSchema,
-        CharacterResponseSchema, EquipmentResponseSchema, InventorySlot, ItemSchema, MapSchema,
-        SingleItemSchema, SkillResponseSchema,
+        equip_schema::{self, Slot}, unequip_schema, BankItemTransactionResponseSchema, CharacterFightResponseSchema, CharacterResponseSchema, CharacterSchema, EquipmentResponseSchema, InventorySlot, ItemSchema, MapSchema, SingleItemSchema, SkillResponseSchema
     },
 };
 use chrono::{DateTime, Utc};
@@ -42,6 +39,7 @@ pub struct Character {
     monsters: Monsters,
     bank: Bank,
     pub name: String,
+    pub info: Option<CharacterSchema>,
     pub cooldown_expiration: Option<DateTime<Utc>>,
 }
 
@@ -63,9 +61,11 @@ impl Character {
             monsters: Monsters::new(account),
             bank: Bank::new(account),
             name: name.to_owned(),
+            info: None,
             cooldown_expiration: None,
         };
         char.cooldown_expiration = char.cooldown_expiration();
+        char.info = Some(*char.info().unwrap().data);
         char
     }
 
@@ -84,6 +84,7 @@ impl Character {
                     DateTime::parse_from_rfc3339(&res.data.cooldown.expiration)
                         .ok()
                         .map(|d| d.to_utc());
+                self.info = Some(*res.data.character.clone());
                 return true;
             }
             Err(ref e) => println!("{}: error while moving: {}", self.name, e),
@@ -103,6 +104,7 @@ impl Character {
                     DateTime::parse_from_rfc3339(&res.data.cooldown.expiration)
                         .ok()
                         .map(|d| d.to_utc());
+                self.info = Some(*res.data.character.clone());
             }
             Err(ref e) => println!("{}: error during fight: {}", self.name, e),
         };
@@ -116,11 +118,15 @@ impl Character {
         let res = self.my_api.gather(&self.name);
         match res {
             Ok(ref res) => {
-                println!("{}: gathered {:?}", self.name, res.data.details.items);
+                println!("{}: gathered:", self.name);
+                for item in &res.data.details.items {
+                    println!("{} * {}", item.code, item.quantity);
+                }
                 self.cooldown_expiration =
                     DateTime::parse_from_rfc3339(&res.data.cooldown.expiration)
                         .ok()
                         .map(|d| d.to_utc());
+                self.info = Some(*res.data.character.clone());
             }
             Err(ref e) => println!("{}: error during gathering: {}", self.name, e),
         };
@@ -141,6 +147,7 @@ impl Character {
                     DateTime::parse_from_rfc3339(&res.data.cooldown.expiration)
                         .ok()
                         .map(|d| d.to_utc());
+                self.info = Some(*res.data.character.clone());
             }
             Err(ref e) => println!("{}: error during crafting: {}", self.name, e),
         };
@@ -164,6 +171,7 @@ impl Character {
                     DateTime::parse_from_rfc3339(&res.data.cooldown.expiration)
                         .ok()
                         .map(|d| d.to_utc());
+                self.info = Some(*res.data.character.clone());
             }
             Err(ref e) => println!(
                 "{}: error while depositing {} * {}: {}",
@@ -190,6 +198,7 @@ impl Character {
                     DateTime::parse_from_rfc3339(&res.data.cooldown.expiration)
                         .ok()
                         .map(|d| d.to_utc());
+                self.info = Some(*res.data.character.clone());
             }
             Err(ref e) => println!("{}: error while unequiping: {}", self.name, e),
         }
@@ -212,6 +221,7 @@ impl Character {
                     DateTime::parse_from_rfc3339(&res.data.cooldown.expiration)
                         .ok()
                         .map(|d| d.to_utc());
+                self.info = Some(*res.data.character.clone());
             }
             Err(ref e) => println!("{}: error while unequiping: {}", self.name, e),
         }
@@ -235,6 +245,7 @@ impl Character {
                     DateTime::parse_from_rfc3339(&res.data.cooldown.expiration)
                         .ok()
                         .map(|d| d.to_utc());
+                self.info = Some(*res.data.character.clone());
             }
             Err(ref e) => println!(
                 "{}: error while withdrawing {} * {}: {}",
@@ -595,13 +606,33 @@ impl Character {
             )
             .unwrap();
         for item in &items {
-            self.withdraw_max_mats_for(&item.code);
-            let _ = self.craft_all(&item.code);
-            self.deposit_all();
+            if self.withdraw_max_mats_for(&item.code) {
+                let _ = self.craft_all(&item.code);
+                self.deposit_all();
+            }
         }
     }
 
-    fn levelup_skill(&mut self, skill: Skill) -> bool {
+
+    fn fisher_routin(&mut self) {
+        if !self.levelup_by_crafting(Skill::Cooking) {
+            self.levelup_by_gathering(Skill::Fishing);
+        }
+    }
+
+    fn woodcutter_routin(&mut self) {
+        if !self.levelup_by_crafting(Skill::Woodcutting) {
+            self.levelup_by_gathering(Skill::Woodcutting);
+        }
+    }
+
+    fn miner_routin(&mut self) {
+        if !self.levelup_by_crafting(Skill::Mining) {
+            self.levelup_by_gathering(Skill::Mining);
+        }
+    }
+
+    fn levelup_by_crafting(&mut self, skill: Skill) -> bool {
         let items = self
             .items
             .best_craftable_at_level(self.skill_level(skill), skill)
@@ -621,30 +652,7 @@ impl Character {
         false
     }
 
-    fn fisher_routin(&mut self) {
-        if !self.levelup_skill(Skill::Cooking) {
-            self.gather_best_ressource_for(Skill::Fishing);
-        }
-    }
-
-    fn woodcutter_routin(&mut self) {
-        let resource = self
-            .resources
-            .below_or_equal(self.skill_level(Skill::Woodcutting), Skill::Woodcutting)
-            .unwrap();
-        let (x, y) = self.closest_map_with_resource(&resource.code).unwrap();
-        if self.move_to(x, y) {
-            let _ = self.gather();
-        }
-    }
-
-    fn miner_routin(&mut self) {
-        if !self.levelup_skill(Skill::Mining) {
-            self.gather_best_ressource_for(Skill::Mining);
-        }
-    }
-
-    fn gather_best_ressource_for(&mut self, skill: Skill) -> bool {
+    fn levelup_by_gathering(&mut self, skill: Skill) -> bool {
         let resource = self
             .resources
             .below_or_equal(self.skill_level(skill), skill)
