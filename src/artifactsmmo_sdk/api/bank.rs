@@ -7,7 +7,7 @@ use artifactsmmo_openapi::{
         },
         Error,
     },
-    models::{BankResponseSchema, DataPageSimpleItemSchema},
+    models::{BankResponseSchema, SimpleItemSchema},
 };
 
 pub struct BankApi {
@@ -31,7 +31,28 @@ impl BankApi {
         code: Option<&str>,
         page: Option<i32>,
         size: Option<i32>,
-    ) -> Result<DataPageSimpleItemSchema, Error<GetBankItemsMyBankItemsGetError>> {
-        get_bank_items_my_bank_items_get(&self.configuration, code, page, size)
+    ) -> Result<Vec<SimpleItemSchema>, Error<GetBankItemsMyBankItemsGetError>> {
+        let mut items: Vec<SimpleItemSchema> = vec![];
+        let mut current_page = 1;
+        let mut finished = false;
+        while !finished {
+            let resp = get_bank_items_my_bank_items_get(&self.configuration, code, page, size);
+            match resp {
+                Ok(resp) => {
+                    items.append(&mut resp.data.clone());
+                    if let Some(Some(pages)) = resp.pages {
+                        if current_page >= pages {
+                            finished = true
+                        }
+                        current_page += 1;
+                    } else {
+                        // No pagination information, assume single page
+                        finished = true
+                    }
+                }
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(items)
     }
 }

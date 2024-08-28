@@ -3,7 +3,6 @@ use artifactsmmo_openapi::models::{BankSchema, SimpleItemSchema};
 use super::{account::Account, api::bank::BankApi, items::Items};
 
 pub struct Bank {
-    api: BankApi,
     items: Items,
     pub details: BankSchema,
     pub content: Vec<SimpleItemSchema>,
@@ -12,14 +11,13 @@ pub struct Bank {
 impl Bank {
     pub fn new(account: &Account) -> Bank {
         let api = BankApi::new(
-                &account.configuration.base_path,
-                &account.configuration.bearer_access_token.clone().unwrap(),
-            );
+            &account.configuration.base_path,
+            &account.configuration.bearer_access_token.clone().unwrap(),
+        );
         Bank {
             items: Items::new(account),
             details: *api.details().unwrap().data,
-            content: api.items(None, None, None).unwrap().data,
-            api,
+            content: api.items(None, None, None).unwrap(),
         }
     }
 

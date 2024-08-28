@@ -439,10 +439,8 @@ impl Character {
             Some(&Type::Weapon.to_string()),
             None,
             None,
-            None,
-            None,
         ) {
-            Ok(items) => Some(items.data),
+            Ok(items) => Some(items),
             Err(_) => None,
         }
     }

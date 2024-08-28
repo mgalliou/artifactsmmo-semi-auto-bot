@@ -43,11 +43,9 @@ impl Items {
             None,
             Some(&skill.to_string()),
             None,
-            None,
-            None,
         ) {
             Ok(schemas) => {
-                for schema in schemas.data {
+                for schema in schemas {
                     if highest_lvl == 0 || highest_lvl <= schema.level {
                         highest_lvl = schema.level;
                         best_schemas.push(schema);
