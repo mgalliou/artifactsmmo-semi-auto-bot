@@ -1,30 +1,30 @@
-use artifactsmmo_openapi::models::SimpleItemSchema;
+use artifactsmmo_openapi::models::{BankSchema, SimpleItemSchema};
 
 use super::{account::Account, api::bank::BankApi, items::Items};
 
 pub struct Bank {
     api: BankApi,
     items: Items,
+    pub details: BankSchema,
+    pub content: Vec<SimpleItemSchema>,
 }
 
 impl Bank {
     pub fn new(account: &Account) -> Bank {
-        Bank {
-            api: BankApi::new(
+        let api = BankApi::new(
                 &account.configuration.base_path,
                 &account.configuration.bearer_access_token.clone().unwrap(),
-            ),
+            );
+        Bank {
             items: Items::new(account),
+            details: *api.details().unwrap().data,
+            content: api.items(None, None, None).unwrap().data,
+            api,
         }
     }
 
-    pub fn has_item(&self, code: &str) -> Option<SimpleItemSchema> {
-        self.api
-            .items(Some(code), None, None)
-            .ok()?
-            .data
-            .first()
-            .cloned()
+    pub fn has_item(&self, code: &str) -> Option<&SimpleItemSchema> {
+        self.content.iter().find(|i| i.code == code)
     }
 
     ///. return the number of time the item `code` can be crafted with the mats available in bank

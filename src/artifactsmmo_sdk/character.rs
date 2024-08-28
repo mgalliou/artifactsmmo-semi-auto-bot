@@ -148,6 +148,7 @@ impl Character {
             Ok(ref res) => {
                 println!("{}: deposited {} * {}", self.name, code, quantity);
                 self.info = *res.data.character.clone();
+                self.bank.content = res.data.bank.clone();
             }
             Err(ref e) => println!(
                 "{}: error while depositing {} * {}: {}",
@@ -210,6 +211,7 @@ impl Character {
             Ok(ref res) => {
                 println!("{}: withdrawed {} {}", self.name, code, quantity);
                 self.info = *res.data.character.clone();
+                self.bank.content = res.data.bank.clone();
             }
             Err(ref e) => println!(
                 "{}: error while withdrawing {} * {}: {}",
