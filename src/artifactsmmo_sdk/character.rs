@@ -211,10 +211,15 @@ impl Character {
         res
     }
 
-    pub fn craft_all(
-        &self,
-        code: &str,
-    ) -> Result<SkillResponseSchema, Error<ActionCraftingMyNameActionCraftingPostError>> {
+    pub fn craft_all(&self, code: &str) -> bool {
+        let n = self.has_mats_for(code);
+        if n > 0 && self.move_to_craft(code) {
+            return self.craft(code, n).is_ok();
+        }
+        false
+    }
+
+    fn has_mats_for(&self, code: &str) -> i32 {
         let mut n = 0;
         let mut new_n;
 
@@ -226,7 +231,7 @@ impl Character {
                 }
             }
         }
-        self.craft(code, n)
+        n
     }
 
     pub fn deposit_all(&self) {
@@ -398,16 +403,19 @@ impl Character {
             for i in required_items {
                 let _ = self.withdraw(&i.code, self.inventory_max_items());
             }
-            let _ = match self.items.skill_to_craft(code) {
-                Some(Skill::Weaponcrafting) => self.move_to(2, 1),
-                Some(Skill::Gearcrafting) => self.move_to(2, 2),
-                Some(Skill::Jewelrycrafting) => self.move_to(1, 3),
-                Some(Skill::Cooking) => self.move_to(1, 1),
-                Some(Skill::Woodcutting) => self.move_to(-2, -3),
-                Some(Skill::Mining) => self.move_to(1, 5),
-                _ => false,
-            };
             let _ = self.craft_all(code);
+        }
+    }
+
+    fn move_to_craft(&self, code: &str) -> bool {
+        match self.items.skill_to_craft(code) {
+            Some(Skill::Weaponcrafting) => self.move_to(2, 1),
+            Some(Skill::Gearcrafting) => self.move_to(2, 2),
+            Some(Skill::Jewelrycrafting) => self.move_to(1, 3),
+            Some(Skill::Cooking) => self.move_to(1, 1),
+            Some(Skill::Woodcutting) => self.move_to(-2, -3),
+            Some(Skill::Mining) => self.move_to(1, 5),
+            _ => false,
         }
     }
 
@@ -576,7 +584,6 @@ impl Character {
                     self.withdraw_max_mats_for(&item.code);
                 }
             }
-            self.move_to(1, 5);
             for item in &items {
                 let _ = self.craft_all(&item.code);
                 self.deposit_all();
@@ -619,7 +626,11 @@ impl Character {
         let n = self.items.mats_quantity_for(code);
         let can_carry = self.inventory_space_available() / n;
         let total_craftable = self.bank.has_mats_for(code);
-        let max = if total_craftable < can_carry { total_craftable } else { can_carry };
+        let max = if total_craftable < can_carry {
+            total_craftable
+        } else {
+            can_carry
+        };
         self.withdraw_mats_for(code, max)
     }
 }
