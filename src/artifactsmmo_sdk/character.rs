@@ -73,7 +73,7 @@ impl Character {
         if self.coordinates() == (x, y) {
             return true;
         }
-        self.cooldown();
+        self.wait_for_cooldown();
         match self.my_api.move_to(&self.name, x, y) {
             Ok(res) => {
                 println!(
@@ -91,14 +91,10 @@ impl Character {
         false
     }
 
-    fn move_to_bank(&mut self) {
-        let _ = self.move_to(4, 1);
-    }
-
     pub fn fight(
         &mut self,
     ) -> Result<CharacterFightResponseSchema, Error<ActionFightMyNameActionFightPostError>> {
-        self.cooldown();
+        self.wait_for_cooldown();
         let res = self.my_api.fight(&self.name);
         match res {
             Ok(ref res) => {
@@ -116,7 +112,7 @@ impl Character {
     pub fn gather(
         &mut self,
     ) -> Result<SkillResponseSchema, Error<ActionGatheringMyNameActionGatheringPostError>> {
-        self.cooldown();
+        self.wait_for_cooldown();
         let res = self.my_api.gather(&self.name);
         match res {
             Ok(ref res) => {
@@ -136,7 +132,7 @@ impl Character {
         code: &str,
         quantity: i32,
     ) -> Result<SkillResponseSchema, Error<ActionCraftingMyNameActionCraftingPostError>> {
-        self.cooldown();
+        self.wait_for_cooldown();
         let res = self.my_api.craft(&self.name, code, quantity);
         match res {
             Ok(ref res) => {
@@ -159,7 +155,7 @@ impl Character {
         BankItemTransactionResponseSchema,
         Error<ActionDepositBankMyNameActionBankDepositPostError>,
     > {
-        self.cooldown();
+        self.wait_for_cooldown();
         let res = self.my_api.deposit(&self.name, code, quantity);
         match res {
             Ok(ref res) => {
@@ -182,7 +178,7 @@ impl Character {
         code: &str,
         slot: equip_schema::Slot,
     ) -> Result<EquipmentResponseSchema, Error<ActionEquipItemMyNameActionEquipPostError>> {
-        self.cooldown();
+        self.wait_for_cooldown();
         let res = self.my_api.equip(&self.name, code, slot, None);
         match res {
             Ok(ref res) => {
@@ -204,7 +200,7 @@ impl Character {
         &mut self,
         slot: unequip_schema::Slot,
     ) -> Result<EquipmentResponseSchema, Error<ActionUnequipItemMyNameActionUnequipPostError>> {
-        self.cooldown();
+        self.wait_for_cooldown();
         let res = self.my_api.unequip(&self.name, slot, None);
         match res {
             Ok(ref res) => {
@@ -230,7 +226,7 @@ impl Character {
         BankItemTransactionResponseSchema,
         Error<ActionWithdrawBankMyNameActionBankWithdrawPostError>,
     > {
-        self.cooldown();
+        self.wait_for_cooldown();
         let res = self.my_api.withdraw(&self.name, code, quantity);
         match res {
             Ok(ref res) => {
@@ -248,15 +244,112 @@ impl Character {
         res
     }
 
+    fn move_to_bank(&mut self) {
+        let _ = self.move_to(4, 1);
+    }
+
+
     pub fn craft_all(&mut self, code: &str) -> bool {
-        println!("{} crafting all {}", self.name, code);
+        println!("{}: crafting all {}", self.name, code);
         let n = self.has_mats_for(code);
-        if n > 0 && self.move_to_craft(code) {
+        if n > 0 && self.move_to_craft(code) && self.craft(code, n).is_ok() {
             println!("{} crafted all {} ({})", self.name, code, n);
-            return self.craft(code, n).is_ok();
+            return true;
         }
         info!("{} failed to crafted all {} ({})", self.name, code, n);
         false
+    }
+
+    pub fn deposit_all(&mut self) {
+        if self.inventory_total() > 0 {
+            self.move_to_bank();
+            println!("{} depositing all to bank", self.name);
+            for i in self.inventory() {
+                if i.quantity > 0 {
+                    let _ = self.deposit(&i.code, i.quantity);
+                }
+            }
+        }
+    }
+
+    fn info(&self) -> Result<CharacterResponseSchema, Error<GetCharacterCharactersNameGetError>> {
+        self.api.get(&self.name)
+    }
+
+    fn wait_for_cooldown(&self) {
+        let s = self.remaining_cooldown();
+        if s.is_zero() {
+            return;
+        }
+        println!(
+            "{}: cooling down for {}.{} secondes",
+            self.name,
+            s.as_secs(),
+            s.subsec_millis()
+        );
+        sleep(s);
+    }
+
+    pub fn remaining_cooldown(&self) -> Duration {
+        if let Some(exp) = self.cooldown_expiration {
+            let synced = Utc::now() - self.account.server_offset;
+            if synced.cmp(&exp.to_utc()) == Ordering::Less {
+                return (exp.to_utc() - synced).to_std().unwrap();
+            }
+        }
+        Duration::from_secs(0)
+    }
+
+    pub fn cooldown_expiration(&self) -> Option<DateTime<Utc>> {
+        match self.info() {
+            Ok(res) => match res.data.cooldown_expiration {
+                Some(cd) => match DateTime::parse_from_rfc3339(&cd) {
+                    Ok(cd) => Some(cd.to_utc()),
+                    Err(_) => None,
+                },
+                None => None,
+            },
+            Err(_) => None,
+        }
+    }
+
+    pub fn inventory(&self) -> Vec<InventorySlot> {
+        let char = self.info().unwrap();
+        char.data.inventory.unwrap()
+    }
+
+    pub fn inventory_max_items(&self) -> i32 {
+        let char = self.info().unwrap();
+        char.data.inventory_max_items
+    }
+
+    pub fn inventory_total(&self) -> i32 {
+        let mut i = 0;
+
+        for item in self.inventory() {
+            i += item.quantity
+        }
+        i
+    }
+
+    pub fn amount_in_inventory(&self, code: &str) -> i32 {
+        let inv = self.inventory();
+        let mut quantity = 0;
+
+        for i in inv {
+            if i.code == code {
+                quantity += i.quantity;
+            }
+        }
+        quantity
+    }
+
+    pub fn inventory_is_full(&self) -> bool {
+        self.inventory_total() == self.inventory_max_items()
+    }
+
+    pub fn inventory_free_space(&self) -> i32 {
+        self.inventory_max_items() - self.inventory_total()
     }
 
     fn has_mats_for(&self, code: &str) -> i32 {
@@ -275,115 +368,23 @@ impl Character {
         n
     }
 
-    pub fn deposit_all(&mut self) {
-        if self.inventory_total() > 0 {
-            self.move_to_bank();
-            println!("{} depositing all to bank", self.name);
-            for i in self.inventory() {
-                if i.quantity > 0 {
-                    let _ = self.deposit(&i.code, i.quantity);
-                }
-            }
-        }
-    }
-
-    fn cooldown(&self) {
-        let s = self.remaining_cooldown();
-        if s.is_zero() {
-            return;
-        }
-        println!(
-            "{}: cooling down for {}.{} secondes",
-            self.name,
-            s.as_secs(),
-            s.subsec_millis()
-        );
-        sleep(s);
-    }
-
-    pub fn inventory(&self) -> Vec<InventorySlot> {
-        let char = self.info().unwrap();
-        char.data.inventory.unwrap()
-    }
-
-    fn info(&self) -> Result<CharacterResponseSchema, Error<GetCharacterCharactersNameGetError>> {
-        self.api.get(&self.name)
-    }
-
-    pub fn inventory_max_items(&self) -> i32 {
-        let char = self.api.get(&self.name).unwrap();
-        char.data.inventory_max_items
-    }
-
-    pub fn inventory_total(&self) -> i32 {
-        let mut i = 0;
-
-        for item in self.inventory() {
-            i += item.quantity
-        }
-        i
-    }
-
-    pub fn amount_in_inventory(&self, code: &str) -> i32 {
-        let inv = self.inventory();
-        let mut quantity: i32;
-
-        quantity = 0;
-        for i in inv {
-            if i.code == code {
-                quantity += i.quantity;
-            }
-        }
-        quantity
-    }
-
-    pub fn inventory_is_full(&self) -> bool {
-        self.inventory_total() == self.inventory_max_items()
-    }
-
-    pub fn inventory_space_available(&self) -> i32 {
-        self.inventory_max_items() - self.inventory_total()
-    }
 
     pub fn weapon_equiped(&self) -> String {
         let char = self.info().unwrap();
         char.data.weapon_slot
     }
 
-    pub fn cooldown_expiration(&self) -> Option<DateTime<Utc>> {
-        match self.api.get(&self.name) {
-            Ok(res) => match res.data.cooldown_expiration {
-                Some(cd) => match DateTime::parse_from_rfc3339(&cd) {
-                    Ok(cd) => Some(cd.to_utc()),
-                    Err(_) => None,
-                },
-                None => None,
-            },
-            Err(_) => None,
-        }
-    }
-
-    pub fn remaining_cooldown(&self) -> Duration {
-        if let Some(exp) = self.cooldown_expiration {
-            let synced = Utc::now() - self.account.server_offset;
-            if synced.cmp(&exp.to_utc()) == Ordering::Less {
-                return (exp.to_utc() - synced).to_std().unwrap();
-            }
-        }
-        Duration::from_secs(0)
-    }
-
     fn coordinates(&self) -> (i32, i32) {
-        let data = self.api.get(&self.name).unwrap().data;
+        let data = self.info().unwrap().data;
         (data.x, data.y)
     }
 
     fn level(&self) -> i32 {
-        self.api.get(&self.name).unwrap().data.level
+        self.info().unwrap().data.level
     }
 
     fn skill_level(&self, skill: Skill) -> i32 {
-        let data = self.api.get(&self.name).unwrap().data;
+        let data = self.info().unwrap().data;
         match skill {
             Skill::Cooking => data.cooking_level,
             Skill::Fishing => data.fishing_level,
@@ -439,7 +440,7 @@ impl Character {
     // }
 
     pub fn craft_all_repeat(&mut self, code: &str) {
-        self.cooldown();
+        self.wait_for_cooldown();
         loop {
             self.deposit_all();
             let required_items = self.items.mats_for(code).unwrap();
@@ -530,11 +531,13 @@ impl Character {
         if let Some(code) = self.weapon_upgrade_in_bank() {
             self.move_to_bank();
             if let Some(equiped_weapon) = &self.equipment_in(Slot::Weapon) {
-                let _ = self.unequip(unequip_schema::Slot::Weapon);
-                let _ = self.deposit(&equiped_weapon.item.code, 1);
+                if self.unequip(unequip_schema::Slot::Weapon).is_ok() {
+                    let _ = self.deposit(&equiped_weapon.item.code, 1);
+                }
             }
-            let _ = self.withdraw(&code, 1);
-            let _ = self.equip(&code, equip_schema::Slot::Weapon);
+            if self.withdraw(&code, 1).is_ok() {
+                let _ = self.equip(&code, equip_schema::Slot::Weapon);
+            }
         }
     }
 
@@ -679,7 +682,7 @@ impl Character {
             self.name, code
         );
         let n = self.items.mats_quantity_for(code);
-        let can_carry = self.inventory_space_available() / n;
+        let can_carry = self.inventory_free_space() / n;
         let total_craftable = self.bank.has_mats_for(code);
         let max = if total_craftable < can_carry {
             total_craftable
