@@ -240,11 +240,13 @@ impl Character {
     }
 
     pub fn deposit_all(&self) {
-        self.move_to_bank();
-        println!("{} depositing all to bank", self.name);
-        for i in self.inventory() {
-            if i.quantity > 0 {
-                let _ = self.deposit(&i.code, i.quantity);
+        if self.inventory_total() > 0 {
+            self.move_to_bank();
+            println!("{} depositing all to bank", self.name);
+            for i in self.inventory() {
+                if i.quantity > 0 {
+                    let _ = self.deposit(&i.code, i.quantity);
+                }
             }
         }
     }
@@ -415,7 +417,10 @@ impl Character {
 
     fn move_to_craft(&self, code: &str) -> bool {
         let skill = self.items.skill_to_craft(code);
-        println!("{}: moving to craft {}: skill found {:?}", self.name, code, skill);
+        println!(
+            "{}: moving to craft {}: skill found {:?}",
+            self.name, code, skill
+        );
         match skill {
             Some(Skill::Weaponcrafting) => self.move_to(2, 1),
             Some(Skill::Gearcrafting) => self.move_to(2, 2),
@@ -499,11 +504,14 @@ impl Character {
     }
 
     pub fn run(&self, role: Role) {
-        self.move_to_bank();
-        if Role::Fighter != role {
+        if Role::Fighter != role
+            && self
+                .equipment_in(Slot::Weapon)
+                .is_some_and(|w| w.item.code == "wooden_stick")
+        {
             let _ = self.unequip(unequip_schema::Slot::Weapon);
+            self.deposit_all();
         };
-        self.deposit_all();
         loop {
             if self.inventory_is_full() {
                 self.deposit_all();
@@ -550,29 +558,33 @@ impl Character {
             .unwrap();
         for item in &items {
             self.withdraw_max_mats_for(&item.code);
-        }
-        self.move_to(2, 1);
-        for item in items {
             let _ = self.craft_all(&item.code);
+            self.deposit_all();
         }
-        self.deposit_all();
     }
 
-    fn fisher_routin(&self) {
+    fn levelup_skill(&self, skill: Skill) -> bool {
         let items = self
             .items
-            .best_craftable_at_level(self.skill_level(Skill::Cooking), Skill::Cooking)
+            .best_craftable_at_level(self.skill_level(skill), skill)
             .unwrap();
         if !items.is_empty() && items.iter().any(|i| self.bank.has_mats_for(&i.code) > 0) {
             for item in &items {
                 if self.bank.has_mats_for(&item.code) > 0 {
                     self.deposit_all();
-                    self.withdraw_max_mats_for(&item.code);
-                    let _ = self.craft_all(&item.code);
-                    self.deposit_all();
+                    if self.withdraw_max_mats_for(&item.code) {
+                        let _ = self.craft_all(&item.code);
+                        self.deposit_all();
+                    }
+                    return true;
                 }
             }
-        } else {
+        }
+        false
+    }
+
+    fn fisher_routin(&self) {
+        if !self.levelup_skill(Skill::Cooking) {
             self.gather_best_ressource_for(Skill::Fishing);
         }
     }
@@ -589,22 +601,7 @@ impl Character {
     }
 
     fn miner_routin(&self) {
-        let items = self
-            .items
-            .best_craftable_at_level(self.skill_level(Skill::Mining), Skill::Mining)
-            .unwrap();
-        if !items.is_empty() && items.iter().any(|i| self.bank.has_mats_for(&i.code) > 0) {
-            for item in &items {
-                if self.bank.has_mats_for(&item.code) > 0 {
-                    self.deposit_all();
-                    self.withdraw_max_mats_for(&item.code);
-                }
-            }
-            for item in &items {
-                let _ = self.craft_all(&item.code);
-                self.deposit_all();
-            }
-        } else {
+        if !self.levelup_skill(Skill::Mining) {
             self.gather_best_ressource_for(Skill::Mining);
         }
     }
@@ -623,7 +620,10 @@ impl Character {
     }
 
     fn withdraw_mats_for(&self, code: &str, quantity: i32) -> bool {
-        println!("{} withdrawing mats for {} * {}", self.name, code, quantity);
+        println!(
+            "{}: withdrawing mats for {} * {}",
+            self.name, code, quantity
+        );
         let mats = self.items.mats_for(code).unwrap();
         for mat in &mats {
             if self.bank.has_item(&mat.code).unwrap().quantity < mat.quantity * quantity {
@@ -639,7 +639,10 @@ impl Character {
 
     /// .withdraw the maximum available amount of mats used to craft the item `code`
     fn withdraw_max_mats_for(&self, code: &str) -> bool {
-        println!("{} withdrawing maximum amount of mats to craft {}", self.name, code);
+        println!(
+            "{}: getting maximum amount of mats in bank to craft {}",
+            self.name, code
+        );
         let n = self.items.mats_quantity_for(code);
         let can_carry = self.inventory_space_available() / n;
         let total_craftable = self.bank.has_mats_for(code);
