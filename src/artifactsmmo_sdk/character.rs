@@ -230,6 +230,7 @@ impl Character {
     }
 
     pub fn deposit_all(&self) {
+        self.move_to_bank();
         for i in self.inventory() {
             if i.quantity > 0 {
                 let _ = self.deposit(&i.code, i.quantity);
@@ -392,7 +393,6 @@ impl Character {
     pub fn craft_all_repeat(&self, code: &str) {
         self.cooldown();
         loop {
-            self.move_to_bank();
             self.deposit_all();
             let required_items = self.items.mats_for(code).unwrap();
             for i in required_items {
@@ -490,7 +490,6 @@ impl Character {
         self.deposit_all();
         loop {
             if self.inventory_is_full() {
-                self.move_to_bank();
                 self.deposit_all();
             }
             match role {
@@ -540,7 +539,6 @@ impl Character {
         for item in items {
             let _ = self.craft_all(&item.code);
         }
-        self.move_to_bank();
         self.deposit_all();
     }
 
@@ -574,7 +572,6 @@ impl Character {
         if !items.is_empty() && items.iter().any(|i| self.bank.has_mats_for(&i.code) > 0) {
             for item in &items {
                 if self.bank.has_mats_for(&item.code) > 0 {
-                    self.move_to_bank();
                     self.deposit_all();
                     self.withdraw_max_mats_for(&item.code);
                 }
@@ -582,7 +579,6 @@ impl Character {
             self.move_to(1, 5);
             for item in &items {
                 let _ = self.craft_all(&item.code);
-                self.move_to_bank();
                 self.deposit_all();
             }
         } else {
