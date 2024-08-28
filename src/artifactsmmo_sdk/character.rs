@@ -29,7 +29,7 @@ use artifactsmmo_openapi::{
     },
 };
 use chrono::{DateTime, FixedOffset};
-use log::warn;
+use log::{info, warn};
 use std::{cmp::Ordering, option::Option, thread::sleep, time::Duration, vec::Vec};
 
 pub struct Character {
@@ -76,6 +76,7 @@ impl Character {
                     "{}: moved to {},{} ({})",
                     self.name, x, y, res.data.destination.name
                 );
+                return true;
             }
             Err(ref e) => println!("{}: error while moving: {}", self.name, e),
         }
@@ -212,10 +213,13 @@ impl Character {
     }
 
     pub fn craft_all(&self, code: &str) -> bool {
+        println!("{} crafting all {}", self.name, code);
         let n = self.has_mats_for(code);
         if n > 0 && self.move_to_craft(code) {
+            println!("{} crafted all {} ({})", self.name, code, n);
             return self.craft(code, n).is_ok();
         }
+        info!("{} failed to crafted all {} ({})", self.name, code, n);
         false
     }
 
@@ -223,19 +227,21 @@ impl Character {
         let mut n = 0;
         let mut new_n;
 
-        for i in self.items.mats_for(code).unwrap() {
-            if i.quantity <= self.amount_in_inventory(&i.code) {
-                new_n = self.amount_in_inventory(&i.code) / i.quantity;
+        for mat in self.items.mats_for(code).unwrap() {
+            if mat.quantity <= self.amount_in_inventory(&mat.code) {
+                new_n = self.amount_in_inventory(&mat.code) / mat.quantity;
                 if n == 0 || new_n < n {
                     n = new_n;
                 }
             }
         }
+        println!("{} has mats to craft {} * {}", self.name, code, n);
         n
     }
 
     pub fn deposit_all(&self) {
         self.move_to_bank();
+        println!("{} depositing all to bank", self.name);
         for i in self.inventory() {
             if i.quantity > 0 {
                 let _ = self.deposit(&i.code, i.quantity);
@@ -408,7 +414,9 @@ impl Character {
     }
 
     fn move_to_craft(&self, code: &str) -> bool {
-        match self.items.skill_to_craft(code) {
+        let skill = self.items.skill_to_craft(code);
+        println!("{}: moving to craft {}: skill found {:?}", self.name, code, skill);
+        match skill {
             Some(Skill::Weaponcrafting) => self.move_to(2, 1),
             Some(Skill::Gearcrafting) => self.move_to(2, 2),
             Some(Skill::Jewelrycrafting) => self.move_to(1, 3),
@@ -551,13 +559,21 @@ impl Character {
     }
 
     fn fisher_routin(&self) {
-        let resource = self
-            .resources
-            .below_or_equal(self.skill_level(Skill::Fishing), Skill::Fishing)
+        let items = self
+            .items
+            .best_craftable_at_level(self.skill_level(Skill::Cooking), Skill::Cooking)
             .unwrap();
-        let (x, y) = self.closest_map_with_resource(&resource.code).unwrap();
-        if self.move_to(x, y) {
-            let _ = self.gather();
+        if !items.is_empty() && items.iter().any(|i| self.bank.has_mats_for(&i.code) > 0) {
+            for item in &items {
+                if self.bank.has_mats_for(&item.code) > 0 {
+                    self.deposit_all();
+                    self.withdraw_max_mats_for(&item.code);
+                    let _ = self.craft_all(&item.code);
+                    self.deposit_all();
+                }
+            }
+        } else {
+            self.gather_best_ressource_for(Skill::Fishing);
         }
     }
 
@@ -623,6 +639,7 @@ impl Character {
 
     /// .withdraw the maximum available amount of mats used to craft the item `code`
     fn withdraw_max_mats_for(&self, code: &str) -> bool {
+        println!("{} withdrawing maximum amount of mats to craft {}", self.name, code);
         let n = self.items.mats_quantity_for(code);
         let can_carry = self.inventory_space_available() / n;
         let total_craftable = self.bank.has_mats_for(code);
