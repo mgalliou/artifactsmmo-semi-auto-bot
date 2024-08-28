@@ -10,7 +10,6 @@ use super::{
 };
 use artifactsmmo_openapi::{
     apis::{
-        characters_api::GetCharacterCharactersNameGetError,
         my_characters_api::{
             ActionCraftingMyNameActionCraftingPostError,
             ActionDepositBankMyNameActionBankDepositPostError,
@@ -22,7 +21,10 @@ use artifactsmmo_openapi::{
         Error,
     },
     models::{
-        equip_schema::{self, Slot}, unequip_schema, BankItemTransactionResponseSchema, CharacterFightResponseSchema, CharacterResponseSchema, CharacterSchema, EquipmentResponseSchema, InventorySlot, ItemSchema, MapSchema, SingleItemSchema, SkillResponseSchema
+        equip_schema::{self, Slot},
+        unequip_schema, BankItemTransactionResponseSchema, CharacterFightResponseSchema,
+        CharacterSchema, EquipmentResponseSchema, ItemSchema, MapSchema, SingleItemSchema,
+        SkillResponseSchema,
     },
 };
 use chrono::{DateTime, Utc};
@@ -31,7 +33,6 @@ use std::{cmp::Ordering, option::Option, thread::sleep, time::Duration, vec::Vec
 
 pub struct Character {
     account: Account,
-    api: CharactersApi,
     my_api: MyCharacterApi,
     maps: Maps,
     resources: Resources,
@@ -39,18 +40,17 @@ pub struct Character {
     monsters: Monsters,
     bank: Bank,
     pub name: String,
-    pub info: Option<CharacterSchema>,
-    pub cooldown_expiration: Option<DateTime<Utc>>,
+    pub info: CharacterSchema,
 }
 
 impl Character {
     pub fn new(account: &Account, name: &str) -> Character {
-        let mut char = Character {
+        let api = CharactersApi::new(
+            &account.configuration.base_path,
+            &account.configuration.bearer_access_token.clone().unwrap(),
+        );
+        Character {
             account: account.clone(),
-            api: CharactersApi::new(
-                &account.configuration.base_path,
-                &account.configuration.bearer_access_token.clone().unwrap(),
-            ),
             my_api: MyCharacterApi::new(
                 &account.configuration.base_path,
                 &account.configuration.bearer_access_token.clone().unwrap(),
@@ -61,12 +61,8 @@ impl Character {
             monsters: Monsters::new(account),
             bank: Bank::new(account),
             name: name.to_owned(),
-            info: None,
-            cooldown_expiration: None,
-        };
-        char.cooldown_expiration = char.cooldown_expiration();
-        char.info = Some(*char.info().unwrap().data);
-        char
+            info: *api.get(name).unwrap().data,
+        }
     }
 
     pub fn move_to(&mut self, x: i32, y: i32) -> bool {
@@ -80,11 +76,7 @@ impl Character {
                     "{}: moved to {},{} ({})",
                     self.name, x, y, res.data.destination.name
                 );
-                self.cooldown_expiration =
-                    DateTime::parse_from_rfc3339(&res.data.cooldown.expiration)
-                        .ok()
-                        .map(|d| d.to_utc());
-                self.info = Some(*res.data.character.clone());
+                self.info = *res.data.character.clone();
                 return true;
             }
             Err(ref e) => println!("{}: error while moving: {}", self.name, e),
@@ -100,11 +92,7 @@ impl Character {
         match res {
             Ok(ref res) => {
                 println!("{} fought and {:?}", self.name, res.data.fight.result);
-                self.cooldown_expiration =
-                    DateTime::parse_from_rfc3339(&res.data.cooldown.expiration)
-                        .ok()
-                        .map(|d| d.to_utc());
-                self.info = Some(*res.data.character.clone());
+                self.info = *res.data.character.clone();
             }
             Err(ref e) => println!("{}: error during fight: {}", self.name, e),
         };
@@ -122,11 +110,7 @@ impl Character {
                 for item in &res.data.details.items {
                     println!("{} * {}", item.code, item.quantity);
                 }
-                self.cooldown_expiration =
-                    DateTime::parse_from_rfc3339(&res.data.cooldown.expiration)
-                        .ok()
-                        .map(|d| d.to_utc());
-                self.info = Some(*res.data.character.clone());
+                self.info = *res.data.character.clone();
             }
             Err(ref e) => println!("{}: error during gathering: {}", self.name, e),
         };
@@ -143,11 +127,7 @@ impl Character {
         match res {
             Ok(ref res) => {
                 println!("{}: crafted {}, {}", self.name, quantity, code);
-                self.cooldown_expiration =
-                    DateTime::parse_from_rfc3339(&res.data.cooldown.expiration)
-                        .ok()
-                        .map(|d| d.to_utc());
-                self.info = Some(*res.data.character.clone());
+                self.info = *res.data.character.clone();
             }
             Err(ref e) => println!("{}: error during crafting: {}", self.name, e),
         };
@@ -167,11 +147,7 @@ impl Character {
         match res {
             Ok(ref res) => {
                 println!("{}: deposited {} * {}", self.name, code, quantity);
-                self.cooldown_expiration =
-                    DateTime::parse_from_rfc3339(&res.data.cooldown.expiration)
-                        .ok()
-                        .map(|d| d.to_utc());
-                self.info = Some(*res.data.character.clone());
+                self.info = *res.data.character.clone();
             }
             Err(ref e) => println!(
                 "{}: error while depositing {} * {}: {}",
@@ -194,11 +170,7 @@ impl Character {
                     "{}: equiped {} in {:?} slot",
                     self.name, res.data.item.code, res.data.slot
                 );
-                self.cooldown_expiration =
-                    DateTime::parse_from_rfc3339(&res.data.cooldown.expiration)
-                        .ok()
-                        .map(|d| d.to_utc());
-                self.info = Some(*res.data.character.clone());
+                self.info = *res.data.character.clone();
             }
             Err(ref e) => println!("{}: error while unequiping: {}", self.name, e),
         }
@@ -217,11 +189,7 @@ impl Character {
                     "{}: unequiped {} from {:?} slot",
                     self.name, res.data.item.code, res.data.slot
                 );
-                self.cooldown_expiration =
-                    DateTime::parse_from_rfc3339(&res.data.cooldown.expiration)
-                        .ok()
-                        .map(|d| d.to_utc());
-                self.info = Some(*res.data.character.clone());
+                self.info = *res.data.character.clone();
             }
             Err(ref e) => println!("{}: error while unequiping: {}", self.name, e),
         }
@@ -241,11 +209,7 @@ impl Character {
         match res {
             Ok(ref res) => {
                 println!("{}: withdrawed {} {}", self.name, code, quantity);
-                self.cooldown_expiration =
-                    DateTime::parse_from_rfc3339(&res.data.cooldown.expiration)
-                        .ok()
-                        .map(|d| d.to_utc());
-                self.info = Some(*res.data.character.clone());
+                self.info = *res.data.character.clone();
             }
             Err(ref e) => println!(
                 "{}: error while withdrawing {} * {}: {}",
@@ -258,7 +222,6 @@ impl Character {
     fn move_to_bank(&mut self) {
         let _ = self.move_to(4, 1);
     }
-
 
     pub fn craft_all(&mut self, code: &str) -> bool {
         println!("{}: crafting all {}", self.name, code);
@@ -275,16 +238,14 @@ impl Character {
         if self.inventory_total() > 0 {
             self.move_to_bank();
             println!("{} depositing all to bank", self.name);
-            for i in self.inventory() {
-                if i.quantity > 0 {
-                    let _ = self.deposit(&i.code, i.quantity);
+            if let Some(inventory) = self.info.inventory.clone() {
+                for i in &inventory {
+                    if i.quantity > 0 {
+                        let _ = self.deposit(&i.code, i.quantity);
+                    }
                 }
             }
         }
-    }
-
-    fn info(&self) -> Result<CharacterResponseSchema, Error<GetCharacterCharactersNameGetError>> {
-        self.api.get(&self.name)
     }
 
     fn wait_for_cooldown(&self) {
@@ -302,7 +263,7 @@ impl Character {
     }
 
     pub fn remaining_cooldown(&self) -> Duration {
-        if let Some(exp) = self.cooldown_expiration {
+        if let Some(exp) = self.cooldown_expiration() {
             let synced = Utc::now() - self.account.server_offset;
             if synced.cmp(&exp.to_utc()) == Ordering::Less {
                 return (exp.to_utc() - synced).to_std().unwrap();
@@ -312,39 +273,30 @@ impl Character {
     }
 
     pub fn cooldown_expiration(&self) -> Option<DateTime<Utc>> {
-        match self.info() {
-            Ok(res) => match res.data.cooldown_expiration {
-                Some(cd) => match DateTime::parse_from_rfc3339(&cd) {
-                    Ok(cd) => Some(cd.to_utc()),
-                    Err(_) => None,
-                },
-                None => None,
+        match &self.info.cooldown_expiration {
+            Some(cd) => match DateTime::parse_from_rfc3339(cd) {
+                Ok(cd) => Some(cd.to_utc()),
+                Err(_) => None,
             },
-            Err(_) => None,
+            None => None,
         }
     }
 
-    pub fn inventory(&self) -> Vec<InventorySlot> {
-        let char = self.info().unwrap();
-        char.data.inventory.unwrap()
-    }
-
     pub fn inventory_max_items(&self) -> i32 {
-        let char = self.info().unwrap();
-        char.data.inventory_max_items
+        self.info.inventory_max_items
     }
 
     pub fn inventory_total(&self) -> i32 {
         let mut i = 0;
 
-        for item in self.inventory() {
+        for item in self.info.inventory.as_ref().unwrap() {
             i += item.quantity
         }
         i
     }
 
     pub fn amount_in_inventory(&self, code: &str) -> i32 {
-        let inv = self.inventory();
+        let inv = self.info.inventory.as_ref().unwrap();
         let mut quantity = 0;
 
         for i in inv {
@@ -379,31 +331,27 @@ impl Character {
         n
     }
 
-
-    pub fn weapon_equiped(&self) -> String {
-        let char = self.info().unwrap();
-        char.data.weapon_slot
+    pub fn weapon_equiped(&self) -> &String {
+        &self.info.weapon_slot
     }
 
     fn coordinates(&self) -> (i32, i32) {
-        let data = self.info().unwrap().data;
-        (data.x, data.y)
+        (self.info.x, self.info.y)
     }
 
     fn level(&self) -> i32 {
-        self.info().unwrap().data.level
+        self.info.level
     }
 
     fn skill_level(&self, skill: Skill) -> i32 {
-        let data = self.info().unwrap().data;
         match skill {
-            Skill::Cooking => data.cooking_level,
-            Skill::Fishing => data.fishing_level,
-            Skill::Gearcrafting => data.gearcrafting_level,
-            Skill::Jewelrycrafting => data.jewelrycrafting_level,
-            Skill::Mining => data.mining_level,
-            Skill::Weaponcrafting => data.weaponcrafting_level,
-            Skill::Woodcutting => data.woodcutting_level,
+            Skill::Cooking => self.info.cooking_level,
+            Skill::Fishing => self.info.fishing_level,
+            Skill::Gearcrafting => self.info.gearcrafting_level,
+            Skill::Jewelrycrafting => self.info.jewelrycrafting_level,
+            Skill::Mining => self.info.mining_level,
+            Skill::Weaponcrafting => self.info.weaponcrafting_level,
+            Skill::Woodcutting => self.info.woodcutting_level,
         }
     }
 
@@ -497,26 +445,26 @@ impl Character {
         }
     }
 
-    pub fn equipment_in(&self, slot: Slot) -> Option<Box<SingleItemSchema>> {
-        let data = self.info().unwrap().data;
+    pub fn equipment_in(&self, slot: Slot) -> Option<SingleItemSchema> {
+        let data = &self.info;
         let code = match slot {
-            Slot::Weapon => data.weapon_slot,
-            Slot::Shield => data.shield_slot,
-            Slot::Helmet => data.helmet_slot,
-            Slot::BodyArmor => data.body_armor_slot,
-            Slot::LegArmor => data.leg_armor_slot,
-            Slot::Boots => data.boots_slot,
-            Slot::Ring1 => data.ring1_slot,
-            Slot::Ring2 => data.ring2_slot,
-            Slot::Amulet => data.amulet_slot,
-            Slot::Artifact1 => data.artifact1_slot,
-            Slot::Artifact2 => data.artifact2_slot,
-            Slot::Artifact3 => data.artifact3_slot,
-            Slot::Consumable1 => data.consumable1_slot,
-            Slot::Consumable2 => data.consumable2_slot,
+            Slot::Weapon => &data.weapon_slot,
+            Slot::Shield => &data.shield_slot,
+            Slot::Helmet => &data.helmet_slot,
+            Slot::BodyArmor => &data.body_armor_slot,
+            Slot::LegArmor => &data.leg_armor_slot,
+            Slot::Boots => &data.boots_slot,
+            Slot::Ring1 => &data.ring1_slot,
+            Slot::Ring2 => &data.ring2_slot,
+            Slot::Amulet => &data.amulet_slot,
+            Slot::Artifact1 => &data.artifact1_slot,
+            Slot::Artifact2 => &data.artifact2_slot,
+            Slot::Artifact3 => &data.artifact3_slot,
+            Slot::Consumable1 => &data.consumable1_slot,
+            Slot::Consumable2 => &data.consumable2_slot,
         };
-        match self.items.api.info(&code) {
-            Ok(code) => Some(code.data),
+        match self.items.api.info(code) {
+            Ok(code) => Some(*code.data),
             Err(_) => None,
         }
     }
@@ -612,7 +560,6 @@ impl Character {
             }
         }
     }
-
 
     fn fisher_routin(&mut self) {
         if !self.levelup_by_crafting(Skill::Cooking) {
