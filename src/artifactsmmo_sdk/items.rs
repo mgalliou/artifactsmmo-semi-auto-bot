@@ -28,7 +28,11 @@ impl Items {
     //     best_schemas;
     // }
 
-    pub fn best_craftable_at_level(&self, level: i32, skill: super::skill::Skill) -> Option<Vec<ItemSchema>> {
+    pub fn best_craftable_at_level(
+        &self,
+        level: i32,
+        skill: super::skill::Skill,
+    ) -> Option<Vec<ItemSchema>> {
         let mut highest_lvl = 0;
         let mut best_schemas: Vec<ItemSchema> = vec![];
 

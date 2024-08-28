@@ -38,7 +38,11 @@ impl Account {
         account.server_offset = now - server_time;
         println!("system time: {}", now);
         println!("server time: {}", account.server_time().unwrap());
-        println!("time offset: {}s and {}ms", account.server_offset.num_seconds(), account.server_offset.subsec_nanos() / 1000000);
+        println!(
+            "time offset: {}s and {}ms",
+            account.server_offset.num_seconds(),
+            account.server_offset.subsec_nanos() / 1000000
+        );
         println!("synced time: {}", now - account.server_offset);
         account
     }

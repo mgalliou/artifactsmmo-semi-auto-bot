@@ -11,21 +11,30 @@ fn run() {
     let mut char4 = account.get_character(4).unwrap();
     let mut char5 = account.get_character(5).unwrap();
 
-    let t1 = thread::Builder::new().name(char1.name.to_string()).spawn(move || {
-        char1.run(Role::Fighter);
-    }).unwrap();
-    let t2 = thread::Builder::new().name(char2.name.to_string()).spawn(move || {
-        char2.run(Role::Miner);
-    }).unwrap();
-    let t3 = thread::Builder::new().name(char3.name.to_string()).spawn(move || {
-        char3.run(Role::Woodcutter)
-    }).unwrap();
-    let t4 = thread::Builder::new().name(char4.name.to_string()).spawn(move || {
-        char4.run(Role::Fisher)
-    }).unwrap();
-    let t5 = thread::Builder::new().name(char5.name.to_string()).spawn(move || {
-        char5.run(Role::Miner)
-    }).unwrap();
+    let t1 = thread::Builder::new()
+        .name(char1.name.to_string())
+        .spawn(move || {
+            char1.run(Role::Fighter);
+        })
+        .unwrap();
+    let t2 = thread::Builder::new()
+        .name(char2.name.to_string())
+        .spawn(move || {
+            char2.run(Role::Miner);
+        })
+        .unwrap();
+    let t3 = thread::Builder::new()
+        .name(char3.name.to_string())
+        .spawn(move || char3.run(Role::Woodcutter))
+        .unwrap();
+    let t4 = thread::Builder::new()
+        .name(char4.name.to_string())
+        .spawn(move || char4.run(Role::Fisher))
+        .unwrap();
+    let t5 = thread::Builder::new()
+        .name(char5.name.to_string())
+        .spawn(move || char5.run(Role::Miner))
+        .unwrap();
     t1.join().unwrap();
     t2.join().unwrap();
     t3.join().unwrap();

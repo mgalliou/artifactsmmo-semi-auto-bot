@@ -1,9 +1,9 @@
 pub mod account;
 pub mod api;
+pub mod bank;
 pub mod character;
 pub mod items;
 pub mod maps;
 pub mod monsters;
 pub mod resources;
 pub mod skill;
-pub mod bank;

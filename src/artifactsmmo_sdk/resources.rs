@@ -32,16 +32,23 @@ impl Resources {
         let mut highest_lvl = 0;
         let mut best_schema: Option<ResourceSchema> = None;
 
-        match self.api.all(None, Some(level), Some(&skill.to_string()), None, None, None) {
-            Ok(schemas) => { 
+        match self.api.all(
+            None,
+            Some(level),
+            Some(&skill.to_string()),
+            None,
+            None,
+            None,
+        ) {
+            Ok(schemas) => {
                 for schema in schemas.data {
                     if highest_lvl == 0 || highest_lvl < schema.level {
                         highest_lvl = schema.level;
                         best_schema = Some(schema);
                     }
-                };
+                }
                 best_schema
-            },
+            }
             _ => None,
         }
     }
