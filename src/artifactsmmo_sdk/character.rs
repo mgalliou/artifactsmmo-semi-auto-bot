@@ -528,7 +528,10 @@ impl Character {
     fn weaponcraft_routin(&self) {
         let items = self
             .items
-            .best_craftable_at_level(self.skill_level(Skill::Weaponcrafting), Skill::Weaponcrafting)
+            .best_craftable_at_level(
+                self.skill_level(Skill::Weaponcrafting),
+                Skill::Weaponcrafting,
+            )
             .unwrap();
         for item in &items {
             self.withdraw_max_mats_for(&item.code);
@@ -568,9 +571,9 @@ impl Character {
             .items
             .best_craftable_at_level(self.skill_level(Skill::Mining), Skill::Mining)
             .unwrap();
-        if !items.is_empty() && items.iter().any(|i| self.bank.has_mats_for(&i.code)) {
+        if !items.is_empty() && items.iter().any(|i| self.bank.has_mats_for(&i.code) > 0) {
             for item in &items {
-                if self.bank.has_mats_for(&item.code) {
+                if self.bank.has_mats_for(&item.code) > 0 {
                     self.move_to_bank();
                     self.deposit_all();
                     self.withdraw_max_mats_for(&item.code);
@@ -579,6 +582,8 @@ impl Character {
             self.move_to(1, 5);
             for item in &items {
                 let _ = self.craft_all(&item.code);
+                self.move_to_bank();
+                self.deposit_all();
             }
         } else {
             self.gather_best_ressource_for(Skill::Mining);
@@ -593,7 +598,7 @@ impl Character {
         let (x, y) = self.closest_map_with_resource(&resource.code).unwrap();
         if self.move_to(x, y) {
             let _ = self.gather();
-            return true
+            return true;
         }
         false
     }
@@ -613,9 +618,12 @@ impl Character {
         true
     }
 
+    /// .withdraw the maximum available amount of mats used to craft the item `code`
     fn withdraw_max_mats_for(&self, code: &str) -> bool {
         let n = self.items.mats_quantity_for(code);
-        let max = self.inventory_space_available() / n;
+        let can_carry = self.inventory_space_available() / n;
+        let total_craftable = self.bank.has_mats_for(code);
+        let max = if total_craftable < can_carry { total_craftable } else { can_carry };
         self.withdraw_mats_for(code, max)
     }
 }

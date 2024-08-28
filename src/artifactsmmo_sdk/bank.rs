@@ -27,14 +27,19 @@ impl Bank {
             .cloned()
     }
 
-    pub fn has_mats_for(&self, code: &str) -> bool {
-        let mats = self.items.mats_for(code).unwrap();
-        for mat in mats {
-            let schema = self.has_item(&mat.code);
-            if !schema.is_some_and(|s| s.quantity >= mat.quantity) {
-                return false;
-            }
-        }
-        true
+    ///. return the number of time the item `code` can be crafted with the mats available in bank
+    pub fn has_mats_for(&self, code: &str) -> i32 {
+        self.items
+            .mats_for(code)
+            .map(|mats| {
+                mats.iter()
+                    .map(|mat| {
+                        self.has_item(&mat.code)
+                            .map_or(0, |schema| schema.quantity / mat.quantity)
+                    })
+                    .min()
+                    .unwrap_or(0)
+            })
+            .unwrap_or(0)
     }
 }
