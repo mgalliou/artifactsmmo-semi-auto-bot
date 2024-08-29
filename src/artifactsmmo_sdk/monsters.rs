@@ -23,7 +23,7 @@ impl Monsters {
     }
 
     pub fn lower_providing_exp(&self, level: i32) -> Option<MonsterSchema> {
-        let min = if level > 11 { level } else { 1 };
+        let min = if level > 11 { level - 10 } else { 1 };
         self.api
             .all(Some(min), Some(level), None, None, None)
             .ok()?
