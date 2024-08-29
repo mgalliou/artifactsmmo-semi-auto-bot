@@ -28,7 +28,7 @@ impl Items {
     //     best_schemas;
     // }
 
-    pub fn lower_providing_exp(
+    pub fn lowest_providing_exp(
         &self,
         level: i32,
         skill: super::skill::Skill,
@@ -55,7 +55,7 @@ impl Items {
         )
     }
 
-    pub fn best_craftable_at_level(
+    pub fn highest_providing_exp(
         &self,
         level: i32,
         skill: super::skill::Skill,

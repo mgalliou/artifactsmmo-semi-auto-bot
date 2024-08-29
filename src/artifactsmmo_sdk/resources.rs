@@ -22,7 +22,7 @@ impl Resources {
             .map(|schemas| schemas.data)
     }
 
-    pub fn lower_providing_exp(&self, level: i32, skill: Skill) -> Option<ResourceSchema> {
+    pub fn lowest_providing_exp(&self, level: i32, skill: Skill) -> Option<ResourceSchema> {
         let min = if level > 11 { level - 10 } else { 1 };
         self.api
             .all(Some(min), Some(level), Some(&skill.to_string()), None, None, None)
@@ -32,7 +32,7 @@ impl Resources {
             .min_by(|a, b| a.level.cmp(&b.level))
     }
 
-    pub fn below_or_equal(&self, level: i32, skill: Skill) -> Option<ResourceSchema> {
+    pub fn highest_providing_exp(&self, level: i32, skill: Skill) -> Option<ResourceSchema> {
         self.api
             .all(
                 None,

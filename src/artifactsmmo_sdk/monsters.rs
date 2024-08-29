@@ -22,7 +22,7 @@ impl Monsters {
             .map(|schemas| schemas.data)
     }
 
-    pub fn lower_providing_exp(&self, level: i32) -> Option<MonsterSchema> {
+    pub fn lowest_providing_exp(&self, level: i32) -> Option<MonsterSchema> {
         let min = if level > 11 { level - 10 } else { 1 };
         self.api
             .all(Some(min), Some(level), None, None, None)
@@ -32,7 +32,7 @@ impl Monsters {
             .min_by(|a, b| a.level.cmp(&b.level))
     }
 
-    pub fn below_or_equal(&self, level: i32) -> Option<MonsterSchema> {
+    pub fn highest_providing_exp(&self, level: i32) -> Option<MonsterSchema> {
         self.api
             .all(None, Some(level), None, None, None)
             .ok()?
