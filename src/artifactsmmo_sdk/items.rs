@@ -28,33 +28,57 @@ impl Items {
     //     best_schemas;
     // }
 
+    pub fn lower_providing_exp(
+        &self,
+        level: i32,
+        skill: super::skill::Skill,
+    ) -> Option<Vec<ItemSchema>> {
+        let min = if level > 11 { level - 10 } else { 1 };
+        let items = self
+            .api
+            .all(
+                Some(min),
+                Some(level),
+                Some(&skill.to_string()),
+                None,
+                None,
+                None,
+            )
+            .ok()?;
+        let min_level = items.iter().min_by_key(|i| i.level).map(|i| i.level)?;
+        Some(
+            items
+                .iter()
+                .filter(|i| i.level == min_level)
+                .cloned()
+                .collect(),
+        )
+    }
+
     pub fn best_craftable_at_level(
         &self,
         level: i32,
         skill: super::skill::Skill,
     ) -> Option<Vec<ItemSchema>> {
-        let mut highest_lvl = 0;
-        let mut best_schemas: Vec<ItemSchema> = vec![];
-
-        match self.api.all(
-            None,
-            Some(level),
-            None,
-            None,
-            Some(&skill.to_string()),
-            None,
-        ) {
-            Ok(schemas) => {
-                for schema in schemas {
-                    if highest_lvl == 0 || highest_lvl <= schema.level {
-                        highest_lvl = schema.level;
-                        best_schemas.push(schema);
-                    }
-                }
-                Some(best_schemas)
-            }
-            _ => None,
-        }
+        let items = self
+            .api
+            .all(
+                None,
+                Some(level),
+                Some(&skill.to_string()),
+                None,
+                None,
+                None,
+            )
+            .ok()?;
+        let max_level = items.iter().max_by_key(|i| i.level).map(|i| i.level)?;
+        Some(
+            items
+                .iter()
+                .filter(|i| i.level == max_level)
+                .cloned()
+                .collect(),
+        )
     }
 
     pub fn craft_schema(&self, code: &str) -> Option<CraftSchema> {
