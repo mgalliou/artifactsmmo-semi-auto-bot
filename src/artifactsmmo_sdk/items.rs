@@ -2,6 +2,7 @@ use artifactsmmo_openapi::models::{
     craft_schema::Skill, CraftSchema, GeItemSchema, ItemEffectSchema, ItemSchema, SimpleItemSchema,
 };
 use enum_stringify::EnumStringify;
+use futures::task::waker;
 use strum_macros::EnumIter;
 
 use super::{account::Account, api::items::ItemsApi};
@@ -82,43 +83,31 @@ impl Items {
     }
 
     pub fn craft_schema(&self, code: &str) -> Option<CraftSchema> {
-        if let Ok(info) = self.api.info(code) {
-            if let Some(Some(craft)) = info.data.item.craft {
-                return Some(*craft);
-            }
-        };
-        None
+        Some(*self.api.info(code).ok()?.data.item.craft??)
     }
 
     pub fn mats_for(&self, code: &str) -> Option<Vec<SimpleItemSchema>> {
-        match self.craft_schema(code) {
-            Some(schema) => schema.items,
-            None => None,
-        }
+        self.craft_schema(code)?.items
     }
 
     pub fn ge_info(&self, code: &str) -> Option<Box<GeItemSchema>> {
-        let schema = self.api.info(code).unwrap();
-        match schema.data.ge {
-            Some(Some(ge)) => Some(ge),
-            Some(None) => None,
-            None => None,
-        }
+        self.api.info(code).ok()?.data.ge?
     }
 
     pub fn ge_mats_price(&self, code: &str) -> i32 {
-        let mut total = 0;
-        for mat in self.mats_for(code).unwrap() {
-            total += self
-                .ge_info(&mat.code)
-                .map_or(0, |i| i.buy_price.unwrap_or(0));
-        }
-        total
+        self.mats_for(code).map_or(0, |mats| {
+            mats.iter()
+                .map(|mat| {
+                    self.ge_info(&mat.code)
+                        .map_or(0, |i| i.buy_price.unwrap_or(0))
+                })
+                .sum()
+        })
     }
 
     pub fn mats_quantity_for(&self, code: &str) -> i32 {
         self.mats_for(code)
-            .map(|mats| mats.iter().map(|mat| mat.quantity).sum::<i32>())
+            .map(|mats| mats.iter().map(|mat| mat.quantity).sum())
             .unwrap_or(0)
     }
 
@@ -140,22 +129,16 @@ impl Items {
     }
 
     pub fn effects_of(&self, code: &str) -> Option<Vec<ItemEffectSchema>> {
-        match self.api.info(code) {
-            Ok(info) => info.data.item.effects,
-            Err(_) => None,
-        }
+        self.api.info(code).ok()?.data.item.effects
     }
 
     pub fn damages(&self, code: &str) -> i32 {
-        let mut total = 0;
-        if let Some(effects) = self.effects_of(code) {
-            for effect in effects {
-                if effect.name.starts_with("attack_") {
-                    total += effect.value;
-                }
-            }
-        }
-        total
+        self.effects_of(code).map_or(0, |e| {
+            e.iter()
+                .filter(|e| !e.name.starts_with("attack_"))
+                .map(|e| e.value)
+                .sum()
+        })
     }
 }
 
