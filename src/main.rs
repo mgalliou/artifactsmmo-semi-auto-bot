@@ -15,7 +15,7 @@ fn run() {
     let t1 = thread::Builder::new()
         .name(char1.name.to_string())
         .spawn(move || {
-            char1.run(Role::Fighter);
+            char1.run(Role::Woodcutter);
         })
         .unwrap();
     let t2 = thread::Builder::new()
@@ -30,7 +30,7 @@ fn run() {
         .unwrap();
     let t4 = thread::Builder::new()
         .name(char4.name.to_string())
-        .spawn(move || char4.run(Role::Fisher))
+        .spawn(move || char4.run(Role::Miner))
         .unwrap();
     let t5 = thread::Builder::new()
         .name(char5.name.to_string())

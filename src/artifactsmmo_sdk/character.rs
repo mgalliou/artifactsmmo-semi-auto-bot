@@ -492,51 +492,6 @@ impl Character {
         }
     }
 
-    pub fn weapon_upgrade_in_bank(&self) -> Option<String> {
-        self.equipment_upgrades(Slot::Weapon)?
-            .iter()
-            .find(|weapon| {
-                self.bank
-                    .read()
-                    .is_ok_and(|b| b.has_item(&weapon.code).is_some())
-                    && self.weapon_damage() < self.items.damages(&weapon.code)
-            })
-            .map(|weapon| weapon.code.clone())
-    }
-
-
-    /// return all the items for the given slot between the equiped item level
-    /// and the character level
-    pub fn equipment_upgrades(&self, slot: Slot) -> Option<Vec<ItemSchema>> {
-        let equiped_weapon = self.equipment_in(slot);
-        let min_level = equiped_weapon.map(|equiped_weapon| equiped_weapon.item.level);
-        self.items
-            .api
-            .all(
-                min_level,
-                Some(self.level()),
-                None,
-                Some(&Character::slot_to_type(slot).to_string()),
-                None,
-                None,
-            )
-            .ok()
-    }
-
-    pub fn improve_weapon(&mut self) {
-        if let Some(code) = self.weapon_upgrade_in_bank() {
-            self.move_to_bank();
-            if let Some(equiped_weapon) = &self.equipment_in(Slot::Weapon) {
-                if self.unequip(unequip_schema::Slot::Weapon).is_ok() {
-                    let _ = self.deposit(&equiped_weapon.item.code, 1);
-                }
-            }
-            if self.withdraw(&code, 1).is_ok() {
-                let _ = self.equip(&code, equip_schema::Slot::Weapon);
-            }
-        }
-    }
-
     pub fn run(&mut self, role: Role) {
         if Role::Fighter != role
             && self
@@ -695,6 +650,63 @@ impl Character {
         };
         self.withdraw_mats_for(code, max)
     }
+
+    pub fn improve_weapon(&mut self) {
+        if let Some(code) = self.weapon_upgrade_in_bank() {
+            self.move_to_bank();
+            if let Some(equiped_weapon) = &self.equipment_in(Slot::Weapon) {
+                if self.unequip(unequip_schema::Slot::Weapon).is_ok() {
+                    let _ = self.deposit(&equiped_weapon.item.code, 1);
+                }
+            }
+            if self.withdraw(&code, 1).is_ok() {
+                let _ = self.equip(&code, equip_schema::Slot::Weapon);
+            }
+        }
+    }
+
+    // pub fn improve_equipment(&mut self, slot: Slot) {
+    //     let upgrades = self.equipment_upgrades(slot);
+    //     for item in upgrades.unwrap() {
+    //         if self.equipment_in(slot).is_some_and(|i| i.item.code != item.code) {
+    //             self.bank.read().is_ok_and(|b| b.has_mats_for(item.code))
+    //         }
+    //     }
+
+    //     todo!()
+    // }
+
+
+    pub fn weapon_upgrade_in_bank(&self) -> Option<String> {
+        self.equipment_upgrades(Slot::Weapon)?
+            .iter()
+            .find(|weapon| {
+                self.bank
+                    .read()
+                    .is_ok_and(|b| b.has_item(&weapon.code).is_some())
+                    && self.weapon_damage() < self.items.damages(&weapon.code)
+            })
+            .map(|weapon| weapon.code.clone())
+    }
+
+    /// return all the items for the given slot between the equiped item level
+    /// and the character level
+    pub fn equipment_upgrades(&self, slot: Slot) -> Option<Vec<ItemSchema>> {
+        let equiped_weapon = self.equipment_in(slot);
+        let min_level = equiped_weapon.map(|equiped_weapon| equiped_weapon.item.level);
+        self.items
+            .api
+            .all(
+                min_level,
+                Some(self.level()),
+                None,
+                Some(&Character::slot_to_type(slot).to_string()),
+                None,
+                None,
+            )
+            .ok()
+    }
+
 }
 
 #[derive(PartialEq)]
