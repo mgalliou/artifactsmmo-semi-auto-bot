@@ -30,7 +30,7 @@ impl ItemsApi {
         name: Option<&str>,
         r#type: Option<&str>,
         craft_skill: Option<&str>,
-        craft_material: Option<&str>
+        craft_material: Option<&str>,
     ) -> Result<Vec<ItemSchema>, Error<GetAllItemsItemsGetError>> {
         let mut items: Vec<ItemSchema> = vec![];
         let mut current_page = 1;

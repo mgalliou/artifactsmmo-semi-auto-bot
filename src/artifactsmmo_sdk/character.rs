@@ -140,27 +140,23 @@ impl Character {
     }
 
     fn equipment_in(&self, slot: Slot) -> Option<SingleItemSchema> {
-        let data = &self.info;
         let code = match slot {
-            Slot::Weapon => &data.weapon_slot,
-            Slot::Shield => &data.shield_slot,
-            Slot::Helmet => &data.helmet_slot,
-            Slot::BodyArmor => &data.body_armor_slot,
-            Slot::LegArmor => &data.leg_armor_slot,
-            Slot::Boots => &data.boots_slot,
-            Slot::Ring1 => &data.ring1_slot,
-            Slot::Ring2 => &data.ring2_slot,
-            Slot::Amulet => &data.amulet_slot,
-            Slot::Artifact1 => &data.artifact1_slot,
-            Slot::Artifact2 => &data.artifact2_slot,
-            Slot::Artifact3 => &data.artifact3_slot,
-            Slot::Consumable1 => &data.consumable1_slot,
-            Slot::Consumable2 => &data.consumable2_slot,
+            Slot::Weapon => &self.info.weapon_slot,
+            Slot::Shield => &self.info.shield_slot,
+            Slot::Helmet => &self.info.helmet_slot,
+            Slot::BodyArmor => &self.info.body_armor_slot,
+            Slot::LegArmor => &self.info.leg_armor_slot,
+            Slot::Boots => &self.info.boots_slot,
+            Slot::Ring1 => &self.info.ring1_slot,
+            Slot::Ring2 => &self.info.ring2_slot,
+            Slot::Amulet => &self.info.amulet_slot,
+            Slot::Artifact1 => &self.info.artifact1_slot,
+            Slot::Artifact2 => &self.info.artifact2_slot,
+            Slot::Artifact3 => &self.info.artifact3_slot,
+            Slot::Consumable1 => &self.info.consumable1_slot,
+            Slot::Consumable2 => &self.info.consumable2_slot,
         };
-        match self.items.api.info(code) {
-            Ok(code) => Some(*code.data),
-            Err(_) => None,
-        }
+        self.items.api.info(code).ok().map(|i| *i.data)
     }
 
     fn levelup_by_crafting(&mut self, skill: Skill) -> bool {
@@ -197,11 +193,7 @@ impl Character {
             .below_or_equal(self.skill_level(skill), skill)
             .unwrap();
         let (x, y) = self.closest_map_with_resource(&resource.code).unwrap();
-        if self.move_to(x, y) {
-            let _ = self.gather();
-            return true;
-        }
-        false
+        self.move_to(x, y) && self.gather().is_ok()
     }
 
     fn skill_level(&self, skill: Skill) -> i32 {
@@ -237,10 +229,10 @@ impl Character {
         );
         let mats = self.items.mats_for(code).unwrap();
         for mat in &mats {
-            if self
+            if !self
                 .bank
                 .read()
-                .is_ok_and(|b| b.has_item(&mat.code).unwrap().quantity < mat.quantity * quantity)
+                .is_ok_and(|b| b.has_item(&mat.code).unwrap().quantity >= mat.quantity * quantity)
             {
                 warn!("not enough resources in bank to withdraw the materials required to craft [{code}] * {quantity}");
                 return false;
@@ -258,11 +250,10 @@ impl Character {
             "{}: getting maximum amount of mats in bank to craft {}",
             self.name, code
         );
-        let n = self.items.mats_quantity_for(code);
-        let can_carry = self.inventory_free_space() / n;
-        let total_craftable = self.bank.read().map_or(0, |b| b.has_mats_for(code));
-        let max = if total_craftable < can_carry {
-            total_craftable
+        let can_carry = self.inventory_free_space() / self.items.mats_quantity_for(code);
+        let can_craft_from_bank = self.bank.read().map_or(0, |b| b.has_mats_for(code));
+        let max = if can_craft_from_bank < can_carry {
+            can_craft_from_bank
         } else {
             can_carry
         };
@@ -471,13 +462,10 @@ impl Character {
     }
 
     fn cooldown_expiration(&self) -> Option<DateTime<Utc>> {
-        match &self.info.cooldown_expiration {
-            Some(cd) => match DateTime::parse_from_rfc3339(cd) {
-                Ok(cd) => Some(cd.to_utc()),
-                Err(_) => None,
-            },
-            None => None,
-        }
+        self.info
+            .cooldown_expiration
+            .as_ref()
+            .map(|cd| DateTime::parse_from_rfc3339(cd).ok().map(|dt| dt.to_utc()))?
     }
 
     fn inventory_is_full(&self) -> bool {
@@ -485,15 +473,16 @@ impl Character {
     }
 
     fn amount_in_inventory(&self, code: &str) -> i32 {
-        let inv = self.info.inventory.as_ref().unwrap();
-        let mut quantity = 0;
-
-        for i in inv {
-            if i.code == code {
-                quantity += i.quantity;
-            }
-        }
-        quantity
+        self.info
+            .inventory
+            .as_ref()
+            .map(|inv| {
+                inv.iter()
+                    .filter(|i| i.code == code)
+                    .map(|i| i.quantity)
+                    .sum()
+            })
+            .unwrap_or(0)
     }
 
     fn inventory_free_space(&self) -> i32 {
@@ -501,44 +490,35 @@ impl Character {
     }
 
     fn inventory_total(&self) -> i32 {
-        let mut i = 0;
-
-        for item in self.info.inventory.as_ref().unwrap() {
-            i += item.quantity
-        }
-        i
+        self.info
+            .inventory
+            .as_ref()
+            .map_or(0, |inv| inv.iter().map(|i| i.quantity).sum())
     }
 
     fn has_mats_for(&self, code: &str) -> i32 {
-        let mut n = 0;
-        let mut new_n;
-
-        for mat in self.items.mats_for(code).unwrap() {
-            if mat.quantity <= self.amount_in_inventory(&mat.code) {
-                new_n = self.amount_in_inventory(&mat.code) / mat.quantity;
-                if n == 0 || new_n < n {
-                    n = new_n;
-                }
-            }
-        }
-        println!("{} has mats to craft {} * {}", self.name, code, n);
-        n
+        self.items
+            .mats_for(code)
+            .and_then(|mats| {
+                mats.iter()
+                    .filter(|mat| mat.quantity > 0)
+                    .map(|mat| self.amount_in_inventory(&mat.code) / mat.quantity)
+                    .max()
+            })
+            .unwrap_or(0)
     }
 
     fn closest_map_among(&self, maps: Vec<MapSchema>) -> Option<MapSchema> {
-        let (x, y) = {
-            let this = &self;
-            (this.info.x, this.info.y)
-        };
-        self.maps.closest_from_amoung(x, y, maps)
+        self.maps
+            .closest_from_amoung(self.info.x, self.info.y, maps)
     }
 
     fn closest_map_with_resource(&self, code: &str) -> Option<(i32, i32)> {
-        if let Ok(maps) = self.maps.with_ressource(code) {
-            let map = self.closest_map_among(maps.data).unwrap();
-            return Some((map.x, map.y));
-        }
-        None
+        self.maps
+            .with_ressource(code)
+            .ok()
+            .and_then(|maps| self.closest_map_among(maps.data))
+            .map(|map| (map.x, map.y))
     }
 
     fn move_to_craft(&mut self, code: &str) -> bool {
@@ -559,10 +539,9 @@ impl Character {
     }
 
     fn weapon_damage(&self) -> i32 {
-        match &self.equipment_in(Slot::Weapon) {
-            Some(weapon) => self.items.damages(&weapon.item.code),
-            None => 0,
-        }
+        self.equipment_in(Slot::Weapon)
+            .map(|w| self.items.damages(&w.item.code))
+            .unwrap_or(0)
     }
 
     fn slot_to_type(slot: Slot) -> Type {
@@ -624,8 +603,7 @@ impl Character {
     /// return all the items for the given slot between the equiped item level
     /// and the character level
     fn equipment_upgrades(&self, slot: Slot) -> Option<Vec<ItemSchema>> {
-        let equiped_weapon = self.equipment_in(slot);
-        let min_level = equiped_weapon.map(|equiped_weapon| equiped_weapon.item.level);
+        let min_level = self.equipment_in(slot).map(|e| e.item.level);
         self.items
             .api
             .all(
