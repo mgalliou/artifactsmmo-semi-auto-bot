@@ -155,7 +155,8 @@ impl Character {
             Ok(ref res) => {
                 println!("{}: deposited {} * {}", self.name, code, quantity);
                 self.info = *res.data.character.clone();
-                let _ = self.bank
+                let _ = self
+                    .bank
                     .write()
                     .map(|mut bank| bank.content = res.data.bank.clone());
             }
@@ -220,7 +221,8 @@ impl Character {
             Ok(ref res) => {
                 println!("{}: withdrawed {} {}", self.name, code, quantity);
                 self.info = *res.data.character.clone();
-                let _ = self.bank
+                let _ = self
+                    .bank
                     .write()
                     .map(|mut bank| bank.content = res.data.bank.clone());
             }
@@ -440,22 +442,6 @@ impl Character {
         }
     }
 
-    pub fn weapons_upgrades(&self) -> Option<Vec<ItemSchema>> {
-        let equiped_weapon = self.equipment_in(Slot::Weapon);
-        let min_level = equiped_weapon.map(|equiped_weapon| equiped_weapon.item.level);
-        match self.items.api.all(
-            min_level,
-            Some(self.level()),
-            None,
-            Some(&Type::Weapon.to_string()),
-            None,
-            None,
-        ) {
-            Ok(items) => Some(items),
-            Err(_) => None,
-        }
-    }
-
     pub fn equipment_in(&self, slot: Slot) -> Option<SingleItemSchema> {
         let data = &self.info;
         let code = match slot {
@@ -487,8 +473,27 @@ impl Character {
         }
     }
 
+    pub fn slot_to_type(slot: Slot) -> Type {
+        match slot {
+            Slot::Weapon => Type::Weapon,
+            Slot::Shield => Type::Shield,
+            Slot::Helmet => Type::Helmet,
+            Slot::BodyArmor => Type::BodyArmor,
+            Slot::LegArmor => Type::LegArmor,
+            Slot::Boots => Type::Boots,
+            Slot::Ring1 => Type::Ring,
+            Slot::Ring2 => Type::Ring,
+            Slot::Amulet => Type::Amulet,
+            Slot::Artifact1 => Type::Artifact,
+            Slot::Artifact2 => Type::Artifact,
+            Slot::Artifact3 => Type::Artifact,
+            Slot::Consumable1 => Type::Consumable,
+            Slot::Consumable2 => Type::Consumable,
+        }
+    }
+
     pub fn weapon_upgrade_in_bank(&self) -> Option<String> {
-        self.weapons_upgrades()?
+        self.equipment_upgrades(Slot::Weapon)?
             .iter()
             .find(|weapon| {
                 self.bank
@@ -497,6 +502,25 @@ impl Character {
                     && self.weapon_damage() < self.items.damages(&weapon.code)
             })
             .map(|weapon| weapon.code.clone())
+    }
+
+
+    /// return all the items for the given slot between the equiped item level
+    /// and the character level
+    pub fn equipment_upgrades(&self, slot: Slot) -> Option<Vec<ItemSchema>> {
+        let equiped_weapon = self.equipment_in(slot);
+        let min_level = equiped_weapon.map(|equiped_weapon| equiped_weapon.item.level);
+        self.items
+            .api
+            .all(
+                min_level,
+                Some(self.level()),
+                None,
+                Some(&Character::slot_to_type(slot).to_string()),
+                None,
+                None,
+            )
+            .ok()
     }
 
     pub fn improve_weapon(&mut self) {
