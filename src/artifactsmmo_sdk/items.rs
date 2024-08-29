@@ -42,7 +42,7 @@ impl Items {
                 Some(level),
                 Some(&skill.to_string()),
                 None,
-                None,
+                Some(&skill.to_string()),
                 None,
             )
             .ok()?;
@@ -66,9 +66,9 @@ impl Items {
             .all(
                 None,
                 Some(level),
+                None,
+                None,
                 Some(&skill.to_string()),
-                None,
-                None,
                 None,
             )
             .ok()?;
