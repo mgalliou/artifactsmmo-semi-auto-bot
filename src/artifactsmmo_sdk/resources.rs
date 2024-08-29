@@ -16,40 +16,35 @@ impl Resources {
         }
     }
 
-    pub fn dropping(&self, code: &str) -> Option<Vec<String>> {
-        let mut codes: Vec<String> = vec![];
+    pub fn dropping(&self, code: &str) -> Option<Vec<ResourceSchema>> {
+        self.api.all(None, None, None, Some(code), None, None)
+            .ok()
+            .map(|schemas| schemas.data)
+    }
 
-        if let Ok(resources) = self.api.all(None, None, None, Some(code), None, None) {
-            for r in resources.data {
-                codes.push(r.code)
-            }
-            return Some(codes);
-        }
-        None
+    pub fn lower_providing_exp(&self, level: i32, skill: Skill) -> Option<ResourceSchema> {
+        let min = if level > 11 { level - 10 } else { 1 };
+        self.api
+            .all(Some(min), Some(level), Some(&skill.to_string()), None, None, None)
+            .ok()?
+            .data
+            .into_iter()
+            .min_by(|a, b| a.level.cmp(&b.level))
     }
 
     pub fn below_or_equal(&self, level: i32, skill: Skill) -> Option<ResourceSchema> {
-        let mut highest_lvl = 0;
-        let mut best_schema: Option<ResourceSchema> = None;
-
-        match self.api.all(
-            None,
-            Some(level),
-            Some(&skill.to_string()),
-            None,
-            None,
-            None,
-        ) {
-            Ok(schemas) => {
-                for schema in schemas.data {
-                    if highest_lvl == 0 || highest_lvl < schema.level {
-                        highest_lvl = schema.level;
-                        best_schema = Some(schema);
-                    }
-                }
-                best_schema
-            }
-            _ => None,
-        }
+        self.api
+            .all(
+                None,
+                Some(level),
+                Some(&skill.to_string()),
+                None,
+                None,
+                None,
+            )
+            .ok()?
+            .data
+            .into_iter()
+            .max_by(|a, b| a.level.cmp(&b.level))
     }
 }

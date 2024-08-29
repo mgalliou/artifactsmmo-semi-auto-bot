@@ -190,7 +190,7 @@ impl Character {
     fn levelup_by_gathering(&mut self, skill: Skill) -> bool {
         let resource = self
             .resources
-            .below_or_equal(self.skill_level(skill), skill)
+            .lower_providing_exp(self.skill_level(skill), skill)
             .unwrap();
         let (x, y) = self.closest_map_with_resource(&resource.code).unwrap();
         self.move_to(x, y) && self.gather().is_ok()
