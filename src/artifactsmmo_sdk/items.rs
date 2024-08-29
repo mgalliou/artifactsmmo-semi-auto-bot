@@ -1,5 +1,5 @@
 use artifactsmmo_openapi::models::{
-    craft_schema::Skill, CraftSchema, ItemEffectSchema, ItemSchema, SimpleItemSchema,
+    craft_schema::Skill, CraftSchema, GeItemSchema, ItemEffectSchema, ItemSchema, SimpleItemSchema,
 };
 use enum_stringify::EnumStringify;
 use strum_macros::EnumIter;
@@ -71,6 +71,25 @@ impl Items {
             Some(schema) => schema.items,
             None => None,
         }
+    }
+
+    pub fn ge_info(&self, code: &str) -> Option<Box<GeItemSchema>> {
+        let schema = self.api.info(code).unwrap();
+        match schema.data.ge {
+            Some(Some(ge)) => Some(ge),
+            Some(None) => None,
+            None => None,
+        }
+    }
+
+    pub fn ge_mats_price(&self, code: &str) -> i32 {
+        let mut total = 0;
+        for mat in self.mats_for(code).unwrap() {
+            total += self
+                .ge_info(&mat.code)
+                .map_or(0, |i| i.buy_price.unwrap_or(0));
+        }
+        total
     }
 
     pub fn mats_quantity_for(&self, code: &str) -> i32 {
