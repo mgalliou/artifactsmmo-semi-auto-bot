@@ -70,7 +70,7 @@ impl Account {
             Err(e) => Err(e),
         };
         match chars {
-            Ok(c) => Ok(c[0].clone()),
+            Ok(c) => Ok(c[index - 1].clone()),
             Err(e) => Err(e),
         }
     }
