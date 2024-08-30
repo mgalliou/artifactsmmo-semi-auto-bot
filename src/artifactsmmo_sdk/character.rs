@@ -2,6 +2,7 @@ use super::{
     account::Account,
     api::{characters::CharactersApi, my_character::MyCharacterApi},
     bank::Bank,
+    char_config::CharConfig,
     items::{Items, Type},
     maps::Maps,
     monsters::Monsters,
@@ -39,41 +40,48 @@ use std::{
 };
 
 pub struct Character {
-    account: Account,
+    pub name: String,
+    pub info: CharacterSchema,
     my_api: MyCharacterApi,
+    account: Account,
     maps: Maps,
     resources: Resources,
     items: Items,
     monsters: Monsters,
     bank: Arc<RwLock<Bank>>,
-    pub name: String,
-    pub info: CharacterSchema,
+    conf: CharConfig,
 }
 
 impl Character {
-    pub fn new(account: &Account, name: &str, bank: Arc<RwLock<Bank>>) -> Character {
+    pub fn new(
+        account: &Account,
+        name: &str,
+        bank: Arc<RwLock<Bank>>,
+        conf: CharConfig,
+    ) -> Character {
         let api = CharactersApi::new(
             &account.configuration.base_path,
             &account.configuration.bearer_access_token.clone().unwrap(),
         );
         Character {
-            account: account.clone(),
+            name: name.to_owned(),
+            info: *api.get(name).unwrap().data,
             my_api: MyCharacterApi::new(
                 &account.configuration.base_path,
                 &account.configuration.bearer_access_token.clone().unwrap(),
             ),
+            account: account.clone(),
             maps: Maps::new(account),
             items: Items::new(account),
             resources: Resources::new(account),
             monsters: Monsters::new(account),
             bank,
-            name: name.to_owned(),
-            info: *api.get(name).unwrap().data,
+            conf,
         }
     }
 
-    pub fn run(&mut self, role: Role) {
-        if Role::Fighter != role
+    pub fn run(&mut self) {
+        if Role::Fighter != self.conf.role
             && self
                 .equipment_in(Slot::Weapon)
                 .is_some_and(|w| w.item.code == "wooden_stick")
@@ -85,7 +93,7 @@ impl Character {
             if self.inventory_is_full() {
                 self.deposit_all();
             }
-            match role {
+            match self.conf.role {
                 Role::Fighter => {
                     self.fighter_routin();
                 }
@@ -109,22 +117,68 @@ impl Character {
     }
 
     fn fighter_routin(&mut self) {
+        if self.conf.cook && self.conf.level_cook {
+            self.levelup_by_crafting(Skill::Cooking);
+        }
         self.improve_weapon();
-        let monster = self.monsters.lowest_providing_exp(self.info.level).unwrap();
-        let (x, y) = self.closest_map_with_resource(&monster.code).unwrap();
-        if self.move_to(x, y) {
-            let _ = self.fight();
+        let monster = if let Some(monster) = self.conf.fight_target.clone() {
+            self.monsters.get(&monster)
+        } else {
+            self.monsters.lowest_providing_exp(self.info.level)
+        };
+        if let Some(monster) = monster {
+            if let Some((x, y)) = self.closest_map_with_resource(&monster.code) {
+                if self.move_to(x, y) {
+                    let _ = self.fight();
+                }
+            }
         }
     }
 
     fn miner_routin(&mut self) {
-        if !self.levelup_by_crafting(Skill::Mining) {
+        if self.conf.mine_craft {
+            self.levelup_by_crafting(Skill::Mining);
+        }
+        if let Some(code) = self.conf.mine_resource.clone() {
+            let processed = self.items.with_material(&code);
+            if !processed
+                .as_ref()
+                .is_some_and(|p| p.iter().any(|i| self.craft_all_from_bank(&i.code)))
+            {
+                self.gather_resource(&code);
+                if self.inventory_is_full() {
+                    if let Some(items) = processed {
+                        items.iter().for_each(|i| {
+                            self.craft_all(&i.code);
+                        });
+                    }
+                }
+            }
+        } else {
             self.levelup_by_gathering(Skill::Mining);
         }
     }
 
     fn woodcutter_routin(&mut self) {
-        if !self.levelup_by_crafting(Skill::Woodcutting) {
+        if self.conf.lumber_craft {
+            self.levelup_by_crafting(Skill::Woodcutting);
+        }
+        if let Some(code) = &self.conf.lumber_resource.clone() {
+            let processed = self.items.with_material(code);
+            if !processed
+                .as_ref()
+                .is_some_and(|p| p.iter().any(|i| self.craft_all_from_bank(&i.code)))
+            {
+                self.gather_resource(code);
+                if self.inventory_is_full() {
+                    if let Some(items) = processed {
+                        items.iter().for_each(|i| {
+                            self.craft_all(&i.code);
+                        });
+                    }
+                }
+            }
+        } else {
             self.levelup_by_gathering(Skill::Woodcutting);
         }
     }
@@ -162,27 +216,26 @@ impl Character {
     fn levelup_by_crafting(&mut self, skill: Skill) -> bool {
         let items = self
             .items
-            .highest_providing_exp(self.skill_level(skill), skill)
+            .lowest_providing_exp(self.skill_level(skill), skill)
             .unwrap();
         if !items.is_empty()
             && items
                 .iter()
                 .any(|i| self.bank.read().is_ok_and(|b| b.has_mats_for(&i.code) > 0))
         {
-            for item in &items {
-                if self
-                    .bank
-                    .read()
-                    .is_ok_and(|b| b.has_mats_for(&item.code) > 0)
-                {
-                    self.deposit_all();
-                    if self.withdraw_max_mats_for(&item.code) {
-                        let _ = self.craft_all(&item.code);
-                        self.deposit_all();
-                    }
-                    return true;
-                }
+            return items.iter().any(|i| self.craft_all_from_bank(&i.code));
+        }
+        false
+    }
+
+    fn craft_all_from_bank(&mut self, code: &str) -> bool {
+        if self.bank.read().is_ok_and(|b| b.has_mats_for(code) > 0) {
+            self.deposit_all();
+            if self.withdraw_max_mats_for(code) {
+                let _ = self.craft_all(code);
+                self.deposit_all();
             }
+            return true;
         }
         false
     }
@@ -192,8 +245,15 @@ impl Character {
             .resources
             .lowest_providing_exp(self.skill_level(skill), skill)
             .unwrap();
-        let (x, y) = self.closest_map_with_resource(&resource.code).unwrap();
-        self.move_to(x, y) && self.gather().is_ok()
+        self.gather_resource(&resource.code)
+    }
+
+    fn gather_resource(&mut self, code: &str) -> bool {
+        if let Some(map) = self.closest_map_dropping(code) {
+            self.move_to(map.x, map.y) && self.gather().is_ok()
+        } else {
+            false
+        }
     }
 
     fn skill_level(&self, skill: Skill) -> i32 {
@@ -513,6 +573,20 @@ impl Character {
             .closest_from_amoung(self.info.x, self.info.y, maps)
     }
 
+    fn closest_map_dropping(&self, code: &str) -> Option<MapSchema> {
+        match self.resources.dropping(code) {
+            Some(resources) => {
+                let mut maps: Vec<MapSchema> = vec![];
+                for r in resources {
+                    maps.append(&mut self.maps.with_ressource(&r.code).ok()?.data)
+                }
+                self.maps
+                    .closest_from_amoung(self.info.x, self.info.y, maps)
+            }
+            _ => None,
+        }
+    }
+
     fn closest_map_with_resource(&self, code: &str) -> Option<(i32, i32)> {
         self.maps
             .with_ressource(code)
@@ -617,18 +691,6 @@ impl Character {
             .ok()
     }
 
-    // fn closest_map_dropping(&self, code: &str) -> Option<(i32, i32)> {
-    //     let (mut x, mut y): (i32, i32) = (0, 0);
-
-    //     if let Some(resources) = self.resources.dropping(code) {
-    //         for r in resources {
-    //             (x, y) = self.closest_map_with_resource(&r).unwrap();
-    //         }
-    //         return Some((x, y));
-    //     }
-    //     None
-    // }
-
     // fn fight_until_unsuccessful(&self, x: i32, y: i32) {
     //     let _ = self.move_to(x, y);
 
@@ -661,13 +723,14 @@ impl Character {
     // }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Default)]
 pub enum Role {
     Fighter,
     Miner,
     Woodcutter,
     Fisher,
     Weaponcrafter,
+    #[default]
     Idle,
 }
 

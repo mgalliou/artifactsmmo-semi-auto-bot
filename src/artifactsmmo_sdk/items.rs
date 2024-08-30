@@ -40,7 +40,7 @@ impl Items {
             .all(
                 Some(min),
                 Some(level),
-                Some(&skill.to_string()),
+                None,
                 None,
                 Some(&skill.to_string()),
                 None,
@@ -88,6 +88,10 @@ impl Items {
 
     pub fn mats_for(&self, code: &str) -> Option<Vec<SimpleItemSchema>> {
         self.craft_schema(code)?.items
+    }
+
+    pub fn with_material(&self, code: &str) -> Option<Vec<ItemSchema>> {
+        self.api.all(None, None, None, None, None, Some(code)).ok()
     }
 
     pub fn ge_info(&self, code: &str) -> Option<Box<GeItemSchema>> {

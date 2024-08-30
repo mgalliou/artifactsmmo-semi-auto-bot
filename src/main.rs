@@ -1,6 +1,7 @@
 use artifactsmmo_playground::artifactsmmo_sdk::{
     account::Account,
     bank::Bank,
+    char_config::CharConfig,
     character::{Character, Role},
 };
 use std::{
@@ -17,51 +18,90 @@ fn run() -> Option<()> {
         &account,
         &account.get_character_by_name("Jio")?.name,
         bank.clone(),
+        CharConfig {
+            role: Role::Fighter,
+            fight: true,
+            fight_target: Some("chicken".to_string()),
+            weaponcraft: true,
+            level_weaponcraft: true,
+            gearcraft: true,
+            level_gearcraft: true,
+            jewelcraft: true,
+            level_jewelcraft: true,
+            cook: true,
+            level_cook: true,
+            ..Default::default()
+        },
     );
     let mut char2 = Character::new(
         &account,
         &account.get_character_by_name("Eraly")?.name,
         bank.clone(),
+        CharConfig {
+            role: Role::Miner,
+            mine: true,
+            mine_resource: Some("copper_ore".to_string()),
+            ..Default::default()
+        },
     );
     let mut char3 = Character::new(
         &account,
         &account.get_character_by_name("Nalgisk")?.name,
         bank.clone(),
+        CharConfig {
+            role: Role::Miner,
+            mine: true,
+            mine_craft: true,
+            mine_resource: Some("copper_ore".to_string()),
+            ..Default::default()
+        },
     );
     let mut char4 = Character::new(
         &account,
         &account.get_character_by_name("Tieleja")?.name,
         bank.clone(),
+        CharConfig {
+            role: Role::Woodcutter,
+            lumber: true,
+            lumber_resource: Some("ash_wood".to_string()),
+            ..Default::default()
+        },
     );
     let mut char5 = Character::new(
         &account,
         &account.get_character_by_name("Kvarask")?.name,
         bank.clone(),
+        CharConfig {
+            role: Role::Miner,
+            mine: true,
+            mine_resource: Some("copper_ore".to_string()),
+            ..Default::default()
+        },
     );
 
     let t1 = thread::Builder::new()
         .name(char1.name.to_string())
         .spawn(move || {
-            char1.run(Role::Idle);
+            char1.run();
         })
         .unwrap();
     let t2 = thread::Builder::new()
         .name(char2.name.to_string())
         .spawn(move || {
-            char2.run(Role::Woodcutter);
+            char2.run();
         })
         .unwrap();
     let t3 = thread::Builder::new()
         .name(char3.name.to_string())
-        .spawn(move || char3.run(Role::Miner))
+        .spawn(move || char3.run())
         .unwrap();
     let t4 = thread::Builder::new()
         .name(char4.name.to_string())
-        .spawn(move || char4.run(Role::Woodcutter))
+        .spawn(move || char4.run())
         .unwrap();
     let t5 = thread::Builder::new()
         .name(char5.name.to_string())
-        .spawn(move || char5.run(Role::Woodcutter))
+        .spawn(move || char5.run())
         .unwrap();
     t1.join().unwrap();
     t2.join().unwrap();

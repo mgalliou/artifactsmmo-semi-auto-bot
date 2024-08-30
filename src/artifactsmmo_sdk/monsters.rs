@@ -2,7 +2,7 @@ use super::{account::Account, api::monsters::MonstersApi};
 use artifactsmmo_openapi::models::MonsterSchema;
 
 pub struct Monsters {
-    api: MonstersApi,
+    pub api: MonstersApi,
 }
 
 impl Monsters {
@@ -39,5 +39,12 @@ impl Monsters {
             .data
             .into_iter()
             .max_by(|a, b| a.level.cmp(&b.level))
+    }
+
+    pub fn get(&self, code: &str) -> Option<MonsterSchema> {
+        self.api
+            .info(code)
+            .ok()
+            .map(|resp| *resp.data)
     }
 }
