@@ -20,7 +20,6 @@ fn run() -> Option<()> {
         bank.clone(),
         CharConfig {
             role: Role::Fighter,
-            fight: true,
             fight_target: Some("chicken".to_string()),
             weaponcraft: true,
             level_weaponcraft: true,
@@ -39,8 +38,7 @@ fn run() -> Option<()> {
         bank.clone(),
         CharConfig {
             role: Role::Miner,
-            mine: true,
-            mine_resource: Some("copper_ore".to_string()),
+            resource: Some("copper_ore".to_string()),
             ..Default::default()
         },
     );
@@ -50,9 +48,7 @@ fn run() -> Option<()> {
         bank.clone(),
         CharConfig {
             role: Role::Miner,
-            mine: true,
-            mine_craft: true,
-            mine_resource: Some("copper_ore".to_string()),
+            resource: Some("copper_ore".to_string()),
             ..Default::default()
         },
     );
@@ -62,8 +58,7 @@ fn run() -> Option<()> {
         bank.clone(),
         CharConfig {
             role: Role::Woodcutter,
-            lumber: true,
-            lumber_resource: Some("ash_wood".to_string()),
+            resource: Some("ash_wood".to_string()),
             ..Default::default()
         },
     );
@@ -73,8 +68,7 @@ fn run() -> Option<()> {
         bank.clone(),
         CharConfig {
             role: Role::Miner,
-            mine: true,
-            mine_resource: Some("copper_ore".to_string()),
+            resource: Some("copper_ore".to_string()),
             ..Default::default()
         },
     );

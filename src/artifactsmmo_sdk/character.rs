@@ -97,11 +97,8 @@ impl Character {
                 Role::Fighter => {
                     self.fighter_routin();
                 }
-                Role::Miner => {
-                    self.miner_routin();
-                }
-                Role::Woodcutter => {
-                    self.woodcutter_routin();
+                Role::Miner | Role::Woodcutter => {
+                    self.gatherer_routin();
                 }
                 Role::Fisher => {
                     self.fisher_routin();
@@ -135,51 +132,25 @@ impl Character {
         }
     }
 
-    fn miner_routin(&mut self) {
-        if self.conf.mine_craft {
-            self.levelup_by_crafting(Skill::Mining);
-        }
-        if let Some(code) = self.conf.mine_resource.clone() {
+    fn gatherer_routin(&mut self) {
+        if let Some(code) = self.conf.resource.clone() {
             let processed = self.items.with_material(&code);
-            if !processed
-                .as_ref()
-                .is_some_and(|p| p.iter().any(|i| self.craft_all_from_bank(&i.code)))
-            {
+            if !processed.as_ref().is_some_and(|p| {
+                p.iter()
+                    .any(|i| self.conf.craft_from_bank && self.craft_all_from_bank(&i.code))
+            }) {
                 self.gather_resource(&code);
                 if self.inventory_is_full() {
                     if let Some(items) = processed {
                         items.iter().for_each(|i| {
                             self.craft_all(&i.code);
+                            self.deposit_all();
                         });
                     }
                 }
             }
-        } else {
-            self.levelup_by_gathering(Skill::Mining);
-        }
-    }
-
-    fn woodcutter_routin(&mut self) {
-        if self.conf.lumber_craft {
-            self.levelup_by_crafting(Skill::Woodcutting);
-        }
-        if let Some(code) = &self.conf.lumber_resource.clone() {
-            let processed = self.items.with_material(code);
-            if !processed
-                .as_ref()
-                .is_some_and(|p| p.iter().any(|i| self.craft_all_from_bank(&i.code)))
-            {
-                self.gather_resource(code);
-                if self.inventory_is_full() {
-                    if let Some(items) = processed {
-                        items.iter().for_each(|i| {
-                            self.craft_all(&i.code);
-                        });
-                    }
-                }
-            }
-        } else {
-            self.levelup_by_gathering(Skill::Woodcutting);
+        } else if let Some(skill) = self.conf.role.to_skill() {
+            self.levelup_by_gathering(skill);
         }
     }
 
@@ -732,6 +703,19 @@ pub enum Role {
     Weaponcrafter,
     #[default]
     Idle,
+}
+
+impl Role {
+    pub fn to_skill(&self) -> Option<Skill> {
+        match *self {
+            Role::Fighter => None,
+            Role::Miner => Some(Skill::Mining),
+            Role::Woodcutter => Some(Skill::Woodcutting),
+            Role::Fisher => Some(Skill::Fishing),
+            Role::Weaponcrafter => Some(Skill::Weaponcrafting),
+            Role::Idle => None,
+        }
+    }
 }
 
 pub enum Action {
