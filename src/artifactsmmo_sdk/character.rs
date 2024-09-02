@@ -387,10 +387,11 @@ impl Character {
         let res = self.my_api.gather(&self.name);
         match res {
             Ok(ref res) => {
-                println!("{}: gathered:", self.name);
+                print!("{}: gathered: ", self.name);
                 for item in &res.data.details.items {
-                    println!("{} * {}", item.code, item.quantity);
+                    print!("{} * {},", item.code, item.quantity);
                 }
+                println!();
                 self.info = *res.data.character.clone();
             }
             Err(ref e) => println!("{}: error during gathering: {}", self.name, e),
