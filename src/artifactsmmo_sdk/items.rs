@@ -194,19 +194,24 @@ impl Items {
                     .unwrap_or(0)
             }
         }
+        println!("drop rate for {}: {}", code, rate);
         rate
     }
 
-    pub fn base_mats_drop_rate(&self, code: &str) -> i32 {
+    pub fn base_mats_drop_rate(&self, code: &str) -> f32 {
         if let Some(mats) = self.base_mats_for(code) {
             let total_mats: i32 = mats.iter().map(|m| m.quantity).sum();
+            println!("total mats for {}: {}", code, total_mats);
             let sum: i32 = mats
                 .iter()
                 .map(|m| self.drop_rate(&m.code) * m.quantity)
                 .sum();
-            return sum / total_mats;
+            println!("sum for {}: {}", code, sum);
+            let average: f32 = sum as f32 / total_mats as f32;
+            println!("average drop rate for {}: {}", code, average);
+            return average;
         }
-        0
+        0.0
     }
 
     pub fn skill_to_craft(&self, code: &str) -> Option<super::skill::Skill> {

@@ -213,6 +213,8 @@ impl Character {
             return items
                 .iter()
                 .filter(|i| self.bank.read().is_ok_and(|b| b.has_mats_for(&i.code) > 0))
+                .min_set_by_key(|i| (self.items.base_mats_drop_rate(&i.code) * 100.0) as i32)
+                .into_iter()
                 .min_set_by_key(|i| self.items.base_mats_buy_price(&i.code))
                 .into_iter()
                 .max_by_key(|i| i.level)
