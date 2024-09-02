@@ -12,6 +12,8 @@ use super::{
 use artifactsmmo_openapi::{
     apis::{
         my_characters_api::{
+            ActionAcceptNewTaskMyNameActionTaskNewPostError,
+            ActionCompleteTaskMyNameActionTaskCompletePostError,
             ActionCraftingMyNameActionCraftingPostError,
             ActionDepositBankMyNameActionBankDepositPostError,
             ActionEquipItemMyNameActionEquipPostError, ActionFightMyNameActionFightPostError,
@@ -25,8 +27,9 @@ use artifactsmmo_openapi::{
     models::{
         equip_schema::{self, Slot},
         unequip_schema, BankItemTransactionResponseSchema, CharacterFightResponseSchema,
-        CharacterSchema, EquipmentResponseSchema, ItemSchema, MapSchema, RecyclingResponseSchema,
-        SingleItemSchema, SkillResponseSchema,
+        CharacterSchema, EquipmentResponseSchema, ItemSchema, MapSchema, MonsterSchema,
+        RecyclingResponseSchema, SingleItemSchema, SkillResponseSchema, TaskResponseSchema,
+        TaskRewardResponseSchema,
     },
 };
 use chrono::{DateTime, Utc};
@@ -95,6 +98,13 @@ impl Character {
             if self.inventory_is_full() {
                 self.deposit_all();
             }
+            if self.info.task.is_empty() || self.task_finished() {
+                self.move_to(1, 2);
+                if self.task_finished() {
+                    let _ = self.complete_task();
+                }
+                let _ = self.accept_task();
+            }
             match self.conf.role {
                 Role::Fighter => {
                     self.fighter_routin();
@@ -137,23 +147,32 @@ impl Character {
         {
             return;
         }
-        self.improve_weapon();
-        let monster = if let Some(monster) = self.conf.fight_target.clone() {
-            self.monsters.get(&monster)
-        } else {
-            self.monsters.lowest_providing_exp(self.info.level)
-        };
-        if let Some(monster) = monster {
+        if let Some(monster) = self.target_monster() {
+            self.improve_equipment();
             self.kill_monster(monster);
         }
     }
 
-    fn kill_monster(&mut self, monster: artifactsmmo_openapi::models::MonsterSchema) {
+    fn kill_monster(&mut self, monster: MonsterSchema) {
         if let Some((x, y)) = self.closest_map_with_resource(&monster.code) {
             if self.move_to(x, y) {
                 let _ = self.fight();
             }
         }
+    }
+
+    fn target_monster(&mut self) -> Option<MonsterSchema> {
+        if self.info.task_type == "monsters" && !self.task_finished() {
+            self.monsters.get(&self.info.task)
+        } else if let Some(monster) = self.conf.fight_target.clone() {
+            self.monsters.get(&monster)
+        } else {
+            self.monsters.lowest_providing_exp(self.info.level)
+        }
+    }
+
+    fn task_finished(&mut self) -> bool {
+        self.info.task_progress >= self.info.task_total
     }
 
     fn gatherer_routin(&mut self) {
@@ -522,6 +541,37 @@ impl Character {
                 self.info = *res.data.character.clone();
             }
             Err(ref e) => println!("{}: error while unequiping: {}", self.name, e),
+        }
+        res
+    }
+
+    fn accept_task(
+        &mut self,
+    ) -> Result<TaskResponseSchema, Error<ActionAcceptNewTaskMyNameActionTaskNewPostError>> {
+        let res = self.my_api.accept_task(&self.name);
+        self.wait_for_cooldown();
+        match res {
+            Ok(ref res) => {
+                println!("{}: accepted new task: {:?}", self.name, res.data.task);
+                self.info = *res.data.character.clone();
+            }
+            Err(ref e) => println!("{}: error while accepting: {}", self.name, e),
+        }
+        res
+    }
+
+    fn complete_task(
+        &mut self,
+    ) -> Result<TaskRewardResponseSchema, Error<ActionCompleteTaskMyNameActionTaskCompletePostError>>
+    {
+        let res = self.my_api.complete_task(&self.name);
+        self.wait_for_cooldown();
+        match res {
+            Ok(ref res) => {
+                println!("{}: completed task: {:?}", self.name, res.data.reward);
+                self.info = *res.data.character.clone();
+            }
+            Err(ref e) => println!("{}: error while accepting: {}", self.name, e),
         }
         res
     }
