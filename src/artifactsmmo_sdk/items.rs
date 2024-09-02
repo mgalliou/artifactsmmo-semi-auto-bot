@@ -37,7 +37,7 @@ impl Items {
         let items = self.providing_exp(level, skill)?;
         items
             .iter()
-            .min_set_by_key(|i| self.ge_mats_buy_price(&i.code))
+            .min_set_by_key(|i| self.base_mats_buy_price(&i.code))
             .into_iter()
             .max_by_key(|i| i.level)
             .cloned()
@@ -144,7 +144,7 @@ impl Items {
         self.api.info(code).ok()?.data.ge?
     }
 
-    pub fn ge_mats_buy_price(&self, code: &str) -> i32 {
+    pub fn base_mats_buy_price(&self, code: &str) -> i32 {
         let i = self.base_mats_for(code).map_or(0, |mats| {
             mats.iter()
                 .map(|mat| {
