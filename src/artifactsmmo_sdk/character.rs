@@ -29,6 +29,7 @@ use artifactsmmo_openapi::{
     },
 };
 use chrono::{DateTime, Utc};
+use itertools::Itertools;
 use log::{info, warn};
 use std::{
     cmp::Ordering,
@@ -114,8 +115,26 @@ impl Character {
     }
 
     fn fighter_routin(&mut self) {
-        if self.conf.cook && self.conf.level_cook {
-            self.levelup_by_crafting(Skill::Cooking);
+        if self.conf.cook && self.conf.level_cook && self.levelup_by_crafting(Skill::Cooking) {
+            return;
+        }
+        if self.conf.weaponcraft
+            && self.conf.level_weaponcraft
+            && self.levelup_by_crafting(Skill::Weaponcrafting)
+        {
+            return;
+        }
+        if self.conf.gearcraft
+            && self.conf.level_gearcraft
+            && self.levelup_by_crafting(Skill::Gearcrafting)
+        {
+            return;
+        }
+        if self.conf.jewelcraft
+            && self.conf.level_jewelcraft
+            && self.levelup_by_crafting(Skill::Jewelrycrafting)
+        {
+            return;
         }
         self.improve_weapon();
         let monster = if let Some(monster) = self.conf.fight_target.clone() {
@@ -124,10 +143,14 @@ impl Character {
             self.monsters.lowest_providing_exp(self.info.level)
         };
         if let Some(monster) = monster {
-            if let Some((x, y)) = self.closest_map_with_resource(&monster.code) {
-                if self.move_to(x, y) {
-                    let _ = self.fight();
-                }
+            self.kill_monster(monster);
+        }
+    }
+
+    fn kill_monster(&mut self, monster: artifactsmmo_openapi::models::MonsterSchema) {
+        if let Some((x, y)) = self.closest_map_with_resource(&monster.code) {
+            if self.move_to(x, y) {
+                let _ = self.fight();
             }
         }
     }
@@ -140,7 +163,7 @@ impl Character {
                     .any(|i| self.conf.craft_from_bank && self.craft_all_from_bank(&i.code))
             }) {
                 self.gather_resource(&code);
-                if self.inventory_is_full() {
+                if self.inventory_is_full() && self.conf.process_gathered {
                     if let Some(items) = processed {
                         items.iter().for_each(|i| {
                             self.craft_all(&i.code);
@@ -185,19 +208,33 @@ impl Character {
     }
 
     fn levelup_by_crafting(&mut self, skill: Skill) -> bool {
-        let items = self
-            .items
-            .lowest_providing_exp(self.skill_level(skill), skill)
-            .unwrap();
-        if !items.is_empty()
-            && items
+        let items = self.items.providing_exp(self.skill_level(skill), skill);
+        if let Some(items) = items {
+            return items
                 .iter()
-                .any(|i| self.bank.read().is_ok_and(|b| b.has_mats_for(&i.code) > 0))
-        {
-            return items.iter().any(|i| self.craft_all_from_bank(&i.code));
+                .filter(|i| self.bank.read().is_ok_and(|b| b.has_mats_for(&i.code) > 0))
+                .min_set_by_key(|i| self.items.ge_mats_buy_price(&i.code))
+                .into_iter()
+                .max_by_key(|i| i.level)
+                .is_some_and(|i| self.craft_all_from_bank(&i.code));
         }
         false
     }
+
+    //fn levelup_by_crafting(&mut self, skill: Skill) -> bool {
+    //    let items = self
+    //        .items
+    //        .best_for_leveling(self.skill_level(skill), skill)
+    //        .unwrap();
+    //    if !items.is_empty()
+    //        && items
+    //            .iter()
+    //            .any(|i| self.bank.read().is_ok_and(|b| b.has_mats_for(&i.code) > 0))
+    //    {
+    //        return items.iter().any(|i| self.craft_all_from_bank(&i.code));
+    //    }
+    //    false
+    //}
 
     fn craft_all_from_bank(&mut self, code: &str) -> bool {
         if self.bank.read().is_ok_and(|b| b.has_mats_for(code) > 0) {
@@ -574,7 +611,7 @@ impl Character {
         );
         match skill {
             Some(Skill::Weaponcrafting) => self.move_to(2, 1),
-            Some(Skill::Gearcrafting) => self.move_to(2, 2),
+            Some(Skill::Gearcrafting) => self.move_to(3, 1),
             Some(Skill::Jewelrycrafting) => self.move_to(1, 3),
             Some(Skill::Cooking) => self.move_to(1, 1),
             Some(Skill::Woodcutting) => self.move_to(-2, -3),

@@ -2,13 +2,15 @@ use artifactsmmo_openapi::models::{
     craft_schema::Skill, CraftSchema, GeItemSchema, ItemEffectSchema, ItemSchema, SimpleItemSchema,
 };
 use enum_stringify::EnumStringify;
-use futures::task::waker;
+use itertools::Itertools;
 use strum_macros::EnumIter;
 
-use super::{account::Account, api::items::ItemsApi};
+use super::{account::Account, api::items::ItemsApi, monsters::Monsters, resources::Resources};
 
 pub struct Items {
     pub api: ItemsApi,
+    pub monsters: Monsters,
+    pub resources: Resources,
 }
 
 impl Items {
@@ -18,6 +20,8 @@ impl Items {
                 &account.configuration.base_path,
                 &account.configuration.bearer_access_token.clone().unwrap(),
             ),
+            monsters: Monsters::new(account),
+            resources: Resources::new(account),
         }
     }
 
@@ -28,6 +32,30 @@ impl Items {
     //     todo!();
     //     best_schemas;
     // }
+
+    pub fn best_for_leveling(&self, level: i32, skill: super::skill::Skill) -> Option<ItemSchema> {
+        let items = self.providing_exp(level, skill)?;
+        items
+            .iter()
+            .min_set_by_key(|i| self.ge_mats_buy_price(&i.code))
+            .into_iter()
+            .max_by_key(|i| i.level)
+            .cloned()
+    }
+
+    pub fn providing_exp(&self, level: i32, skill: super::skill::Skill) -> Option<Vec<ItemSchema>> {
+        let min = if level > 11 { level - 10 } else { 1 };
+        self.api
+            .all(
+                Some(min),
+                Some(level),
+                None,
+                None,
+                Some(&skill.to_string()),
+                None,
+            )
+            .ok()
+    }
 
     pub fn lowest_providing_exp(
         &self,
@@ -82,8 +110,26 @@ impl Items {
         )
     }
 
-    pub fn craft_schema(&self, code: &str) -> Option<CraftSchema> {
-        Some(*self.api.info(code).ok()?.data.item.craft??)
+    pub fn craft_schema(&self, code: &str) -> Option<Box<CraftSchema>> {
+        self.api.info(code).ok()?.data.item.craft?
+    }
+
+    pub fn is_craftable(&self, code: &str) -> bool {
+        self.craft_schema(code).is_some()
+    }
+
+    pub fn base_mats_for(&self, code: &str) -> Option<Vec<SimpleItemSchema>> {
+        let mut base_mats: Vec<SimpleItemSchema> = vec![];
+        for mat in self.mats_for(code)? {
+            match self.base_mats_for(&mat.code) {
+                Some(mut b) => {
+                    b.iter_mut().for_each(|b| b.quantity *= mat.quantity);
+                    base_mats.append(&mut b)
+                }
+                None => base_mats.push(mat),
+            }
+        }
+        Some(base_mats)
     }
 
     pub fn mats_for(&self, code: &str) -> Option<Vec<SimpleItemSchema>> {
@@ -98,21 +144,69 @@ impl Items {
         self.api.info(code).ok()?.data.ge?
     }
 
-    pub fn ge_mats_price(&self, code: &str) -> i32 {
-        self.mats_for(code).map_or(0, |mats| {
+    pub fn ge_mats_buy_price(&self, code: &str) -> i32 {
+        let i = self.base_mats_for(code).map_or(0, |mats| {
             mats.iter()
                 .map(|mat| {
                     self.ge_info(&mat.code)
-                        .map_or(0, |i| i.buy_price.unwrap_or(0))
+                        .map_or(0, |i| i.buy_price.unwrap_or(0) * mat.quantity)
                 })
                 .sum()
-        })
+        });
+        println!("total price for {}: {}", code, i);
+        i
     }
 
     pub fn mats_quantity_for(&self, code: &str) -> i32 {
         self.mats_for(code)
             .map(|mats| mats.iter().map(|mat| mat.quantity).sum())
             .unwrap_or(0)
+    }
+
+    pub fn drop_rate(&self, code: &str) -> i32 {
+        let mut rate: i32 = 0;
+        if let Ok(info) = self.api.info(code) {
+            if info.data.item.subtype == "mob" {
+                if let Some(monsters) = self.monsters.dropping(code) {
+                    rate = monsters
+                        .into_iter()
+                        .map(|m| {
+                            m.drops
+                                .into_iter()
+                                .find(|d| d.code == code)
+                                .map(|d| d.rate)
+                                .unwrap_or(0)
+                        })
+                        .min()
+                        .unwrap_or(0)
+                }
+            } else if let Some(resources) = self.resources.dropping(code) {
+                rate = resources
+                    .into_iter()
+                    .map(|m| {
+                        m.drops
+                            .into_iter()
+                            .find(|d| d.code == code)
+                            .map(|d| d.rate)
+                            .unwrap_or(0)
+                    })
+                    .min()
+                    .unwrap_or(0)
+            }
+        }
+        rate
+    }
+
+    pub fn base_mats_drop_rate(&self, code: &str) -> i32 {
+        if let Some(mats) = self.base_mats_for(code) {
+            let total_mats: i32 = mats.iter().map(|m| m.quantity).sum();
+            let sum: i32 = mats
+                .iter()
+                .map(|m| self.drop_rate(&m.code) * m.quantity)
+                .sum();
+            return sum / total_mats;
+        }
+        0
     }
 
     pub fn skill_to_craft(&self, code: &str) -> Option<super::skill::Skill> {

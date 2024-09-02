@@ -6,6 +6,7 @@ pub struct CharConfig {
     pub fight_target: Option<String>,
     pub level: bool,
     pub resource: Option<String>,
+    pub process_gathered: bool,
     pub cook: bool,
     pub level_cook: bool,
     pub weaponcraft: bool,

@@ -22,13 +22,11 @@ fn run() -> Option<()> {
             role: Role::Fighter,
             fight_target: Some("chicken".to_string()),
             weaponcraft: true,
-            level_weaponcraft: true,
+            level_weaponcraft: false,
             gearcraft: true,
-            level_gearcraft: true,
+            level_gearcraft: false,
             jewelcraft: true,
-            level_jewelcraft: true,
-            cook: true,
-            level_cook: true,
+            level_jewelcraft: false,
             ..Default::default()
         },
     );
@@ -38,6 +36,7 @@ fn run() -> Option<()> {
         bank.clone(),
         CharConfig {
             role: Role::Miner,
+            process_gathered: true,
             resource: Some("copper_ore".to_string()),
             ..Default::default()
         },
@@ -68,7 +67,7 @@ fn run() -> Option<()> {
         bank.clone(),
         CharConfig {
             role: Role::Miner,
-            resource: Some("copper_ore".to_string()),
+            resource: Some("iron_ore".to_string()),
             ..Default::default()
         },
     );
