@@ -20,7 +20,9 @@ fn run() -> Option<()> {
         bank.clone(),
         CharConfig {
             role: Role::Fighter,
-            fight_target: Some("chicken".to_string()),
+            fight_target: Some("mushmush".to_string()),
+            resource: Some("copper_ore".to_string()),
+            craft_from_bank: false,
             weaponcraft: true,
             level_weaponcraft: false,
             gearcraft: true,

@@ -6,12 +6,14 @@ use artifactsmmo_openapi::{
             action_deposit_bank_my_name_action_bank_deposit_post,
             action_equip_item_my_name_action_equip_post, action_fight_my_name_action_fight_post,
             action_gathering_my_name_action_gathering_post, action_move_my_name_action_move_post,
+            action_recycling_my_name_action_recycling_post,
             action_unequip_item_my_name_action_unequip_post,
             action_withdraw_bank_my_name_action_bank_withdraw_post,
             get_my_characters_my_characters_get, ActionCraftingMyNameActionCraftingPostError,
             ActionDepositBankMyNameActionBankDepositPostError,
             ActionEquipItemMyNameActionEquipPostError, ActionFightMyNameActionFightPostError,
             ActionGatheringMyNameActionGatheringPostError, ActionMoveMyNameActionMovePostError,
+            ActionRecyclingMyNameActionRecyclingPostError,
             ActionUnequipItemMyNameActionUnequipPostError,
             ActionWithdrawBankMyNameActionBankWithdrawPostError,
             GetMyCharactersMyCharactersGetError,
@@ -22,7 +24,8 @@ use artifactsmmo_openapi::{
         equip_schema, unequip_schema, BankItemTransactionResponseSchema,
         CharacterFightResponseSchema, CharacterMovementResponseSchema, CraftingSchema,
         DestinationSchema, EquipSchema, EquipmentResponseSchema, MyCharactersListSchema,
-        SimpleItemSchema, SkillResponseSchema, UnequipSchema,
+        RecyclingResponseSchema, RecyclingSchema, SimpleItemSchema, SkillResponseSchema,
+        UnequipSchema,
     },
 };
 
@@ -80,6 +83,19 @@ impl MyCharacterApi {
             quantity: Some(quantity),
         };
         action_crafting_my_name_action_crafting_post(&self.configuration, name, schema)
+    }
+
+    pub fn recycle(
+        &self,
+        name: &str,
+        code: &str,
+        quantity: i32,
+    ) -> Result<RecyclingResponseSchema, Error<ActionRecyclingMyNameActionRecyclingPostError>> {
+        let schema = RecyclingSchema {
+            code: code.to_owned(),
+            quantity: Some(quantity),
+        };
+        action_recycling_my_name_action_recycling_post(&self.configuration, name, schema)
     }
 
     pub fn equip(

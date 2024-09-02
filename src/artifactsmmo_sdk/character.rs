@@ -16,6 +16,7 @@ use artifactsmmo_openapi::{
             ActionDepositBankMyNameActionBankDepositPostError,
             ActionEquipItemMyNameActionEquipPostError, ActionFightMyNameActionFightPostError,
             ActionGatheringMyNameActionGatheringPostError,
+            ActionRecyclingMyNameActionRecyclingPostError,
             ActionUnequipItemMyNameActionUnequipPostError,
             ActionWithdrawBankMyNameActionBankWithdrawPostError,
         },
@@ -24,8 +25,8 @@ use artifactsmmo_openapi::{
     models::{
         equip_schema::{self, Slot},
         unequip_schema, BankItemTransactionResponseSchema, CharacterFightResponseSchema,
-        CharacterSchema, EquipmentResponseSchema, ItemSchema, MapSchema, SingleItemSchema,
-        SkillResponseSchema,
+        CharacterSchema, EquipmentResponseSchema, ItemSchema, MapSchema, RecyclingResponseSchema,
+        SingleItemSchema, SkillResponseSchema,
     },
 };
 use chrono::{DateTime, Utc};
@@ -461,6 +462,23 @@ impl Character {
         match res {
             Ok(ref res) => {
                 println!("{}: crafted {}, {}", self.name, quantity, code);
+                self.info = *res.data.character.clone();
+            }
+            Err(ref e) => println!("{}: error during crafting: {}", self.name, e),
+        };
+        res
+    }
+
+    fn recycle(
+        &mut self,
+        code: &str,
+        quantity: i32,
+    ) -> Result<RecyclingResponseSchema, Error<ActionRecyclingMyNameActionRecyclingPostError>> {
+        self.wait_for_cooldown();
+        let res = self.my_api.recycle(&self.name, code, quantity);
+        match res {
+            Ok(ref res) => {
+                println!("{}: recycled {}, {}", self.name, quantity, code);
                 self.info = *res.data.character.clone();
             }
             Err(ref e) => println!("{}: error during crafting: {}", self.name, e),
