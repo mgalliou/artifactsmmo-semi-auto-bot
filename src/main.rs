@@ -60,8 +60,7 @@ fn run() -> Option<()> {
         bank.clone(),
         CharConfig {
             role: Role::Woodcutter,
-            craft_from_bank: true,
-            resource: Some("spruce_wood".to_string()),
+            resource: Some("birch_wood".to_string()),
             ..Default::default()
         },
     );

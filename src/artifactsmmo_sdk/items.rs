@@ -37,6 +37,9 @@ impl Items {
         let items = self.providing_exp(level, skill)?;
         items
             .iter()
+            .filter(|i| !self.is_crafted_with(&i.code, "jasper_crystal"))
+            .min_set_by_key(|i| (self.base_mats_drop_rate(&i.code) * 100.0) as i32)
+            .into_iter()
             .min_set_by_key(|i| self.base_mats_buy_price(&i.code))
             .into_iter()
             .max_by_key(|i| i.level)
@@ -134,6 +137,11 @@ impl Items {
 
     pub fn mats_for(&self, code: &str) -> Option<Vec<SimpleItemSchema>> {
         self.craft_schema(code)?.items
+    }
+
+    pub fn is_crafted_with(&self, code: &str, mat: &str) -> bool {
+        self.base_mats_for(code)
+            .is_some_and(|mats| mats.iter().any(|m| m.code == mat))
     }
 
     pub fn with_material(&self, code: &str) -> Option<Vec<ItemSchema>> {

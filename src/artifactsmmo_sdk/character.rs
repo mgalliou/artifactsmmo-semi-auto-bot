@@ -126,27 +126,11 @@ impl Character {
     }
 
     fn fighter_routin(&mut self) {
-        if self.conf.cook && self.conf.level_cook && self.levelup_by_crafting(Skill::Cooking) {
-            return;
-        }
-        if self.conf.weaponcraft
-            && self.conf.level_weaponcraft
-            && self.levelup_by_crafting(Skill::Weaponcrafting)
-        {
-            return;
-        }
-        if self.conf.gearcraft
-            && self.conf.level_gearcraft
-            && self.levelup_by_crafting(Skill::Gearcrafting)
-        {
-            return;
-        }
-        if self.conf.jewelcraft
-            && self.conf.level_jewelcraft
-            && self.levelup_by_crafting(Skill::Jewelrycrafting)
-        {
-            return;
-        }
+        if let Some(skill) = self.target_skill() {
+            if self.levelup_by_crafting(skill) {
+                return;
+            }
+        };
         if let Some(monster) = self.target_monster() {
             self.improve_weapon();
             self.kill_monster(monster);
@@ -159,6 +143,35 @@ impl Character {
                 let _ = self.fight();
             }
         }
+    }
+
+    fn target_skill(&mut self) -> Option<Skill> {
+        let mut skills = vec![];
+        if self.conf.weaponcraft && self.conf.level_weaponcraft {
+            skills.push(Skill::Weaponcrafting);
+        }
+        if self.conf.gearcraft && self.conf.level_gearcraft {
+            skills.push(Skill::Gearcrafting);
+        }
+        if self.conf.jewelcraft && self.conf.level_jewelcraft {
+            skills.push(Skill::Jewelrycrafting);
+        }
+        if self.conf.cook && self.conf.level_cook {
+            skills.push(Skill::Cooking);
+        }
+        skills.sort_by_key(|s| self.skill_level(*s));
+        for skill in skills {
+            if let Some(items) = self.items.providing_exp(self.skill_level(skill), skill) {
+                if items
+                    .iter()
+                    .filter(|i| !self.items.is_crafted_with(&i.code, "jasper_crystal"))
+                    .any(|i| self.bank.read().is_ok_and(|b| b.has_mats_for(&i.code) > 0))
+                {
+                    return Some(skill);
+                }
+            }
+        }
+        None
     }
 
     fn target_monster(&mut self) -> Option<MonsterSchema> {
@@ -228,19 +241,16 @@ impl Character {
     }
 
     fn levelup_by_crafting(&mut self, skill: Skill) -> bool {
-        let items = self.items.providing_exp(self.skill_level(skill), skill);
-        if let Some(items) = items {
-            return items
-                .iter()
-                .filter(|i| self.bank.read().is_ok_and(|b| b.has_mats_for(&i.code) > 0))
-                .min_set_by_key(|i| (self.items.base_mats_drop_rate(&i.code) * 100.0) as i32)
-                .into_iter()
-                .min_set_by_key(|i| self.items.base_mats_buy_price(&i.code))
-                .into_iter()
-                .max_by_key(|i| i.level)
-                .is_some_and(|i| self.craft_all_from_bank(&i.code));
-        }
-        false
+        matches!(self.items.best_for_leveling(self.skill_level(skill), skill), Some(item) if {
+            if self
+                .bank
+                .read()
+                .is_ok_and(|b| b.has_mats_for(&item.code) > 0)
+            {
+                return self.craft_all_from_bank(&item.code);
+            };
+            false
+        })
     }
 
     //fn levelup_by_crafting(&mut self, skill: Skill) -> bool {
