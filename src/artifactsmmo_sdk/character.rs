@@ -148,7 +148,7 @@ impl Character {
             return;
         }
         if let Some(monster) = self.target_monster() {
-            self.improve_equipment();
+            self.improve_weapon();
             self.kill_monster(monster);
         }
     }
@@ -162,7 +162,7 @@ impl Character {
     }
 
     fn target_monster(&mut self) -> Option<MonsterSchema> {
-        if self.info.task_type == "monsters" && !self.task_finished() {
+        if self.conf.do_tasks && self.info.task_type == "monsters" && !self.task_finished() {
             self.monsters.get(&self.info.task)
         } else if let Some(monster) = self.conf.fight_target.clone() {
             self.monsters.get(&monster)
@@ -548,8 +548,8 @@ impl Character {
     fn accept_task(
         &mut self,
     ) -> Result<TaskResponseSchema, Error<ActionAcceptNewTaskMyNameActionTaskNewPostError>> {
-        let res = self.my_api.accept_task(&self.name);
         self.wait_for_cooldown();
+        let res = self.my_api.accept_task(&self.name);
         match res {
             Ok(ref res) => {
                 println!("{}: accepted new task: {:?}", self.name, res.data.task);
@@ -564,8 +564,8 @@ impl Character {
         &mut self,
     ) -> Result<TaskRewardResponseSchema, Error<ActionCompleteTaskMyNameActionTaskCompletePostError>>
     {
-        let res = self.my_api.complete_task(&self.name);
         self.wait_for_cooldown();
+        let res = self.my_api.complete_task(&self.name);
         match res {
             Ok(ref res) => {
                 println!("{}: completed task: {:?}", self.name, res.data.reward);
@@ -715,6 +715,40 @@ impl Character {
             Slot::Consumable2 => Type::Consumable,
         }
     }
+
+    fn improve_equipment(&mut self) {
+        self.improve_slot(Slot::Helmet);
+        self.improve_slot(Slot::LegArmor);
+        self.improve_slot(Slot::BodyArmor);
+        self.improve_slot(Slot::Boots);
+        self.improve_slot(Slot::Shield);
+        self.improve_slot(Slot::Ring1);
+        self.improve_slot(Slot::Ring2);
+        self.improve_slot(Slot::Amulet);
+        self.improve_slot(Slot::Artifact1);
+        self.improve_slot(Slot::Artifact2);
+        self.improve_slot(Slot::Artifact3);
+        self.improve_slot(Slot::Consumable1);
+        self.improve_slot(Slot::Consumable2);
+    }
+
+    fn improve_slot(&mut self, slot: Slot) {
+        match slot {
+            Slot::Weapon => todo!(),
+            Slot::Shield
+            | Slot::Helmet
+            | Slot::BodyArmor
+            | Slot::LegArmor
+            | Slot::Boots
+            | Slot::Ring1
+            | Slot::Ring2
+            | Slot::Amulet => todo!(),
+            Slot::Artifact1 | Slot::Artifact2 | Slot::Artifact3 => todo!(),
+            Slot::Consumable1 | Slot::Consumable2 => todo!(),
+        }
+    }
+
+    //fn slot_upgrade(&mut self, slot: Slot
 
     fn improve_weapon(&mut self) {
         if let Some(code) = self.weapon_upgrade_in_bank() {

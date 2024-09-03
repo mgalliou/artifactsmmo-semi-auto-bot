@@ -4,6 +4,7 @@ use super::character::Role;
 pub struct CharConfig {
     pub role: Role,
     pub fight_target: Option<String>,
+    pub do_tasks: bool,
     pub level: bool,
     pub resource: Option<String>,
     pub process_gathered: bool,
