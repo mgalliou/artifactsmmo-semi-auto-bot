@@ -2,12 +2,34 @@ use artifactsmmo_openapi::{
     apis::{
         configuration::Configuration,
         my_characters_api::{
-            action_accept_new_task_my_name_action_task_new_post, action_complete_task_my_name_action_task_complete_post, action_crafting_my_name_action_crafting_post, action_deposit_bank_my_name_action_bank_deposit_post, action_equip_item_my_name_action_equip_post, action_fight_my_name_action_fight_post, action_gathering_my_name_action_gathering_post, action_move_my_name_action_move_post, action_recycling_my_name_action_recycling_post, action_unequip_item_my_name_action_unequip_post, action_withdraw_bank_my_name_action_bank_withdraw_post, get_my_characters_my_characters_get, ActionAcceptNewTaskMyNameActionTaskNewPostError, ActionCompleteTaskMyNameActionTaskCompletePostError, ActionCraftingMyNameActionCraftingPostError, ActionDepositBankMyNameActionBankDepositPostError, ActionEquipItemMyNameActionEquipPostError, ActionFightMyNameActionFightPostError, ActionGatheringMyNameActionGatheringPostError, ActionMoveMyNameActionMovePostError, ActionRecyclingMyNameActionRecyclingPostError, ActionUnequipItemMyNameActionUnequipPostError, ActionWithdrawBankMyNameActionBankWithdrawPostError, GetMyCharactersMyCharactersGetError
+            action_accept_new_task_my_name_action_task_new_post,
+            action_complete_task_my_name_action_task_complete_post,
+            action_crafting_my_name_action_crafting_post,
+            action_deposit_bank_my_name_action_bank_deposit_post,
+            action_equip_item_my_name_action_equip_post, action_fight_my_name_action_fight_post,
+            action_gathering_my_name_action_gathering_post, action_move_my_name_action_move_post,
+            action_recycling_my_name_action_recycling_post,
+            action_unequip_item_my_name_action_unequip_post,
+            action_withdraw_bank_my_name_action_bank_withdraw_post,
+            get_my_characters_my_characters_get, ActionAcceptNewTaskMyNameActionTaskNewPostError,
+            ActionCompleteTaskMyNameActionTaskCompletePostError,
+            ActionCraftingMyNameActionCraftingPostError,
+            ActionDepositBankMyNameActionBankDepositPostError,
+            ActionEquipItemMyNameActionEquipPostError, ActionFightMyNameActionFightPostError,
+            ActionGatheringMyNameActionGatheringPostError, ActionMoveMyNameActionMovePostError,
+            ActionRecyclingMyNameActionRecyclingPostError,
+            ActionUnequipItemMyNameActionUnequipPostError,
+            ActionWithdrawBankMyNameActionBankWithdrawPostError,
+            GetMyCharactersMyCharactersGetError,
         },
         Error,
     },
     models::{
-        equip_schema, unequip_schema, BankItemTransactionResponseSchema, CharacterFightResponseSchema, CharacterMovementResponseSchema, CraftingSchema, DestinationSchema, EquipSchema, EquipmentResponseSchema, MyCharactersListSchema, RecyclingResponseSchema, RecyclingSchema, SimpleItemSchema, SkillResponseSchema, TaskResponseSchema, TaskRewardResponseSchema, TaskRewardSchema, UnequipSchema
+        equip_schema, unequip_schema, BankItemTransactionResponseSchema,
+        CharacterFightResponseSchema, CharacterMovementResponseSchema, CraftingSchema,
+        DestinationSchema, EquipSchema, EquipmentResponseSchema, MyCharactersListSchema,
+        RecyclingResponseSchema, RecyclingSchema, SimpleItemSchema, SkillResponseSchema,
+        TaskResponseSchema, TaskRewardResponseSchema, UnequipSchema,
     },
 };
 
@@ -145,7 +167,8 @@ impl MyCharacterApi {
     pub fn complete_task(
         &self,
         name: &str,
-    ) -> Result<TaskRewardResponseSchema, Error<ActionCompleteTaskMyNameActionTaskCompletePostError>> {
+    ) -> Result<TaskRewardResponseSchema, Error<ActionCompleteTaskMyNameActionTaskCompletePostError>>
+    {
         action_complete_task_my_name_action_task_complete_post(&self.configuration, name)
     }
 

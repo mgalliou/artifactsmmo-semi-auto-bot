@@ -1,3 +1,4 @@
+use super::api::{characters::CharactersApi, my_character::MyCharacterApi};
 use artifactsmmo_openapi::{
     apis::{
         configuration::Configuration,
@@ -8,11 +9,6 @@ use artifactsmmo_openapi::{
     models::{CharacterSchema, StatusResponseSchema},
 };
 use chrono::{DateTime, TimeDelta, Utc};
-
-use super::{
-    api::{characters::CharactersApi, my_character::MyCharacterApi},
-    character::Character,
-};
 
 #[derive(Clone)]
 pub struct Account {

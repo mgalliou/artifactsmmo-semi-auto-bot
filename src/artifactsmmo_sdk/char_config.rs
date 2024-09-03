@@ -19,5 +19,5 @@ pub struct CharConfig {
     // process gathered resource
     pub craft: bool,
     // process target resource from bank
-    pub craft_from_bank: bool
+    pub craft_from_bank: bool,
 }

@@ -1,6 +1,5 @@
 use artifactsmmo_openapi::models::{
-    craft_schema::Skill, CraftSchema, DropRateSchema, GeItemSchema, ItemEffectSchema, ItemSchema,
-    SimpleItemSchema,
+    craft_schema::Skill, CraftSchema, GeItemSchema, ItemEffectSchema, ItemSchema, SimpleItemSchema,
 };
 use enum_stringify::EnumStringify;
 use itertools::Itertools;

@@ -42,9 +42,6 @@ impl Monsters {
     }
 
     pub fn get(&self, code: &str) -> Option<MonsterSchema> {
-        self.api
-            .info(code)
-            .ok()
-            .map(|resp| *resp.data)
+        self.api.info(code).ok().map(|resp| *resp.data)
     }
 }

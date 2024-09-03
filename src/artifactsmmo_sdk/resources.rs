@@ -17,7 +17,8 @@ impl Resources {
     }
 
     pub fn dropping(&self, code: &str) -> Option<Vec<ResourceSchema>> {
-        self.api.all(None, None, None, Some(code), None, None)
+        self.api
+            .all(None, None, None, Some(code), None, None)
             .ok()
             .map(|schemas| schemas.data)
     }
@@ -25,7 +26,14 @@ impl Resources {
     pub fn lowest_providing_exp(&self, level: i32, skill: Skill) -> Option<ResourceSchema> {
         let min = if level > 11 { level - 10 } else { 1 };
         self.api
-            .all(Some(min), Some(level), Some(&skill.to_string()), None, None, None)
+            .all(
+                Some(min),
+                Some(level),
+                Some(&skill.to_string()),
+                None,
+                None,
+                None,
+            )
             .ok()?
             .data
             .into_iter()
