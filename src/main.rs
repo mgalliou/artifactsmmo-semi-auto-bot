@@ -2,7 +2,7 @@ use artifactsmmo_playground::artifactsmmo_sdk::{
     account::Account,
     bank::Bank,
     char_config::CharConfig,
-    character::{Character, Role}, monsters::Monsters,
+    character::{Character, Role}, monsters::Monsters, resources::Resources,
 };
 use std::{
     sync::{Arc, RwLock},
@@ -15,15 +15,17 @@ fn run() -> Option<()> {
     let account = Account::new(base_url, token);
     let bank = Arc::new(RwLock::new(Bank::new(&account)));
     let monsters = Arc::new(Monsters::new(&account));
+    let resources = Arc::new(Resources::new(&account));
     let mut char1 = Character::new(
         &account,
-        &account.get_character_by_name("Jio")?.name,
-        bank.clone(),
+        "Jio",
+        resources.clone(),
         monsters.clone(),
+        bank.clone(),
         CharConfig {
             role: Role::Fighter,
-            //fight_target: Some("yellow_slime".to_string()),
-            do_tasks: true,
+            fight_target: Some("mushmush".to_string()),
+            do_tasks: false,
             resource: Some("copper_ore".to_string()),
             craft_from_bank: false,
             weaponcraft: true,
@@ -37,9 +39,10 @@ fn run() -> Option<()> {
     );
     let mut char2 = Character::new(
         &account,
-        &account.get_character_by_name("Eraly")?.name,
-        bank.clone(),
+        "Eraly",
+        resources.clone(),
         monsters.clone(),
+        bank.clone(),
         CharConfig {
             role: Role::Miner,
             resource: Some("coal".to_string()),
@@ -48,9 +51,10 @@ fn run() -> Option<()> {
     );
     let mut char3 = Character::new(
         &account,
-        &account.get_character_by_name("Nalgisk")?.name,
-        bank.clone(),
+        "Nalgisk",
+        resources.clone(),
         monsters.clone(),
+        bank.clone(),
         CharConfig {
             role: Role::Miner,
             process_gathered: true,
@@ -60,9 +64,10 @@ fn run() -> Option<()> {
     );
     let mut char4 = Character::new(
         &account,
-        &account.get_character_by_name("Tieleja")?.name,
-        bank.clone(),
+        "Tieleja",
+        resources.clone(),
         monsters.clone(),
+        bank.clone(),
         CharConfig {
             role: Role::Woodcutter,
             resource: Some("birch_wood".to_string()),
@@ -71,9 +76,10 @@ fn run() -> Option<()> {
     );
     let mut char5 = Character::new(
         &account,
-        &account.get_character_by_name("Kvarask")?.name,
-        bank.clone(),
+        "Kvarask",
+        resources.clone(),
         monsters.clone(),
+        bank.clone(),
         CharConfig {
             role: Role::Miner,
             process_gathered: true,

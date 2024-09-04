@@ -28,7 +28,7 @@ impl MonstersApi {
         max_level: Option<i32>,
         drop: Option<&str>,
     ) -> Result<Vec<MonsterSchema>, Error<GetAllMonstersMonstersGetError>> {
-        let mut items: Vec<MonsterSchema> = vec![];
+        let mut monsters: Vec<MonsterSchema> = vec![];
         let mut current_page = 1;
         let mut finished = false;
         while !finished {
@@ -42,7 +42,7 @@ impl MonstersApi {
             );
             match resp {
                 Ok(resp) => {
-                    items.append(&mut resp.data.clone());
+                    monsters.append(&mut resp.data.clone());
                     if let Some(Some(pages)) = resp.pages {
                         if current_page >= pages {
                             finished = true
@@ -56,7 +56,7 @@ impl MonstersApi {
                 Err(e) => return Err(e),
             }
         }
-        Ok(items)
+        Ok(monsters)
     }
 
     pub fn info(

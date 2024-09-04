@@ -7,8 +7,9 @@ use artifactsmmo_openapi::{
         },
         Error,
     },
-    models::{DataPageResourceSchema, ResourceResponseSchema},
+    models::{ResourceResponseSchema, ResourceSchema},
 };
+
 
 pub struct ResourcesApi {
     configuration: Configuration,
@@ -28,18 +29,37 @@ impl ResourcesApi {
         max_level: Option<i32>,
         skill: Option<&str>,
         drop: Option<&str>,
-        page: Option<i32>,
-        size: Option<i32>,
-    ) -> Result<DataPageResourceSchema, Error<GetAllResourcesResourcesGetError>> {
-        get_all_resources_resources_get(
-            &self.configuration,
-            min_level,
-            max_level,
-            skill,
-            drop,
-            page,
-            size,
-        )
+    ) -> Result<Vec<ResourceSchema>, Error<GetAllResourcesResourcesGetError>> {
+        let mut resources: Vec<ResourceSchema> = vec![];
+        let mut current_page = 1;
+        let mut finished = false;
+        while !finished {
+            let resp = get_all_resources_resources_get(
+                &self.configuration,
+                min_level,
+                max_level,
+                skill,
+                drop,
+                Some(current_page),
+                Some(100),
+            );
+            match resp {
+                Ok(resp) => {
+                    resources.append(&mut resp.data.clone());
+                    if let Some(Some(pages)) = resp.pages {
+                        if current_page >= pages {
+                            finished = true
+                        }
+                        current_page += 1;
+                    } else {
+                        // No pagination information, assume single page
+                        finished = true
+                    }
+                }
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(resources)
     }
 
     pub fn info(

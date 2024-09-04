@@ -190,10 +190,10 @@ impl Items {
                 }
             } else if let Some(resources) = self.resources.dropping(code) {
                 rate = resources
-                    .into_iter()
+                    .iter()
                     .map(|m| {
                         m.drops
-                            .into_iter()
+                            .iter()
                             .find(|d| d.code == code)
                             .map(|d| d.rate)
                             .unwrap_or(0)
@@ -225,19 +225,9 @@ impl Items {
     pub fn skill_to_craft(&self, code: &str) -> Option<super::skill::Skill> {
         self.craft_schema(code)
             .and_then(|schema| schema.skill)
-            .map(|skill| self.schema_skill_to_skill(skill))
+            .map(Items::schema_skill_to_skill)
     }
 
-    fn schema_skill_to_skill(&self, skill: Skill) -> super::skill::Skill {
-        match skill {
-            Skill::Weaponcrafting => super::skill::Skill::Weaponcrafting,
-            Skill::Gearcrafting => super::skill::Skill::Gearcrafting,
-            Skill::Jewelrycrafting => super::skill::Skill::Jewelrycrafting,
-            Skill::Cooking => super::skill::Skill::Cooking,
-            Skill::Woodcutting => super::skill::Skill::Woodcutting,
-            Skill::Mining => super::skill::Skill::Mining,
-        }
-    }
 
     pub fn effects_of(&self, code: &str) -> Option<Vec<ItemEffectSchema>> {
         self.api.info(code).ok()?.data.item.effects
@@ -251,7 +241,19 @@ impl Items {
                 .sum()
         })
     }
+
+    pub fn schema_skill_to_skill(skill: Skill) -> super::skill::Skill {
+        match skill {
+            Skill::Weaponcrafting => super::skill::Skill::Weaponcrafting,
+            Skill::Gearcrafting => super::skill::Skill::Gearcrafting,
+            Skill::Jewelrycrafting => super::skill::Skill::Jewelrycrafting,
+            Skill::Cooking => super::skill::Skill::Cooking,
+            Skill::Woodcutting => super::skill::Skill::Woodcutting,
+            Skill::Mining => super::skill::Skill::Mining,
+        }
+    }
 }
+
 
 #[derive(Debug, PartialEq, EnumStringify, EnumIter)]
 #[enum_stringify(case = "lower")]

@@ -1,6 +1,5 @@
 use super::{account::Account, api::monsters::MonstersApi};
 use artifactsmmo_openapi::models::MonsterSchema;
-use itertools::Itertools;
 
 pub struct Monsters {
     pub data: Vec<MonsterSchema>,
@@ -22,8 +21,8 @@ impl Monsters {
             .data
             .iter()
             .filter(|m| m.drops.iter().any(|d| d.code == code))
-            .collect_vec();
-        match monsters.is_empty() {
+            .collect::<Vec<_>>();
+        match !monsters.is_empty() {
             true => Some(monsters),
             false => None,
         }
@@ -34,7 +33,6 @@ impl Monsters {
         self.data
             .iter()
             .filter(|m| m.level >= min && m.level <= level)
-            .into_iter()
             .min_by_key(|m| m.level)
     }
 
@@ -42,7 +40,6 @@ impl Monsters {
         self.data
             .iter()
             .filter(|m| m.level <= level)
-            .into_iter()
             .max_by_key(|m| m.level)
     }
 

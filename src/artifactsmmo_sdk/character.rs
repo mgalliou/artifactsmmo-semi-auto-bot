@@ -49,8 +49,8 @@ pub struct Character {
     my_api: MyCharacterApi,
     account: Account,
     maps: Maps,
-    resources: Resources,
     items: Items,
+    resources: Arc<Resources>,
     monsters: Arc<Monsters>,
     bank: Arc<RwLock<Bank>>,
     conf: CharConfig,
@@ -60,8 +60,9 @@ impl Character {
     pub fn new(
         account: &Account,
         name: &str,
-        bank: Arc<RwLock<Bank>>,
+        resources: Arc<Resources>,
         monsters: Arc<Monsters>,
+        bank: Arc<RwLock<Bank>>,
         conf: CharConfig,
     ) -> Character {
         let api = CharactersApi::new(
@@ -78,7 +79,7 @@ impl Character {
             account: account.clone(),
             maps: Maps::new(account),
             items: Items::new(account),
-            resources: Resources::new(account),
+            resources,
             monsters,
             bank,
             conf,
@@ -285,7 +286,8 @@ impl Character {
         let resource = self
             .resources
             .lowest_providing_exp(self.skill_level(skill), skill)
-            .unwrap();
+            .unwrap()
+            .clone();
         self.gather_resource(&resource.code)
     }
 
