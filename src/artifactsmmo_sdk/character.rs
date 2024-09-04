@@ -48,20 +48,23 @@ pub struct Character {
     pub info: CharacterSchema,
     my_api: MyCharacterApi,
     account: Account,
-    maps: Maps,
-    items: Items,
+    maps: Arc<Maps>,
     resources: Arc<Resources>,
     monsters: Arc<Monsters>,
+    items: Arc<Items>,
     bank: Arc<RwLock<Bank>>,
     conf: CharConfig,
 }
 
 impl Character {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         account: &Account,
         name: &str,
+        maps: Arc<Maps>,
         resources: Arc<Resources>,
         monsters: Arc<Monsters>,
+        items: Arc<Items>,
         bank: Arc<RwLock<Bank>>,
         conf: CharConfig,
     ) -> Character {
@@ -77,10 +80,10 @@ impl Character {
                 &account.configuration.bearer_access_token.clone().unwrap(),
             ),
             account: account.clone(),
-            maps: Maps::new(account),
-            items: Items::new(account),
+            maps,
             resources,
             monsters,
+            items,
             bank,
             conf,
         }

@@ -22,7 +22,6 @@ impl ItemsApi {
         ItemsApi { configuration }
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn all(
         &self,
         min_level: Option<i32>,

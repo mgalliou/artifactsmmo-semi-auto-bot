@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use artifactsmmo_openapi::models::{
     craft_schema::Skill, CraftSchema, GeItemSchema, ItemEffectSchema, ItemSchema, SimpleItemSchema,
 };
@@ -9,19 +11,19 @@ use super::{account::Account, api::items::ItemsApi, monsters::Monsters, resource
 
 pub struct Items {
     pub api: ItemsApi,
-    pub monsters: Monsters,
-    pub resources: Resources,
+    pub resources: Arc<Resources>,
+    pub monsters: Arc<Monsters>,
 }
 
 impl Items {
-    pub fn new(account: &Account) -> Items {
+    pub fn new(account: &Account, resources: Arc<Resources>, monsters: Arc<Monsters>) -> Items {
         Items {
             api: ItemsApi::new(
                 &account.configuration.base_path,
                 &account.configuration.bearer_access_token.clone().unwrap(),
             ),
-            monsters: Monsters::new(account),
-            resources: Resources::new(account),
+            resources,
+            monsters,
         }
     }
 

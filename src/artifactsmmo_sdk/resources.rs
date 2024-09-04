@@ -41,7 +41,11 @@ impl Resources {
             .min_by_key(|r| r.level)
     }
 
-    pub fn highest_providing_exp(&self, level: i32, skill: super::skill::Skill) -> Option<&ResourceSchema> {
+    pub fn highest_providing_exp(
+        &self,
+        level: i32,
+        skill: super::skill::Skill,
+    ) -> Option<&ResourceSchema> {
         self.data
             .iter()
             .filter(|r| Resources::schema_skill_to_skill(r.skill) == skill)

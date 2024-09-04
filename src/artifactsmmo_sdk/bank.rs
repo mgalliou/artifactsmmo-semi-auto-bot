@@ -1,21 +1,23 @@
+use std::sync::Arc;
+
 use artifactsmmo_openapi::models::{BankSchema, SimpleItemSchema};
 
 use super::{account::Account, api::bank::BankApi, items::Items};
 
 pub struct Bank {
-    items: Items,
+    items: Arc<Items>,
     pub details: BankSchema,
     pub content: Vec<SimpleItemSchema>,
 }
 
 impl Bank {
-    pub fn new(account: &Account) -> Bank {
+    pub fn new(account: &Account, items: Arc<Items>) -> Bank {
         let api = BankApi::new(
             &account.configuration.base_path,
             &account.configuration.bearer_access_token.clone().unwrap(),
         );
         Bank {
-            items: Items::new(account),
+            items,
             details: *api.details().unwrap().data,
             content: api.items(None, None, None).unwrap(),
         }

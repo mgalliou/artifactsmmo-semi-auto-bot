@@ -2,7 +2,11 @@ use artifactsmmo_playground::artifactsmmo_sdk::{
     account::Account,
     bank::Bank,
     char_config::CharConfig,
-    character::{Character, Role}, monsters::Monsters, resources::Resources,
+    character::{Character, Role},
+    items::Items,
+    maps::Maps,
+    monsters::Monsters,
+    resources::Resources,
 };
 use std::{
     sync::{Arc, RwLock},
@@ -13,14 +17,18 @@ fn run() -> Option<()> {
     let base_url = "https://api.artifactsmmo.com";
     let token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6InBvZEppbyIsInBhc3N3b3JkX2NoYW5nZWQiOiIifQ.Qy1Hm2-QYm84O_9aLP076TczjYDCpSuZ75dKkh9toUY";
     let account = Account::new(base_url, token);
-    let bank = Arc::new(RwLock::new(Bank::new(&account)));
-    let monsters = Arc::new(Monsters::new(&account));
+    let maps = Arc::new(Maps::new(&account));
     let resources = Arc::new(Resources::new(&account));
+    let monsters = Arc::new(Monsters::new(&account));
+    let items = Arc::new(Items::new(&account, resources.clone(), monsters.clone()));
+    let bank = Arc::new(RwLock::new(Bank::new(&account, items.clone())));
     let mut char1 = Character::new(
         &account,
         "Jio",
+        maps.clone(),
         resources.clone(),
         monsters.clone(),
+        items.clone(),
         bank.clone(),
         CharConfig {
             role: Role::Fighter,
@@ -40,8 +48,10 @@ fn run() -> Option<()> {
     let mut char2 = Character::new(
         &account,
         "Eraly",
+        maps.clone(),
         resources.clone(),
         monsters.clone(),
+        items.clone(),
         bank.clone(),
         CharConfig {
             role: Role::Miner,
@@ -52,8 +62,10 @@ fn run() -> Option<()> {
     let mut char3 = Character::new(
         &account,
         "Nalgisk",
+        maps.clone(),
         resources.clone(),
         monsters.clone(),
+        items.clone(),
         bank.clone(),
         CharConfig {
             role: Role::Miner,
@@ -65,8 +77,10 @@ fn run() -> Option<()> {
     let mut char4 = Character::new(
         &account,
         "Tieleja",
+        maps.clone(),
         resources.clone(),
         monsters.clone(),
+        items.clone(),
         bank.clone(),
         CharConfig {
             role: Role::Woodcutter,
@@ -77,8 +91,10 @@ fn run() -> Option<()> {
     let mut char5 = Character::new(
         &account,
         "Kvarask",
+        maps.clone(),
         resources.clone(),
         monsters.clone(),
+        items.clone(),
         bank.clone(),
         CharConfig {
             role: Role::Miner,
