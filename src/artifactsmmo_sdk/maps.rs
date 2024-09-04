@@ -1,24 +1,23 @@
 use super::{account::Account, api::maps::MapsApi};
-use artifactsmmo_openapi::{
-    apis::{maps_api::GetAllMapsMapsGetError, Error},
-    models::MapSchema,
-};
+use artifactsmmo_openapi::models::{MapSchema, ResourceSchema};
+use itertools::Itertools;
 
 pub struct Maps {
-    api: MapsApi,
+    pub data: Vec<MapSchema>,
 }
 
 impl Maps {
     pub fn new(account: &Account) -> Maps {
+        let api = MapsApi::new(
+            &account.configuration.base_path,
+            &account.configuration.bearer_access_token.clone().unwrap(),
+        );
         Maps {
-            api: MapsApi::new(
-                &account.configuration.base_path,
-                &account.configuration.bearer_access_token.clone().unwrap(),
-            ),
+            data: api.all(None, None).unwrap().clone(),
         }
     }
 
-    pub fn closest_from_amoung(&self, x: i32, y: i32, maps: Vec<MapSchema>) -> Option<MapSchema> {
+    pub fn closest_from_amoung(x: i32, y: i32, maps: Vec<&MapSchema>) -> Option<&MapSchema> {
         let mut delta_total;
         let mut min_delta = -1;
         let mut target_map = None;
@@ -33,17 +32,33 @@ impl Maps {
         target_map
     }
 
-    pub fn with_ressource(
-        &self,
-        code: &str,
-    ) -> Result<Vec<MapSchema>, Error<GetAllMapsMapsGetError>> {
-        self.api.all(None, Some(code))
+    pub fn with_ressource(&self, code: &str) -> Option<Vec<&MapSchema>> {
+        let maps = self
+            .data
+            .iter()
+            .filter(|m| m.content.as_ref().is_some_and(|c| c.code == code))
+            .collect_vec();
+        match !maps.is_empty() {
+            true => Some(maps),
+            false => None,
+        }
     }
 
-    pub fn with_monster(
-        &self,
-        code: &str,
-    ) -> Result<Vec<MapSchema>, Error<GetAllMapsMapsGetError>> {
-        self.api.all(None, Some(code))
+    pub fn with_monster(&self, code: &str) -> Option<Vec<&MapSchema>> {
+        let maps = self
+            .data
+            .iter()
+            .filter(|m| m.content.as_ref().is_some_and(|c| c.code == code))
+            .collect_vec();
+        match !maps.is_empty() {
+            true => Some(maps),
+            false => None,
+        }
+    }
+
+    pub fn has_one_of_resource(map: &MapSchema, resources: Vec<&ResourceSchema>) -> bool {
+        map.content
+            .as_ref()
+            .is_some_and(|c| resources.iter().any(|r| r.code == c.code))
     }
 }

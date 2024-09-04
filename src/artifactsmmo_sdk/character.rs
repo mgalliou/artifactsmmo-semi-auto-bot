@@ -33,6 +33,7 @@ use artifactsmmo_openapi::{
     },
 };
 use chrono::{DateTime, Utc};
+use itertools::Itertools;
 use log::{info, warn};
 use std::{
     cmp::Ordering,
@@ -663,20 +664,20 @@ impl Character {
             .unwrap_or(0)
     }
 
-    fn closest_map_among(&self, maps: Vec<MapSchema>) -> Option<MapSchema> {
-        self.maps
-            .closest_from_amoung(self.info.x, self.info.y, maps)
+    fn closest_map_among<'a>(&'a self, maps: Vec<&'a MapSchema>) -> Option<&MapSchema> {
+        Maps::closest_from_amoung(self.info.x, self.info.y, maps)
     }
 
-    fn closest_map_dropping(&self, code: &str) -> Option<MapSchema> {
+    fn closest_map_dropping(&self, code: &str) -> Option<&MapSchema> {
         match self.resources.dropping(code) {
             Some(resources) => {
-                let mut maps: Vec<MapSchema> = vec![];
-                for r in resources {
-                    maps.append(&mut self.maps.with_ressource(&r.code).ok()?)
-                }
-                self.maps
-                    .closest_from_amoung(self.info.x, self.info.y, maps)
+                let maps = self
+                    .maps
+                    .data
+                    .iter()
+                    .filter(|m| Maps::has_one_of_resource(m, resources.clone()))
+                    .collect_vec();
+                Maps::closest_from_amoung(self.info.x, self.info.y, maps)
             }
             _ => None,
         }
@@ -685,7 +686,6 @@ impl Character {
     fn closest_map_with_resource(&self, code: &str) -> Option<(i32, i32)> {
         self.maps
             .with_ressource(code)
-            .ok()
             .and_then(|maps| self.closest_map_among(maps))
             .map(|map| (map.x, map.y))
     }
