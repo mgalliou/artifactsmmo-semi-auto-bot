@@ -36,12 +36,7 @@ use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use log::{info, warn};
 use std::{
-    cmp::Ordering,
-    option::Option,
-    sync::{Arc, RwLock},
-    thread::sleep,
-    time::Duration,
-    vec::Vec,
+    cmp::Ordering, option::Option, sync::{Arc, RwLock}, thread::{self, sleep, JoinHandle}, time::Duration, vec::Vec
 };
 
 pub struct Character {
@@ -90,7 +85,15 @@ impl Character {
         }
     }
 
-    pub fn run(&mut self) {
+    pub fn run(mut char: Character) -> Result<JoinHandle<()>, std::io::Error> {
+     thread::Builder::new()
+            .name(char.name.to_string())
+            .spawn(move || {
+                char.run2();
+            })
+    }
+
+    pub fn run2(&mut self) {
         if Role::Fighter != self.conf.role
             && self
                 .equipment_in(Slot::Weapon)

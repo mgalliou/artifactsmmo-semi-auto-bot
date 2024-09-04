@@ -8,10 +8,7 @@ use artifactsmmo_playground::artifactsmmo_sdk::{
     monsters::Monsters,
     resources::Resources,
 };
-use std::{
-    sync::{Arc, RwLock},
-    thread,
-};
+use std::sync::{Arc, RwLock};
 
 fn run() -> Option<()> {
     let base_url = "https://api.artifactsmmo.com";
@@ -22,7 +19,7 @@ fn run() -> Option<()> {
     let monsters = Arc::new(Monsters::new(&account));
     let items = Arc::new(Items::new(&account, resources.clone(), monsters.clone()));
     let bank = Arc::new(RwLock::new(Bank::new(&account, items.clone())));
-    let mut char1 = Character::new(
+    let char1 = Character::new(
         &account,
         "Jio",
         maps.clone(),
@@ -32,12 +29,12 @@ fn run() -> Option<()> {
         bank.clone(),
         CharConfig {
             role: Role::Fighter,
-            fight_target: Some("wolf".to_string()),
+            fight_target: Some("mushmush".to_string()),
             do_tasks: false,
             resource: Some("copper_ore".to_string()),
             craft_from_bank: false,
             weaponcraft: true,
-            level_weaponcraft: true,
+            level_weaponcraft: false,
             gearcraft: true,
             level_gearcraft: false,
             jewelcraft: true,
@@ -45,7 +42,7 @@ fn run() -> Option<()> {
             ..Default::default()
         },
     );
-    let mut char2 = Character::new(
+    let char2 = Character::new(
         &account,
         "Eraly",
         maps.clone(),
@@ -59,7 +56,7 @@ fn run() -> Option<()> {
             ..Default::default()
         },
     );
-    let mut char3 = Character::new(
+    let char3 = Character::new(
         &account,
         "Nalgisk",
         maps.clone(),
@@ -74,7 +71,7 @@ fn run() -> Option<()> {
             ..Default::default()
         },
     );
-    let mut char4 = Character::new(
+    let char4 = Character::new(
         &account,
         "Tieleja",
         maps.clone(),
@@ -88,7 +85,7 @@ fn run() -> Option<()> {
             ..Default::default()
         },
     );
-    let mut char5 = Character::new(
+    let char5 = Character::new(
         &account,
         "Kvarask",
         maps.clone(),
@@ -104,30 +101,11 @@ fn run() -> Option<()> {
         },
     );
 
-    let t1 = thread::Builder::new()
-        .name(char1.name.to_string())
-        .spawn(move || {
-            char1.run();
-        })
-        .unwrap();
-    let t2 = thread::Builder::new()
-        .name(char2.name.to_string())
-        .spawn(move || {
-            char2.run();
-        })
-        .unwrap();
-    let t3 = thread::Builder::new()
-        .name(char3.name.to_string())
-        .spawn(move || char3.run())
-        .unwrap();
-    let t4 = thread::Builder::new()
-        .name(char4.name.to_string())
-        .spawn(move || char4.run())
-        .unwrap();
-    let t5 = thread::Builder::new()
-        .name(char5.name.to_string())
-        .spawn(move || char5.run())
-        .unwrap();
+    let t1 = Character::run(char1).unwrap();
+    let t2 = Character::run(char2).unwrap();
+    let t3 = Character::run(char3).unwrap();
+    let t4 = Character::run(char4).unwrap();
+    let t5 = Character::run(char5).unwrap();
     t1.join().unwrap();
     t2.join().unwrap();
     t3.join().unwrap();
