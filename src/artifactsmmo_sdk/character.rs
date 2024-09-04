@@ -673,7 +673,7 @@ impl Character {
             Some(resources) => {
                 let mut maps: Vec<MapSchema> = vec![];
                 for r in resources {
-                    maps.append(&mut self.maps.with_ressource(&r.code).ok()?.data)
+                    maps.append(&mut self.maps.with_ressource(&r.code).ok()?)
                 }
                 self.maps
                     .closest_from_amoung(self.info.x, self.info.y, maps)
@@ -686,7 +686,7 @@ impl Character {
         self.maps
             .with_ressource(code)
             .ok()
-            .and_then(|maps| self.closest_map_among(maps.data))
+            .and_then(|maps| self.closest_map_among(maps))
             .map(|map| (map.x, map.y))
     }
 

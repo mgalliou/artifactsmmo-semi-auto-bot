@@ -1,9 +1,8 @@
+use super::{account::Account, api::maps::MapsApi};
 use artifactsmmo_openapi::{
     apis::{maps_api::GetAllMapsMapsGetError, Error},
-    models::{DataPageMapSchema, MapSchema},
+    models::MapSchema,
 };
-
-use super::{account::Account, api::maps::MapsApi};
 
 pub struct Maps {
     api: MapsApi,
@@ -37,14 +36,14 @@ impl Maps {
     pub fn with_ressource(
         &self,
         code: &str,
-    ) -> Result<DataPageMapSchema, Error<GetAllMapsMapsGetError>> {
-        self.api.all(None, Some(code), None, None)
+    ) -> Result<Vec<MapSchema>, Error<GetAllMapsMapsGetError>> {
+        self.api.all(None, Some(code))
     }
 
     pub fn with_monster(
         &self,
         code: &str,
-    ) -> Result<DataPageMapSchema, Error<GetAllMapsMapsGetError>> {
-        self.api.all(None, Some(code), None, None)
+    ) -> Result<Vec<MapSchema>, Error<GetAllMapsMapsGetError>> {
+        self.api.all(None, Some(code))
     }
 }

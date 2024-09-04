@@ -7,7 +7,7 @@ use artifactsmmo_openapi::{
         },
         Error,
     },
-    models::{DataPageMapSchema, MapResponseSchema},
+    models::{MapResponseSchema, MapSchema},
 };
 
 pub struct MapsApi {
@@ -26,10 +26,35 @@ impl MapsApi {
         &self,
         content_type: Option<&str>,
         content_code: Option<&str>,
-        page: Option<i32>,
-        size: Option<i32>,
-    ) -> Result<DataPageMapSchema, Error<GetAllMapsMapsGetError>> {
-        get_all_maps_maps_get(&self.configuration, content_type, content_code, page, size)
+    ) -> Result<Vec<MapSchema>, Error<GetAllMapsMapsGetError>> {
+        let mut maps: Vec<MapSchema> = vec![];
+        let mut current_page = 1;
+        let mut finished = false;
+        while !finished {
+            let resp = get_all_maps_maps_get(
+                &self.configuration,
+                content_type,
+                content_code,
+                Some(current_page),
+                Some(100),
+            );
+            match resp {
+                Ok(resp) => {
+                    maps.append(&mut resp.data.clone());
+                    if let Some(Some(pages)) = resp.pages {
+                        if current_page >= pages {
+                            finished = true
+                        }
+                        current_page += 1;
+                    } else {
+                        // No pagination information, assume single page
+                        finished = true
+                    }
+                }
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(maps)
     }
 
     pub fn info(&self, x: i32, y: i32) -> Result<MapResponseSchema, Error<GetMapMapsXyGetError>> {
