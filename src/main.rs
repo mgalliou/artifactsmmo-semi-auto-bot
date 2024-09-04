@@ -37,7 +37,7 @@ fn run() -> Option<()> {
             resource: Some("copper_ore".to_string()),
             craft_from_bank: false,
             weaponcraft: true,
-            level_weaponcraft: false,
+            level_weaponcraft: true,
             gearcraft: true,
             level_gearcraft: false,
             jewelcraft: true,

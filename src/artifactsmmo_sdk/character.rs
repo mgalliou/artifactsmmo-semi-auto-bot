@@ -165,18 +165,12 @@ impl Character {
             skills.push(Skill::Cooking);
         }
         skills.sort_by_key(|s| self.skill_level(*s));
-        for skill in skills {
-            if let Some(items) = self.items.providing_exp(self.skill_level(skill), skill) {
-                if items
-                    .iter()
-                    .filter(|i| !self.items.is_crafted_with(&i.code, "jasper_crystal"))
-                    .any(|i| self.bank.read().is_ok_and(|b| b.has_mats_for(&i.code) > 0))
-                {
-                    return Some(skill);
-                }
-            }
-        }
-        None
+        skills.into_iter().find(|&skill| self
+                .items
+                .providing_exp(self.skill_level(skill), skill)
+                .iter()
+                .filter(|i| !self.items.is_crafted_with(&i.code, "jasper_crystal"))
+                .any(|i| self.bank.read().is_ok_and(|b| b.has_mats_for(&i.code) > 0)))
     }
 
     // TODO: ruduce amount of cloned() calls if possible
@@ -197,18 +191,16 @@ impl Character {
     fn gatherer_routin(&mut self) {
         if let Some(code) = self.conf.resource.clone() {
             let processed = self.items.with_material(&code);
-            if !processed.as_ref().is_some_and(|p| {
-                p.iter()
-                    .any(|i| self.conf.craft_from_bank && self.craft_all_from_bank(&i.code))
-            }) {
+            if !processed
+                .iter()
+                .any(|i| self.conf.craft_from_bank && self.craft_all_from_bank(&i.code))
+            {
                 self.gather_resource(&code);
                 if self.inventory_is_full() && self.conf.process_gathered {
-                    if let Some(items) = processed {
-                        items.iter().for_each(|i| {
-                            self.craft_all(&i.code);
-                            self.deposit_all();
-                        });
-                    }
+                    processed.iter().for_each(|i| {
+                        self.craft_all(&i.code);
+                        self.deposit_all();
+                    });
                 }
             }
         } else if let Some(skill) = self.conf.role.to_skill() {

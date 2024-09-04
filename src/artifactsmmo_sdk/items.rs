@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, vec::Vec};
 
 use artifactsmmo_openapi::models::{
     craft_schema::Skill, CraftSchema, GeItemSchema, ItemEffectSchema, ItemSchema, SimpleItemSchema,
@@ -10,6 +10,7 @@ use strum_macros::EnumIter;
 use super::{account::Account, api::items::ItemsApi, monsters::Monsters, resources::Resources};
 
 pub struct Items {
+    pub data: Vec<ItemSchema>,
     pub api: ItemsApi,
     pub resources: Arc<Resources>,
     pub monsters: Arc<Monsters>,
@@ -17,11 +18,13 @@ pub struct Items {
 
 impl Items {
     pub fn new(account: &Account, resources: Arc<Resources>, monsters: Arc<Monsters>) -> Items {
+        let api = ItemsApi::new(
+            &account.configuration.base_path,
+            &account.configuration.bearer_access_token.clone().unwrap(),
+        );
         Items {
-            api: ItemsApi::new(
-                &account.configuration.base_path,
-                &account.configuration.bearer_access_token.clone().unwrap(),
-            ),
+            data: api.all(None, None, None, None, None, None).unwrap().clone(),
+            api,
             resources,
             monsters,
         }
@@ -36,7 +39,7 @@ impl Items {
     // }
 
     pub fn best_for_leveling(&self, level: i32, skill: super::skill::Skill) -> Option<ItemSchema> {
-        let items = self.providing_exp(level, skill)?;
+        let items = self.providing_exp(level, skill);
         items
             .iter()
             .filter(|i| !self.is_crafted_with(&i.code, "jasper_crystal"))
@@ -48,75 +51,46 @@ impl Items {
             .cloned()
     }
 
-    pub fn providing_exp(&self, level: i32, skill: super::skill::Skill) -> Option<Vec<ItemSchema>> {
+    pub fn providing_exp(&self, level: i32, skill: super::skill::Skill) -> Vec<ItemSchema> {
         let min = if level > 11 { level - 10 } else { 1 };
-        self.api
-            .all(
-                Some(min),
-                Some(level),
-                None,
-                None,
-                Some(&skill.to_string()),
-                None,
-            )
-            .ok()
+        self.data
+            .iter()
+            .filter(|i| i.level >= min && i.level <= level)
+            .filter(|i| {
+                self.craft_schema(&i.code).is_some_and(|c| {
+                    c.skill
+                        .is_some_and(|s| Items::schema_skill_to_skill(s) == skill)
+                })
+            })
+            .cloned()
+            .collect_vec()
     }
 
-    pub fn lowest_providing_exp(
-        &self,
-        level: i32,
-        skill: super::skill::Skill,
-    ) -> Option<Vec<ItemSchema>> {
-        let min = if level > 11 { level - 10 } else { 1 };
-        let items = self
-            .api
-            .all(
-                Some(min),
-                Some(level),
-                None,
-                None,
-                Some(&skill.to_string()),
-                None,
-            )
-            .ok()?;
-        let min_level = items.iter().min_by_key(|i| i.level).map(|i| i.level)?;
-        Some(
-            items
-                .iter()
-                .filter(|i| i.level == min_level)
-                .cloned()
-                .collect(),
-        )
+    pub fn lowest_providing_exp(&self, level: i32, skill: super::skill::Skill) -> Vec<ItemSchema> {
+        self.providing_exp(level, skill)
+            .iter()
+            .cloned()
+            .min_set_by_key(|i| i.level)
     }
 
     pub fn highest_providing_exp(
         &self,
         level: i32,
         skill: super::skill::Skill,
-    ) -> Option<Vec<ItemSchema>> {
-        let items = self
-            .api
-            .all(
-                None,
-                Some(level),
-                None,
-                None,
-                Some(&skill.to_string()),
-                None,
-            )
-            .ok()?;
-        let max_level = items.iter().max_by_key(|i| i.level).map(|i| i.level)?;
-        Some(
-            items
-                .iter()
-                .filter(|i| i.level == max_level)
-                .cloned()
-                .collect(),
-        )
+    ) -> Vec<ItemSchema> {
+        self.providing_exp(level, skill)
+            .iter()
+            .max_set_by_key(|i| i.level)
+            .into_iter()
+            .cloned()
+            .collect_vec()
     }
 
     pub fn craft_schema(&self, code: &str) -> Option<Box<CraftSchema>> {
-        self.api.info(code).ok()?.data.item.craft?
+        <Vec<ItemSchema> as Clone>::clone(&self.data)
+            .into_iter()
+            .find(|i| i.code == code)?
+            .craft?
     }
 
     pub fn is_craftable(&self, code: &str) -> bool {
@@ -146,8 +120,17 @@ impl Items {
             .is_some_and(|mats| mats.iter().any(|m| m.code == mat))
     }
 
-    pub fn with_material(&self, code: &str) -> Option<Vec<ItemSchema>> {
-        self.api.all(None, None, None, None, None, Some(code)).ok()
+    pub fn with_material(&self, code: &str) -> Vec<ItemSchema> {
+        self.data
+            .iter()
+            .filter(|i| {
+                self.craft_schema(&i.code).is_some_and(|c| {
+                    c.items
+                        .is_some_and(|items| items.iter().any(|i| i.code == code))
+                })
+            })
+            .cloned()
+            .collect_vec()
     }
 
     pub fn ge_info(&self, code: &str) -> Option<Box<GeItemSchema>> {
@@ -175,8 +158,8 @@ impl Items {
 
     pub fn drop_rate(&self, code: &str) -> i32 {
         let mut rate: i32 = 0;
-        if let Ok(info) = self.api.info(code) {
-            if info.data.item.subtype == "mob" {
+        if let Some(info) = self.get(code) {
+            if info.subtype == "mob" {
                 if let Some(monsters) = self.monsters.dropping(code) {
                     rate = monsters
                         .iter()
@@ -230,9 +213,8 @@ impl Items {
             .map(Items::schema_skill_to_skill)
     }
 
-
     pub fn effects_of(&self, code: &str) -> Option<Vec<ItemEffectSchema>> {
-        self.api.info(code).ok()?.data.item.effects
+        self.get(code)?.effects.clone()
     }
 
     pub fn damages(&self, code: &str) -> i32 {
@@ -254,8 +236,11 @@ impl Items {
             Skill::Mining => super::skill::Skill::Mining,
         }
     }
-}
 
+    pub fn get(&self, code: &str) -> Option<&ItemSchema> {
+        self.data.iter().find(|m| m.code == code)
+    }
+}
 
 #[derive(Debug, PartialEq, EnumStringify, EnumIter)]
 #[enum_stringify(case = "lower")]
