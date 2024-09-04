@@ -345,6 +345,7 @@ impl Character {
 
     /// .withdraw the maximum available amount of mats used to craft the item `code`
     fn withdraw_max_mats_for(&mut self, code: &str) -> bool {
+        self.move_to_bank();
         println!(
             "{}: getting maximum amount of mats in bank to craft {}",
             self.name, code
