@@ -177,10 +177,10 @@ impl Items {
             if info.data.item.subtype == "mob" {
                 if let Some(monsters) = self.monsters.dropping(code) {
                     rate = monsters
-                        .into_iter()
+                        .iter()
                         .map(|m| {
                             m.drops
-                                .into_iter()
+                                .iter()
                                 .find(|d| d.code == code)
                                 .map(|d| d.rate)
                                 .unwrap_or(0)

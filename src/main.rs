@@ -2,7 +2,7 @@ use artifactsmmo_playground::artifactsmmo_sdk::{
     account::Account,
     bank::Bank,
     char_config::CharConfig,
-    character::{Character, Role},
+    character::{Character, Role}, monsters::Monsters,
 };
 use std::{
     sync::{Arc, RwLock},
@@ -14,10 +14,12 @@ fn run() -> Option<()> {
     let token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6InBvZEppbyIsInBhc3N3b3JkX2NoYW5nZWQiOiIifQ.Qy1Hm2-QYm84O_9aLP076TczjYDCpSuZ75dKkh9toUY";
     let account = Account::new(base_url, token);
     let bank = Arc::new(RwLock::new(Bank::new(&account)));
+    let monsters = Arc::new(Monsters::new(&account));
     let mut char1 = Character::new(
         &account,
         &account.get_character_by_name("Jio")?.name,
         bank.clone(),
+        monsters.clone(),
         CharConfig {
             role: Role::Fighter,
             //fight_target: Some("yellow_slime".to_string()),
@@ -37,6 +39,7 @@ fn run() -> Option<()> {
         &account,
         &account.get_character_by_name("Eraly")?.name,
         bank.clone(),
+        monsters.clone(),
         CharConfig {
             role: Role::Miner,
             resource: Some("coal".to_string()),
@@ -47,6 +50,7 @@ fn run() -> Option<()> {
         &account,
         &account.get_character_by_name("Nalgisk")?.name,
         bank.clone(),
+        monsters.clone(),
         CharConfig {
             role: Role::Miner,
             process_gathered: true,
@@ -58,6 +62,7 @@ fn run() -> Option<()> {
         &account,
         &account.get_character_by_name("Tieleja")?.name,
         bank.clone(),
+        monsters.clone(),
         CharConfig {
             role: Role::Woodcutter,
             resource: Some("birch_wood".to_string()),
@@ -68,6 +73,7 @@ fn run() -> Option<()> {
         &account,
         &account.get_character_by_name("Kvarask")?.name,
         bank.clone(),
+        monsters.clone(),
         CharConfig {
             role: Role::Miner,
             process_gathered: true,

@@ -33,7 +33,6 @@ use artifactsmmo_openapi::{
     },
 };
 use chrono::{DateTime, Utc};
-use itertools::Itertools;
 use log::{info, warn};
 use std::{
     cmp::Ordering,
@@ -52,7 +51,7 @@ pub struct Character {
     maps: Maps,
     resources: Resources,
     items: Items,
-    monsters: Monsters,
+    monsters: Arc<Monsters>,
     bank: Arc<RwLock<Bank>>,
     conf: CharConfig,
 }
@@ -62,6 +61,7 @@ impl Character {
         account: &Account,
         name: &str,
         bank: Arc<RwLock<Bank>>,
+        monsters: Arc<Monsters>,
         conf: CharConfig,
     ) -> Character {
         let api = CharactersApi::new(
@@ -79,7 +79,7 @@ impl Character {
             maps: Maps::new(account),
             items: Items::new(account),
             resources: Resources::new(account),
-            monsters: Monsters::new(account),
+            monsters,
             bank,
             conf,
         }
@@ -133,12 +133,12 @@ impl Character {
         };
         if let Some(monster) = self.target_monster() {
             self.improve_weapon();
-            self.kill_monster(monster);
+            self.kill_monster(&monster.code);
         }
     }
 
-    fn kill_monster(&mut self, monster: MonsterSchema) {
-        if let Some((x, y)) = self.closest_map_with_resource(&monster.code) {
+    fn kill_monster(&mut self, code: &str) {
+        if let Some((x, y)) = self.closest_map_with_resource(code) {
             if self.move_to(x, y) {
                 let _ = self.fight();
             }
@@ -174,13 +174,14 @@ impl Character {
         None
     }
 
+    // TODO: ruduce amount of cloned() calls if possible
     fn target_monster(&mut self) -> Option<MonsterSchema> {
         if self.conf.do_tasks && self.info.task_type == "monsters" && !self.task_finished() {
-            self.monsters.get(&self.info.task)
+            self.monsters.get(&self.info.task).cloned()
         } else if let Some(monster) = self.conf.fight_target.clone() {
-            self.monsters.get(&monster)
+            self.monsters.get(&monster).cloned()
         } else {
-            self.monsters.lowest_providing_exp(self.info.level)
+            self.monsters.lowest_providing_exp(self.info.level).cloned()
         }
     }
 

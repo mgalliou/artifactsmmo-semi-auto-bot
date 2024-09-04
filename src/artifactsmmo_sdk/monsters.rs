@@ -1,47 +1,52 @@
 use super::{account::Account, api::monsters::MonstersApi};
 use artifactsmmo_openapi::models::MonsterSchema;
+use itertools::Itertools;
 
 pub struct Monsters {
-    pub api: MonstersApi,
+    pub data: Vec<MonsterSchema>,
 }
 
 impl Monsters {
     pub fn new(account: &Account) -> Monsters {
+        let api = MonstersApi::new(
+            &account.configuration.base_path,
+            &account.configuration.bearer_access_token.clone().unwrap(),
+        );
         Monsters {
-            api: MonstersApi::new(
-                &account.configuration.base_path,
-                &account.configuration.bearer_access_token.clone().unwrap(),
-            ),
+            data: api.all(None, None, None).unwrap().clone(),
         }
     }
 
-    pub fn dropping(&self, code: &str) -> Option<Vec<MonsterSchema>> {
-        self.api
-            .all(None, None, Some(code), None, None)
-            .ok()
-            .map(|schemas| schemas.data)
+    pub fn dropping(&self, code: &str) -> Option<Vec<&MonsterSchema>> {
+        let monsters = self
+            .data
+            .iter()
+            .filter(|m| m.drops.iter().any(|d| d.code == code))
+            .collect_vec();
+        match monsters.is_empty() {
+            true => Some(monsters),
+            false => None,
+        }
     }
 
-    pub fn lowest_providing_exp(&self, level: i32) -> Option<MonsterSchema> {
+    pub fn lowest_providing_exp(&self, level: i32) -> Option<&MonsterSchema> {
         let min = if level > 11 { level - 10 } else { 1 };
-        self.api
-            .all(Some(min), Some(level), None, None, None)
-            .ok()?
-            .data
+        self.data
+            .iter()
+            .filter(|m| m.level >= min && m.level <= level)
             .into_iter()
-            .min_by(|a, b| a.level.cmp(&b.level))
+            .min_by_key(|m| m.level)
     }
 
-    pub fn highest_providing_exp(&self, level: i32) -> Option<MonsterSchema> {
-        self.api
-            .all(None, Some(level), None, None, None)
-            .ok()?
-            .data
+    pub fn highest_providing_exp(&self, level: i32) -> Option<&MonsterSchema> {
+        self.data
+            .iter()
+            .filter(|m| m.level <= level)
             .into_iter()
-            .max_by(|a, b| a.level.cmp(&b.level))
+            .max_by_key(|m| m.level)
     }
 
-    pub fn get(&self, code: &str) -> Option<MonsterSchema> {
-        self.api.info(code).ok().map(|resp| *resp.data)
+    pub fn get(&self, code: &str) -> Option<&MonsterSchema> {
+        self.data.iter().find(|m| m.code == code)
     }
 }

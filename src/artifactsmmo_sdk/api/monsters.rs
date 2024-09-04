@@ -7,7 +7,7 @@ use artifactsmmo_openapi::{
         },
         Error,
     },
-    models::{DataPageMonsterSchema, MonsterResponseSchema},
+    models::{MonsterResponseSchema, MonsterSchema},
 };
 
 pub struct MonstersApi {
@@ -27,10 +27,36 @@ impl MonstersApi {
         min_level: Option<i32>,
         max_level: Option<i32>,
         drop: Option<&str>,
-        page: Option<i32>,
-        size: Option<i32>,
-    ) -> Result<DataPageMonsterSchema, Error<GetAllMonstersMonstersGetError>> {
-        get_all_monsters_monsters_get(&self.configuration, min_level, max_level, drop, page, size)
+    ) -> Result<Vec<MonsterSchema>, Error<GetAllMonstersMonstersGetError>> {
+        let mut items: Vec<MonsterSchema> = vec![];
+        let mut current_page = 1;
+        let mut finished = false;
+        while !finished {
+            let resp = get_all_monsters_monsters_get(
+                &self.configuration,
+                min_level,
+                max_level,
+                drop,
+                Some(current_page),
+                Some(100),
+            );
+            match resp {
+                Ok(resp) => {
+                    items.append(&mut resp.data.clone());
+                    if let Some(Some(pages)) = resp.pages {
+                        if current_page >= pages {
+                            finished = true
+                        }
+                        current_page += 1;
+                    } else {
+                        // No pagination information, assume single page
+                        finished = true
+                    }
+                }
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(items)
     }
 
     pub fn info(
