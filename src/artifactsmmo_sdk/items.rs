@@ -1,13 +1,11 @@
-use std::{sync::Arc, vec::Vec};
-
+use super::{account::Account, api::items::ItemsApi, monsters::Monsters, resources::Resources};
 use artifactsmmo_openapi::models::{
     craft_schema::Skill, CraftSchema, GeItemSchema, ItemEffectSchema, ItemSchema, SimpleItemSchema,
 };
 use enum_stringify::EnumStringify;
 use itertools::Itertools;
+use std::{sync::Arc, vec::Vec};
 use strum_macros::EnumIter;
-
-use super::{account::Account, api::items::ItemsApi, monsters::Monsters, resources::Resources};
 
 pub struct Items {
     pub data: Vec<ItemSchema>,
@@ -39,8 +37,7 @@ impl Items {
     // }
 
     pub fn best_for_leveling(&self, level: i32, skill: super::skill::Skill) -> Option<ItemSchema> {
-        let items = self.providing_exp(level, skill);
-        items
+        self.providing_exp(level, skill)
             .iter()
             .filter(|i| !self.is_crafted_with(&i.code, "jasper_crystal"))
             .min_set_by_key(|i| (self.base_mats_drop_rate(&i.code) * 100.0) as i32)
@@ -69,15 +66,13 @@ impl Items {
     pub fn lowest_providing_exp(&self, level: i32, skill: super::skill::Skill) -> Vec<ItemSchema> {
         self.providing_exp(level, skill)
             .iter()
-            .cloned()
             .min_set_by_key(|i| i.level)
+            .into_iter()
+            .cloned()
+            .collect_vec()
     }
 
-    pub fn highest_providing_exp(
-        &self,
-        level: i32,
-        skill: super::skill::Skill,
-    ) -> Vec<ItemSchema> {
+    pub fn highest_providing_exp(&self, level: i32, skill: super::skill::Skill) -> Vec<ItemSchema> {
         self.providing_exp(level, skill)
             .iter()
             .max_set_by_key(|i| i.level)
@@ -86,11 +81,8 @@ impl Items {
             .collect_vec()
     }
 
-    pub fn craft_schema(&self, code: &str) -> Option<Box<CraftSchema>> {
-        <Vec<ItemSchema> as Clone>::clone(&self.data)
-            .into_iter()
-            .find(|i| i.code == code)?
-            .craft?
+    pub fn craft_schema(&self, code: &str) -> Option<CraftSchema> {
+        self.get(code)?.craft.clone()?.map(|c| (*c))
     }
 
     pub fn is_craftable(&self, code: &str) -> bool {
