@@ -32,28 +32,18 @@ impl Maps {
         target_map
     }
 
-    pub fn with_ressource(&self, code: &str) -> Option<Vec<&MapSchema>> {
-        let maps = self
-            .data
+    pub fn with_ressource(&self, code: &str) -> Vec<&MapSchema> {
+        self.data
             .iter()
             .filter(|m| m.content.as_ref().is_some_and(|c| c.code == code))
-            .collect_vec();
-        match !maps.is_empty() {
-            true => Some(maps),
-            false => None,
-        }
+            .collect_vec()
     }
 
-    pub fn with_monster(&self, code: &str) -> Option<Vec<&MapSchema>> {
-        let maps = self
-            .data
+    pub fn with_monster(&self, code: &str) -> Vec<&MapSchema> {
+        self.data
             .iter()
             .filter(|m| m.content.as_ref().is_some_and(|c| c.code == code))
-            .collect_vec();
-        match !maps.is_empty() {
-            true => Some(maps),
-            false => None,
-        }
+            .collect_vec()
     }
 
     pub fn has_one_of_resource(map: &MapSchema, resources: Vec<&ResourceSchema>) -> bool {

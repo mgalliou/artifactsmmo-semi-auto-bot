@@ -16,16 +16,11 @@ impl Monsters {
         }
     }
 
-    pub fn dropping(&self, code: &str) -> Option<Vec<&MonsterSchema>> {
-        let monsters = self
-            .data
+    pub fn dropping(&self, code: &str) -> Vec<&MonsterSchema> {
+        self.data
             .iter()
             .filter(|m| m.drops.iter().any(|d| d.code == code))
-            .collect::<Vec<_>>();
-        match !monsters.is_empty() {
-            true => Some(monsters),
-            false => None,
-        }
+            .collect::<Vec<_>>()
     }
 
     pub fn lowest_providing_exp(&self, level: i32) -> Option<&MonsterSchema> {

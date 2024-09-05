@@ -13,6 +13,7 @@ use std::sync::{Arc, RwLock};
 fn run() -> Option<()> {
     let base_url = "https://api.artifactsmmo.com";
     let token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6InBvZEppbyIsInBhc3N3b3JkX2NoYW5nZWQiOiIifQ.Qy1Hm2-QYm84O_9aLP076TczjYDCpSuZ75dKkh9toUY";
+    env_logger::init();
     let account = Account::new(base_url, token);
     let maps = Arc::new(Maps::new(&account));
     let resources = Arc::new(Resources::new(&account));
@@ -29,7 +30,7 @@ fn run() -> Option<()> {
         bank.clone(),
         CharConfig {
             role: Role::Fighter,
-            fight_target: Some("mushmush".to_string()),
+            fight_target: Some("skeleton".to_string()),
             do_tasks: false,
             target_item: Some("copper_ore".to_string()),
             craft_from_bank: false,
@@ -66,8 +67,6 @@ fn run() -> Option<()> {
         bank.clone(),
         CharConfig {
             role: Role::Miner,
-            process_gathered: true,
-            craft_from_bank: true,
             target_item: Some("iron_ore".to_string()),
             ..Default::default()
         },
@@ -96,7 +95,6 @@ fn run() -> Option<()> {
         bank.clone(),
         CharConfig {
             role: Role::Miner,
-            process_gathered: true,
             target_item: Some("iron_ore".to_string()),
             ..Default::default()
         },

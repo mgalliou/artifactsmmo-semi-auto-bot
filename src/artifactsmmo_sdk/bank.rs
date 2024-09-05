@@ -31,15 +31,12 @@ impl Bank {
     pub fn has_mats_for(&self, code: &str) -> i32 {
         self.items
             .mats_for(code)
-            .map(|mats| {
-                mats.iter()
-                    .map(|mat| {
-                        self.has_item(&mat.code)
-                            .map_or(0, |schema| schema.quantity / mat.quantity)
-                    })
-                    .min()
-                    .unwrap_or(0)
+            .iter()
+            .map(|mat| {
+                self.has_item(&mat.code)
+                    .map_or(0, |schema| schema.quantity / mat.quantity)
             })
+            .min()
             .unwrap_or(0)
     }
 }

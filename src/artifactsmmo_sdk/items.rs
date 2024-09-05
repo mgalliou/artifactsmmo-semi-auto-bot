@@ -1,7 +1,6 @@
 use super::{account::Account, api::items::ItemsApi, monsters::Monsters, resources::Resources};
 use artifactsmmo_openapi::models::{
-    craft_schema::Skill, CraftSchema, GeItemSchema, ItemEffectSchema, ItemSchema, ResponseSchema,
-    SimpleItemSchema,
+    craft_schema::Skill, CraftSchema, GeItemSchema, ItemEffectSchema, ItemSchema, SimpleItemSchema,
 };
 use enum_stringify::EnumStringify;
 use itertools::Itertools;
@@ -116,22 +115,27 @@ impl Items {
         vec![]
     }
 
-    pub fn base_mats_for(&self, code: &str) -> Option<Vec<SimpleItemSchema>> {
+    pub fn base_mats_for(&self, code: &str) -> Vec<SimpleItemSchema> {
         let mut base_mats: Vec<SimpleItemSchema> = vec![];
-        for mat in self.mats_for(code)? {
-            match self.base_mats_for(&mat.code) {
-                Some(mut b) => {
-                    b.iter_mut().for_each(|b| b.quantity *= mat.quantity);
-                    base_mats.append(&mut b)
-                }
-                None => base_mats.push(mat),
+        for mat in self.mats_for(code) {
+            let mut bs = self.base_mats_for(&mat.code);
+            if !bs.is_empty() {
+                bs.iter_mut().for_each(|b| b.quantity *= mat.quantity);
+                base_mats.append(&mut bs);
+            } else {
+                base_mats.push(mat)
             }
         }
-        Some(base_mats)
+        base_mats
     }
 
-    pub fn mats_for(&self, code: &str) -> Option<Vec<SimpleItemSchema>> {
-        self.craft_schema(code)?.items
+    pub fn mats_for(&self, code: &str) -> Vec<SimpleItemSchema> {
+        if let Some(schema) = self.craft_schema(code) {
+            if let Some(mats) = schema.items {
+                return mats;
+            }
+        }
+        vec![]
     }
 
     pub fn crafted_with(&self, code: &str) -> Vec<&ItemSchema> {
@@ -142,8 +146,7 @@ impl Items {
     }
 
     pub fn is_crafted_with(&self, code: &str, mat: &str) -> bool {
-        self.base_mats_for(code)
-            .is_some_and(|mats| mats.iter().any(|m| m.code == mat))
+        self.base_mats_for(code).iter().any(|m| m.code == mat)
     }
 
     pub fn with_material(&self, code: &str) -> Vec<ItemSchema> {
@@ -164,41 +167,44 @@ impl Items {
     }
 
     pub fn base_mats_buy_price(&self, code: &str) -> i32 {
-        let i = self.base_mats_for(code).map_or(0, |mats| {
-            mats.iter()
-                .map(|mat| {
-                    self.ge_info(&mat.code)
-                        .map_or(0, |i| i.buy_price.unwrap_or(0) * mat.quantity)
-                })
-                .sum()
-        });
-        debug!("total price for {}: {}", code, i);
-        i
+        let price = self
+            .base_mats_for(code)
+            .iter()
+            .map(|mat| {
+                self.ge_info(&mat.code)
+                    .map_or(0, |i| i.buy_price.unwrap_or(0) * mat.quantity)
+            })
+            .sum();
+        debug!("total price for {}: {}", code, price);
+        price
     }
 
+    /// Takes an item `code` and returns the amount of inventory space the mats
+    /// required to craft it are taking.
     pub fn mats_quantity_for(&self, code: &str) -> i32 {
-        self.mats_for(code)
-            .map(|mats| mats.iter().map(|mat| mat.quantity).sum())
-            .unwrap_or(0)
+        self.mats_for(code).iter().map(|mat| mat.quantity).sum()
     }
 
+    /// Takes an item `code` and returns the best (lowest value) drop rate from
+    /// `Monsters` or `Resources`
+    //  TODO: Simplify this function
     pub fn drop_rate(&self, code: &str) -> i32 {
         let mut rate: i32 = 0;
         if let Some(info) = self.get(code) {
             if info.subtype == "mob" {
-                if let Some(monsters) = self.monsters.dropping(code) {
-                    rate = monsters
-                        .iter()
-                        .map(|m| {
-                            m.drops
-                                .iter()
-                                .find(|d| d.code == code)
-                                .map(|d| d.rate)
-                                .unwrap_or(0)
-                        })
-                        .min()
-                        .unwrap_or(0)
-                }
+                rate = self
+                    .monsters
+                    .dropping(code)
+                    .iter()
+                    .map(|m| {
+                        m.drops
+                            .iter()
+                            .find(|d| d.code == code)
+                            .map(|d| d.rate)
+                            .unwrap_or(0)
+                    })
+                    .min()
+                    .unwrap_or(0)
             } else {
                 rate = self
                     .resources
@@ -220,19 +226,20 @@ impl Items {
     }
 
     pub fn base_mats_drop_rate(&self, code: &str) -> f32 {
-        if let Some(mats) = self.base_mats_for(code) {
-            let total_mats: i32 = mats.iter().map(|m| m.quantity).sum();
-            debug!("total mats for {}: {}", code, total_mats);
-            let sum: i32 = mats
-                .iter()
-                .map(|m| self.drop_rate(&m.code) * m.quantity)
-                .sum();
-            debug!("sum for {}: {}", code, sum);
-            let average: f32 = sum as f32 / total_mats as f32;
-            debug!("average drop rate for {}: {}", code, average);
-            return average;
+        let mats = self.base_mats_for(code);
+        if mats.is_empty() {
+            return 0.0;
         }
-        0.0
+        let total_mats: i32 = mats.iter().map(|m| m.quantity).sum();
+        debug!("total mats for {}: {}", code, total_mats);
+        let sum: i32 = mats
+            .iter()
+            .map(|m| self.drop_rate(&m.code) * m.quantity)
+            .sum();
+        debug!("sum for {}: {}", code, sum);
+        let average: f32 = sum as f32 / total_mats as f32;
+        debug!("average drop rate for {}: {}", code, average);
+        average
     }
 
     pub fn skill_to_craft(&self, code: &str) -> Option<super::skill::Skill> {
@@ -241,17 +248,20 @@ impl Items {
             .map(Items::schema_skill_to_skill)
     }
 
-    pub fn effects_of(&self, code: &str) -> Option<Vec<ItemEffectSchema>> {
-        self.get(code)?.effects.clone()
+    pub fn effects_of(&self, code: &str) -> Vec<ItemEffectSchema> {
+        if let Some(item) = self.get(code) {
+            if let Some(effects) = &item.effects {
+                return effects.clone();
+            }
+        }
+        vec![]
     }
 
     pub fn damages(&self, code: &str) -> i32 {
-        self.effects_of(code).map_or(0, |e| {
-            e.iter()
+        self.effects_of(code).iter()
                 .filter(|e| !e.name.starts_with("attack_"))
                 .map(|e| e.value)
                 .sum()
-        })
     }
 
     pub fn schema_skill_to_skill(skill: Skill) -> super::skill::Skill {

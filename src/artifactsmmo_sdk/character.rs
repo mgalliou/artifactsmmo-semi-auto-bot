@@ -27,7 +27,7 @@ use artifactsmmo_openapi::{
     models::{
         equip_schema::{self, Slot},
         unequip_schema, BankItemTransactionResponseSchema, CharacterFightResponseSchema,
-        CharacterSchema, EquipmentResponseSchema, InventorySlot, ItemSchema, MapSchema,
+        CharacterSchema, EquipmentResponseSchema, ItemSchema, MapSchema,
         MonsterSchema, RecyclingResponseSchema, ResourceSchema, SingleItemSchema,
         SkillResponseSchema, TaskResponseSchema, TaskRewardResponseSchema,
     },
@@ -336,7 +336,7 @@ impl Character {
             "{}: withdrawing mats for {} * {}",
             self.name, code, quantity
         );
-        let mats = self.items.mats_for(code).unwrap();
+        let mats = self.items.mats_for(code);
         for mat in &mats {
             if !self
                 .bank
@@ -658,12 +658,10 @@ impl Character {
     fn has_mats_for(&self, code: &str) -> i32 {
         self.items
             .mats_for(code)
-            .and_then(|mats| {
-                mats.iter()
-                    .filter(|mat| mat.quantity > 0)
-                    .map(|mat| self.amount_in_inventory(&mat.code) / mat.quantity)
-                    .max()
-            })
+            .iter()
+            .filter(|mat| mat.quantity > 0)
+            .map(|mat| self.amount_in_inventory(&mat.code) / mat.quantity)
+            .max()
             .unwrap_or(0)
     }
 
@@ -683,9 +681,11 @@ impl Character {
     }
 
     fn closest_map_with_resource(&self, code: &str) -> Option<&MapSchema> {
-        self.maps
-            .with_ressource(code)
-            .and_then(|maps| self.closest_map_among(maps))
+        let maps = self.maps.with_ressource(code);
+        if maps.is_empty() {
+            return None;
+        }
+        self.closest_map_among(maps)
     }
 
     fn move_to_craft(&mut self, code: &str) -> bool {
