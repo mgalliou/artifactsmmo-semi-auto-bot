@@ -99,7 +99,7 @@ impl Character {
                 .equipment_in(Slot::Weapon)
                 .is_some_and(|w| w.item.code == "wooden_stick")
         {
-            let _ = self.unequip(unequip_schema::Slot::Weapon);
+            let _ = self.action_unequip(unequip_schema::Slot::Weapon);
             self.deposit_all();
         };
         loop {
@@ -107,11 +107,11 @@ impl Character {
                 self.deposit_all();
             }
             if self.info.task.is_empty() || self.task_finished() {
-                self.move_to(1, 2);
+                self.action_move(1, 2);
                 if self.task_finished() {
-                    let _ = self.complete_task();
+                    let _ = self.action_complete_task();
                 }
-                let _ = self.accept_task();
+                let _ = self.action_accept_task();
             }
             match self.conf.role {
                 Role::Fighter => {
@@ -147,8 +147,8 @@ impl Character {
 
     fn kill_monster(&mut self, code: &str) {
         if let Some((x, y)) = self.closest_map_with_resource(code) {
-            if self.move_to(x, y) {
-                let _ = self.fight();
+            if self.action_move(x, y) {
+                let _ = self.action_fight();
             }
         }
     }
@@ -292,7 +292,7 @@ impl Character {
 
     fn gather_resource(&mut self, code: &str) -> bool {
         if let Some(map) = self.closest_map_dropping(code) {
-            self.move_to(map.x, map.y) && self.gather().is_ok()
+            self.action_move(map.x, map.y) && self.action_gather().is_ok()
         } else {
             false
         }
@@ -317,7 +317,7 @@ impl Character {
             if let Some(inventory) = self.info.inventory.clone() {
                 for i in &inventory {
                     if i.quantity > 0 {
-                        let _ = self.deposit(&i.code, i.quantity);
+                        let _ = self.action_deposit(&i.code, i.quantity);
                     }
                 }
             }
@@ -341,7 +341,7 @@ impl Character {
             }
         }
         for mat in &mats {
-            let _ = self.withdraw(&mat.code, mat.quantity * quantity);
+            let _ = self.action_withdraw(&mat.code, mat.quantity * quantity);
         }
         true
     }
@@ -366,7 +366,7 @@ impl Character {
     fn craft_all(&mut self, code: &str) -> bool {
         println!("{}: crafting all {}", self.name, code);
         let n = self.has_mats_for(code);
-        if n > 0 && self.move_to_craft(code) && self.craft(code, n).is_ok() {
+        if n > 0 && self.move_to_craft(code) && self.action_craft(code, n).is_ok() {
             println!("{} crafted all {} ({})", self.name, code, n);
             return true;
         }
@@ -375,10 +375,10 @@ impl Character {
     }
 
     fn move_to_bank(&mut self) {
-        let _ = self.move_to(4, 1);
+        let _ = self.action_move(4, 1);
     }
 
-    fn move_to(&mut self, x: i32, y: i32) -> bool {
+    fn action_move(&mut self, x: i32, y: i32) -> bool {
         if (self.info.x, self.info.y) == (x, y) {
             return true;
         }
@@ -397,7 +397,7 @@ impl Character {
         false
     }
 
-    fn fight(
+    fn action_fight(
         &mut self,
     ) -> Result<CharacterFightResponseSchema, Error<ActionFightMyNameActionFightPostError>> {
         self.wait_for_cooldown();
@@ -412,7 +412,7 @@ impl Character {
         res
     }
 
-    fn gather(
+    fn action_gather(
         &mut self,
     ) -> Result<SkillResponseSchema, Error<ActionGatheringMyNameActionGatheringPostError>> {
         self.wait_for_cooldown();
@@ -431,7 +431,7 @@ impl Character {
         res
     }
 
-    fn withdraw(
+    fn action_withdraw(
         &mut self,
         code: &str,
         quantity: i32,
@@ -458,7 +458,7 @@ impl Character {
         res
     }
 
-    fn deposit(
+    fn action_deposit(
         &mut self,
         code: &str,
         quantity: i32,
@@ -485,7 +485,7 @@ impl Character {
         res
     }
 
-    fn craft(
+    fn action_craft(
         &mut self,
         code: &str,
         quantity: i32,
@@ -502,7 +502,7 @@ impl Character {
         res
     }
 
-    fn recycle(
+    fn action_recycle(
         &mut self,
         code: &str,
         quantity: i32,
@@ -519,7 +519,7 @@ impl Character {
         res
     }
 
-    fn equip(
+    fn action_equip(
         &mut self,
         code: &str,
         slot: equip_schema::Slot,
@@ -539,7 +539,7 @@ impl Character {
         res
     }
 
-    fn unequip(
+    fn action_unequip(
         &mut self,
         slot: unequip_schema::Slot,
     ) -> Result<EquipmentResponseSchema, Error<ActionUnequipItemMyNameActionUnequipPostError>> {
@@ -558,7 +558,7 @@ impl Character {
         res
     }
 
-    fn accept_task(
+    fn action_accept_task(
         &mut self,
     ) -> Result<TaskResponseSchema, Error<ActionAcceptNewTaskMyNameActionTaskNewPostError>> {
         self.wait_for_cooldown();
@@ -573,7 +573,7 @@ impl Character {
         res
     }
 
-    fn complete_task(
+    fn action_complete_task(
         &mut self,
     ) -> Result<TaskRewardResponseSchema, Error<ActionCompleteTaskMyNameActionTaskCompletePostError>>
     {
@@ -693,12 +693,12 @@ impl Character {
             self.name, code, skill
         );
         match skill {
-            Some(Skill::Weaponcrafting) => self.move_to(2, 1),
-            Some(Skill::Gearcrafting) => self.move_to(3, 1),
-            Some(Skill::Jewelrycrafting) => self.move_to(1, 3),
-            Some(Skill::Cooking) => self.move_to(1, 1),
-            Some(Skill::Woodcutting) => self.move_to(-2, -3),
-            Some(Skill::Mining) => self.move_to(1, 5),
+            Some(Skill::Weaponcrafting) => self.action_move(2, 1),
+            Some(Skill::Gearcrafting) => self.action_move(3, 1),
+            Some(Skill::Jewelrycrafting) => self.action_move(1, 3),
+            Some(Skill::Cooking) => self.action_move(1, 1),
+            Some(Skill::Woodcutting) => self.action_move(-2, -3),
+            Some(Skill::Mining) => self.action_move(1, 5),
             _ => false,
         }
     }
@@ -766,12 +766,12 @@ impl Character {
         if let Some(code) = self.weapon_upgrade_in_bank() {
             self.move_to_bank();
             if let Some(equiped_weapon) = &self.equipment_in(Slot::Weapon) {
-                if self.unequip(unequip_schema::Slot::Weapon).is_ok() {
-                    let _ = self.deposit(&equiped_weapon.item.code, 1);
+                if self.action_unequip(unequip_schema::Slot::Weapon).is_ok() {
+                    let _ = self.action_deposit(&equiped_weapon.item.code, 1);
                 }
             }
-            if self.withdraw(&code, 1).is_ok() {
-                let _ = self.equip(&code, equip_schema::Slot::Weapon);
+            if self.action_withdraw(&code, 1).is_ok() {
+                let _ = self.action_equip(&code, equip_schema::Slot::Weapon);
             }
         }
     }
