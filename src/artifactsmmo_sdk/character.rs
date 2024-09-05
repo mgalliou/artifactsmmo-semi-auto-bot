@@ -27,9 +27,9 @@ use artifactsmmo_openapi::{
     models::{
         equip_schema::{self, Slot},
         unequip_schema, BankItemTransactionResponseSchema, CharacterFightResponseSchema,
-        CharacterSchema, EquipmentResponseSchema, ItemSchema, MapSchema,
-        MonsterSchema, RecyclingResponseSchema, ResourceSchema, SingleItemSchema,
-        SkillResponseSchema, TaskResponseSchema, TaskRewardResponseSchema,
+        CharacterSchema, EquipmentResponseSchema, ItemSchema, MapSchema, MonsterSchema,
+        RecyclingResponseSchema, ResourceSchema, SingleItemSchema, SkillResponseSchema,
+        TaskResponseSchema, TaskRewardResponseSchema,
     },
 };
 use chrono::{DateTime, Utc};
@@ -281,16 +281,13 @@ impl Character {
     }
 
     fn levelup_by_crafting(&mut self, skill: Skill) -> bool {
-        matches!(self.items.best_for_leveling(self.skill_level(skill), skill), Some(item) if {
-            if self
-                .bank
-                .read()
-                .is_ok_and(|b| b.has_mats_for(&item.code) > 0)
-            {
-                return self.craft_all_from_bank(&item.code);
-            };
-            false
-        })
+        self.items
+            .best_for_leveling(self.skill_level(skill), skill)
+            .is_some_and(|item| {
+                self.bank
+                    .read()
+                    .is_ok_and(|bank| bank.has_mats_for(&item.code) > 0)
+            })
     }
 
     fn craft_all_from_bank(&mut self, code: &str) -> bool {

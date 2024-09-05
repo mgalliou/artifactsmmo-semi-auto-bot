@@ -51,34 +51,27 @@ impl Items {
     //     best_schemas;
     // }
 
-    pub fn best_for_leveling(&self, level: i32, skill: super::skill::Skill) -> Option<ItemSchema> {
+    pub fn best_for_leveling(&self, level: i32, skill: super::skill::Skill) -> Option<&ItemSchema> {
         self.providing_exp(level, skill)
-            .iter()
+            .into_iter()
             .filter(|i| !self.is_crafted_with(&i.code, "jasper_crystal"))
             .min_set_by_key(|i| (self.base_mats_drop_rate(&i.code) * 100.0) as i32)
             .into_iter()
             .min_set_by_key(|i| self.base_mats_buy_price(&i.code))
             .into_iter()
             .max_by_key(|i| i.level)
-            .cloned()
     }
 
-    pub fn providing_exp(&self, level: i32, skill: super::skill::Skill) -> Vec<ItemSchema> {
+    pub fn providing_exp(&self, level: i32, skill: super::skill::Skill) -> Vec<&ItemSchema> {
         let min = if level > 11 { level - 10 } else { 1 };
         self.data
             .iter()
             .filter(|i| i.level >= min && i.level <= level)
-            .filter(|i| {
-                self.craft_schema(&i.code).is_some_and(|c| {
-                    c.skill
-                        .is_some_and(|s| Items::schema_skill_to_skill(s) == skill)
-                })
-            })
-            .cloned()
+            .filter(|i| self.skill_to_craft(&i.code).is_some_and(|s| s == skill))
             .collect_vec()
     }
 
-    pub fn lowest_providing_exp(&self, level: i32, skill: super::skill::Skill) -> Vec<ItemSchema> {
+    pub fn lowest_providing_exp(&self, level: i32, skill: super::skill::Skill) -> Vec<&ItemSchema> {
         self.providing_exp(level, skill)
             .iter()
             .min_set_by_key(|i| i.level)
@@ -87,7 +80,7 @@ impl Items {
             .collect_vec()
     }
 
-    pub fn highest_providing_exp(&self, level: i32, skill: super::skill::Skill) -> Vec<ItemSchema> {
+    pub fn highest_providing_exp(&self, level: i32, skill: super::skill::Skill) -> Vec<&ItemSchema> {
         self.providing_exp(level, skill)
             .iter()
             .max_set_by_key(|i| i.level)
@@ -258,10 +251,11 @@ impl Items {
     }
 
     pub fn damages(&self, code: &str) -> i32 {
-        self.effects_of(code).iter()
-                .filter(|e| !e.name.starts_with("attack_"))
-                .map(|e| e.value)
-                .sum()
+        self.effects_of(code)
+            .iter()
+            .filter(|e| !e.name.starts_with("attack_"))
+            .map(|e| e.value)
+            .sum()
     }
 
     pub fn schema_skill_to_skill(skill: Skill) -> super::skill::Skill {
