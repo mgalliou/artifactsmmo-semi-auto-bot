@@ -10,7 +10,6 @@ use artifactsmmo_openapi::{
     models::{ResourceResponseSchema, ResourceSchema},
 };
 
-
 pub struct ResourcesApi {
     configuration: Configuration,
 }

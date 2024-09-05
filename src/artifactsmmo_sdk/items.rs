@@ -1,9 +1,11 @@
 use super::{account::Account, api::items::ItemsApi, monsters::Monsters, resources::Resources};
 use artifactsmmo_openapi::models::{
-    craft_schema::Skill, CraftSchema, GeItemSchema, ItemEffectSchema, ItemSchema, SimpleItemSchema,
+    craft_schema::Skill, CraftSchema, GeItemSchema, ItemEffectSchema, ItemSchema, ResponseSchema,
+    SimpleItemSchema,
 };
 use enum_stringify::EnumStringify;
 use itertools::Itertools;
+use log::debug;
 use std::{sync::Arc, vec::Vec};
 use strum_macros::EnumIter;
 
@@ -26,6 +28,20 @@ impl Items {
             resources,
             monsters,
         }
+    }
+
+    pub fn get(&self, code: &str) -> Option<&ItemSchema> {
+        self.data.iter().find(|m| m.code == code)
+    }
+
+    pub fn is_raw_mat(&self, code: &str) -> bool {
+        if let Some(item) = self.get(code) {
+            return item.r#type == "resource" && item.subtype == "mining"
+                || item.subtype == "woodcutting"
+                || item.subtype == "fishing"
+                || item.subtype == "food";
+        }
+        true
     }
 
     // pub fn best_equipable_at_level(&self, level: i32, r#type: Type) -> Option<Vec<ItemSchema>> {
@@ -89,6 +105,17 @@ impl Items {
         self.craft_schema(code).is_some()
     }
 
+    pub fn crafted_from_resource(&self, code: &str) -> Vec<&ItemSchema> {
+        if let Some(resource) = self.resources.get(code) {
+            return resource
+                .drops
+                .iter()
+                .flat_map(|i| self.crafted_with(&i.code))
+                .collect_vec();
+        }
+        vec![]
+    }
+
     pub fn base_mats_for(&self, code: &str) -> Option<Vec<SimpleItemSchema>> {
         let mut base_mats: Vec<SimpleItemSchema> = vec![];
         for mat in self.mats_for(code)? {
@@ -105,6 +132,13 @@ impl Items {
 
     pub fn mats_for(&self, code: &str) -> Option<Vec<SimpleItemSchema>> {
         self.craft_schema(code)?.items
+    }
+
+    pub fn crafted_with(&self, code: &str) -> Vec<&ItemSchema> {
+        self.data
+            .iter()
+            .filter(|i| self.is_crafted_with(&i.code, code))
+            .collect_vec()
     }
 
     pub fn is_crafted_with(&self, code: &str, mat: &str) -> bool {
@@ -138,7 +172,7 @@ impl Items {
                 })
                 .sum()
         });
-        println!("total price for {}: {}", code, i);
+        debug!("total price for {}: {}", code, i);
         i
     }
 
@@ -165,8 +199,10 @@ impl Items {
                         .min()
                         .unwrap_or(0)
                 }
-            } else if let Some(resources) = self.resources.dropping(code) {
-                rate = resources
+            } else {
+                rate = self
+                    .resources
+                    .dropping(code)
                     .iter()
                     .map(|m| {
                         m.drops
@@ -179,21 +215,21 @@ impl Items {
                     .unwrap_or(0)
             }
         }
-        println!("drop rate for {}: {}", code, rate);
+        debug!("drop rate for {}: {}", code, rate);
         rate
     }
 
     pub fn base_mats_drop_rate(&self, code: &str) -> f32 {
         if let Some(mats) = self.base_mats_for(code) {
             let total_mats: i32 = mats.iter().map(|m| m.quantity).sum();
-            println!("total mats for {}: {}", code, total_mats);
+            debug!("total mats for {}: {}", code, total_mats);
             let sum: i32 = mats
                 .iter()
                 .map(|m| self.drop_rate(&m.code) * m.quantity)
                 .sum();
-            println!("sum for {}: {}", code, sum);
+            debug!("sum for {}: {}", code, sum);
             let average: f32 = sum as f32 / total_mats as f32;
-            println!("average drop rate for {}: {}", code, average);
+            debug!("average drop rate for {}: {}", code, average);
             return average;
         }
         0.0
@@ -227,10 +263,6 @@ impl Items {
             Skill::Woodcutting => super::skill::Skill::Woodcutting,
             Skill::Mining => super::skill::Skill::Mining,
         }
-    }
-
-    pub fn get(&self, code: &str) -> Option<&ItemSchema> {
-        self.data.iter().find(|m| m.code == code)
     }
 }
 

@@ -31,12 +31,12 @@ fn run() -> Option<()> {
             role: Role::Fighter,
             fight_target: Some("mushmush".to_string()),
             do_tasks: false,
-            resource: Some("copper_ore".to_string()),
+            target_item: Some("copper_ore".to_string()),
             craft_from_bank: false,
             weaponcraft: true,
             level_weaponcraft: false,
             gearcraft: true,
-            level_gearcraft: false,
+            level_gearcraft: true,
             jewelcraft: true,
             level_jewelcraft: false,
             ..Default::default()
@@ -52,7 +52,7 @@ fn run() -> Option<()> {
         bank.clone(),
         CharConfig {
             role: Role::Miner,
-            resource: Some("coal".to_string()),
+            target_item: Some("coal".to_string()),
             ..Default::default()
         },
     );
@@ -67,7 +67,8 @@ fn run() -> Option<()> {
         CharConfig {
             role: Role::Miner,
             process_gathered: true,
-            resource: Some("iron_ore".to_string()),
+            craft_from_bank: true,
+            target_item: Some("iron_ore".to_string()),
             ..Default::default()
         },
     );
@@ -81,7 +82,7 @@ fn run() -> Option<()> {
         bank.clone(),
         CharConfig {
             role: Role::Woodcutter,
-            resource: Some("birch_wood".to_string()),
+            target_item: Some("birch_wood".to_string()),
             ..Default::default()
         },
     );
@@ -96,7 +97,7 @@ fn run() -> Option<()> {
         CharConfig {
             role: Role::Miner,
             process_gathered: true,
-            resource: Some("iron_ore".to_string()),
+            target_item: Some("iron_ore".to_string()),
             ..Default::default()
         },
     );

@@ -16,16 +16,15 @@ impl Resources {
         }
     }
 
-    pub fn dropping(&self, code: &str) -> Option<Vec<&ResourceSchema>> {
-        let monsters = self
-            .data
+    pub fn get(&self, code: &str) -> Option<&ResourceSchema> {
+        self.data.iter().find(|m| m.code == code)
+    }
+
+    pub fn dropping(&self, code: &str) -> Vec<&ResourceSchema> {
+        self.data
             .iter()
             .filter(|r| r.drops.iter().any(|d| d.code == code))
-            .collect::<Vec<_>>();
-        match !monsters.is_empty() {
-            true => Some(monsters),
-            false => None,
-        }
+            .collect::<Vec<_>>()
     }
 
     pub fn lowest_providing_exp(
