@@ -67,7 +67,7 @@ fn run() -> Option<()> {
         bank.clone(),
         CharConfig {
             role: Role::Miner,
-            target_item: Some("iron_ore".to_string()),
+            target_item: Some("coal".to_string()),
             ..Default::default()
         },
     );

@@ -28,7 +28,7 @@ use artifactsmmo_openapi::{
         equip_schema::{self, Slot},
         unequip_schema, BankItemTransactionResponseSchema, CharacterFightResponseSchema,
         CharacterSchema, EquipmentResponseSchema, ItemSchema, MapSchema, MonsterSchema,
-        RecyclingResponseSchema, ResourceSchema, SingleItemSchema, SkillResponseSchema,
+        RecyclingResponseSchema, ResourceSchema, SkillResponseSchema,
         TaskResponseSchema, TaskRewardResponseSchema,
     },
 };
@@ -102,7 +102,7 @@ impl Character {
         if Role::Fighter != self.conf.role
             && self
                 .equipment_in(Slot::Weapon)
-                .is_some_and(|w| w.item.code == "wooden_stick")
+                .is_some_and(|w| w.code == "wooden_stick")
         {
             let _ = self.action_unequip(unequip_schema::Slot::Weapon);
             self.deposit_all();
@@ -121,9 +121,13 @@ impl Character {
             } else if let Some(resource) = self.target_resource().cloned() {
                 // TODO: Improve this
                 if let Some(item) = &self.conf.target_item {
-                    let processed = self.items.with_material(item);
-                    if !processed
-                        .iter()
+                    if !self
+                        .items
+                        .with_material(item)
+                        .into_iter()
+                        .cloned()
+                        .collect_vec()
+                        .into_iter()
                         .any(|i| self.conf.craft_from_bank && self.craft_all_from_bank(&i.code))
                     {
                         self.gather_resource(&resource.code);
@@ -164,19 +168,18 @@ impl Character {
             })
             .cloned()
             .collect_vec()
-            .into_iter()
+            .iter()
             .for_each(|p| {
                 self.craft_all(&p.code);
             });
     }
 
-    fn inventory_raw_mats(&self) -> Vec<ItemSchema> {
+    fn inventory_raw_mats(&self) -> Vec<&ItemSchema> {
         if let Some(inv) = &self.info.inventory {
             return inv
                 .iter()
                 .filter(|slot| self.items.is_raw_mat(&slot.code))
                 .map(|slot| self.items.get(&slot.code).unwrap())
-                .cloned()
                 .collect_vec();
         }
         vec![]
@@ -220,13 +223,12 @@ impl Character {
         })
     }
 
-    // TODO: ruduce amount of cloned() calls if possible
     fn target_monster(&mut self) -> Option<&MonsterSchema> {
         if self.conf.role == Role::Fighter {
             if self.conf.do_tasks && self.info.task_type == "monsters" && !self.task_finished() {
                 return self.monsters.get(&self.info.task);
-            } else if let Some(monster) = self.conf.fight_target.clone() {
-                return self.monsters.get(&monster);
+            } else if let Some(monster) = &self.conf.fight_target {
+                return self.monsters.get(monster);
             } else {
                 return self.monsters.lowest_providing_exp(self.info.level);
             }
@@ -260,7 +262,7 @@ impl Character {
         self.info.task_progress >= self.info.task_total
     }
 
-    fn equipment_in(&self, slot: Slot) -> Option<SingleItemSchema> {
+    fn equipment_in(&self, slot: Slot) -> Option<&ItemSchema> {
         let code = match slot {
             Slot::Weapon => &self.info.weapon_slot,
             Slot::Shield => &self.info.shield_slot,
@@ -277,7 +279,7 @@ impl Character {
             Slot::Consumable1 => &self.info.consumable1_slot,
             Slot::Consumable2 => &self.info.consumable2_slot,
         };
-        self.items.api.info(code).ok().map(|i| *i.data)
+        self.items.get(code)
     }
 
     fn levelup_by_crafting(&mut self, skill: Skill) -> bool {
@@ -704,11 +706,11 @@ impl Character {
 
     fn weapon_damage(&self) -> i32 {
         self.equipment_in(Slot::Weapon)
-            .map(|w| self.items.damages(&w.item.code))
+            .map(|w| self.items.damages(&w.code))
             .unwrap_or(0)
     }
 
-    fn slot_to_type(slot: Slot) -> Type {
+    pub fn slot_to_type(slot: Slot) -> Type {
         match slot {
             Slot::Weapon => Type::Weapon,
             Slot::Shield => Type::Shield,
@@ -759,14 +761,12 @@ impl Character {
         }
     }
 
-    //fn slot_upgrade(&mut self, slot: Slot
-
     fn improve_weapon(&mut self) {
         if let Some(code) = self.weapon_upgrade_in_bank() {
             self.move_to_bank();
-            if let Some(equiped_weapon) = &self.equipment_in(Slot::Weapon) {
+            if let Some(equiped_weapon) = self.equipment_in(Slot::Weapon).cloned() {
                 if self.action_unequip(unequip_schema::Slot::Weapon).is_ok() {
-                    let _ = self.action_deposit(&equiped_weapon.item.code, 1);
+                    let _ = self.action_deposit(&equiped_weapon.code, 1);
                 }
             }
             if self.action_withdraw(&code, 1).is_ok() {
@@ -775,19 +775,9 @@ impl Character {
         }
     }
 
-    // fn improve_equipment(&mut self, slot: Slot) {
-    //     let upgrades = self.equipment_upgrades(slot);
-    //     for item in upgrades.unwrap() {
-    //         if self.equipment_in(slot).is_some_and(|i| i.item.code != item.code) {
-    //             self.bank.read().is_ok_and(|b| b.has_mats_for(item.code))
-    //         }
-    //     }
-
-    //     todo!()
-    // }
-
     fn weapon_upgrade_in_bank(&self) -> Option<String> {
-        self.equipment_upgrades(Slot::Weapon)?
+        self.items
+            .equipable_at_level(self.info.level, Slot::Weapon)
             .iter()
             .find(|weapon| {
                 self.bank
@@ -796,23 +786,6 @@ impl Character {
                     && self.weapon_damage() < self.items.damages(&weapon.code)
             })
             .map(|weapon| weapon.code.clone())
-    }
-
-    /// return all the items for the given slot between the equiped item level
-    /// and the character level
-    fn equipment_upgrades(&self, slot: Slot) -> Option<Vec<ItemSchema>> {
-        let min_level = self.equipment_in(slot).map(|e| e.item.level);
-        self.items
-            .api
-            .all(
-                min_level,
-                Some(self.info.level),
-                None,
-                Some(&Character::slot_to_type(slot).to_string()),
-                None,
-                None,
-            )
-            .ok()
     }
 
     // fn fight_until_unsuccessful(&self, x: i32, y: i32) {

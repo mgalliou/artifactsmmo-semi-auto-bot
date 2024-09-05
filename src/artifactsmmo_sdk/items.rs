@@ -1,7 +1,9 @@
-use super::{account::Account, api::items::ItemsApi, monsters::Monsters, resources::Resources};
+use super::{
+    account::Account, api::items::ItemsApi, character::Character, monsters::Monsters,
+    resources::Resources,
+};
 use artifactsmmo_openapi::models::{
-    craft_schema::Skill, CraftSchema, DropRateSchema, GeItemSchema, ItemEffectSchema, ItemSchema,
-    SimpleItemSchema,
+    craft_schema::Skill, equip_schema::Slot, CraftSchema, DropRateSchema, GeItemSchema, ItemEffectSchema, ItemSchema, SimpleItemSchema
 };
 use enum_stringify::EnumStringify;
 use itertools::Itertools;
@@ -44,13 +46,13 @@ impl Items {
         true
     }
 
-    // pub fn best_equipable_at_level(&self, level: i32, r#type: Type) -> Option<Vec<ItemSchema>> {
-    //     let mut highest_lvl = 0;
-    //     let mut best_schemas: Vec<ItemSchema> = vec![];
-
-    //     todo!();
-    //     best_schemas;
-    // }
+    pub fn equipable_at_level(&self, level: i32, slot: Slot) -> Vec<&ItemSchema> {
+        self.data
+            .iter()
+            .filter(|i| i.level <= level)
+            .filter(|i| i.r#type == Character::slot_to_type(slot).to_string())
+            .collect_vec()
+    }
 
     pub fn best_for_leveling(&self, level: i32, skill: super::skill::Skill) -> Option<&ItemSchema> {
         self.providing_exp(level, skill)
