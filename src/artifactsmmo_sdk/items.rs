@@ -1,6 +1,7 @@
 use super::{account::Account, api::items::ItemsApi, monsters::Monsters, resources::Resources};
 use artifactsmmo_openapi::models::{
-    craft_schema::Skill, CraftSchema, GeItemSchema, ItemEffectSchema, ItemSchema, SimpleItemSchema,
+    craft_schema::Skill, CraftSchema, DropRateSchema, GeItemSchema, ItemEffectSchema, ItemSchema,
+    SimpleItemSchema,
 };
 use enum_stringify::EnumStringify;
 use itertools::Itertools;
@@ -80,7 +81,11 @@ impl Items {
             .collect_vec()
     }
 
-    pub fn highest_providing_exp(&self, level: i32, skill: super::skill::Skill) -> Vec<&ItemSchema> {
+    pub fn highest_providing_exp(
+        &self,
+        level: i32,
+        skill: super::skill::Skill,
+    ) -> Vec<&ItemSchema> {
         self.providing_exp(level, skill)
             .iter()
             .max_set_by_key(|i| i.level)
@@ -142,7 +147,7 @@ impl Items {
         self.base_mats_for(code).iter().any(|m| m.code == mat)
     }
 
-    pub fn with_material(&self, code: &str) -> Vec<ItemSchema> {
+    pub fn with_material(&self, code: &str) -> Vec<&ItemSchema> {
         self.data
             .iter()
             .filter(|i| {
@@ -151,7 +156,6 @@ impl Items {
                         .is_some_and(|items| items.iter().any(|i| i.code == code))
                 })
             })
-            .cloned()
             .collect_vec()
     }
 
@@ -180,42 +184,35 @@ impl Items {
 
     /// Takes an item `code` and returns the best (lowest value) drop rate from
     /// `Monsters` or `Resources`
-    //  TODO: Simplify this function
     pub fn drop_rate(&self, code: &str) -> i32 {
-        let mut rate: i32 = 0;
+        let rate = self
+            .drops(code)
+            .iter()
+            .find(|d| d.code == code)
+            .map_or(0, |d| d.rate);
+        debug!("drop rate for {}: {}", code, rate);
+        rate
+    }
+
+    pub fn drops(&self, code: &str) -> Vec<&DropRateSchema> {
         if let Some(info) = self.get(code) {
             if info.subtype == "mob" {
-                rate = self
+                return self
                     .monsters
                     .dropping(code)
                     .iter()
-                    .map(|m| {
-                        m.drops
-                            .iter()
-                            .find(|d| d.code == code)
-                            .map(|d| d.rate)
-                            .unwrap_or(0)
-                    })
-                    .min()
-                    .unwrap_or(0)
+                    .flat_map(|m| &m.drops)
+                    .collect_vec();
             } else {
-                rate = self
+                return self
                     .resources
                     .dropping(code)
                     .iter()
-                    .map(|m| {
-                        m.drops
-                            .iter()
-                            .find(|d| d.code == code)
-                            .map(|d| d.rate)
-                            .unwrap_or(0)
-                    })
-                    .min()
-                    .unwrap_or(0)
-            }
+                    .flat_map(|m| &m.drops)
+                    .collect_vec();
+            };
         }
-        debug!("drop rate for {}: {}", code, rate);
-        rate
+        vec![]
     }
 
     pub fn base_mats_drop_rate(&self, code: &str) -> f32 {
