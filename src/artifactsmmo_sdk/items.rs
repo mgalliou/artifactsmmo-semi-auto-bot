@@ -120,41 +120,40 @@ impl Items {
 
     /// Takes an item `code` and return the mats required to craft it.
     pub fn mats(&self, code: &str) -> Vec<SimpleItemSchema> {
-        if let Some(schema) = self.craft_schema(code) {
-            if let Some(mats) = schema.items {
-                return mats;
-            }
-        }
-        vec![]
+        self.craft_schema(code)
+            .into_iter()
+            .filter_map(|i| i.items)
+            .flatten()
+            .collect_vec()
     }
 
     /// Takes an item `code` and returns the mats down to the raw materials
     /// required to craft it.
     pub fn base_mats(&self, code: &str) -> Vec<SimpleItemSchema> {
-        let mut base_mats: Vec<SimpleItemSchema> = vec![];
-        for mat in self.mats(code) {
-            let mut bs = self.base_mats(&mat.code);
-            if !bs.is_empty() {
-                bs.iter_mut().for_each(|b| b.quantity *= mat.quantity);
-                base_mats.append(&mut bs);
-            } else {
-                base_mats.push(mat)
-            }
-        }
-        base_mats
+        self.mats(code)
+            .iter()
+            .flat_map(|mat| {
+                self.base_mats(&mat.code)
+                    .iter()
+                    .map(|b| SimpleItemSchema {
+                        code: b.code.clone(),
+                        quantity: b.quantity * mat.quantity,
+                    })
+                    .collect_vec()
+            })
+            .collect_vec()
     }
 
     /// Takes an resource `code` and returns the items that can be crafted
     /// from the base mats it drops.
     pub fn crafted_from_resource(&self, code: &str) -> Vec<&ItemSchema> {
-        if let Some(resource) = self.resources.get(code) {
-            return resource
-                .drops
-                .iter()
-                .flat_map(|i| self.crafted_with_base_mat(&i.code))
-                .collect_vec();
-        }
-        vec![]
+        self.resources
+            .get(code)
+            .map(|r| &r.drops)
+            .into_iter()
+            .flatten()
+            .flat_map(|i| self.crafted_with_base_mat(&i.code))
+            .collect_vec()
     }
 
     /// Takes an item `code` and returns the items directly crafted with it.
@@ -223,24 +222,26 @@ impl Items {
 
     /// Takes an item `code` and returns its drops.
     pub fn drops(&self, code: &str) -> Vec<&DropRateSchema> {
-        if let Some(info) = self.get(code) {
-            if info.subtype == "mob" {
-                return self
-                    .monsters
-                    .dropping(code)
-                    .iter()
-                    .flat_map(|m| &m.drops)
-                    .collect_vec();
-            } else {
-                return self
-                    .resources
-                    .dropping(code)
-                    .iter()
-                    .flat_map(|m| &m.drops)
-                    .collect_vec();
-            };
-        }
-        vec![]
+        self.get(code)
+            .iter()
+            .flat_map(|i| {
+                if i.subtype == "mob" {
+                    return self
+                        .monsters
+                        .dropping(code)
+                        .iter()
+                        .flat_map(|m| &m.drops)
+                        .collect_vec();
+                } else {
+                    return self
+                        .resources
+                        .dropping(code)
+                        .iter()
+                        .flat_map(|m| &m.drops)
+                        .collect_vec();
+                }
+            })
+            .collect_vec()
     }
 
     /// Takes an item `code` and aggregate the drop rates of its base materials

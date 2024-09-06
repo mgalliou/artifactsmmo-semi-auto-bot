@@ -3,7 +3,7 @@ use super::{
     api::{characters::CharactersApi, my_character::MyCharacterApi},
     bank::Bank,
     char_config::CharConfig,
-    items::{Items, Type},
+    items::Items,
     maps::Maps,
     monsters::Monsters,
     resources::Resources,
@@ -28,8 +28,8 @@ use artifactsmmo_openapi::{
         equip_schema::{self, Slot},
         unequip_schema, BankItemTransactionResponseSchema, CharacterFightResponseSchema,
         CharacterSchema, EquipmentResponseSchema, ItemSchema, MapSchema, MonsterSchema,
-        RecyclingResponseSchema, ResourceSchema, SkillResponseSchema,
-        TaskResponseSchema, TaskRewardResponseSchema,
+        RecyclingResponseSchema, ResourceSchema, SkillResponseSchema, TaskResponseSchema,
+        TaskRewardResponseSchema,
     },
 };
 use chrono::{DateTime, Utc};
@@ -37,6 +37,7 @@ use itertools::Itertools;
 use log::{info, warn};
 use std::{
     cmp::Ordering,
+    io,
     option::Option,
     sync::{Arc, RwLock},
     thread::{self, sleep, JoinHandle},
@@ -90,7 +91,7 @@ impl Character {
         }
     }
 
-    pub fn run(mut char: Character) -> Result<JoinHandle<()>, std::io::Error> {
+    pub fn run(mut char: Character) -> Result<JoinHandle<()>, io::Error> {
         thread::Builder::new()
             .name(char.name.to_string())
             .spawn(move || {
@@ -175,14 +176,13 @@ impl Character {
     }
 
     fn inventory_raw_mats(&self) -> Vec<&ItemSchema> {
-        if let Some(inv) = &self.info.inventory {
-            return inv
-                .iter()
-                .filter(|slot| self.items.is_raw_mat(&slot.code))
-                .map(|slot| self.items.get(&slot.code).unwrap())
-                .collect_vec();
-        }
-        vec![]
+        self.info
+            .inventory
+            .iter()
+            .flatten()
+            .filter(|slot| self.items.is_raw_mat(&slot.code))
+            .map(|slot| self.items.get(&slot.code).unwrap())
+            .collect_vec()
     }
 
     fn kill_monster(&mut self, code: &str) -> bool {
