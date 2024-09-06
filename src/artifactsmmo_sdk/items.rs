@@ -237,18 +237,18 @@ impl Items {
     /// Takes an item `code` and aggregate the drop rates of its base materials
     /// to cumpute an average drop rate.
     pub fn base_mats_drop_rate(&self, code: &str) -> f32 {
-        let mats = self.base_mats(code);
-        if mats.is_empty() {
+        let base_mats = self.base_mats(code);
+        if base_mats.is_empty() {
             return 0.0;
         }
-        let total_mats: i32 = mats.iter().map(|m| m.quantity).sum();
-        debug!("total mats for {}: {}", code, total_mats);
-        let sum: i32 = mats
+        let base_mats_quantity: i32 = base_mats.iter().map(|m| m.quantity).sum();
+        debug!("total mats for {}: {}", code, base_mats_quantity);
+        let drop_rate_sum: i32 = base_mats
             .iter()
             .map(|m| self.drop_rate(&m.code) * m.quantity)
             .sum();
-        debug!("sum for {}: {}", code, sum);
-        let average: f32 = sum as f32 / total_mats as f32;
+        debug!("sum for {}: {}", code, drop_rate_sum);
+        let average: f32 = drop_rate_sum as f32 / base_mats_quantity as f32;
         debug!("average drop rate for {}: {}", code, average);
         average
     }
