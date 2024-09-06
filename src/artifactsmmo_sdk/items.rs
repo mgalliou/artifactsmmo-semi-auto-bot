@@ -1,4 +1,5 @@
 use super::skill::Skill;
+use super::ItemSchemaExt;
 use super::{account::Account, api::items::ItemsApi, monsters::Monsters, resources::Resources};
 use artifactsmmo_openapi::models::{
     equip_schema::Slot, CraftSchema, GeItemSchema, ItemEffectSchema, ItemSchema, SimpleItemSchema,
@@ -71,6 +72,53 @@ pub enum SubType {
     Mob,
 }
 
+impl ItemSchemaExt for ItemSchema {
+    fn is_raw_mat(&self) -> bool {
+        self.r#type == "resource"
+            && matches!(
+                SubType::from_str(&self.subtype),
+                Ok(SubType::Mining)
+                    | Ok(SubType::Woodcutting)
+                    | Ok(SubType::Fishing)
+                    | Ok(SubType::Food)
+            )
+    }
+
+    fn is_crafted_with(&self, code: &str) -> bool {
+        self.mats().iter().any(|m| m.code == code)
+    }
+
+    fn mats(&self) -> Vec<SimpleItemSchema> {
+        self.craft_schema()
+            .into_iter()
+            .filter_map(|i| i.items)
+            .flatten()
+            .collect_vec()
+    }
+
+    fn craft_schema(&self) -> Option<CraftSchema> {
+        self.craft.clone()?.map(|c| (*c))
+    }
+
+    fn skill_to_craft(&self) -> Option<Skill> {
+        self.craft_schema()
+            .and_then(|schema| schema.skill)
+            .map(Skill::from)
+    }
+
+    fn effects(&self) -> Vec<&ItemEffectSchema> {
+        self.effects.iter().flatten().collect_vec()
+    }
+
+    fn damages(&self) -> i32 {
+        self.effects()
+            .iter()
+            .filter(|e| !e.name.starts_with("attack_"))
+            .map(|e| e.value)
+            .sum()
+    }
+}
+
 impl Items {
     pub fn new(account: &Account, resources: Arc<Resources>, monsters: Arc<Monsters>) -> Items {
         let api = ItemsApi::new(
@@ -90,46 +138,14 @@ impl Items {
         self.data.iter().find(|m| m.code == code)
     }
 
-    /// Check if an item `code` is a raw meterial.
-    pub fn is_raw_mat(&self, code: &str) -> bool {
-        if let Some(item) = self.get(code) {
-            return item.r#type == "resource"
-                && matches!(
-                    SubType::from_str(&item.subtype),
-                    Ok(SubType::Mining)
-                        | Ok(SubType::Woodcutting)
-                        | Ok(SubType::Fishing)
-                        | Ok(SubType::Food)
-                );
-        }
-        true
-    }
-
-    /// Takes an item `code` and return is craft schema.
-    // TODO: remove clone() call if possible
-    fn craft_schema(&self, code: &str) -> Option<CraftSchema> {
-        self.get(code)?.craft.clone()?.map(|c| (*c))
-    }
-
-    /// Check if an item `code` is craftable.
-    pub fn is_craftable(&self, code: &str) -> bool {
-        self.craft_schema(code).is_some()
-    }
-
     /// Takes an item `code` and returns the skill required to craft it.
     pub fn skill_to_craft(&self, code: &str) -> Option<Skill> {
-        self.craft_schema(code)
-            .and_then(|schema| schema.skill)
-            .map(Skill::from)
+        self.get(code)?.skill_to_craft()
     }
 
     /// Takes an item `code` and return the mats required to craft it.
     pub fn mats(&self, code: &str) -> Vec<SimpleItemSchema> {
-        self.craft_schema(code)
-            .into_iter()
-            .filter_map(|i| i.items)
-            .flatten()
-            .collect_vec()
+        self.get(code).iter().flat_map(|i| i.mats()).collect_vec()
     }
 
     /// Takes an item `code` and returns the mats down to the raw materials
@@ -165,7 +181,7 @@ impl Items {
     pub fn crafted_with(&self, code: &str) -> Vec<&ItemSchema> {
         self.data
             .iter()
-            .filter(|i| self.is_crafted_with(&i.code, code))
+            .filter(|i| i.is_crafted_with(code))
             .collect_vec()
     }
 
@@ -175,11 +191,6 @@ impl Items {
             .iter()
             .filter(|i| self.is_crafted_with_base_mat(&i.code, code))
             .collect_vec()
-    }
-
-    /// Takes an item `code` and checks if it is directly crafted with `mat`.
-    pub fn is_crafted_with(&self, code: &str, mat: &str) -> bool {
-        self.mats(code).iter().any(|m| m.code == mat)
     }
 
     /// Takes an item `code` and checks if it is crafted with `mat` as a base
@@ -258,24 +269,6 @@ impl Items {
         average
     }
 
-    /// Takes an item `code` and returns its effects.
-    pub fn effects(&self, code: &str) -> Vec<&ItemEffectSchema> {
-        self.get(code)
-            .iter()
-            .filter_map(|i| i.effects.as_ref())
-            .flatten()
-            .collect_vec()
-    }
-
-    /// Takes an item `code` and returns its total damages.
-    pub fn damages(&self, code: &str) -> i32 {
-        self.effects(code)
-            .iter()
-            .filter(|e| !e.name.starts_with("attack_"))
-            .map(|e| e.value)
-            .sum()
-    }
-
     pub fn equipable_at_level(&self, level: i32, slot: Slot) -> Vec<&ItemSchema> {
         self.data
             .iter()
@@ -289,7 +282,7 @@ impl Items {
     pub fn best_for_leveling(&self, level: i32, skill: Skill) -> Option<&ItemSchema> {
         self.providing_exp(level, skill)
             .into_iter()
-            .filter(|i| !self.is_crafted_with(&i.code, "jasper_crystal"))
+            .filter(|i| i.is_crafted_with("jasper_crystal"))
             .min_set_by_key(|i| (self.base_mats_drop_rate(&i.code) * 100.0) as i32)
             .into_iter()
             .min_set_by_key(|i| self.base_mats_buy_price(&i.code))
@@ -304,7 +297,7 @@ impl Items {
         self.data
             .iter()
             .filter(|i| i.level >= min && i.level <= level)
-            .filter(|i| self.skill_to_craft(&i.code).is_some_and(|s| s == skill))
+            .filter(|i| i.skill_to_craft().is_some_and(|s| s == skill))
             .collect_vec()
     }
 

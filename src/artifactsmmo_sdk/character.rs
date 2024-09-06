@@ -7,7 +7,7 @@ use super::{
     maps::Maps,
     monsters::Monsters,
     resources::Resources,
-    skill::Skill,
+    skill::Skill, ItemSchemaExt,
 };
 use artifactsmmo_openapi::{
     apis::{
@@ -180,8 +180,8 @@ impl Character {
             .inventory
             .iter()
             .flatten()
-            .filter(|slot| self.items.is_raw_mat(&slot.code))
-            .map(|slot| self.items.get(&slot.code).unwrap())
+            .filter_map(|slot| self.items.get(&slot.code))
+            .filter(|i| i.is_raw_mat())
             .collect_vec()
     }
 
@@ -218,7 +218,7 @@ impl Character {
             self.items
                 .providing_exp(self.skill_level(skill), skill)
                 .iter()
-                .filter(|i| !self.items.is_crafted_with(&i.code, "jasper_crystal"))
+                .filter(|i| !i.is_crafted_with("jasper_crystal"))
                 .any(|i| self.bank.read().is_ok_and(|b| b.has_mats_for(&i.code) > 0))
         })
     }
@@ -706,7 +706,7 @@ impl Character {
 
     fn weapon_damage(&self) -> i32 {
         self.equipment_in(Slot::Weapon)
-            .map(|w| self.items.damages(&w.code))
+            .map(|w| w.damages())
             .unwrap_or(0)
     }
 
@@ -764,7 +764,7 @@ impl Character {
                 self.bank
                     .read()
                     .is_ok_and(|b| b.has_item(&weapon.code).is_some())
-                    && self.weapon_damage() < self.items.damages(&weapon.code)
+                    && self.weapon_damage() < weapon.damages()
             })
             .map(|weapon| weapon.code.clone())
     }
