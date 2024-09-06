@@ -1,21 +1,69 @@
-use super::{
-    account::Account, api::items::ItemsApi, character::Character, monsters::Monsters,
-    resources::Resources,
-};
+use super::skill::Skill;
+use super::{account::Account, api::items::ItemsApi, monsters::Monsters, resources::Resources};
 use artifactsmmo_openapi::models::{
-    craft_schema::Skill, equip_schema::Slot, CraftSchema, DropRateSchema, GeItemSchema, ItemEffectSchema, ItemSchema, SimpleItemSchema
+    equip_schema::Slot, CraftSchema, DropRateSchema, GeItemSchema, ItemEffectSchema, ItemSchema,
+    SimpleItemSchema,
 };
 use enum_stringify::EnumStringify;
 use itertools::Itertools;
 use log::debug;
+use std::str::FromStr;
 use std::{sync::Arc, vec::Vec};
-use strum_macros::EnumIter;
+use strum_macros::{EnumIter, EnumString};
 
 pub struct Items {
     pub data: Vec<ItemSchema>,
     pub api: ItemsApi,
-    pub resources: Arc<Resources>,
-    pub monsters: Arc<Monsters>,
+    resources: Arc<Resources>,
+    monsters: Arc<Monsters>,
+}
+
+#[derive(Debug, PartialEq, EnumStringify, EnumIter)]
+#[enum_stringify(case = "lower")]
+pub enum Type {
+    Consumable,
+    BodyArmor,
+    Weapon,
+    Resource,
+    LegArmor,
+    Helmet,
+    Boots,
+    Shield,
+    Amulet,
+    Ring,
+    Artifact,
+}
+
+impl Type {
+    pub fn from_slot(slot: Slot) -> Self {
+        match slot {
+            Slot::Weapon => Type::Weapon,
+            Slot::Shield => Type::Shield,
+            Slot::Helmet => Type::Helmet,
+            Slot::BodyArmor => Type::BodyArmor,
+            Slot::LegArmor => Type::LegArmor,
+            Slot::Boots => Type::Boots,
+            Slot::Ring1 => Type::Ring,
+            Slot::Ring2 => Type::Ring,
+            Slot::Amulet => Type::Amulet,
+            Slot::Artifact1 => Type::Artifact,
+            Slot::Artifact2 => Type::Artifact,
+            Slot::Artifact3 => Type::Artifact,
+            Slot::Consumable1 => Type::Consumable,
+            Slot::Consumable2 => Type::Consumable,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, EnumString)]
+#[strum(serialize_all = "snake_case")]
+pub enum SubType {
+    Mining,
+    Woodcutting,
+    Fishing,
+    Food,
+    Bar,
+    Plank,
 }
 
 impl Items {
@@ -32,93 +80,60 @@ impl Items {
         }
     }
 
+    /// Takes an item `code` and return its schema.
     pub fn get(&self, code: &str) -> Option<&ItemSchema> {
         self.data.iter().find(|m| m.code == code)
     }
 
+    /// Check if an item `code` is a raw meterial.
     pub fn is_raw_mat(&self, code: &str) -> bool {
         if let Some(item) = self.get(code) {
-            return item.r#type == "resource" && item.subtype == "mining"
-                || item.subtype == "woodcutting"
-                || item.subtype == "fishing"
-                || item.subtype == "food";
+            return item.r#type == "resource"
+                && matches!(
+                    SubType::from_str(&item.subtype),
+                    Ok(SubType::Mining)
+                        | Ok(SubType::Woodcutting)
+                        | Ok(SubType::Fishing)
+                        | Ok(SubType::Food)
+                );
         }
         true
     }
 
-    pub fn equipable_at_level(&self, level: i32, slot: Slot) -> Vec<&ItemSchema> {
-        self.data
-            .iter()
-            .filter(|i| i.level <= level)
-            .filter(|i| i.r#type == Character::slot_to_type(slot).to_string())
-            .collect_vec()
-    }
-
-    pub fn best_for_leveling(&self, level: i32, skill: super::skill::Skill) -> Option<&ItemSchema> {
-        self.providing_exp(level, skill)
-            .into_iter()
-            .filter(|i| !self.is_crafted_with(&i.code, "jasper_crystal"))
-            .min_set_by_key(|i| (self.base_mats_drop_rate(&i.code) * 100.0) as i32)
-            .into_iter()
-            .min_set_by_key(|i| self.base_mats_buy_price(&i.code))
-            .into_iter()
-            .max_by_key(|i| i.level)
-    }
-
-    pub fn providing_exp(&self, level: i32, skill: super::skill::Skill) -> Vec<&ItemSchema> {
-        let min = if level > 11 { level - 10 } else { 1 };
-        self.data
-            .iter()
-            .filter(|i| i.level >= min && i.level <= level)
-            .filter(|i| self.skill_to_craft(&i.code).is_some_and(|s| s == skill))
-            .collect_vec()
-    }
-
-    pub fn lowest_providing_exp(&self, level: i32, skill: super::skill::Skill) -> Vec<&ItemSchema> {
-        self.providing_exp(level, skill)
-            .iter()
-            .min_set_by_key(|i| i.level)
-            .into_iter()
-            .cloned()
-            .collect_vec()
-    }
-
-    pub fn highest_providing_exp(
-        &self,
-        level: i32,
-        skill: super::skill::Skill,
-    ) -> Vec<&ItemSchema> {
-        self.providing_exp(level, skill)
-            .iter()
-            .max_set_by_key(|i| i.level)
-            .into_iter()
-            .cloned()
-            .collect_vec()
-    }
-
-    pub fn craft_schema(&self, code: &str) -> Option<CraftSchema> {
+    /// Takes an item `code` and return is craft schema.
+    // TODO: remove clone() call if possible
+    fn craft_schema(&self, code: &str) -> Option<CraftSchema> {
         self.get(code)?.craft.clone()?.map(|c| (*c))
     }
 
+    /// Check if an item `code` is craftable.
     pub fn is_craftable(&self, code: &str) -> bool {
         self.craft_schema(code).is_some()
     }
 
-    pub fn crafted_from_resource(&self, code: &str) -> Vec<&ItemSchema> {
-        if let Some(resource) = self.resources.get(code) {
-            return resource
-                .drops
-                .iter()
-                .flat_map(|i| self.crafted_with(&i.code))
-                .collect_vec();
+    /// Takes an item `code` and returns the skill required to craft it.
+    pub fn skill_to_craft(&self, code: &str) -> Option<Skill> {
+        self.craft_schema(code)
+            .and_then(|schema| schema.skill)
+            .map(Skill::from_craft_schema_skill)
+    }
+
+    /// Takes an item `code` and return the mats required to craft it.
+    pub fn mats(&self, code: &str) -> Vec<SimpleItemSchema> {
+        if let Some(schema) = self.craft_schema(code) {
+            if let Some(mats) = schema.items {
+                return mats;
+            }
         }
         vec![]
     }
 
-    pub fn base_mats_for(&self, code: &str) -> Vec<SimpleItemSchema> {
+    /// Takes an item `code` and returns the mats down to the raw materials
+    /// required to craft it.
+    pub fn base_mats(&self, code: &str) -> Vec<SimpleItemSchema> {
         let mut base_mats: Vec<SimpleItemSchema> = vec![];
-        for mat in self.mats_for(code) {
-            let mut bs = self.base_mats_for(&mat.code);
+        for mat in self.mats(code) {
+            let mut bs = self.base_mats(&mat.code);
             if !bs.is_empty() {
                 bs.iter_mut().for_each(|b| b.quantity *= mat.quantity);
                 base_mats.append(&mut bs);
@@ -129,15 +144,20 @@ impl Items {
         base_mats
     }
 
-    pub fn mats_for(&self, code: &str) -> Vec<SimpleItemSchema> {
-        if let Some(schema) = self.craft_schema(code) {
-            if let Some(mats) = schema.items {
-                return mats;
-            }
+    /// Takes an resource `code` and returns the items that can be crafted
+    /// from the base mats it drops.
+    pub fn crafted_from_resource(&self, code: &str) -> Vec<&ItemSchema> {
+        if let Some(resource) = self.resources.get(code) {
+            return resource
+                .drops
+                .iter()
+                .flat_map(|i| self.crafted_with_base_mat(&i.code))
+                .collect_vec();
         }
         vec![]
     }
 
+    /// Takes an item `code` and returns the items directly crafted with it.
     pub fn crafted_with(&self, code: &str) -> Vec<&ItemSchema> {
         self.data
             .iter()
@@ -145,29 +165,34 @@ impl Items {
             .collect_vec()
     }
 
-    pub fn is_crafted_with(&self, code: &str, mat: &str) -> bool {
-        self.base_mats_for(code).iter().any(|m| m.code == mat)
-    }
-
-    pub fn with_material(&self, code: &str) -> Vec<&ItemSchema> {
+    /// Takes an item `code` and returns the items crafted with it as base mat.
+    pub fn crafted_with_base_mat(&self, code: &str) -> Vec<&ItemSchema> {
         self.data
             .iter()
-            .filter(|i| {
-                self.craft_schema(&i.code).is_some_and(|c| {
-                    c.items
-                        .is_some_and(|items| items.iter().any(|i| i.code == code))
-                })
-            })
+            .filter(|i| self.is_crafted_with_base_mat(&i.code, code))
             .collect_vec()
     }
 
-    pub fn ge_info(&self, code: &str) -> Option<Box<GeItemSchema>> {
-        self.api.info(code).ok()?.data.ge?
+    /// Takes an item `code` and checks if it is directly crafted with `mat`.
+    pub fn is_crafted_with(&self, code: &str, mat: &str) -> bool {
+        self.mats(code).iter().any(|m| m.code == mat)
     }
 
+    /// Takes an item `code` and checks if it is crafted with `mat` as a base
+    /// material.
+    pub fn is_crafted_with_base_mat(&self, code: &str, mat: &str) -> bool {
+        self.base_mats(code).iter().any(|m| m.code == mat)
+    }
+
+    pub fn ge_info(&self, code: &str) -> Option<GeItemSchema> {
+        self.api.info(code).ok()?.data.ge?.map(|ge| (*ge))
+    }
+
+    /// Takes an item `code` and returns its base mats buy price at the Grand
+    /// Exchange.
     pub fn base_mats_buy_price(&self, code: &str) -> i32 {
         let price = self
-            .base_mats_for(code)
+            .base_mats(code)
             .iter()
             .map(|mat| {
                 self.ge_info(&mat.code)
@@ -181,7 +206,7 @@ impl Items {
     /// Takes an item `code` and returns the amount of inventory space the mats
     /// required to craft it are taking.
     pub fn mats_quantity_for(&self, code: &str) -> i32 {
-        self.mats_for(code).iter().map(|mat| mat.quantity).sum()
+        self.mats(code).iter().map(|mat| mat.quantity).sum()
     }
 
     /// Takes an item `code` and returns the best (lowest value) drop rate from
@@ -196,6 +221,7 @@ impl Items {
         rate
     }
 
+    /// Takes an item `code` and returns its drops.
     pub fn drops(&self, code: &str) -> Vec<&DropRateSchema> {
         if let Some(info) = self.get(code) {
             if info.subtype == "mob" {
@@ -217,8 +243,10 @@ impl Items {
         vec![]
     }
 
+    /// Takes an item `code` and aggregate the drop rates of its base materials
+    /// to cumpute an average drop rate.
     pub fn base_mats_drop_rate(&self, code: &str) -> f32 {
-        let mats = self.base_mats_for(code);
+        let mats = self.base_mats(code);
         if mats.is_empty() {
             return 0.0;
         }
@@ -234,53 +262,75 @@ impl Items {
         average
     }
 
-    pub fn skill_to_craft(&self, code: &str) -> Option<super::skill::Skill> {
-        self.craft_schema(code)
-            .and_then(|schema| schema.skill)
-            .map(Items::schema_skill_to_skill)
+    /// Takes an item `code` and returns its effects.
+    pub fn effects(&self, code: &str) -> Vec<&ItemEffectSchema> {
+        self.get(code)
+            .iter()
+            .filter_map(|i| i.effects.as_ref())
+            .flatten()
+            .collect_vec()
     }
 
-    pub fn effects_of(&self, code: &str) -> Vec<ItemEffectSchema> {
-        if let Some(item) = self.get(code) {
-            if let Some(effects) = &item.effects {
-                return effects.clone();
-            }
-        }
-        vec![]
-    }
-
+    /// Takes an item `code` and returns its total damages.
     pub fn damages(&self, code: &str) -> i32 {
-        self.effects_of(code)
+        self.effects(code)
             .iter()
             .filter(|e| !e.name.starts_with("attack_"))
             .map(|e| e.value)
             .sum()
     }
 
-    pub fn schema_skill_to_skill(skill: Skill) -> super::skill::Skill {
-        match skill {
-            Skill::Weaponcrafting => super::skill::Skill::Weaponcrafting,
-            Skill::Gearcrafting => super::skill::Skill::Gearcrafting,
-            Skill::Jewelrycrafting => super::skill::Skill::Jewelrycrafting,
-            Skill::Cooking => super::skill::Skill::Cooking,
-            Skill::Woodcutting => super::skill::Skill::Woodcutting,
-            Skill::Mining => super::skill::Skill::Mining,
-        }
+    pub fn equipable_at_level(&self, level: i32, slot: Slot) -> Vec<&ItemSchema> {
+        self.data
+            .iter()
+            .filter(|i| i.level <= level)
+            .filter(|i| i.r#type == Type::from_slot(slot).to_string())
+            .collect_vec()
     }
-}
 
-#[derive(Debug, PartialEq, EnumStringify, EnumIter)]
-#[enum_stringify(case = "lower")]
-pub enum Type {
-    Consumable,
-    BodyArmor,
-    Weapon,
-    Resource,
-    LegArmor,
-    Helmet,
-    Boots,
-    Shield,
-    Amulet,
-    Ring,
-    Artifact,
+    /// Takes a `level` and a `skill` and returns the best items to level the
+    /// skill based on its meterials drop rate, and value on the Grand Exchange.
+    pub fn best_for_leveling(&self, level: i32, skill: Skill) -> Option<&ItemSchema> {
+        self.providing_exp(level, skill)
+            .into_iter()
+            .filter(|i| !self.is_crafted_with(&i.code, "jasper_crystal"))
+            .min_set_by_key(|i| (self.base_mats_drop_rate(&i.code) * 100.0) as i32)
+            .into_iter()
+            .min_set_by_key(|i| self.base_mats_buy_price(&i.code))
+            .into_iter()
+            .max_by_key(|i| i.level)
+    }
+
+    /// Takes a `level` and a `skill` and returns the items providing experince
+    /// when crafted.
+    pub fn providing_exp(&self, level: i32, skill: Skill) -> Vec<&ItemSchema> {
+        let min = if level > 11 { level - 10 } else { 1 };
+        self.data
+            .iter()
+            .filter(|i| i.level >= min && i.level <= level)
+            .filter(|i| self.skill_to_craft(&i.code).is_some_and(|s| s == skill))
+            .collect_vec()
+    }
+
+    /// Takes a `level` and a `skill` and returns the items of the lowest level
+    /// providing experience when crafted.
+    pub fn lowest_providing_exp(&self, level: i32, skill: Skill) -> Vec<&ItemSchema> {
+        self.providing_exp(level, skill)
+            .iter()
+            .min_set_by_key(|i| i.level)
+            .into_iter()
+            .cloned()
+            .collect_vec()
+    }
+
+    /// Takes a `level` and a `skill` and returns the items of the highest level
+    /// providing experience when crafted.
+    pub fn highest_providing_exp(&self, level: i32, skill: Skill) -> Vec<&ItemSchema> {
+        self.providing_exp(level, skill)
+            .iter()
+            .max_set_by_key(|i| i.level)
+            .into_iter()
+            .cloned()
+            .collect_vec()
+    }
 }

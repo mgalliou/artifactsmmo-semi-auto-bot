@@ -123,7 +123,7 @@ impl Character {
                 if let Some(item) = &self.conf.target_item {
                     if !self
                         .items
-                        .with_material(item)
+                        .crafted_with(item)
                         .into_iter()
                         .cloned()
                         .collect_vec()
@@ -335,7 +335,7 @@ impl Character {
             "{}: withdrawing mats for {} * {}",
             self.name, code, quantity
         );
-        let mats = self.items.mats_for(code);
+        let mats = self.items.mats(code);
         for mat in &mats {
             if !self
                 .bank
@@ -656,7 +656,7 @@ impl Character {
 
     fn has_mats_for(&self, code: &str) -> i32 {
         self.items
-            .mats_for(code)
+            .mats(code)
             .iter()
             .filter(|mat| mat.quantity > 0)
             .map(|mat| self.amount_in_inventory(&mat.code) / mat.quantity)
@@ -708,25 +708,6 @@ impl Character {
         self.equipment_in(Slot::Weapon)
             .map(|w| self.items.damages(&w.code))
             .unwrap_or(0)
-    }
-
-    pub fn slot_to_type(slot: Slot) -> Type {
-        match slot {
-            Slot::Weapon => Type::Weapon,
-            Slot::Shield => Type::Shield,
-            Slot::Helmet => Type::Helmet,
-            Slot::BodyArmor => Type::BodyArmor,
-            Slot::LegArmor => Type::LegArmor,
-            Slot::Boots => Type::Boots,
-            Slot::Ring1 => Type::Ring,
-            Slot::Ring2 => Type::Ring,
-            Slot::Amulet => Type::Amulet,
-            Slot::Artifact1 => Type::Artifact,
-            Slot::Artifact2 => Type::Artifact,
-            Slot::Artifact3 => Type::Artifact,
-            Slot::Consumable1 => Type::Consumable,
-            Slot::Consumable2 => Type::Consumable,
-        }
     }
 
     fn improve_equipment(&mut self) {

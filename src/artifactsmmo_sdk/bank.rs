@@ -30,7 +30,7 @@ impl Bank {
     ///. return the number of time the item `code` can be crafted with the mats available in bank
     pub fn has_mats_for(&self, code: &str) -> i32 {
         self.items
-            .mats_for(code)
+            .mats(code)
             .iter()
             .map(|mat| {
                 self.has_item(&mat.code)

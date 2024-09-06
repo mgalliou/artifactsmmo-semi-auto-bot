@@ -1,3 +1,4 @@
+use artifactsmmo_openapi::models::craft_schema;
 use enum_stringify::EnumStringify;
 use strum_macros::EnumIter;
 
@@ -11,4 +12,17 @@ pub enum Skill {
     Mining,
     Weaponcrafting,
     Woodcutting,
+}
+
+impl Skill {
+    pub fn from_craft_schema_skill(skill: craft_schema::Skill) -> Self {
+        match skill {
+            craft_schema::Skill::Weaponcrafting => Skill::Weaponcrafting,
+            craft_schema::Skill::Gearcrafting => Skill::Gearcrafting,
+            craft_schema::Skill::Jewelrycrafting => Skill::Jewelrycrafting,
+            craft_schema::Skill::Cooking => Skill::Cooking,
+            craft_schema::Skill::Woodcutting => Skill::Woodcutting,
+            craft_schema::Skill::Mining => Skill::Mining,
+        }
+    }
 }
