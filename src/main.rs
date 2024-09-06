@@ -37,7 +37,7 @@ fn run() -> Option<()> {
             weaponcraft: true,
             level_weaponcraft: false,
             gearcraft: true,
-            level_gearcraft: true,
+            level_gearcraft: false,
             jewelcraft: true,
             level_jewelcraft: false,
             ..Default::default()

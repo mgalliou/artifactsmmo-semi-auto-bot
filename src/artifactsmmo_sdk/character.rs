@@ -7,7 +7,7 @@ use super::{
     maps::Maps,
     monsters::Monsters,
     resources::Resources,
-    skill::Skill, ItemSchemaExt,
+    skill::Skill, ItemSchemaExt, MapSchemaExt,
 };
 use artifactsmmo_openapi::{
     apis::{
@@ -674,7 +674,7 @@ impl Character {
             .maps
             .data
             .iter()
-            .filter(|m| Maps::has_one_of_resource(m, resources.clone()))
+            .filter(|m| m.has_one_of_resource(&resources))
             .collect_vec();
         Maps::closest_from_amoung(self.info.x, self.info.y, maps)
     }

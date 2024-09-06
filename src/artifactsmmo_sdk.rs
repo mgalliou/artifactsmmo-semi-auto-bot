@@ -1,4 +1,4 @@
-use artifactsmmo_openapi::models::{CraftSchema, ItemEffectSchema, SimpleItemSchema};
+use artifactsmmo_openapi::models::{CraftSchema, ItemEffectSchema, ResourceSchema, SimpleItemSchema};
 use skill::Skill;
 
 pub mod account;
@@ -20,4 +20,8 @@ trait ItemSchemaExt {
     fn skill_to_craft(&self) -> Option<Skill>;
     fn effects(&self) -> Vec<&ItemEffectSchema>;
     fn damages(&self) -> i32;
+}
+
+trait MapSchemaExt {
+    fn has_one_of_resource(&self, resources: &[&ResourceSchema]) -> bool;
 }

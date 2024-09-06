@@ -1,9 +1,17 @@
-use super::{account::Account, api::maps::MapsApi};
+use super::{account::Account, api::maps::MapsApi, MapSchemaExt};
 use artifactsmmo_openapi::models::{MapSchema, ResourceSchema};
 use itertools::Itertools;
 
 pub struct Maps {
     pub data: Vec<MapSchema>,
+}
+
+impl MapSchemaExt for MapSchema {
+    fn has_one_of_resource(&self, resources: &[&ResourceSchema]) -> bool {
+        self.content
+            .as_ref()
+            .is_some_and(|c| resources.iter().any(|r| r.code == c.code))
+    }
 }
 
 impl Maps {
