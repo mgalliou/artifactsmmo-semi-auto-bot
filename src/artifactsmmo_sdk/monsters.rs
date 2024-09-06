@@ -16,6 +16,10 @@ impl Monsters {
         }
     }
 
+    pub fn get(&self, code: &str) -> Option<&MonsterSchema> {
+        self.data.iter().find(|m| m.code == code)
+    }
+
     pub fn dropping(&self, code: &str) -> Vec<&MonsterSchema> {
         self.data
             .iter()
@@ -36,9 +40,5 @@ impl Monsters {
             .iter()
             .filter(|m| m.level <= level)
             .max_by_key(|m| m.level)
-    }
-
-    pub fn get(&self, code: &str) -> Option<&MonsterSchema> {
-        self.data.iter().find(|m| m.code == code)
     }
 }

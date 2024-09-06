@@ -7,7 +7,8 @@ use super::{
     maps::Maps,
     monsters::Monsters,
     resources::Resources,
-    skill::Skill, ItemSchemaExt, MapSchemaExt,
+    skill::Skill,
+    ItemSchemaExt, MapSchemaExt,
 };
 use artifactsmmo_openapi::{
     apis::{
