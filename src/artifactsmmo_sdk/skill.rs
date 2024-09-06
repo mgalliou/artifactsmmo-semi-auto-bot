@@ -1,4 +1,4 @@
-use artifactsmmo_openapi::models::craft_schema;
+use artifactsmmo_openapi::models::{craft_schema, resource_schema};
 use strum_macros::{AsRefStr, EnumIter, EnumString};
 
 #[derive(Debug, Clone, Copy, PartialEq, AsRefStr, EnumIter, EnumString)]
@@ -22,6 +22,16 @@ impl From<craft_schema::Skill> for Skill {
             craft_schema::Skill::Cooking => Skill::Cooking,
             craft_schema::Skill::Woodcutting => Skill::Woodcutting,
             craft_schema::Skill::Mining => Skill::Mining,
+        }
+    }
+}
+
+impl From<resource_schema::Skill> for Skill {
+    fn from(value: resource_schema::Skill) -> Self {
+        match value {
+            resource_schema::Skill::Woodcutting => Self::Woodcutting,
+            resource_schema::Skill::Mining => Self::Mining,
+            resource_schema::Skill::Fishing => Self::Fishing,
         }
     }
 }
