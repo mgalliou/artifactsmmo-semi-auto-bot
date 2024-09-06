@@ -211,13 +211,10 @@ impl Items {
     /// Takes an item `code` and returns the best (lowest value) drop rate from
     /// `Monsters` or `Resources`
     pub fn drop_rate(&self, code: &str) -> i32 {
-        let rate = self
-            .drops(code)
+        self.drops(code)
             .iter()
             .find(|d| d.code == code)
-            .map_or(0, |d| d.rate);
-        debug!("drop rate for {}: {}", code, rate);
-        rate
+            .map_or(0, |d| d.rate)
     }
 
     /// Takes an item `code` and returns its drops.
