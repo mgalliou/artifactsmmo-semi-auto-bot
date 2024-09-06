@@ -211,14 +211,6 @@ impl Items {
     /// Takes an item `code` and returns the best (lowest value) drop rate from
     /// `Monsters` or `Resources`
     pub fn drop_rate(&self, code: &str) -> i32 {
-        self.drops(code)
-            .iter()
-            .find(|d| d.code == code)
-            .map_or(0, |d| d.rate)
-    }
-
-    /// Takes an item `code` and returns its drops.
-    pub fn drops(&self, code: &str) -> Vec<&DropRateSchema> {
         self.get(code)
             .iter()
             .flat_map(|i| {
@@ -238,7 +230,8 @@ impl Items {
                         .collect_vec();
                 }
             })
-            .collect_vec()
+            .find(|d| d.code == code)
+            .map_or(0, |d| d.rate)
     }
 
     /// Takes an item `code` and aggregate the drop rates of its base materials
