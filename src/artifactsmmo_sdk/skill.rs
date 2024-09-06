@@ -1,9 +1,8 @@
 use artifactsmmo_openapi::models::craft_schema;
-use enum_stringify::EnumStringify;
-use strum_macros::EnumIter;
+use strum_macros::{AsRefStr, EnumIter, EnumString};
 
-#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, EnumStringify, EnumIter)]
-#[enum_stringify(case = "lower")]
+#[derive(Debug, Clone, Copy, PartialEq, AsRefStr, EnumIter, EnumString)]
+#[strum(serialize_all = "snake_case")]
 pub enum Skill {
     Cooking,
     Fishing,
@@ -14,9 +13,9 @@ pub enum Skill {
     Woodcutting,
 }
 
-impl Skill {
-    pub fn from_craft_schema_skill(skill: craft_schema::Skill) -> Self {
-        match skill {
+impl From<craft_schema::Skill> for Skill {
+    fn from(value: craft_schema::Skill) -> Self {
+        match value {
             craft_schema::Skill::Weaponcrafting => Skill::Weaponcrafting,
             craft_schema::Skill::Gearcrafting => Skill::Gearcrafting,
             craft_schema::Skill::Jewelrycrafting => Skill::Jewelrycrafting,

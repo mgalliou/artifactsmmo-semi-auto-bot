@@ -1,15 +1,13 @@
 use super::skill::Skill;
 use super::{account::Account, api::items::ItemsApi, monsters::Monsters, resources::Resources};
 use artifactsmmo_openapi::models::{
-    equip_schema::Slot, CraftSchema, DropRateSchema, GeItemSchema, ItemEffectSchema, ItemSchema,
-    SimpleItemSchema,
+    equip_schema::Slot, CraftSchema, GeItemSchema, ItemEffectSchema, ItemSchema, SimpleItemSchema,
 };
-use enum_stringify::EnumStringify;
 use itertools::Itertools;
 use log::debug;
 use std::str::FromStr;
 use std::{sync::Arc, vec::Vec};
-use strum_macros::{EnumIter, EnumString};
+use strum_macros::{AsRefStr, EnumIter, EnumString};
 
 pub struct Items {
     pub data: Vec<ItemSchema>,
@@ -18,8 +16,8 @@ pub struct Items {
     monsters: Arc<Monsters>,
 }
 
-#[derive(Debug, PartialEq, EnumStringify, EnumIter)]
-#[enum_stringify(case = "lower")]
+#[derive(Debug, PartialEq, AsRefStr, EnumIter, EnumString)]
+#[strum(serialize_all = "snake_case")]
 pub enum Type {
     Consumable,
     BodyArmor,
@@ -32,6 +30,12 @@ pub enum Type {
     Amulet,
     Ring,
     Artifact,
+}
+
+impl PartialEq<Type> for String {
+    fn eq(&self, other: &Type) -> bool {
+        other.as_ref() == *self
+    }
 }
 
 impl Type {
@@ -64,6 +68,7 @@ pub enum SubType {
     Food,
     Bar,
     Plank,
+    Mob,
 }
 
 impl Items {
@@ -115,7 +120,7 @@ impl Items {
     pub fn skill_to_craft(&self, code: &str) -> Option<Skill> {
         self.craft_schema(code)
             .and_then(|schema| schema.skill)
-            .map(Skill::from_craft_schema_skill)
+            .map(Skill::from)
     }
 
     /// Takes an item `code` and return the mats required to craft it.
@@ -275,7 +280,7 @@ impl Items {
         self.data
             .iter()
             .filter(|i| i.level <= level)
-            .filter(|i| i.r#type == Type::from_slot(slot).to_string())
+            .filter(|i| i.r#type == Type::from_slot(slot))
             .collect_vec()
     }
 
