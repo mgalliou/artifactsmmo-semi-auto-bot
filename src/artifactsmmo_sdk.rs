@@ -1,5 +1,5 @@
 use artifactsmmo_openapi::models::{
-    CraftSchema, ItemEffectSchema, ResourceSchema, SimpleItemSchema,
+    CraftSchema, ItemEffectSchema, MapContentSchema, ResourceSchema, SimpleItemSchema
 };
 use items::Type;
 use skill::Skill;
@@ -29,4 +29,6 @@ trait ItemSchemaExt {
 
 trait MapSchemaExt {
     fn has_one_of_resource(&self, resources: &[&ResourceSchema]) -> bool;
+    fn content(&self) -> Option<MapContentSchema>;
+    fn content_is(&self, code: &str) -> bool;
 }

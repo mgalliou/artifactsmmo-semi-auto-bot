@@ -392,7 +392,7 @@ impl Character {
     fn craft_all(&mut self, code: &str) -> bool {
         println!("{}: crafting all {}", self.name, code);
         let n = self.has_mats_for(code);
-        if n > 0 && self.move_to_craft(code) && self.action_craft(code, n).is_ok() {
+        if n > 0 && self.action_craft(code, n).is_ok() {
             println!("{} crafted all {} ({})", self.name, code, n);
             return true;
         }
@@ -518,6 +518,7 @@ impl Character {
         code: &str,
         quantity: i32,
     ) -> Result<SkillResponseSchema, Error<ActionCraftingMyNameActionCraftingPostError>> {
+        self.move_to_craft(code);
         self.wait_for_cooldown();
         let res = self.my_api.craft(&self.name, code, quantity);
         match res {
@@ -535,6 +536,7 @@ impl Character {
         code: &str,
         quantity: i32,
     ) -> Result<RecyclingResponseSchema, Error<ActionRecyclingMyNameActionRecyclingPostError>> {
+        self.move_to_craft(code);
         self.wait_for_cooldown();
         let res = self.my_api.recycle(&self.name, code, quantity);
         match res {
@@ -729,20 +731,14 @@ impl Character {
     }
 
     fn move_to_craft(&mut self, code: &str) -> bool {
-        let skill = self.items.skill_to_craft(code);
-        println!(
-            "{}: moving to craft {}: skill found {:?}",
-            self.name, code, skill
-        );
-        match skill {
-            Some(Skill::Weaponcrafting) => self.action_move(2, 1),
-            Some(Skill::Gearcrafting) => self.action_move(3, 1),
-            Some(Skill::Jewelrycrafting) => self.action_move(1, 3),
-            Some(Skill::Cooking) => self.action_move(1, 1),
-            Some(Skill::Woodcutting) => self.action_move(-2, -3),
-            Some(Skill::Mining) => self.action_move(1, 5),
-            _ => false,
+        if let Some(dest) = self
+            .items
+            .skill_to_craft(code)
+            .and_then(|s| self.maps.to_craft(s))
+        {
+            self.action_move(dest.x, dest.y);
         }
+        false
     }
 
     fn weapon_damage(&self) -> i32 {

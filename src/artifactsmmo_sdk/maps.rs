@@ -1,5 +1,5 @@
-use super::{account::Account, api::maps::MapsApi, MapSchemaExt};
-use artifactsmmo_openapi::models::{MapSchema, ResourceSchema};
+use super::{account::Account, api::maps::MapsApi, skill::Skill, MapSchemaExt};
+use artifactsmmo_openapi::models::{MapContentSchema, MapSchema, ResourceSchema};
 use itertools::Itertools;
 
 pub struct Maps {
@@ -11,6 +11,14 @@ impl MapSchemaExt for MapSchema {
         self.content
             .as_ref()
             .is_some_and(|c| resources.iter().any(|r| r.code == c.code))
+    }
+
+    fn content(&self) -> Option<MapContentSchema> {
+        self.content.clone().map(|c| *c)
+    }
+
+    fn content_is(&self, code: &str) -> bool {
+        self.content().is_some_and(|c| c.code == code)
     }
 }
 
@@ -54,9 +62,19 @@ impl Maps {
             .collect_vec()
     }
 
-    pub fn has_one_of_resource(map: &MapSchema, resources: Vec<&ResourceSchema>) -> bool {
-        map.content
-            .as_ref()
-            .is_some_and(|c| resources.iter().any(|r| r.code == c.code))
+    pub fn with_content(&self, code: &str) -> Option<&MapSchema> {
+         self.data.iter().find(|m| m.content_is(code))
+    }
+
+    pub fn to_craft(&self, skill: Skill) -> Option<&MapSchema> {
+        match skill {
+            Skill::Weaponcrafting => self.with_content("weaponcrafting"),
+            Skill::Gearcrafting => self.with_content("gearcrafting"),
+            Skill::Jewelrycrafting => self.with_content("jewelrycrafting"),
+            Skill::Cooking => self.with_content("cooking"),
+            Skill::Woodcutting => self.with_content("woodcutting"),
+            Skill::Mining => self.with_content("mining"),
+            _ => None,
+        }
     }
 }
