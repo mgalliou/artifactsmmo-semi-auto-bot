@@ -84,6 +84,10 @@ impl ItemSchemaExt for ItemSchema {
             )
     }
 
+    fn is_of_type(&self, r#type: Type) -> bool {
+        self.r#type == r#type
+    }
+
     fn is_crafted_with(&self, code: &str) -> bool {
         self.mats().iter().any(|m| m.code == code)
     }
@@ -136,6 +140,16 @@ impl Items {
     /// Takes an item `code` and return its schema.
     pub fn get(&self, code: &str) -> Option<&ItemSchema> {
         self.data.iter().find(|m| m.code == code)
+    }
+
+    /// Takes an item `code` and return its type.
+    pub fn r#type(&self, code: &str) -> Option<Type> {
+        Type::from_str(&self.get(code)?.r#type).ok()
+    }
+
+    /// Checks an item `code` is of a certain `type`.
+    pub fn is_of_type(&self, code: &str, r#type: Type) -> bool {
+        self.get(code).is_some_and(|i| i.is_of_type(r#type))
     }
 
     /// Takes an item `code` and returns the skill required to craft it.

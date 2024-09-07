@@ -3,7 +3,7 @@ use super::{
     api::{characters::CharactersApi, my_character::MyCharacterApi},
     bank::Bank,
     char_config::CharConfig,
-    items::Items,
+    items::{Items, Type},
     maps::Maps,
     monsters::Monsters,
     resources::Resources,
@@ -28,9 +28,9 @@ use artifactsmmo_openapi::{
     models::{
         equip_schema::{self, Slot},
         unequip_schema, BankItemTransactionResponseSchema, CharacterFightResponseSchema,
-        CharacterSchema, EquipmentResponseSchema, ItemSchema, MapSchema, MonsterSchema,
-        RecyclingResponseSchema, ResourceSchema, SkillResponseSchema, TaskResponseSchema,
-        TaskRewardResponseSchema,
+        CharacterSchema, EquipmentResponseSchema, InventorySlot, ItemSchema, MapSchema,
+        MonsterSchema, RecyclingResponseSchema, ResourceSchema,
+        SkillResponseSchema, TaskResponseSchema, TaskRewardResponseSchema,
     },
 };
 use chrono::{DateTime, Utc};
@@ -317,35 +317,32 @@ impl Character {
         }
     }
 
+    /// Returns a copy of the inventory to be used while depositing or
+    /// withdrawing items.
+    fn inventory_copy(&self) -> Vec<InventorySlot> {
+        self.info.inventory.iter().flatten().cloned().collect_vec()
+    }
+
     fn deposit_all_mats(&mut self) {
-        if self.inventory_total() > 0 {
-            self.info
-                .inventory
-                .iter()
-                .flatten()
-                .filter(|slot| {
-                    self.items
-                        .get(&slot.code)
-                        .is_some_and(|i| i.r#type == "resource")
-                })
-                .cloned()
-                .collect_vec()
-                .iter()
-                .for_each(|i| {
-                    let _ = self.action_deposit(&i.code, i.quantity);
-                })
+        if self.inventory_total() <= 0 {
+            return;
+        }
+        info!("{} is going to depositing all materials to the bank.", self.name);
+        for slot in self.inventory_copy() {
+            if slot.quantity > 0 && self.items.is_of_type(&slot.code, Type::Resource) {
+                let _ = self.action_deposit(&slot.code, slot.quantity);
+            }
         }
     }
 
     fn deposit_all(&mut self) {
-        if self.inventory_total() > 0 {
-            println!("{} depositing all to bank", self.name);
-            if let Some(inventory) = self.info.inventory.clone() {
-                for i in &inventory {
-                    if i.quantity > 0 {
-                        let _ = self.action_deposit(&i.code, i.quantity);
-                    }
-                }
+        if self.inventory_total() <= 0 {
+            return;
+        }
+        info!("{} is going to depositing all items to the bank.", self.name);
+        for slot in self.inventory_copy() {
+            if slot.quantity > 0 {
+                let _ = self.action_deposit(&slot.code, slot.quantity);
             }
         }
     }

@@ -30,8 +30,8 @@ fn run() -> Option<()> {
         bank.clone(),
         CharConfig {
             role: Role::Fighter,
-            //fight_target: Some("pig".to_string()),
-            do_tasks: true,
+            fight_target: Some("mushmush".to_string()),
+            do_tasks: false,
             target_item: Some("copper_ore".to_string()),
             craft_from_bank: false,
             weaponcraft: true,
@@ -53,7 +53,7 @@ fn run() -> Option<()> {
         bank.clone(),
         CharConfig {
             role: Role::Miner,
-            target_item: Some("coal".to_string()),
+            target_item: Some("gold_ore".to_string()),
             ..Default::default()
         },
     );
@@ -67,7 +67,7 @@ fn run() -> Option<()> {
         bank.clone(),
         CharConfig {
             role: Role::Miner,
-            target_item: Some("coal".to_string()),
+            target_item: Some("gold_ore".to_string()),
             ..Default::default()
         },
     );
@@ -81,7 +81,7 @@ fn run() -> Option<()> {
         bank.clone(),
         CharConfig {
             role: Role::Woodcutter,
-            target_item: Some("birch_wood".to_string()),
+            target_item: Some("dead_wood".to_string()),
             ..Default::default()
         },
     );
@@ -95,7 +95,7 @@ fn run() -> Option<()> {
         bank.clone(),
         CharConfig {
             role: Role::Miner,
-            target_item: Some("iron_ore".to_string()),
+            target_item: Some("coal".to_string()),
             ..Default::default()
         },
     );
