@@ -3,7 +3,6 @@ use serde::Deserialize;
 
 #[derive(Debug, Default, Clone, Deserialize)]
 pub struct CharConfig {
-    pub name: String,
     #[serde(default)]
     pub role: Role,
     #[serde(default)]

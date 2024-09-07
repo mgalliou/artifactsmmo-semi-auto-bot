@@ -25,7 +25,7 @@ fn run() -> Option<()> {
     let my_characters_api = MyCharacterApi::new(&config.base_url, &config.token);
     let chars_schema = my_characters_api.characters().unwrap();
     let mut handles: Vec<JoinHandle<()>> = vec![];
-    for char_conf in config.characters {
+    for (conf, schema) in config.characters.iter().zip(chars_schema.data.iter()) {
         handles.push(Character::run(Character::new(
             &account,
             maps.clone(),
@@ -33,8 +33,8 @@ fn run() -> Option<()> {
             monsters.clone(),
             items.clone(),
             bank.clone(),
-            &char_conf,
-            chars_schema.data.iter().find(|c| c.name == char_conf.name).unwrap()
+            conf,
+            schema,
         )).unwrap());
     }
     for handle in handles {

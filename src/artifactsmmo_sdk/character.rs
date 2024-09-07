@@ -74,7 +74,7 @@ impl Character {
         data: &CharacterSchema,
     ) -> Character {
         Character {
-            name: conf.name.to_owned(),
+            name: data.name.to_owned(),
             conf: conf.clone(),
             my_api: MyCharacterApi::new(
                 &account.configuration.base_path,
@@ -91,7 +91,7 @@ impl Character {
     }
 
     pub fn run(mut char: Character) -> Result<JoinHandle<()>, io::Error> {
-        println!("{}: started !", char.conf.name);
+        println!("{}: started !", char.data.name);
         thread::Builder::new()
             .name(char.data.name.to_string())
             .spawn(move || {
