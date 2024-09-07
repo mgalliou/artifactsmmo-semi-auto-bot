@@ -36,6 +36,7 @@ use artifactsmmo_openapi::{
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use log::{info, warn};
+use serde::Deserialize;
 use std::{
     cmp::Ordering,
     io,
@@ -47,6 +48,7 @@ use std::{
 };
 
 pub struct Character {
+    conf: CharConfig,
     pub name: String,
     pub info: CharacterSchema,
     my_api: MyCharacterApi,
@@ -56,28 +58,27 @@ pub struct Character {
     monsters: Arc<Monsters>,
     items: Arc<Items>,
     bank: Arc<RwLock<Bank>>,
-    conf: CharConfig,
 }
 
 impl Character {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
+        conf: &CharConfig,
         account: &Account,
-        name: &str,
         maps: Arc<Maps>,
         resources: Arc<Resources>,
         monsters: Arc<Monsters>,
         items: Arc<Items>,
         bank: Arc<RwLock<Bank>>,
-        conf: CharConfig,
     ) -> Character {
         let api = CharactersApi::new(
             &account.configuration.base_path,
             &account.configuration.bearer_access_token.clone().unwrap(),
         );
         Character {
-            name: name.to_owned(),
-            info: *api.get(name).unwrap().data,
+            conf: conf.clone(),
+            name: conf.name.to_owned(),
+            info: *api.get(&conf.name).unwrap().data,
             my_api: MyCharacterApi::new(
                 &account.configuration.base_path,
                 &account.configuration.bearer_access_token.clone().unwrap(),
@@ -88,11 +89,11 @@ impl Character {
             monsters,
             items,
             bank,
-            conf,
         }
     }
 
     pub fn run(mut char: Character) -> Result<JoinHandle<()>, io::Error> {
+        println!("{}: started !", char.conf.name);
         thread::Builder::new()
             .name(char.name.to_string())
             .spawn(move || {
@@ -806,7 +807,7 @@ impl Character {
     // }
 }
 
-#[derive(PartialEq, Default)]
+#[derive(Debug, Default, PartialEq, Clone, Deserialize)]
 pub enum Role {
     Fighter,
     Miner,

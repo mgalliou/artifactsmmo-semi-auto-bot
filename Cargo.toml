@@ -16,3 +16,5 @@ strum_macros = "0.26.4"
 log = "0.4"
 itertools = "0.13.0"
 env_logger = "0.11.5"
+figment = { version = "0.10", features = ["toml"] }
+serde = "1.0.210"
