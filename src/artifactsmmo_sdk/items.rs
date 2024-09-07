@@ -282,7 +282,7 @@ impl Items {
     pub fn best_for_leveling(&self, level: i32, skill: Skill) -> Option<&ItemSchema> {
         self.providing_exp(level, skill)
             .into_iter()
-            .filter(|i| i.is_crafted_with("jasper_crystal"))
+            .filter(|i| !i.is_crafted_with("jasper_crystal") || i.is_crafted_with("magical_cure"))
             .min_set_by_key(|i| (self.base_mats_drop_rate(&i.code) * 100.0) as i32)
             .into_iter()
             .min_set_by_key(|i| self.base_mats_buy_price(&i.code))

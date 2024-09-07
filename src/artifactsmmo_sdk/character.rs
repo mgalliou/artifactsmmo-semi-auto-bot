@@ -144,7 +144,7 @@ impl Character {
             if self.conf.process_gathered {
                 self.process_raw_mats();
             }
-            self.deposit_all();
+            self.deposit_all_mats();
         }
     }
 
@@ -317,9 +317,28 @@ impl Character {
         }
     }
 
+    fn deposit_all_mats(&mut self) {
+        if self.inventory_total() > 0 {
+            self.info
+                .inventory
+                .iter()
+                .flatten()
+                .filter(|slot| {
+                    self.items
+                        .get(&slot.code)
+                        .is_some_and(|i| i.r#type == "resource")
+                })
+                .cloned()
+                .collect_vec()
+                .iter()
+                .for_each(|i| {
+                    let _ = self.action_deposit(&i.code, i.quantity);
+                })
+        }
+    }
+
     fn deposit_all(&mut self) {
         if self.inventory_total() > 0 {
-            self.move_to_bank();
             println!("{} depositing all to bank", self.name);
             if let Some(inventory) = self.info.inventory.clone() {
                 for i in &inventory {
@@ -355,7 +374,6 @@ impl Character {
 
     /// .withdraw the maximum available amount of mats used to craft the item `code`
     fn withdraw_max_mats_for(&mut self, code: &str) -> bool {
-        self.move_to_bank();
         println!(
             "{}: getting maximum amount of mats in bank to craft {}",
             self.name, code
@@ -446,6 +464,7 @@ impl Character {
         BankItemTransactionResponseSchema,
         Error<ActionWithdrawBankMyNameActionBankWithdrawPostError>,
     > {
+        self.move_to_bank();
         self.wait_for_cooldown();
         let res = self.my_api.withdraw(&self.name, code, quantity);
         match res {
@@ -473,6 +492,7 @@ impl Character {
         BankItemTransactionResponseSchema,
         Error<ActionDepositBankMyNameActionBankDepositPostError>,
     > {
+        self.move_to_bank();
         self.wait_for_cooldown();
         let res = self.my_api.deposit(&self.name, code, quantity);
         match res {
@@ -745,7 +765,6 @@ impl Character {
 
     fn improve_weapon(&mut self) {
         if let Some(code) = self.weapon_upgrade_in_bank() {
-            self.move_to_bank();
             if let Some(equiped_weapon) = self.equipment_in(Slot::Weapon).cloned() {
                 if self.action_unequip(unequip_schema::Slot::Weapon).is_ok() {
                     let _ = self.action_deposit(&equiped_weapon.code, 1);
