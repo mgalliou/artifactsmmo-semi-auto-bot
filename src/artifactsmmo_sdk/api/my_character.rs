@@ -9,6 +9,7 @@ use artifactsmmo_openapi::{
             action_equip_item_my_name_action_equip_post, action_fight_my_name_action_fight_post,
             action_gathering_my_name_action_gathering_post, action_move_my_name_action_move_post,
             action_recycling_my_name_action_recycling_post,
+            action_task_cancel_my_name_action_task_cancel_post,
             action_unequip_item_my_name_action_unequip_post,
             action_withdraw_bank_my_name_action_bank_withdraw_post,
             get_my_characters_my_characters_get, ActionAcceptNewTaskMyNameActionTaskNewPostError,
@@ -18,6 +19,7 @@ use artifactsmmo_openapi::{
             ActionEquipItemMyNameActionEquipPostError, ActionFightMyNameActionFightPostError,
             ActionGatheringMyNameActionGatheringPostError, ActionMoveMyNameActionMovePostError,
             ActionRecyclingMyNameActionRecyclingPostError,
+            ActionTaskCancelMyNameActionTaskCancelPostError,
             ActionUnequipItemMyNameActionUnequipPostError,
             ActionWithdrawBankMyNameActionBankWithdrawPostError,
             GetMyCharactersMyCharactersGetError,
@@ -29,7 +31,7 @@ use artifactsmmo_openapi::{
         CharacterFightResponseSchema, CharacterMovementResponseSchema, CraftingSchema,
         DestinationSchema, EquipSchema, EquipmentResponseSchema, MyCharactersListSchema,
         RecyclingResponseSchema, RecyclingSchema, SimpleItemSchema, SkillResponseSchema,
-        TaskResponseSchema, TaskRewardResponseSchema, UnequipSchema,
+        TaskCancelledResponseSchema, TaskResponseSchema, TaskRewardResponseSchema, UnequipSchema,
     },
 };
 
@@ -170,6 +172,14 @@ impl MyCharacterApi {
     ) -> Result<TaskRewardResponseSchema, Error<ActionCompleteTaskMyNameActionTaskCompletePostError>>
     {
         action_complete_task_my_name_action_task_complete_post(&self.configuration, name)
+    }
+
+    pub fn cancel_task(
+        &self,
+        name: &str,
+    ) -> Result<TaskCancelledResponseSchema, Error<ActionTaskCancelMyNameActionTaskCancelPostError>>
+    {
+        action_task_cancel_my_name_action_task_cancel_post(&self.configuration, name)
     }
 
     pub fn all(

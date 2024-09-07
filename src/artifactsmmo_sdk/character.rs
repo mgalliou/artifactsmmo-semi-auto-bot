@@ -20,6 +20,7 @@ use artifactsmmo_openapi::{
             ActionEquipItemMyNameActionEquipPostError, ActionFightMyNameActionFightPostError,
             ActionGatheringMyNameActionGatheringPostError,
             ActionRecyclingMyNameActionRecyclingPostError,
+            ActionTaskCancelMyNameActionTaskCancelPostError,
             ActionUnequipItemMyNameActionUnequipPostError,
             ActionWithdrawBankMyNameActionBankWithdrawPostError,
         },
@@ -30,7 +31,7 @@ use artifactsmmo_openapi::{
         unequip_schema, BankItemTransactionResponseSchema, CharacterFightResponseSchema,
         CharacterSchema, EquipmentResponseSchema, InventorySlot, ItemSchema, MapSchema,
         MonsterSchema, RecyclingResponseSchema, ResourceSchema, SkillResponseSchema,
-        TaskResponseSchema, TaskRewardResponseSchema,
+        TaskCancelledResponseSchema, TaskResponseSchema, TaskRewardResponseSchema,
     },
 };
 use chrono::{DateTime, Utc};
@@ -148,7 +149,6 @@ impl Character {
 
     fn process_task(&mut self) {
         if self.data.task.is_empty() || self.task_finished() {
-            self.action_move(1, 2);
             if self.task_finished() {
                 let _ = self.action_complete_task();
             }
@@ -589,6 +589,7 @@ impl Character {
     fn action_accept_task(
         &mut self,
     ) -> Result<TaskResponseSchema, Error<ActionAcceptNewTaskMyNameActionTaskNewPostError>> {
+        self.action_move(1, 2);
         self.wait_for_cooldown();
         let res = self.my_api.accept_task(&self.name);
         match res {
@@ -605,11 +606,29 @@ impl Character {
         &mut self,
     ) -> Result<TaskRewardResponseSchema, Error<ActionCompleteTaskMyNameActionTaskCompletePostError>>
     {
+        self.action_move(1, 2);
         self.wait_for_cooldown();
         let res = self.my_api.complete_task(&self.name);
         match res {
             Ok(ref res) => {
                 println!("{}: completed task: {:?}", self.name, res.data.reward);
+                self.data = *res.data.character.clone();
+            }
+            Err(ref e) => println!("{}: error while accepting: {}", self.name, e),
+        }
+        res
+    }
+
+    fn action_cancel_task(
+        &mut self,
+    ) -> Result<TaskCancelledResponseSchema, Error<ActionTaskCancelMyNameActionTaskCancelPostError>>
+    {
+        self.action_move(1, 2);
+        self.wait_for_cooldown();
+        let res = self.my_api.cancel_task(&self.name);
+        match res {
+            Ok(ref res) => {
+                println!("{}: canceled task: {:?}", self.name, self.data.task);
                 self.data = *res.data.character.clone();
             }
             Err(ref e) => println!("{}: error while accepting: {}", self.name, e),
