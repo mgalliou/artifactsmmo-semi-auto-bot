@@ -9,6 +9,7 @@ use artifactsmmo_openapi::{
     models::{CharacterSchema, StatusResponseSchema},
 };
 use chrono::{DateTime, TimeDelta, Utc};
+use log::debug;
 
 #[derive(Clone)]
 pub struct Account {
@@ -32,14 +33,14 @@ impl Account {
         let server_time = account.server_time().unwrap();
         let now = Utc::now();
         account.server_offset = now - server_time;
-        println!("system time: {}", now);
-        println!("server time: {}", account.server_time().unwrap());
-        println!(
+        debug!("system time: {}", now);
+        debug!("server time: {}", account.server_time().unwrap());
+        debug!(
             "time offset: {}s and {}ms",
             account.server_offset.num_seconds(),
             account.server_offset.subsec_nanos() / 1000000
         );
-        println!("synced time: {}", now - account.server_offset);
+        debug!("synced time: {}", now - account.server_offset);
         account
     }
 

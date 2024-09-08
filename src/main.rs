@@ -9,9 +9,10 @@ use std::{
     sync::{Arc, RwLock},
     thread::JoinHandle,
 };
+use log::LevelFilter;
 
 fn run() -> Option<()> {
-    env_logger::init();
+    let _ = simple_logging::log_to_file("artifactsmmo.log", LevelFilter::Info);
     let config: Config = Figment::new()
         .merge(Toml::file_exact("ArtifactsMMO.toml"))
         .extract()

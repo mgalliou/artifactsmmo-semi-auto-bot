@@ -336,4 +336,61 @@ impl Items {
             .cloned()
             .collect_vec()
     }
+
+    /// Takes a `level` and a item `code` and returns all the items of the same
+    /// type for which the level is between the given `level` and the item level.
+    pub fn potential_upgrade(&self, level: i32, code: &str) -> Vec<&ItemSchema> {
+        self.data
+            .iter()
+            .filter(|u| {
+                self.get(code)
+                    .is_some_and(|i| u.r#type == i.r#type && u.level >= i.level)
+                    && u.level <= level
+            })
+            .collect_vec()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use figment::{
+        providers::{Format, Toml},
+        Figment,
+    };
+    use itertools::Itertools;
+
+    use crate::artifactsmmo_sdk::{
+        account::Account, config::Config, monsters::Monsters, resources::Resources,
+    };
+
+    use super::Items;
+
+    #[test]
+    fn tests() {
+        let config: Config = Figment::new()
+            .merge(Toml::file_exact("ArtifactsMMO.toml"))
+            .extract()
+            .unwrap();
+        let account = Account::new(&config.base_url, &config.token);
+        let resources = Arc::new(Resources::new(&account));
+        let monsters = Arc::new(Monsters::new(&account));
+        let items = Arc::new(Items::new(&account, resources.clone(), monsters.clone()));
+
+        assert_eq!(
+            items
+                .potential_upgrade(10, "copper_armor")
+                .iter()
+                .map(|i| &i.code)
+                .collect_vec(),
+            vec![
+                "feather_coat",
+                "copper_armor",
+                "leather_armor",
+                "iron_armor",
+                "adventurer_vest"
+            ]
+        )
+    }
 }

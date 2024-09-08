@@ -36,7 +36,7 @@ use artifactsmmo_openapi::{
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
-use log::{info, warn};
+use log::{error, info, warn};
 use serde::Deserialize;
 use std::{
     cmp::Ordering,
@@ -91,7 +91,7 @@ impl Character {
     }
 
     pub fn run(mut char: Character) -> Result<JoinHandle<()>, io::Error> {
-        println!("{}: started !", char.data.name);
+        info!("{}: started !", char.data.name);
         thread::Builder::new()
             .name(char.data.name.to_string())
             .spawn(move || {
@@ -352,7 +352,7 @@ impl Character {
     }
 
     fn withdraw_mats_for(&mut self, code: &str, quantity: i32) -> bool {
-        println!(
+        info!(
             "{}: withdrawing mats for {} * {}",
             self.name, code, quantity
         );
@@ -375,7 +375,7 @@ impl Character {
 
     /// .withdraw the maximum available amount of mats used to craft the item `code`
     fn withdraw_max_mats_for(&mut self, code: &str) -> bool {
-        println!(
+        info!(
             "{}: getting maximum amount of mats in bank to craft {}",
             self.name, code
         );
@@ -390,13 +390,13 @@ impl Character {
     }
 
     fn craft_all(&mut self, code: &str) -> bool {
-        println!("{}: crafting all {}", self.name, code);
+        info!("{}: crafting all {}", self.name, code);
         let n = self.has_mats_for(code);
         if n > 0 && self.action_craft(code, n).is_ok() {
-            println!("{} crafted all {} ({})", self.name, code, n);
+            info!("{} crafted all {} ({})", self.name, code, n);
             return true;
         }
-        info!("{} failed to crafted all {} ({})", self.name, code, n);
+        error!("{} failed to crafted all {} ({})", self.name, code, n);
         false
     }
 
@@ -411,14 +411,14 @@ impl Character {
         self.wait_for_cooldown();
         match self.my_api.move_to(&self.name, x, y) {
             Ok(res) => {
-                println!(
+                info!(
                     "{}: moved to {},{} ({})",
                     self.name, x, y, res.data.destination.name
                 );
                 self.data = *res.data.character.clone();
                 return true;
             }
-            Err(ref e) => println!("{}: error while moving: {}", self.name, e),
+            Err(ref e) => error!("{}: error while moving: {}", self.name, e),
         }
         false
     }
@@ -430,10 +430,10 @@ impl Character {
         let res = self.my_api.fight(&self.name);
         match res {
             Ok(ref res) => {
-                println!("{} fought and {:?}", self.name, res.data.fight.result);
+                info!("{} fought and {:?}", self.name, res.data.fight.result);
                 self.data = *res.data.character.clone();
             }
-            Err(ref e) => println!("{}: error during fight: {}", self.name, e),
+            Err(ref e) => error!("{}: error during fight: {}", self.name, e),
         };
         res
     }
@@ -445,14 +445,10 @@ impl Character {
         let res = self.my_api.gather(&self.name);
         match res {
             Ok(ref res) => {
-                print!("{}: gathered: ", self.name);
-                for item in &res.data.details.items {
-                    print!("{} * {},", item.code, item.quantity);
-                }
-                println!();
+                info!("{}: gathered: {:?}", self.name, res.data.details);
                 self.data = *res.data.character.clone();
             }
-            Err(ref e) => println!("{}: error during gathering: {}", self.name, e),
+            Err(ref e) => error!("{}: error during gathering: {}", self.name, e),
         };
         res
     }
@@ -470,14 +466,14 @@ impl Character {
         let res = self.my_api.withdraw(&self.name, code, quantity);
         match res {
             Ok(ref res) => {
-                println!("{}: withdrawed {} {}", self.name, code, quantity);
+                info!("{}: withdrawed {} {}", self.name, code, quantity);
                 self.data = *res.data.character.clone();
                 let _ = self
                     .bank
                     .write()
                     .map(|mut bank| bank.content = res.data.bank.clone());
             }
-            Err(ref e) => println!(
+            Err(ref e) => error!(
                 "{}: error while withdrawing {} * {}: {}",
                 self.name, code, quantity, e
             ),
@@ -498,14 +494,14 @@ impl Character {
         let res = self.my_api.deposit(&self.name, code, quantity);
         match res {
             Ok(ref res) => {
-                println!("{}: deposited {} * {}", self.name, code, quantity);
+                info!("{}: deposited {} * {}", self.name, code, quantity);
                 self.data = *res.data.character.clone();
                 let _ = self
                     .bank
                     .write()
                     .map(|mut bank| bank.content = res.data.bank.clone());
             }
-            Err(ref e) => println!(
+            Err(ref e) => error!(
                 "{}: error while depositing {} * {}: {}",
                 self.name, code, quantity, e
             ),
@@ -523,10 +519,10 @@ impl Character {
         let res = self.my_api.craft(&self.name, code, quantity);
         match res {
             Ok(ref res) => {
-                println!("{}: crafted {}, {}", self.name, quantity, code);
+                info!("{}: crafted {}, {}", self.name, quantity, code);
                 self.data = *res.data.character.clone();
             }
-            Err(ref e) => println!("{}: error during crafting: {}", self.name, e),
+            Err(ref e) => error!("{}: error during crafting: {}", self.name, e),
         };
         res
     }
@@ -541,10 +537,10 @@ impl Character {
         let res = self.my_api.recycle(&self.name, code, quantity);
         match res {
             Ok(ref res) => {
-                println!("{}: recycled {}, {}", self.name, quantity, code);
+                info!("{}: recycled {}, {}", self.name, quantity, code);
                 self.data = *res.data.character.clone();
             }
-            Err(ref e) => println!("{}: error during crafting: {}", self.name, e),
+            Err(ref e) => error!("{}: error during crafting: {}", self.name, e),
         };
         res
     }
@@ -558,13 +554,13 @@ impl Character {
         let res = self.my_api.equip(&self.name, code, slot, None);
         match res {
             Ok(ref res) => {
-                println!(
+                info!(
                     "{}: equiped {} in {:?} slot",
                     self.name, res.data.item.code, res.data.slot
                 );
                 self.data = *res.data.character.clone();
             }
-            Err(ref e) => println!("{}: error while unequiping: {}", self.name, e),
+            Err(ref e) => error!("{}: error while unequiping: {}", self.name, e),
         }
         res
     }
@@ -577,13 +573,13 @@ impl Character {
         let res = self.my_api.unequip(&self.name, slot, None);
         match res {
             Ok(ref res) => {
-                println!(
+                info!(
                     "{}: unequiped {} from {:?} slot",
                     self.name, res.data.item.code, res.data.slot
                 );
                 self.data = *res.data.character.clone();
             }
-            Err(ref e) => println!("{}: error while unequiping: {}", self.name, e),
+            Err(ref e) => error!("{}: error while unequiping: {}", self.name, e),
         }
         res
     }
@@ -596,10 +592,10 @@ impl Character {
         let res = self.my_api.accept_task(&self.name);
         match res {
             Ok(ref res) => {
-                println!("{}: accepted new task: {:?}", self.name, res.data.task);
+                info!("{}: accepted new task: {:?}", self.name, res.data.task);
                 self.data = *res.data.character.clone();
             }
-            Err(ref e) => println!("{}: error while accepting: {}", self.name, e),
+            Err(ref e) => error!("{}: error while accepting: {}", self.name, e),
         }
         res
     }
@@ -613,10 +609,10 @@ impl Character {
         let res = self.my_api.complete_task(&self.name);
         match res {
             Ok(ref res) => {
-                println!("{}: completed task: {:?}", self.name, res.data.reward);
+                error!("{}: completed task: {:?}", self.name, res.data.reward);
                 self.data = *res.data.character.clone();
             }
-            Err(ref e) => println!("{}: error while accepting: {}", self.name, e),
+            Err(ref e) => error!("{}: error while accepting: {}", self.name, e),
         }
         res
     }
@@ -630,10 +626,10 @@ impl Character {
         let res = self.my_api.cancel_task(&self.name);
         match res {
             Ok(ref res) => {
-                println!("{}: canceled task: {:?}", self.name, self.data.task);
+                info!("{}: canceled task: {:?}", self.name, self.data.task);
                 self.data = *res.data.character.clone();
             }
-            Err(ref e) => println!("{}: error while accepting: {}", self.name, e),
+            Err(ref e) => error!("{}: error while accepting: {}", self.name, e),
         }
         res
     }
@@ -643,7 +639,7 @@ impl Character {
         if s.is_zero() {
             return;
         }
-        println!(
+        info!(
             "{}: cooling down for {}.{} secondes",
             self.name,
             s.as_secs(),
@@ -811,11 +807,11 @@ impl Character {
     //     loop {
     //         if let Err(Error::ResponseError(res)) = self.fight() {
     //             if res.status.eq(&StatusCode::from_u16(499).unwrap()) {
-    //                 println!("{}: needs to cooldown", self.name);
+    //                 error!("{}: needs to cooldown", self.name);
     //                 self.cool_down(self.remaining_cooldown());
     //             }
     //             if res.status.eq(&StatusCode::from_u16(497).unwrap()) {
-    //                 println!("{}: inventory is full", self.name);
+    //                 error!("{}: inventory is full", self.name);
     //                 self.move_to_bank();
     //                 self.deposit_all();
     //                 let _ = self.move_to(x, y);

@@ -1,0 +1,101 @@
+[00:00:03.508] (7f0477595840) INFO   Jio: started !
+[00:00:03.508] (7f04762bd6c0) INFO   Jio: cooling down for 18.605 secondes
+[00:00:03.515] (7f0477595840) INFO   Eraly: started !
+[00:00:03.522] (7f0477595840) INFO   Nalgisk: started !
+[00:00:03.529] (7f0477595840) INFO   Tieleja: started !
+[00:00:03.536] (7f0477595840) INFO   Kvarask: started !
+[00:00:03.537] (7f0474c916c0) INFO   Kvarask: cooling down for 3.901 secondes
+[00:00:04.221] (7f0475eb56c0) INFO   Eraly: gathered: SkillInfoSchema { xp: 32, items: [DropSchema { code: "gold_ore", quantity: 1 }] }
+[00:00:04.221] (7f0475eb56c0) INFO   Eraly: cooling down for 24.632 secondes
+[00:00:04.241] (7f04758a96c0) INFO   Nalgisk: gathered: SkillInfoSchema { xp: 32, items: [DropSchema { code: "gold_ore", quantity: 1 }] }
+[00:00:04.241] (7f04758a96c0) INFO   Nalgisk: cooling down for 24.624 secondes
+[00:00:04.245] (7f047529d6c0) INFO   Tieleja: gathered: SkillInfoSchema { xp: 32, items: [DropSchema { code: "dead_wood", quantity: 1 }] }
+[00:00:04.245] (7f047529d6c0) INFO   Tieleja: cooling down for 24.622 secondes
+[00:00:08.173] (7f0474c916c0) INFO   Kvarask: gathered: SkillInfoSchema { xp: 24, items: [DropSchema { code: "coal", quantity: 1 }] }
+[00:00:08.173] (7f0474c916c0) INFO   Kvarask: cooling down for 23.627 secondes
+[00:00:22.720] (7f04762bd6c0) INFO   Jio fought and Win
+[00:00:22.720] (7f04762bd6c0) INFO   Jio: cooling down for 31.756 secondes
+[00:00:29.498] (7f047529d6c0) INFO   Tieleja: gathered: SkillInfoSchema { xp: 32, items: [DropSchema { code: "dead_wood", quantity: 1 }] }
+[00:00:29.498] (7f047529d6c0) INFO   Tieleja: cooling down for 24.689 secondes
+[00:00:29.504] (7f04758a96c0) INFO   Nalgisk: gathered: SkillInfoSchema { xp: 32, items: [DropSchema { code: "gold_ore", quantity: 1 }] }
+[00:00:29.504] (7f04758a96c0) INFO   Nalgisk: cooling down for 24.684 secondes
+[00:00:29.505] (7f0475eb56c0) INFO   Eraly: gathered: SkillInfoSchema { xp: 32, items: [DropSchema { code: "gold_ore", quantity: 1 }] }
+[00:00:29.506] (7f0475eb56c0) INFO   Eraly: cooling down for 24.681 secondes
+[00:00:32.438] (7f0474c916c0) INFO   Kvarask: gathered: SkillInfoSchema { xp: 24, items: [DropSchema { code: "coal", quantity: 1 }] }
+[00:00:32.438] (7f0474c916c0) INFO   Kvarask: cooling down for 23.695 secondes
+[00:00:54.837] (7f047529d6c0) INFO   Tieleja: gathered: SkillInfoSchema { xp: 32, items: [DropSchema { code: "dead_wood", quantity: 1 }] }
+[00:00:54.837] (7f047529d6c0) INFO   Tieleja: cooling down for 24.683 secondes
+[00:00:54.847] (7f0475eb56c0) INFO   Eraly: gathered: SkillInfoSchema { xp: 32, items: [DropSchema { code: "gold_ore", quantity: 1 }] }
+[00:00:54.847] (7f0475eb56c0) INFO   Eraly: cooling down for 24.672 secondes
+[00:00:55.118] (7f04762bd6c0) INFO   Jio fought and Win
+[00:00:55.118] (7f04762bd6c0) INFO   Jio: cooling down for 31.706 secondes
+[00:00:55.257] (7f04758a96c0) INFO   Nalgisk: gathered: SkillInfoSchema { xp: 32, items: [DropSchema { code: "gold_ore", quantity: 1 }] }
+[00:00:55.257] (7f04758a96c0) INFO   Nalgisk: cooling down for 24.624 secondes
+[00:00:56.794] (7f0474c916c0) INFO   Kvarask: gathered: SkillInfoSchema { xp: 24, items: [DropSchema { code: "coal", quantity: 1 }] }
+[00:00:56.794] (7f0474c916c0) INFO   Kvarask: cooling down for 23.664 secondes
+[00:01:20.232] (7f047529d6c0) INFO   Tieleja: gathered: SkillInfoSchema { xp: 32, items: [DropSchema { code: "dead_wood", quantity: 1 }] }
+[00:01:20.233] (7f047529d6c0) INFO   Tieleja: cooling down for 24.625 secondes
+[00:01:20.237] (7f0475eb56c0) INFO   Eraly: gathered: SkillInfoSchema { xp: 32, items: [DropSchema { code: "gold_ore", quantity: 1 }] }
+[00:01:20.238] (7f0475eb56c0) INFO   Eraly: cooling down for 24.614 secondes
+[00:01:20.623] (7f04758a96c0) INFO   Nalgisk: gathered: SkillInfoSchema { xp: 32, items: [DropSchema { code: "gold_ore", quantity: 1 }] }
+[00:01:20.623] (7f04758a96c0) INFO   Nalgisk: cooling down for 24.647 secondes
+[00:01:21.125] (7f0474c916c0) INFO   Kvarask: gathered: SkillInfoSchema { xp: 24, items: [DropSchema { code: "coal", quantity: 1 }] }
+[00:01:21.125] (7f0474c916c0) INFO   Kvarask: cooling down for 23.682 secondes
+[00:01:27.762] (7f04762bd6c0) INFO   Jio fought and Win
+[00:01:27.762] (7f04762bd6c0) INFO   Jio: cooling down for 31.699 secondes
+[00:01:45.497] (7f047529d6c0) INFO   Tieleja: gathered: SkillInfoSchema { xp: 32, items: [DropSchema { code: "dead_wood", quantity: 1 }] }
+[00:01:45.497] (7f047529d6c0) INFO   Tieleja: cooling down for 24.693 secondes
+[00:01:45.785] (7f0474c916c0) INFO   Kvarask: gathered: SkillInfoSchema { xp: 24, items: [DropSchema { code: "coal", quantity: 1 }] }
+[00:01:45.785] (7f0474c916c0) INFO   Kvarask: cooling down for 23.670 secondes
+[00:01:45.813] (7f0475eb56c0) INFO   Eraly: gathered: SkillInfoSchema { xp: 32, items: [DropSchema { code: "gold_ore", quantity: 1 }] }
+[00:01:45.813] (7f0475eb56c0) INFO   Eraly: cooling down for 24.686 secondes
+[00:01:45.910] (7f04758a96c0) INFO   Nalgisk: gathered: SkillInfoSchema { xp: 32, items: [DropSchema { code: "gold_ore", quantity: 1 }] }
+[00:01:45.910] (7f04758a96c0) INFO   Nalgisk: cooling down for 24.685 secondes
+[00:02:00.020] (7f04762bd6c0) INFO   Jio fought and Win
+[00:02:00.020] (7f04762bd6c0) INFO   Jio: cooling down for 31.762 secondes
+[00:02:10.295] (7f0474c916c0) INFO   Kvarask: gathered: SkillInfoSchema { xp: 24, items: [DropSchema { code: "coal", quantity: 1 }] }
+[00:02:10.295] (7f0474c916c0) INFO   Kvarask: cooling down for 23.635 secondes
+[00:02:10.911] (7f047529d6c0) INFO   Tieleja: gathered: SkillInfoSchema { xp: 32, items: [DropSchema { code: "dead_wood", quantity: 1 }] }
+[00:02:10.911] (7f047529d6c0) INFO   Tieleja: cooling down for 24.622 secondes
+[00:02:11.206] (7f0475eb56c0) INFO   Eraly: gathered: SkillInfoSchema { xp: 32, items: [DropSchema { code: "gold_ore", quantity: 1 }] }
+[00:02:11.206] (7f0475eb56c0) INFO   Eraly: cooling down for 23.636 secondes
+[00:02:11.254] (7f04758a96c0) INFO   Nalgisk: gathered: SkillInfoSchema { xp: 32, items: [DropSchema { code: "gold_ore", quantity: 1 }] }
+[00:02:11.254] (7f04758a96c0) INFO   Nalgisk: cooling down for 23.693 secondes
+[00:02:32.382] (7f04762bd6c0) INFO   Jio fought and Win
+[00:02:32.382] (7f04762bd6c0) INFO   Jio: cooling down for 31.727 secondes
+[00:02:34.599] (7f0474c916c0) INFO   Kvarask: gathered: SkillInfoSchema { xp: 24, items: [DropSchema { code: "coal", quantity: 1 }] }
+[00:02:34.600] (7f0474c916c0) INFO   Kvarask: cooling down for 23.680 secondes
+[00:02:35.493] (7f0475eb56c0) INFO   Eraly: gathered: SkillInfoSchema { xp: 32, items: [DropSchema { code: "gold_ore", quantity: 1 }] }
+[00:02:35.493] (7f0475eb56c0) INFO   Eraly: cooling down for 23.686 secondes
+[00:02:35.612] (7f04758a96c0) INFO   Nalgisk: gathered: SkillInfoSchema { xp: 32, items: [DropSchema { code: "gold_ore", quantity: 1 }] }
+[00:02:35.612] (7f04758a96c0) INFO   Nalgisk: cooling down for 23.686 secondes
+[00:02:36.179] (7f047529d6c0) INFO   Tieleja: gathered: SkillInfoSchema { xp: 32, items: [DropSchema { code: "dead_wood", quantity: 1 }] }
+[00:02:36.179] (7f047529d6c0) INFO   Tieleja: cooling down for 24.687 secondes
+[00:02:58.997] (7f0474c916c0) INFO   Kvarask: gathered: SkillInfoSchema { xp: 24, items: [DropSchema { code: "coal", quantity: 1 }] }
+[00:02:58.997] (7f0474c916c0) INFO   Kvarask: cooling down for 23.614 secondes
+[00:02:59.925] (7f04758a96c0) INFO   Nalgisk: gathered: SkillInfoSchema { xp: 32, items: [DropSchema { code: "gold_ore", quantity: 1 }] }
+[00:02:59.926] (7f04758a96c0) INFO   Nalgisk: cooling down for 23.699 secondes
+[00:03:00.131] (7f0475eb56c0) INFO   Eraly: gathered: SkillInfoSchema { xp: 32, items: [DropSchema { code: "gold_ore", quantity: 1 }] }
+[00:03:00.131] (7f0475eb56c0) INFO   Eraly: cooling down for 23.689 secondes
+[00:03:01.584] (7f047529d6c0) INFO   Tieleja: gathered: SkillInfoSchema { xp: 32, items: [DropSchema { code: "dead_wood", quantity: 1 }] }
+[00:03:01.585] (7f047529d6c0) INFO   Tieleja: cooling down for 24.660 secondes
+[00:03:04.728] (7f04762bd6c0) INFO   Jio fought and Win
+[00:03:04.730] (7f04762bd6c0) INFO   Jio: cooling down for 31.752 secondes
+[00:03:23.256] (7f0474c916c0) INFO   Kvarask: gathered: SkillInfoSchema { xp: 24, items: [DropSchema { code: "coal", quantity: 1 }] }
+[00:03:23.256] (7f0474c916c0) INFO   Kvarask: cooling down for 23.689 secondes
+[00:03:24.257] (7f04758a96c0) INFO   Nalgisk: gathered: SkillInfoSchema { xp: 32, items: [DropSchema { code: "gold_ore", quantity: 1 }] }
+[00:03:24.257] (7f04758a96c0) INFO   Nalgisk: cooling down for 23.696 secondes
+[00:03:24.500] (7f0475eb56c0) INFO   Eraly: gathered: SkillInfoSchema { xp: 32, items: [DropSchema { code: "gold_ore", quantity: 1 }] }
+[00:03:24.500] (7f0475eb56c0) INFO   Eraly: cooling down for 23.648 secondes
+[00:03:26.872] (7f047529d6c0) INFO   Tieleja: gathered: SkillInfoSchema { xp: 32, items: [DropSchema { code: "dead_wood", quantity: 1 }] }
+[00:03:26.872] (7f047529d6c0) INFO   Tieleja: cooling down for 24.694 secondes
+[00:03:37.057] (7f04762bd6c0) INFO   Jio fought and Win
+[00:03:37.057] (7f04762bd6c0) INFO   Jio: cooling down for 31.761 secondes
+[00:03:47.576] (7f0474c916c0) INFO   Kvarask: gathered: SkillInfoSchema { xp: 24, items: [DropSchema { code: "coal", quantity: 1 }] }
+[00:03:47.576] (7f0474c916c0) INFO   Kvarask: cooling down for 23.697 secondes
+[00:03:48.610] (7f04758a96c0) INFO   Nalgisk: gathered: SkillInfoSchema { xp: 32, items: [DropSchema { code: "gold_ore", quantity: 1 }] }
+[00:03:48.610] (7f04758a96c0) INFO   Nalgisk: cooling down for 23.685 secondes
+[00:03:48.791] (7f0475eb56c0) INFO   Eraly: gathered: SkillInfoSchema { xp: 32, items: [DropSchema { code: "gold_ore", quantity: 1 }] }
+[00:03:48.791] (7f0475eb56c0) INFO   Eraly: cooling down for 23.701 secondes
+[00:03:52.244] (7f047529d6c0) INFO   Tieleja: gathered: SkillInfoSchema { xp: 32, items: [DropSchema { code: "dead_wood", quantity: 1 }] }
+[00:03:52.245] (7f047529d6c0) INFO   Tieleja: cooling down for 24.684 secondes
