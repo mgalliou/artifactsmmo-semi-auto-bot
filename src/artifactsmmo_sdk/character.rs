@@ -451,7 +451,7 @@ impl Character {
             .iter()
             .filter(|mat| mat.quantity > 0)
             .map(|mat| self.amount_in_inventory(&mat.code) / mat.quantity)
-            .max()
+            .min()
             .unwrap_or(0)
     }
 
