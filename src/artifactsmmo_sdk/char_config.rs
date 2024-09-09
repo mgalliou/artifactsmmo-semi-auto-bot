@@ -12,6 +12,8 @@ pub struct CharConfig {
     #[serde(default)]
     pub level: bool,
     #[serde(default)]
+    pub target_craft: Option<String>,
+    #[serde(default)]
     pub target_item: Option<String>,
     #[serde(default)]
     pub process_gathered: bool,

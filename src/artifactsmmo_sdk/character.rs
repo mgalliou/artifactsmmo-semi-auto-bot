@@ -99,24 +99,13 @@ impl Character {
                     return;
                 }
             }
-            if let Some(monster) = self.target_monster().cloned() {
+            if let Some(craft) = self.conf().target_craft {
+                self.craft_all_from_bank(&craft);
+            } else if let Some(monster) = self.target_monster().cloned() {
                 self.improve_weapon();
                 self.kill_monster(&monster.code);
             } else if let Some(resource) = self.target_resource().cloned() {
-                // TODO: Improve this
-                if let Some(item) = &self.conf().target_item {
-                    if !self
-                        .items
-                        .crafted_with(item)
-                        .into_iter()
-                        .cloned()
-                        .collect_vec()
-                        .into_iter()
-                        .any(|i| self.conf().craft_from_bank && self.craft_all_from_bank(&i.code))
-                    {
-                        self.gather_resource(&resource.code);
-                    }
-                }
+                self.gather_resource(&resource.code);
             }
         }
     }
