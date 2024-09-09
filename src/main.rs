@@ -70,11 +70,11 @@ fn run_command_line(
                 let args = line.split_whitespace().collect_vec();
                 match args.first() {
                     Some(cmd) => match *cmd {
-                        "info" => println!("{:?}", chars_schema[0].read().unwrap()),
+                        "info" => println!("{:#?}", chars_schema[0].read().unwrap()),
                         "items" => match args.get(1) {
                             Some(verb) => match (*verb, args.get(2), args.get(3)) {
                                 ("bfl", Some(lvl), Some(skill)) => println!(
-                                    "{:?}",
+                                    "{:#?}",
                                     items.best_for_leveling(
                                         lvl.parse().unwrap(),
                                         Skill::from_str(skill).unwrap()
@@ -99,7 +99,7 @@ fn run_command_line(
                 break;
             }
             Err(err) => {
-                println!("Error: {:?}", err);
+                println!("Error: {:#?}", err);
                 break;
             }
         }

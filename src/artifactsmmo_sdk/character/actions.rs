@@ -39,7 +39,7 @@ impl ResponseSchema for CharacterFightResponseSchema {
     fn pretty(&self) -> String {
         match self.data.fight.result {
             fight_schema::Result::Win => format!(
-                "{} win his fight after {} turns ({}xp, {}g, {:?}).",
+                "{} win his fight after {} turns ({}xp, {}g, {:#?}).",
                 self.data.character.name,
                 self.data.fight.turns,
                 self.data.fight.xp,
@@ -98,7 +98,7 @@ impl Character {
         let res = self.my_api.gather(&self.name);
         match res {
             Ok(ref res) => {
-                info!("{}: gathered: {:?}", self.name, res.data.details);
+                info!("{}: gathered: {:#?}", self.name, res.data.details);
                 self.data
                     .write()
                     .unwrap()
@@ -223,7 +223,7 @@ impl Character {
         match res {
             Ok(ref res) => {
                 info!(
-                    "{}: equiped {} in {:?} slot",
+                    "{}: equiped {} in {:#?} slot",
                     self.name, res.data.item.code, res.data.slot
                 );
                 self.data
@@ -245,7 +245,7 @@ impl Character {
         match res {
             Ok(ref res) => {
                 info!(
-                    "{}: unequiped {} from {:?} slot",
+                    "{}: unequiped {} from {:#?} slot",
                     self.name, res.data.item.code, res.data.slot
                 );
                 self.data
@@ -266,7 +266,7 @@ impl Character {
         let res = self.my_api.accept_task(&self.name);
         match res {
             Ok(ref res) => {
-                info!("{}: accepted new task: {:?}", self.name, res.data.task);
+                info!("{}: accepted new task: {:#?}", self.name, res.data.task);
                 self.data
                     .write()
                     .unwrap()
@@ -286,7 +286,7 @@ impl Character {
         let res = self.my_api.complete_task(&self.name);
         match res {
             Ok(ref res) => {
-                error!("{}: completed task: {:?}", self.name, res.data.reward);
+                error!("{}: completed task: {:#?}", self.name, res.data.reward);
                 self.data
                     .write()
                     .unwrap()
@@ -306,7 +306,7 @@ impl Character {
         let res = self.my_api.cancel_task(&self.name);
         match res {
             Ok(ref res) => {
-                info!("{}: canceled task: {:?}", self.name, self.data().task);
+                info!("{}: canceled task: {:#?}", self.name, self.data().task);
                 self.data
                     .write()
                     .unwrap()
