@@ -20,6 +20,16 @@ impl MapSchemaExt for MapSchema {
     fn content_is(&self, code: &str) -> bool {
         self.content().is_some_and(|c| c.code == code)
     }
+
+    fn pretty(&self) -> String {
+        if let Some(content) = self.content() {
+            format!("{} ({},{} [{}])", self.name, self.x, self.y, content.code)
+        }
+        else {
+            format!("{} ({},{})", self.name, self.x, self.y)
+        }
+
+    }
 }
 
 impl Maps {

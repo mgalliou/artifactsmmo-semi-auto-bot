@@ -31,4 +31,9 @@ trait MapSchemaExt {
     fn has_one_of_resource(&self, resources: &[&ResourceSchema]) -> bool;
     fn content(&self) -> Option<MapContentSchema>;
     fn content_is(&self, code: &str) -> bool;
+    fn pretty(&self) -> String;
+}
+
+trait ResponseSchema {
+    fn pretty(&self) -> String;
 }
