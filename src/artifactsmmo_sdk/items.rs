@@ -60,7 +60,7 @@ impl Type {
     }
 }
 
-#[derive(Debug, PartialEq, EnumString)]
+#[derive(Debug, PartialEq, AsRefStr, EnumString)]
 #[strum(serialize_all = "snake_case")]
 pub enum SubType {
     Mining,
@@ -70,6 +70,12 @@ pub enum SubType {
     Bar,
     Plank,
     Mob,
+}
+
+impl PartialEq<SubType> for String {
+    fn eq(&self, other: &SubType) -> bool {
+        other.as_ref() == *self
+    }
 }
 
 impl ItemSchemaExt for ItemSchema {
@@ -217,6 +223,29 @@ impl Items {
         self.api.info(code).ok()?.data.ge?.map(|ge| (*ge))
     }
 
+    pub fn mats_mob_average_lvl(&self, code: &str) -> i32 {
+        let mob_mats = self
+            .mats(code)
+            .iter()
+            .filter_map(|i| self.get(&i.code))
+            .filter(|i| i.subtype == SubType::Mob)
+            .collect_vec();
+        let len = mob_mats.len();
+        if len > 0 {
+            return mob_mats.iter().map(|i| i.level).sum::<i32>() / mob_mats.len() as i32;
+        }
+        0
+    }
+
+    pub fn mats_mob_max_lvl(&self, code: &str) -> i32 {
+        self.mats(code)
+            .iter()
+            .filter_map(|i| self.get(&i.code))
+            .filter(|i| i.subtype == SubType::Mob)
+            .max_by_key(|i| i.level)
+            .map_or(0, |i| i.level)
+    }
+
     /// Takes an item `code` and returns its base mats buy price at the Grand
     /// Exchange.
     pub fn base_mats_buy_price(&self, code: &str) -> i32 {
@@ -297,6 +326,8 @@ impl Items {
         self.providing_exp(level, skill)
             .into_iter()
             .filter(|i| !i.is_crafted_with("jasper_crystal") || i.is_crafted_with("magical_cure"))
+            .min_set_by_key(|i| self.mats_mob_average_lvl(&i.code))
+            .into_iter()
             .min_set_by_key(|i| (self.base_mats_drop_rate(&i.code) * 100.0) as i32)
             .into_iter()
             .min_set_by_key(|i| self.base_mats_buy_price(&i.code))

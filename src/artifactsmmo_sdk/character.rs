@@ -98,8 +98,7 @@ impl Character {
                 if self.levelup_by_crafting(skill) {
                     return;
                 }
-            }
-            if let Some(craft) = self.conf().target_craft {
+            } else if let Some(craft) = self.conf().target_craft {
                 self.craft_all_from_bank(&craft);
             } else if let Some(monster) = self.target_monster().cloned() {
                 self.improve_weapon();
@@ -180,16 +179,16 @@ impl Character {
 
     fn target_skill(&self) -> Option<Skill> {
         let mut skills = vec![];
-        if self.conf().weaponcraft && self.conf().level_weaponcraft {
+        if self.conf().weaponcraft {
             skills.push(Skill::Weaponcrafting);
         }
-        if self.conf().gearcraft && self.conf().level_gearcraft {
+        if self.conf().gearcraft {
             skills.push(Skill::Gearcrafting);
         }
-        if self.conf().jewelcraft && self.conf().level_jewelcraft {
+        if self.conf().jewelcraft {
             skills.push(Skill::Jewelrycrafting);
         }
-        if self.conf().cook && self.conf().level_cook {
+        if self.conf().cook {
             skills.push(Skill::Cooking);
         }
         skills.sort_by_key(|s| self.skill_level(*s));
@@ -266,11 +265,7 @@ impl Character {
     fn levelup_by_crafting(&self, skill: Skill) -> bool {
         self.items
             .best_for_leveling(self.skill_level(skill), skill)
-            .is_some_and(|item| {
-                self.bank
-                    .read()
-                    .is_ok_and(|bank| bank.has_mats_for(&item.code) > 0)
-            })
+            .is_some_and(|item| self.craft_all_from_bank(&item.code))
     }
 
     fn craft_all_from_bank(&self, code: &str) -> bool {
