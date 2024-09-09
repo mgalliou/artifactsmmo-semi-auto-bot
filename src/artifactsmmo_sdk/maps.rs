@@ -63,7 +63,7 @@ impl Maps {
     }
 
     pub fn with_content(&self, code: &str) -> Option<&MapSchema> {
-         self.data.iter().find(|m| m.content_is(code))
+        self.data.iter().find(|m| m.content_is(code))
     }
 
     pub fn to_craft(&self, skill: Skill) -> Option<&MapSchema> {

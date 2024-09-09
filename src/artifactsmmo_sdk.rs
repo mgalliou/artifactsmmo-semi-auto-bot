@@ -1,5 +1,5 @@
 use artifactsmmo_openapi::models::{
-    CraftSchema, ItemEffectSchema, MapContentSchema, ResourceSchema, SimpleItemSchema
+    CraftSchema, ItemEffectSchema, MapContentSchema, ResourceSchema, SimpleItemSchema,
 };
 use items::Type;
 use skill::Skill;
@@ -7,9 +7,9 @@ use skill::Skill;
 pub mod account;
 pub mod api;
 pub mod bank;
-pub mod config;
 pub mod char_config;
 pub mod character;
+pub mod config;
 pub mod items;
 pub mod maps;
 pub mod monsters;

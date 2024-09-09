@@ -57,8 +57,8 @@ pub struct Character {
     monsters: Arc<Monsters>,
     items: Arc<Items>,
     bank: Arc<RwLock<Bank>>,
-    conf: CharConfig,
-    data: CharacterSchema,
+    pub conf: Arc<RwLock<CharConfig>>,
+    pub data: Arc<RwLock<CharacterSchema>>,
 }
 
 impl Character {
@@ -70,12 +70,12 @@ impl Character {
         monsters: Arc<Monsters>,
         items: Arc<Items>,
         bank: Arc<RwLock<Bank>>,
-        conf: &CharConfig,
-        data: &CharacterSchema,
+        conf: Arc<RwLock<CharConfig>>,
+        data: Arc<RwLock<CharacterSchema>>,
     ) -> Character {
         Character {
-            name: data.name.to_owned(),
-            conf: conf.clone(),
+            name: data.read().map(|d| d.name.to_owned()).unwrap(),
+            conf,
             my_api: MyCharacterApi::new(
                 &account.configuration.base_path,
                 &account.configuration.bearer_access_token.clone().unwrap(),
@@ -86,21 +86,21 @@ impl Character {
             monsters,
             items,
             bank,
-            data: data.clone(),
+            data,
         }
     }
 
-    pub fn run(mut char: Character) -> Result<JoinHandle<()>, io::Error> {
-        info!("{}: started !", char.data.name);
+    pub fn run(char: Character) -> Result<JoinHandle<()>, io::Error> {
         thread::Builder::new()
-            .name(char.data.name.to_string())
+            .name(char.data().name.to_owned())
             .spawn(move || {
                 char.run2();
             })
     }
 
-    fn run2(&mut self) {
-        if Role::Fighter != self.conf.role
+    fn run2(&self) {
+        info!("{}: started !", self.name);
+        if Role::Fighter != self.conf().role
             && self
                 .equipment_in(Slot::Weapon)
                 .is_some_and(|w| w.code == "wooden_stick")
@@ -121,7 +121,7 @@ impl Character {
                 self.kill_monster(&monster.code);
             } else if let Some(resource) = self.target_resource().cloned() {
                 // TODO: Improve this
-                if let Some(item) = &self.conf.target_item {
+                if let Some(item) = &self.conf().target_item {
                     if !self
                         .items
                         .crafted_with(item)
@@ -129,7 +129,7 @@ impl Character {
                         .cloned()
                         .collect_vec()
                         .into_iter()
-                        .any(|i| self.conf.craft_from_bank && self.craft_all_from_bank(&i.code))
+                        .any(|i| self.conf().craft_from_bank && self.craft_all_from_bank(&i.code))
                     {
                         self.gather_resource(&resource.code);
                     }
@@ -138,17 +138,25 @@ impl Character {
         }
     }
 
-    fn process_inventory(&mut self) {
+    fn conf(&self) -> CharConfig {
+        self.conf.read().unwrap().clone()
+    }
+
+    fn data(&self) -> CharacterSchema {
+        self.data.read().unwrap().clone()
+    }
+
+    fn process_inventory(&self) {
         if self.inventory_is_full() {
-            if self.conf.process_gathered {
+            if self.conf().process_gathered {
                 self.process_raw_mats();
             }
             self.deposit_all_mats();
         }
     }
 
-    fn process_task(&mut self) {
-        if self.data.task.is_empty() || self.task_finished() {
+    fn process_task(&self) {
+        if self.data().task.is_empty() || self.task_finished() {
             if self.task_finished() {
                 let _ = self.action_complete_task();
             }
@@ -156,7 +164,7 @@ impl Character {
         }
     }
 
-    fn process_raw_mats(&mut self) {
+    fn process_raw_mats(&self) {
         self.inventory_raw_mats()
             .iter()
             .filter_map(|rm| {
@@ -175,7 +183,7 @@ impl Character {
     }
 
     fn inventory_raw_mats(&self) -> Vec<&ItemSchema> {
-        self.data
+        self.data()
             .inventory
             .iter()
             .flatten()
@@ -184,32 +192,32 @@ impl Character {
             .collect_vec()
     }
 
-    fn kill_monster(&mut self, code: &str) -> bool {
+    fn kill_monster(&self, code: &str) -> bool {
         if let Some(map) = self.closest_map_with_resource(code) {
             return self.action_move(map.x, map.y) && self.action_fight().is_ok();
         }
         false
     }
 
-    fn gather_resource(&mut self, code: &str) -> bool {
+    fn gather_resource(&self, code: &str) -> bool {
         if let Some(map) = self.closest_map_with_resource(code) {
             return self.action_move(map.x, map.y) && self.action_gather().is_ok();
         }
         false
     }
 
-    fn target_skill(&mut self) -> Option<Skill> {
+    fn target_skill(&self) -> Option<Skill> {
         let mut skills = vec![];
-        if self.conf.weaponcraft && self.conf.level_weaponcraft {
+        if self.conf().weaponcraft && self.conf().level_weaponcraft {
             skills.push(Skill::Weaponcrafting);
         }
-        if self.conf.gearcraft && self.conf.level_gearcraft {
+        if self.conf().gearcraft && self.conf().level_gearcraft {
             skills.push(Skill::Gearcrafting);
         }
-        if self.conf.jewelcraft && self.conf.level_jewelcraft {
+        if self.conf().jewelcraft && self.conf().level_jewelcraft {
             skills.push(Skill::Jewelrycrafting);
         }
-        if self.conf.cook && self.conf.level_cook {
+        if self.conf().cook && self.conf().level_cook {
             skills.push(Skill::Cooking);
         }
         skills.sort_by_key(|s| self.skill_level(*s));
@@ -222,30 +230,31 @@ impl Character {
         })
     }
 
-    fn target_monster(&mut self) -> Option<&MonsterSchema> {
-        if self.conf.role == Role::Fighter {
-            if self.conf.do_tasks && self.data.task_type == "monsters" && !self.task_finished() {
-                return self.monsters.get(&self.data.task);
-            } else if let Some(monster) = &self.conf.fight_target {
+    fn target_monster(&self) -> Option<&MonsterSchema> {
+        if self.conf().role == Role::Fighter {
+            if self.conf().do_tasks && self.data().task_type == "monsters" && !self.task_finished()
+            {
+                return self.monsters.get(&self.data().task);
+            } else if let Some(monster) = &self.conf().fight_target {
                 return self.monsters.get(monster);
             } else {
-                return self.monsters.lowest_providing_exp(self.data.level);
+                return self.monsters.lowest_providing_exp(self.data().level);
             }
         }
         None
     }
 
     fn target_resource(&self) -> Option<&ResourceSchema> {
-        match self.conf.role {
+        match self.conf().role {
             Role::Miner | Role::Woodcutter | Role::Fisher => {
-                if let Some(item) = &self.conf.target_item {
+                if let Some(item) = &self.conf().target_item {
                     return self
                         .resources
                         .dropping(item)
                         .iter()
                         .min_by_key(|r| r.level)
                         .copied();
-                } else if let Some(skill) = self.conf.role.to_skill() {
+                } else if let Some(skill) = self.conf().role.to_skill() {
                     return self
                         .resources
                         .lowest_providing_exp(self.skill_level(skill), skill);
@@ -257,31 +266,32 @@ impl Character {
         }
     }
 
-    fn task_finished(&mut self) -> bool {
-        self.data.task_progress >= self.data.task_total
+    fn task_finished(&self) -> bool {
+        self.data().task_progress >= self.data().task_total
     }
 
     fn equipment_in(&self, slot: Slot) -> Option<&ItemSchema> {
+        let binding = self.data();
         let code = match slot {
-            Slot::Weapon => &self.data.weapon_slot,
-            Slot::Shield => &self.data.shield_slot,
-            Slot::Helmet => &self.data.helmet_slot,
-            Slot::BodyArmor => &self.data.body_armor_slot,
-            Slot::LegArmor => &self.data.leg_armor_slot,
-            Slot::Boots => &self.data.boots_slot,
-            Slot::Ring1 => &self.data.ring1_slot,
-            Slot::Ring2 => &self.data.ring2_slot,
-            Slot::Amulet => &self.data.amulet_slot,
-            Slot::Artifact1 => &self.data.artifact1_slot,
-            Slot::Artifact2 => &self.data.artifact2_slot,
-            Slot::Artifact3 => &self.data.artifact3_slot,
-            Slot::Consumable1 => &self.data.consumable1_slot,
-            Slot::Consumable2 => &self.data.consumable2_slot,
+            Slot::Weapon => &binding.weapon_slot,
+            Slot::Shield => &binding.shield_slot,
+            Slot::Helmet => &binding.helmet_slot,
+            Slot::BodyArmor => &binding.body_armor_slot,
+            Slot::LegArmor => &binding.leg_armor_slot,
+            Slot::Boots => &binding.boots_slot,
+            Slot::Ring1 => &binding.ring1_slot,
+            Slot::Ring2 => &binding.ring2_slot,
+            Slot::Amulet => &binding.amulet_slot,
+            Slot::Artifact1 => &binding.artifact1_slot,
+            Slot::Artifact2 => &binding.artifact2_slot,
+            Slot::Artifact3 => &binding.artifact3_slot,
+            Slot::Consumable1 => &binding.consumable1_slot,
+            Slot::Consumable2 => &binding.consumable2_slot,
         };
         self.items.get(code)
     }
 
-    fn levelup_by_crafting(&mut self, skill: Skill) -> bool {
+    fn levelup_by_crafting(&self, skill: Skill) -> bool {
         self.items
             .best_for_leveling(self.skill_level(skill), skill)
             .is_some_and(|item| {
@@ -291,7 +301,7 @@ impl Character {
             })
     }
 
-    fn craft_all_from_bank(&mut self, code: &str) -> bool {
+    fn craft_all_from_bank(&self, code: &str) -> bool {
         if self.bank.read().is_ok_and(|b| b.has_mats_for(code) > 0) {
             self.deposit_all();
             if self.withdraw_max_mats_for(code) {
@@ -305,23 +315,28 @@ impl Character {
 
     fn skill_level(&self, skill: Skill) -> i32 {
         match skill {
-            Skill::Cooking => self.data.cooking_level,
-            Skill::Fishing => self.data.fishing_level,
-            Skill::Gearcrafting => self.data.gearcrafting_level,
-            Skill::Jewelrycrafting => self.data.jewelrycrafting_level,
-            Skill::Mining => self.data.mining_level,
-            Skill::Weaponcrafting => self.data.weaponcrafting_level,
-            Skill::Woodcutting => self.data.woodcutting_level,
+            Skill::Cooking => self.data().cooking_level,
+            Skill::Fishing => self.data().fishing_level,
+            Skill::Gearcrafting => self.data().gearcrafting_level,
+            Skill::Jewelrycrafting => self.data().jewelrycrafting_level,
+            Skill::Mining => self.data().mining_level,
+            Skill::Weaponcrafting => self.data().weaponcrafting_level,
+            Skill::Woodcutting => self.data().woodcutting_level,
         }
     }
 
     /// Returns a copy of the inventory to be used while depositing or
     /// withdrawing items.
     fn inventory_copy(&self) -> Vec<InventorySlot> {
-        self.data.inventory.iter().flatten().cloned().collect_vec()
+        self.data()
+            .inventory
+            .iter()
+            .flatten()
+            .cloned()
+            .collect_vec()
     }
 
-    fn deposit_all_mats(&mut self) {
+    fn deposit_all_mats(&self) {
         if self.inventory_total() <= 0 {
             return;
         }
@@ -336,7 +351,7 @@ impl Character {
         }
     }
 
-    fn deposit_all(&mut self) {
+    fn deposit_all(&self) {
         if self.inventory_total() <= 0 {
             return;
         }
@@ -351,7 +366,7 @@ impl Character {
         }
     }
 
-    fn withdraw_mats_for(&mut self, code: &str, quantity: i32) -> bool {
+    fn withdraw_mats_for(&self, code: &str, quantity: i32) -> bool {
         info!(
             "{}: withdrawing mats for {} * {}",
             self.name, code, quantity
@@ -374,7 +389,7 @@ impl Character {
     }
 
     /// .withdraw the maximum available amount of mats used to craft the item `code`
-    fn withdraw_max_mats_for(&mut self, code: &str) -> bool {
+    fn withdraw_max_mats_for(&self, code: &str) -> bool {
         info!(
             "{}: getting maximum amount of mats in bank to craft {}",
             self.name, code
@@ -389,7 +404,7 @@ impl Character {
         self.withdraw_mats_for(code, max)
     }
 
-    fn craft_all(&mut self, code: &str) -> bool {
+    fn craft_all(&self, code: &str) -> bool {
         info!("{}: crafting all {}", self.name, code);
         let n = self.has_mats_for(code);
         if n > 0 && self.action_craft(code, n).is_ok() {
@@ -400,12 +415,12 @@ impl Character {
         false
     }
 
-    fn move_to_bank(&mut self) {
+    fn move_to_bank(&self) {
         let _ = self.action_move(4, 1);
     }
 
-    fn action_move(&mut self, x: i32, y: i32) -> bool {
-        if (self.data.x, self.data.y) == (x, y) {
+    fn action_move(&self, x: i32, y: i32) -> bool {
+        if (self.data().x, self.data().y) == (x, y) {
             return true;
         }
         self.wait_for_cooldown();
@@ -415,8 +430,10 @@ impl Character {
                     "{}: moved to {},{} ({})",
                     self.name, x, y, res.data.destination.name
                 );
-                self.data = *res.data.character.clone();
-                return true;
+                self.data
+                    .write()
+                    .unwrap()
+                    .clone_from(res.data.character.as_ref())
             }
             Err(ref e) => error!("{}: error while moving: {}", self.name, e),
         }
@@ -424,14 +441,17 @@ impl Character {
     }
 
     fn action_fight(
-        &mut self,
+        &self,
     ) -> Result<CharacterFightResponseSchema, Error<ActionFightMyNameActionFightPostError>> {
         self.wait_for_cooldown();
         let res = self.my_api.fight(&self.name);
         match res {
             Ok(ref res) => {
                 info!("{} fought and {:?}", self.name, res.data.fight.result);
-                self.data = *res.data.character.clone();
+                self.data
+                    .write()
+                    .unwrap()
+                    .clone_from(res.data.character.as_ref())
             }
             Err(ref e) => error!("{}: error during fight: {}", self.name, e),
         };
@@ -439,14 +459,17 @@ impl Character {
     }
 
     fn action_gather(
-        &mut self,
+        &self,
     ) -> Result<SkillResponseSchema, Error<ActionGatheringMyNameActionGatheringPostError>> {
         self.wait_for_cooldown();
         let res = self.my_api.gather(&self.name);
         match res {
             Ok(ref res) => {
                 info!("{}: gathered: {:?}", self.name, res.data.details);
-                self.data = *res.data.character.clone();
+                self.data
+                    .write()
+                    .unwrap()
+                    .clone_from(res.data.character.as_ref());
             }
             Err(ref e) => error!("{}: error during gathering: {}", self.name, e),
         };
@@ -454,7 +477,7 @@ impl Character {
     }
 
     fn action_withdraw(
-        &mut self,
+        &self,
         code: &str,
         quantity: i32,
     ) -> Result<
@@ -467,7 +490,10 @@ impl Character {
         match res {
             Ok(ref res) => {
                 info!("{}: withdrawed {} {}", self.name, code, quantity);
-                self.data = *res.data.character.clone();
+                self.data
+                    .write()
+                    .unwrap()
+                    .clone_from(res.data.character.as_ref());
                 let _ = self
                     .bank
                     .write()
@@ -482,7 +508,7 @@ impl Character {
     }
 
     fn action_deposit(
-        &mut self,
+        &self,
         code: &str,
         quantity: i32,
     ) -> Result<
@@ -495,7 +521,10 @@ impl Character {
         match res {
             Ok(ref res) => {
                 info!("{}: deposited {} * {}", self.name, code, quantity);
-                self.data = *res.data.character.clone();
+                self.data
+                    .write()
+                    .unwrap()
+                    .clone_from(res.data.character.as_ref());
                 let _ = self
                     .bank
                     .write()
@@ -510,7 +539,7 @@ impl Character {
     }
 
     fn action_craft(
-        &mut self,
+        &self,
         code: &str,
         quantity: i32,
     ) -> Result<SkillResponseSchema, Error<ActionCraftingMyNameActionCraftingPostError>> {
@@ -520,7 +549,10 @@ impl Character {
         match res {
             Ok(ref res) => {
                 info!("{}: crafted {}, {}", self.name, quantity, code);
-                self.data = *res.data.character.clone();
+                self.data
+                    .write()
+                    .unwrap()
+                    .clone_from(res.data.character.as_ref());
             }
             Err(ref e) => error!("{}: error during crafting: {}", self.name, e),
         };
@@ -528,7 +560,7 @@ impl Character {
     }
 
     fn action_recycle(
-        &mut self,
+        &self,
         code: &str,
         quantity: i32,
     ) -> Result<RecyclingResponseSchema, Error<ActionRecyclingMyNameActionRecyclingPostError>> {
@@ -538,7 +570,10 @@ impl Character {
         match res {
             Ok(ref res) => {
                 info!("{}: recycled {}, {}", self.name, quantity, code);
-                self.data = *res.data.character.clone();
+                self.data
+                    .write()
+                    .unwrap()
+                    .clone_from(res.data.character.as_ref());
             }
             Err(ref e) => error!("{}: error during crafting: {}", self.name, e),
         };
@@ -546,7 +581,7 @@ impl Character {
     }
 
     fn action_equip(
-        &mut self,
+        &self,
         code: &str,
         slot: equip_schema::Slot,
     ) -> Result<EquipmentResponseSchema, Error<ActionEquipItemMyNameActionEquipPostError>> {
@@ -558,7 +593,10 @@ impl Character {
                     "{}: equiped {} in {:?} slot",
                     self.name, res.data.item.code, res.data.slot
                 );
-                self.data = *res.data.character.clone();
+                self.data
+                    .write()
+                    .unwrap()
+                    .clone_from(res.data.character.as_ref());
             }
             Err(ref e) => error!("{}: error while unequiping: {}", self.name, e),
         }
@@ -566,7 +604,7 @@ impl Character {
     }
 
     fn action_unequip(
-        &mut self,
+        &self,
         slot: unequip_schema::Slot,
     ) -> Result<EquipmentResponseSchema, Error<ActionUnequipItemMyNameActionUnequipPostError>> {
         self.wait_for_cooldown();
@@ -577,7 +615,10 @@ impl Character {
                     "{}: unequiped {} from {:?} slot",
                     self.name, res.data.item.code, res.data.slot
                 );
-                self.data = *res.data.character.clone();
+                self.data
+                    .write()
+                    .unwrap()
+                    .clone_from(res.data.character.as_ref());
             }
             Err(ref e) => error!("{}: error while unequiping: {}", self.name, e),
         }
@@ -585,7 +626,7 @@ impl Character {
     }
 
     fn action_accept_task(
-        &mut self,
+        &self,
     ) -> Result<TaskResponseSchema, Error<ActionAcceptNewTaskMyNameActionTaskNewPostError>> {
         self.action_move(1, 2);
         self.wait_for_cooldown();
@@ -593,7 +634,10 @@ impl Character {
         match res {
             Ok(ref res) => {
                 info!("{}: accepted new task: {:?}", self.name, res.data.task);
-                self.data = *res.data.character.clone();
+                self.data
+                    .write()
+                    .unwrap()
+                    .clone_from(res.data.character.as_ref());
             }
             Err(ref e) => error!("{}: error while accepting: {}", self.name, e),
         }
@@ -601,7 +645,7 @@ impl Character {
     }
 
     fn action_complete_task(
-        &mut self,
+        &self,
     ) -> Result<TaskRewardResponseSchema, Error<ActionCompleteTaskMyNameActionTaskCompletePostError>>
     {
         self.action_move(1, 2);
@@ -610,7 +654,10 @@ impl Character {
         match res {
             Ok(ref res) => {
                 error!("{}: completed task: {:?}", self.name, res.data.reward);
-                self.data = *res.data.character.clone();
+                self.data
+                    .write()
+                    .unwrap()
+                    .clone_from(res.data.character.as_ref());
             }
             Err(ref e) => error!("{}: error while accepting: {}", self.name, e),
         }
@@ -618,7 +665,7 @@ impl Character {
     }
 
     fn action_cancel_task(
-        &mut self,
+        &self,
     ) -> Result<TaskCancelledResponseSchema, Error<ActionTaskCancelMyNameActionTaskCancelPostError>>
     {
         self.action_move(1, 2);
@@ -626,8 +673,11 @@ impl Character {
         let res = self.my_api.cancel_task(&self.name);
         match res {
             Ok(ref res) => {
-                info!("{}: canceled task: {:?}", self.name, self.data.task);
-                self.data = *res.data.character.clone();
+                info!("{}: canceled task: {:?}", self.name, self.data().task);
+                self.data
+                    .write()
+                    .unwrap()
+                    .clone_from(res.data.character.as_ref());
             }
             Err(ref e) => error!("{}: error while accepting: {}", self.name, e),
         }
@@ -659,18 +709,18 @@ impl Character {
     }
 
     fn cooldown_expiration(&self) -> Option<DateTime<Utc>> {
-        self.data
+        self.data()
             .cooldown_expiration
             .as_ref()
             .map(|cd| DateTime::parse_from_rfc3339(cd).ok().map(|dt| dt.to_utc()))?
     }
 
     fn inventory_is_full(&self) -> bool {
-        self.inventory_total() == self.data.inventory_max_items
+        self.inventory_total() == self.data().inventory_max_items
     }
 
     fn amount_in_inventory(&self, code: &str) -> i32 {
-        self.data
+        self.data()
             .inventory
             .as_ref()
             .map(|inv| {
@@ -683,11 +733,11 @@ impl Character {
     }
 
     fn inventory_free_space(&self) -> i32 {
-        self.data.inventory_max_items - self.inventory_total()
+        self.data().inventory_max_items - self.inventory_total()
     }
 
     fn inventory_total(&self) -> i32 {
-        self.data
+        self.data()
             .inventory
             .as_ref()
             .map_or(0, |inv| inv.iter().map(|i| i.quantity).sum())
@@ -704,7 +754,7 @@ impl Character {
     }
 
     fn closest_map_among<'a>(&'a self, maps: Vec<&'a MapSchema>) -> Option<&MapSchema> {
-        Maps::closest_from_amoung(self.data.x, self.data.y, maps)
+        Maps::closest_from_amoung(self.data().x, self.data().y, maps)
     }
 
     fn closest_map_dropping(&self, code: &str) -> Option<&MapSchema> {
@@ -715,7 +765,7 @@ impl Character {
             .iter()
             .filter(|m| m.has_one_of_resource(&resources))
             .collect_vec();
-        Maps::closest_from_amoung(self.data.x, self.data.y, maps)
+        Maps::closest_from_amoung(self.data().x, self.data().y, maps)
     }
 
     fn closest_map_with_resource(&self, code: &str) -> Option<&MapSchema> {
@@ -726,7 +776,7 @@ impl Character {
         self.closest_map_among(maps)
     }
 
-    fn move_to_craft(&mut self, code: &str) -> bool {
+    fn move_to_craft(&self, code: &str) -> bool {
         if let Some(dest) = self
             .items
             .skill_to_craft(code)
@@ -743,7 +793,7 @@ impl Character {
             .unwrap_or(0)
     }
 
-    fn improve_equipment(&mut self) {
+    fn improve_equipment(&self) {
         self.improve_slot(Slot::Helmet);
         self.improve_slot(Slot::LegArmor);
         self.improve_slot(Slot::BodyArmor);
@@ -759,7 +809,7 @@ impl Character {
         self.improve_slot(Slot::Consumable2);
     }
 
-    fn improve_slot(&mut self, slot: Slot) {
+    fn improve_slot(&self, slot: Slot) {
         match slot {
             Slot::Weapon => todo!(),
             Slot::Shield
@@ -775,7 +825,7 @@ impl Character {
         }
     }
 
-    fn improve_weapon(&mut self) {
+    fn improve_weapon(&self) {
         if let Some(code) = self.weapon_upgrade_in_bank() {
             if let Some(equiped_weapon) = self.equipment_in(Slot::Weapon).cloned() {
                 if self.action_unequip(unequip_schema::Slot::Weapon).is_ok() {
@@ -790,7 +840,7 @@ impl Character {
 
     fn weapon_upgrade_in_bank(&self) -> Option<String> {
         self.items
-            .equipable_at_level(self.data.level, Slot::Weapon)
+            .equipable_at_level(self.data().level, Slot::Weapon)
             .iter()
             .find(|weapon| {
                 self.bank

@@ -27,11 +27,7 @@ impl Resources {
             .collect::<Vec<_>>()
     }
 
-    pub fn lowest_providing_exp(
-        &self,
-        level: i32,
-        skill: Skill,
-    ) -> Option<&ResourceSchema> {
+    pub fn lowest_providing_exp(&self, level: i32, skill: Skill) -> Option<&ResourceSchema> {
         let min = if level > 11 { level - 10 } else { 1 };
         self.data
             .iter()
@@ -40,11 +36,7 @@ impl Resources {
             .min_by_key(|r| r.level)
     }
 
-    pub fn highest_providing_exp(
-        &self,
-        level: i32,
-        skill: Skill,
-    ) -> Option<&ResourceSchema> {
+    pub fn highest_providing_exp(&self, level: i32, skill: Skill) -> Option<&ResourceSchema> {
         self.data
             .iter()
             .filter(|r| Skill::from(r.skill) == skill)

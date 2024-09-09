@@ -18,3 +18,4 @@ itertools = "0.13.0"
 figment = { version = "0.10", features = ["toml"] }
 serde = "1.0.210"
 simple-logging = "2.0.2"
+rustyline = "14.0.0"

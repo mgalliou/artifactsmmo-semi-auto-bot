@@ -1,5 +1,5 @@
-use serde::Deserialize;
 use super::char_config::CharConfig;
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
