@@ -2,7 +2,7 @@ use artifactsmmo_openapi::models::CharacterSchema;
 use artifactsmmo_playground::artifactsmmo_sdk::{
     account::Account, api::my_character::MyCharacterApi, bank::Bank, char_config::CharConfig,
     character::Character, config::Config, items::Items, maps::Maps, monsters::Monsters,
-    resources::Resources,
+    resources::Resources, skill::Skill,
 };
 use figment::{
     providers::{Format, Toml},
@@ -12,7 +12,10 @@ use itertools::Itertools;
 use log::LevelFilter;
 use rustyline::Result;
 use rustyline::{error::ReadlineError, DefaultEditor};
-use std::sync::{Arc, RwLock};
+use std::{
+    str::FromStr,
+    sync::{Arc, RwLock},
+};
 
 fn main() -> Result<()> {
     let _ = simple_logging::log_to_file("artifactsmmo.log", LevelFilter::Info);
@@ -48,14 +51,17 @@ fn main() -> Result<()> {
         .into_iter()
         .map(|c| Character::run(c).unwrap())
         .collect_vec();
-    run_command_line(chars_schema)?;
+    run_command_line(chars_schema, items.clone())?;
     handles.into_iter().for_each(|h| {
         h.join().unwrap();
     });
     Ok(())
 }
 
-fn run_command_line(chars_schema: Vec<Arc<RwLock<CharacterSchema>>>) -> Result<()> {
+fn run_command_line(
+    chars_schema: Vec<Arc<RwLock<CharacterSchema>>>,
+    items: Arc<Items>,
+) -> Result<()> {
     let mut rl = DefaultEditor::new()?;
     loop {
         let readline = rl.readline(">> ");
@@ -65,6 +71,20 @@ fn run_command_line(chars_schema: Vec<Arc<RwLock<CharacterSchema>>>) -> Result<(
                 match args.first() {
                     Some(cmd) => match *cmd {
                         "info" => println!("{:?}", chars_schema[0].read().unwrap()),
+                        "items" => match args.get(1) {
+                            Some(verb) => match (*verb, args.get(2), args.get(3)) {
+                                ("bfl", Some(lvl), Some(skill)) => println!(
+                                    "{:?}",
+                                    items.best_for_leveling(
+                                        lvl.parse().unwrap(),
+                                        Skill::from_str(skill).unwrap()
+                                    )
+                                ),
+                                _ => println!("error"),
+                            },
+
+                            None => println!("error"),
+                        },
                         _ => println!("error"),
                     },
                     None => todo!(),
