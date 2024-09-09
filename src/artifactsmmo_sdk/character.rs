@@ -17,7 +17,7 @@ use artifactsmmo_openapi::models::{
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
-use log::{error, info, warn};
+use log::{debug, error, info, warn};
 use serde::Deserialize;
 use std::{
     cmp::Ordering,
@@ -94,16 +94,14 @@ impl Character {
         loop {
             self.process_inventory();
             self.process_task();
-            if let Some(skill) = self.target_skill() {
-                if self.levelup_by_crafting(skill) {
-                    return;
-                }
+            if let Some(skill) = self.target_skill_to_level() {
+                self.levelup_by_crafting(skill);
             } else if let Some(craft) = self.conf().target_craft {
                 self.craft_all_from_bank(&craft);
-            } else if let Some(monster) = self.target_monster().cloned() {
+            } else if let Some(monster) = self.target_monster() {
                 self.improve_weapon();
                 self.kill_monster(&monster.code);
-            } else if let Some(resource) = self.target_resource().cloned() {
+            } else if let Some(resource) = self.target_resource() {
                 self.gather_resource(&resource.code);
             }
         }
@@ -177,7 +175,8 @@ impl Character {
         false
     }
 
-    fn target_skill(&self) -> Option<Skill> {
+    fn target_skill_to_level(&self) -> Option<Skill> {
+        debug!("{} getting target skill to level.", self.name);
         let mut skills = vec![];
         if self.conf().weaponcraft {
             skills.push(Skill::Weaponcrafting);
@@ -194,10 +193,8 @@ impl Character {
         skills.sort_by_key(|s| self.skill_level(*s));
         skills.into_iter().find(|&skill| {
             self.items
-                .providing_exp(self.skill_level(skill), skill)
-                .iter()
-                .filter(|i| !i.is_crafted_with("jasper_crystal"))
-                .any(|i| self.bank.read().is_ok_and(|b| b.has_mats_for(&i.code) > 0))
+                .best_for_leveling(self.skill_level(skill), skill)
+                .is_some_and(|i| self.bank.read().is_ok_and(|b| b.has_mats_for(&i.code) > 0))
         })
     }
 
@@ -263,19 +260,25 @@ impl Character {
     }
 
     fn levelup_by_crafting(&self, skill: Skill) -> bool {
-        self.items
-            .best_for_leveling(self.skill_level(skill), skill)
-            .is_some_and(|item| self.craft_all_from_bank(&item.code))
+        debug!("{} leveling up by crafting {:#?}.", self.name, skill);
+        let mut crafted_once = false;
+        if let Some(best) = self.items.best_for_leveling(self.skill_level(skill), skill) {
+            self.withdraw_max_mats_for(&best.code);
+            while self.craft_all(&best.code) && (self.skill_level(skill) - best.level) <= 10 {
+                crafted_once = true;
+                // TODO ge prices handling
+                self.recycle_all(&best.code);
+            }
+            self.deposit_all_mats();
+        }
+        crafted_once
     }
 
     fn craft_all_from_bank(&self, code: &str) -> bool {
+        debug!("{}, crafting all from bank", self.name);
         if self.bank.read().is_ok_and(|b| b.has_mats_for(code) > 0) {
             self.deposit_all();
-            if self.withdraw_max_mats_for(code) {
-                let _ = self.craft_all(code);
-                self.deposit_all();
-            }
-            return true;
+            return self.withdraw_max_mats_for(code) && self.craft_all(code);
         }
         false
     }
@@ -379,6 +382,18 @@ impl Character {
             return true;
         }
         error!("{} failed to crafted all {} ({})", self.name, code, n);
+        false
+    }
+
+    fn recycle_all(&self, code: &str) -> bool {
+        info!("{}: recycling all {}", self.name, code);
+        let item = self.inventory_copy().into_iter().find(|i| i.code == code);
+        if let Some(item) = item {
+            if self.action_recycle(&item.code, item.quantity).is_ok() {
+                return true;
+            }
+        }
+        error!("{} failed to recycle all {}", self.name, code);
         false
     }
 

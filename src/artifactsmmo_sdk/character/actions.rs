@@ -192,7 +192,7 @@ impl Character {
         res
     }
 
-    fn action_recycle(
+    pub(crate) fn action_recycle(
         &self,
         code: &str,
         quantity: i32,
