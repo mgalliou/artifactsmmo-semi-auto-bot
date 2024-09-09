@@ -1,6 +1,8 @@
+use artifactsmmo_openapi::models::CharacterSchema;
 use artifactsmmo_playground::artifactsmmo_sdk::{
-    account::Account, api::my_character::MyCharacterApi, bank::Bank, character::Character,
-    config::Config, items::Items, maps::Maps, monsters::Monsters, resources::Resources,
+    account::Account, api::my_character::MyCharacterApi, bank::Bank, char_config::CharConfig,
+    character::Character, config::Config, items::Items, maps::Maps, monsters::Monsters,
+    resources::Resources,
 };
 use figment::{
     providers::{Format, Toml},
@@ -10,10 +12,7 @@ use itertools::Itertools;
 use log::LevelFilter;
 use rustyline::Result;
 use rustyline::{error::ReadlineError, DefaultEditor};
-use std::{
-    sync::{Arc, RwLock},
-    thread::JoinHandle,
-};
+use std::sync::{Arc, RwLock};
 
 fn main() -> Result<()> {
     let _ = simple_logging::log_to_file("artifactsmmo.log", LevelFilter::Info);
@@ -27,19 +26,8 @@ fn main() -> Result<()> {
     let monsters = Arc::new(Monsters::new(&account));
     let items = Arc::new(Items::new(&account, resources.clone(), monsters.clone()));
     let bank = Arc::new(RwLock::new(Bank::new(&account, items.clone())));
-    let my_characters_api = MyCharacterApi::new(&config.base_url, &config.token);
-    let chars_schema = my_characters_api
-        .characters()
-        .unwrap()
-        .data
-        .into_iter()
-        .map(|s| Arc::new(RwLock::new(s)))
-        .collect_vec();
-    let chars_conf = config
-        .characters
-        .into_iter()
-        .map(|c| Arc::new(RwLock::new(c)))
-        .collect_vec();
+    let chars_conf = init_char_conf(&config.characters);
+    let chars_schema = init_chars_schema(config);
     let characters = chars_conf
         .into_iter()
         .zip(chars_schema.iter())
@@ -56,10 +44,18 @@ fn main() -> Result<()> {
             )
         })
         .collect_vec();
-    let mut handles: Vec<JoinHandle<()>> = vec![];
-    for c in characters.into_iter() {
-        handles.push(Character::run(c)?);
-    }
+    let handles = characters
+        .into_iter()
+        .map(|c| Character::run(c).unwrap())
+        .collect_vec();
+    run_command_line(chars_schema)?;
+    handles.into_iter().for_each(|h| {
+        h.join().unwrap();
+    });
+    Ok(())
+}
+
+fn run_command_line(chars_schema: Vec<Arc<RwLock<CharacterSchema>>>) -> Result<()> {
     let mut rl = DefaultEditor::new()?;
     loop {
         let readline = rl.readline(">> ");
@@ -88,9 +84,23 @@ fn main() -> Result<()> {
             }
         }
     }
-
-    for handle in handles {
-        handle.join().unwrap();
-    }
     Ok(())
+}
+
+fn init_char_conf(confs: &[CharConfig]) -> Vec<Arc<RwLock<CharConfig>>> {
+    confs
+        .iter()
+        .map(|c| Arc::new(RwLock::new(c.clone())))
+        .collect_vec()
+}
+
+fn init_chars_schema(config: Config) -> Vec<Arc<RwLock<CharacterSchema>>> {
+    let my_characters_api = MyCharacterApi::new(&config.base_url, &config.token);
+    my_characters_api
+        .characters()
+        .unwrap()
+        .data
+        .into_iter()
+        .map(|s| Arc::new(RwLock::new(s)))
+        .collect_vec()
 }
