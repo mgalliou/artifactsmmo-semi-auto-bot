@@ -3,7 +3,7 @@ use super::{
     api::my_character::MyCharacterApi,
     bank::Bank,
     char_config::CharConfig,
-    items::{Items, Type},
+    items::{Items, Slot, Type},
     maps::Maps,
     monsters::Monsters,
     resources::Resources,
@@ -11,13 +11,11 @@ use super::{
     ItemSchemaExt, MapSchemaExt,
 };
 use artifactsmmo_openapi::models::{
-    equip_schema::{self, Slot},
-    unequip_schema, CharacterSchema, InventorySlot, ItemSchema, MapSchema, MonsterSchema,
-    ResourceSchema,
+    CharacterSchema, InventorySlot, ItemSchema, MapSchema, MonsterSchema, ResourceSchema,
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
-use log::{debug, error, info, warn};
+use log::{debug, info, warn};
 use serde::Deserialize;
 use std::{
     cmp::Ordering,
@@ -88,7 +86,7 @@ impl Character {
                 .equipment_in(Slot::Weapon)
                 .is_some_and(|w| w.code == "wooden_stick")
         {
-            let _ = self.action_unequip(unequip_schema::Slot::Weapon);
+            let _ = self.action_unequip(Slot::Weapon);
             self.deposit_all();
         };
         loop {
@@ -99,7 +97,7 @@ impl Character {
             } else if let Some(craft) = self.conf().target_craft {
                 self.craft_all_from_bank(&craft);
             } else if let Some(monster) = self.target_monster() {
-                self.improve_weapon();
+                self.improve_equipment();
                 self.kill_monster(&monster.code);
             } else if let Some(resource) = self.target_resource() {
                 self.gather_resource(&resource.code);
@@ -263,7 +261,7 @@ impl Character {
         let mut crafted_once = false;
         if let Some(best) = self.items.best_for_leveling(self.skill_level(skill), skill) {
             self.withdraw_max_mats_for(&best.code);
-            while self.craft_all(&best.code) && (self.skill_level(skill) - best.level) <= 10 {
+            while self.skill_level(skill) - best.level <= 10 && self.craft_all(&best.code) {
                 crafted_once = true;
                 // TODO ge prices handling
                 self.recycle_all(&best.code);
@@ -309,10 +307,7 @@ impl Character {
         if self.inventory_total() <= 0 {
             return;
         }
-        info!(
-            "{}: depositing all materials to the bank.",
-            self.name
-        );
+        info!("{}: depositing all materials to the bank.", self.name);
         for slot in self.inventory_copy() {
             if slot.quantity > 0 && self.items.is_of_type(&slot.code, Type::Resource) {
                 let _ = self.action_deposit(&slot.code, slot.quantity);
@@ -324,10 +319,7 @@ impl Character {
         if self.inventory_total() <= 0 {
             return;
         }
-        info!(
-            "{} depositing all items to the bank.",
-            self.name
-        );
+        info!("{} depositing all items to the bank.", self.name);
         for slot in self.inventory_copy() {
             if slot.quantity > 0 {
                 let _ = self.action_deposit(&slot.code, slot.quantity);
@@ -508,6 +500,7 @@ impl Character {
     }
 
     fn improve_equipment(&self) {
+        self.improve_weapon();
         self.improve_slot(Slot::Helmet);
         self.improve_slot(Slot::LegArmor);
         self.improve_slot(Slot::BodyArmor);
@@ -516,16 +509,16 @@ impl Character {
         self.improve_slot(Slot::Ring1);
         self.improve_slot(Slot::Ring2);
         self.improve_slot(Slot::Amulet);
-        self.improve_slot(Slot::Artifact1);
-        self.improve_slot(Slot::Artifact2);
-        self.improve_slot(Slot::Artifact3);
-        self.improve_slot(Slot::Consumable1);
-        self.improve_slot(Slot::Consumable2);
+        //self.improve_slot(Slot::Artifact1);
+        //self.improve_slot(Slot::Artifact2);
+        //self.improve_slot(Slot::Artifact3);
+        //self.improve_slot(Slot::Consumable1);
+        //self.improve_slot(Slot::Consumable2);
     }
 
     fn improve_slot(&self, slot: Slot) {
         match slot {
-            Slot::Weapon => todo!(),
+            Slot::Weapon => self.improve_weapon(),
             Slot::Shield
             | Slot::Helmet
             | Slot::BodyArmor
@@ -533,21 +526,34 @@ impl Character {
             | Slot::Boots
             | Slot::Ring1
             | Slot::Ring2
-            | Slot::Amulet => todo!(),
+            | Slot::Amulet => self.improve_armor(slot),
             Slot::Artifact1 | Slot::Artifact2 | Slot::Artifact3 => todo!(),
             Slot::Consumable1 | Slot::Consumable2 => todo!(),
         }
     }
 
     fn improve_weapon(&self) {
-        if let Some(code) = self.weapon_upgrade_in_bank() {
-            if let Some(equiped_weapon) = self.equipment_in(Slot::Weapon).cloned() {
-                if self.action_unequip(unequip_schema::Slot::Weapon).is_ok() {
-                    let _ = self.action_deposit(&equiped_weapon.code, 1);
-                }
+        if let Some(upgrade) = self.weapon_upgrade_in_bank() {
+            debug!("{}: weapon_upgrade_in_bank: {:#?}", self.name, upgrade);
+            let equiped = self.equipment_in(Slot::Weapon);
+            if self.action_withdraw(&upgrade, 1).is_ok() {
+                let _ = self.action_equip(&upgrade, Slot::Weapon);
             }
-            if self.action_withdraw(&code, 1).is_ok() {
-                let _ = self.action_equip(&code, equip_schema::Slot::Weapon);
+            if let Some(equiped) = equiped {
+                let _ = self.action_deposit(&equiped.code, 1);
+            }
+        }
+    }
+
+    fn improve_armor(&self, slot: Slot) {
+        if let Some(upgrade) = self.armor_upgrade_in_bank(slot) {
+            debug!("{}: armor_upgrade_in_bank: {:#?}", self.name, upgrade);
+            let equiped = self.equipment_in(slot);
+            if self.action_withdraw(&upgrade, 1).is_ok() {
+                let _ = self.action_equip(&upgrade, slot);
+            }
+            if let Some(equiped) = equiped {
+                let _ = self.action_deposit(&equiped.code, 1);
             }
         }
     }
@@ -556,11 +562,29 @@ impl Character {
         self.items
             .equipable_at_level(self.data().level, Slot::Weapon)
             .iter()
-            .find(|weapon| {
+            .filter(|i| self.weapon_damage() < i.damages())
+            .find(|i| {
                 self.bank
                     .read()
-                    .is_ok_and(|b| b.has_item(&weapon.code).is_some())
-                    && self.weapon_damage() < weapon.damages()
+                    .is_ok_and(|b| b.has_item(&i.code).is_some())
+            })
+            .map(|weapon| weapon.code.clone())
+    }
+
+    fn armor_upgrade_in_bank(&self, slot: Slot) -> Option<String> {
+        self.items
+            .equipable_at_level(self.data().level, slot)
+            .iter()
+            .filter(|i| {
+                self.equipment_in(slot).is_none()
+                    || self
+                        .equipment_in(slot)
+                        .is_some_and(|current| current.health() < i.damages())
+            })
+            .find(|i| {
+                self.bank
+                    .read()
+                    .is_ok_and(|b| b.has_item(&i.code).is_some())
             })
             .map(|weapon| weapon.code.clone())
     }

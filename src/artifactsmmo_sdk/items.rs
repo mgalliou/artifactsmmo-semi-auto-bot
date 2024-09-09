@@ -1,8 +1,9 @@
 use super::skill::Skill;
 use super::ItemSchemaExt;
 use super::{account::Account, api::items::ItemsApi, monsters::Monsters, resources::Resources};
+use artifactsmmo_openapi::models::{equip_schema, unequip_schema};
 use artifactsmmo_openapi::models::{
-    equip_schema::Slot, CraftSchema, GeItemSchema, ItemEffectSchema, ItemSchema, SimpleItemSchema,
+    CraftSchema, GeItemSchema, ItemEffectSchema, ItemSchema, SimpleItemSchema,
 };
 use itertools::Itertools;
 use log::debug;
@@ -78,6 +79,86 @@ impl PartialEq<SubType> for String {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, AsRefStr, EnumString)]
+#[strum(serialize_all = "snake_case")]
+pub enum Slot {
+    Weapon,
+    Shield,
+    Helmet,
+    BodyArmor,
+    LegArmor,
+    Boots,
+    Ring1,
+    Ring2,
+    Amulet,
+    Artifact1,
+    Artifact2,
+    Artifact3,
+    Consumable1,
+    Consumable2,
+}
+
+impl From<equip_schema::Slot> for Slot {
+    fn from(value: equip_schema::Slot) -> Self {
+        match value {
+            equip_schema::Slot::Weapon => Self::Weapon,
+            equip_schema::Slot::Shield => Self::Shield,
+            equip_schema::Slot::Helmet => Self::Helmet,
+            equip_schema::Slot::BodyArmor => Self::BodyArmor,
+            equip_schema::Slot::LegArmor => Self::LegArmor,
+            equip_schema::Slot::Boots => Self::Boots,
+            equip_schema::Slot::Ring1 => Self::Ring1,
+            equip_schema::Slot::Ring2 => Self::Ring2,
+            equip_schema::Slot::Amulet => Self::Amulet,
+            equip_schema::Slot::Artifact1 => Self::Artifact1,
+            equip_schema::Slot::Artifact2 => Self::Artifact2,
+            equip_schema::Slot::Artifact3 => Self::Artifact3,
+            equip_schema::Slot::Consumable1 => Self::Consumable1,
+            equip_schema::Slot::Consumable2 => Self::Consumable2,
+        }
+    }
+}
+
+impl Slot {
+    pub fn to_equip_schema(&self) -> equip_schema::Slot {
+        match &self {
+            Slot::Weapon => equip_schema::Slot::Weapon,
+            Slot::Shield => equip_schema::Slot::Shield,
+            Slot::Helmet => equip_schema::Slot::Helmet,
+            Slot::BodyArmor => equip_schema::Slot::BodyArmor,
+            Slot::LegArmor => equip_schema::Slot::LegArmor,
+            Slot::Boots => equip_schema::Slot::Boots,
+            Slot::Ring1 => equip_schema::Slot::Ring1,
+            Slot::Ring2 => equip_schema::Slot::Ring2,
+            Slot::Amulet => equip_schema::Slot::Amulet,
+            Slot::Artifact1 => equip_schema::Slot::Artifact1,
+            Slot::Artifact2 => equip_schema::Slot::Artifact2,
+            Slot::Artifact3 => equip_schema::Slot::Artifact3,
+            Slot::Consumable1 => equip_schema::Slot::Consumable1,
+            Slot::Consumable2 => equip_schema::Slot::Consumable2,
+        }
+    }
+
+    pub fn to_unequip_schema(&self) -> unequip_schema::Slot {
+        match &self {
+            Slot::Weapon => unequip_schema::Slot::Weapon,
+            Slot::Shield => unequip_schema::Slot::Shield,
+            Slot::Helmet => unequip_schema::Slot::Helmet,
+            Slot::BodyArmor => unequip_schema::Slot::BodyArmor,
+            Slot::LegArmor => unequip_schema::Slot::LegArmor,
+            Slot::Boots => unequip_schema::Slot::Boots,
+            Slot::Ring1 => unequip_schema::Slot::Ring1,
+            Slot::Ring2 => unequip_schema::Slot::Ring2,
+            Slot::Amulet => unequip_schema::Slot::Amulet,
+            Slot::Artifact1 => unequip_schema::Slot::Artifact1,
+            Slot::Artifact2 => unequip_schema::Slot::Artifact2,
+            Slot::Artifact3 => unequip_schema::Slot::Artifact3,
+            Slot::Consumable1 => unequip_schema::Slot::Consumable1,
+            Slot::Consumable2 => unequip_schema::Slot::Consumable2,
+        }
+    }
+}
+
 impl ItemSchemaExt for ItemSchema {
     fn is_raw_mat(&self) -> bool {
         self.r#type == "resource"
@@ -123,9 +204,17 @@ impl ItemSchemaExt for ItemSchema {
     fn damages(&self) -> i32 {
         self.effects()
             .iter()
-            .filter(|e| !e.name.starts_with("attack_"))
+            .filter(|e| e.name.starts_with("attack_"))
             .map(|e| e.value)
             .sum()
+    }
+
+    fn health(&self) -> i32 {
+        self.effects()
+            .iter()
+            .find(|e| e.name == "hp")
+            .map(|e| e.value)
+            .unwrap_or(0)
     }
 }
 
@@ -313,7 +402,8 @@ impl Items {
     }
 
     pub fn equipable_at_level(&self, level: i32, slot: Slot) -> Vec<&ItemSchema> {
-        self.data
+        self
+            .data
             .iter()
             .filter(|i| i.level <= level)
             .filter(|i| i.r#type == Type::from_slot(slot))

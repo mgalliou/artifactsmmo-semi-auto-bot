@@ -1,5 +1,5 @@
 use super::Character;
-use crate::artifactsmmo_sdk::{MapSchemaExt, ResponseSchema};
+use crate::artifactsmmo_sdk::{items::Slot, MapSchemaExt, ResponseSchema};
 use artifactsmmo_openapi::{
     apis::{
         my_characters_api::{
@@ -17,10 +17,10 @@ use artifactsmmo_openapi::{
         Error,
     },
     models::{
-        equip_schema, fight_schema, unequip_schema, BankItemTransactionResponseSchema,
-        CharacterFightResponseSchema, CharacterMovementResponseSchema, EquipmentResponseSchema,
-        RecyclingResponseSchema, SkillResponseSchema, TaskCancelledResponseSchema,
-        TaskResponseSchema, TaskRewardResponseSchema,
+        fight_schema, BankItemTransactionResponseSchema, CharacterFightResponseSchema,
+        CharacterMovementResponseSchema, EquipmentResponseSchema, RecyclingResponseSchema,
+        SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema,
+        TaskRewardResponseSchema,
     },
 };
 use log::{error, info};
@@ -216,10 +216,15 @@ impl Character {
     pub(crate) fn action_equip(
         &self,
         code: &str,
-        slot: equip_schema::Slot,
+        slot: Slot,
     ) -> Result<EquipmentResponseSchema, Error<ActionEquipItemMyNameActionEquipPostError>> {
+        if self.equipment_in(slot).is_some() {
+            let _ = self.action_unequip(slot);
+        }
         self.wait_for_cooldown();
-        let res = self.my_api.equip(&self.name, code, slot, None);
+        let res = self
+            .my_api
+            .equip(&self.name, code, slot.to_equip_schema(), None);
         match res {
             Ok(ref res) => {
                 info!(
@@ -238,10 +243,12 @@ impl Character {
 
     pub(crate) fn action_unequip(
         &self,
-        slot: unequip_schema::Slot,
+        slot: Slot,
     ) -> Result<EquipmentResponseSchema, Error<ActionUnequipItemMyNameActionUnequipPostError>> {
         self.wait_for_cooldown();
-        let res = self.my_api.unequip(&self.name, slot, None);
+        let res = self
+            .my_api
+            .unequip(&self.name, slot.to_unequip_schema(), None);
         match res {
             Ok(ref res) => {
                 info!(
