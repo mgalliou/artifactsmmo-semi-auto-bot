@@ -43,20 +43,20 @@ impl PartialEq<Type> for String {
 impl Type {
     pub fn from_slot(slot: Slot) -> Self {
         match slot {
-            Slot::Weapon => Type::Weapon,
-            Slot::Shield => Type::Shield,
-            Slot::Helmet => Type::Helmet,
-            Slot::BodyArmor => Type::BodyArmor,
-            Slot::LegArmor => Type::LegArmor,
-            Slot::Boots => Type::Boots,
-            Slot::Ring1 => Type::Ring,
-            Slot::Ring2 => Type::Ring,
-            Slot::Amulet => Type::Amulet,
-            Slot::Artifact1 => Type::Artifact,
-            Slot::Artifact2 => Type::Artifact,
-            Slot::Artifact3 => Type::Artifact,
-            Slot::Consumable1 => Type::Consumable,
-            Slot::Consumable2 => Type::Consumable,
+            Slot::Weapon => Self::Weapon,
+            Slot::Shield => Self::Shield,
+            Slot::Helmet => Self::Helmet,
+            Slot::BodyArmor => Self::BodyArmor,
+            Slot::LegArmor => Self::LegArmor,
+            Slot::Boots => Self::Boots,
+            Slot::Ring1 => Self::Ring,
+            Slot::Ring2 => Self::Ring,
+            Slot::Amulet => Self::Amulet,
+            Slot::Artifact1 => Self::Artifact,
+            Slot::Artifact2 => Self::Artifact,
+            Slot::Artifact3 => Self::Artifact,
+            Slot::Consumable1 => Self::Consumable,
+            Slot::Consumable2 => Self::Consumable,
         }
     }
 }
@@ -205,6 +205,22 @@ impl ItemSchemaExt for ItemSchema {
         self.effects()
             .iter()
             .filter(|e| e.name.starts_with("attack_"))
+            .map(|e| e.value)
+            .sum()
+    }
+
+    fn damage_increase(&self) -> i32 {
+        self.effects()
+            .iter()
+            .filter(|e| e.name.starts_with("dmg_"))
+            .map(|e| e.value)
+            .sum()
+    }
+
+    fn resistance(&self) -> i32 {
+        self.effects()
+            .iter()
+            .filter(|e| e.name.starts_with("res_"))
             .map(|e| e.value)
             .sum()
     }
@@ -402,8 +418,7 @@ impl Items {
     }
 
     pub fn equipable_at_level(&self, level: i32, slot: Slot) -> Vec<&ItemSchema> {
-        self
-            .data
+        self.data
             .iter()
             .filter(|i| i.level <= level)
             .filter(|i| i.r#type == Type::from_slot(slot))

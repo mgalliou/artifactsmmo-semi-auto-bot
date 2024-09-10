@@ -25,6 +25,8 @@ trait ItemSchemaExt {
     fn skill_to_craft(&self) -> Option<Skill>;
     fn effects(&self) -> Vec<&ItemEffectSchema>;
     fn damages(&self) -> i32;
+    fn damage_increase(&self) -> i32;
+    fn resistance(&self) -> i32;
     fn health(&self) -> i32;
 }
 

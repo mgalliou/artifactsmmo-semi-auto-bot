@@ -13,7 +13,7 @@ use super::{
 use artifactsmmo_openapi::models::{
     CharacterSchema, InventorySlot, ItemSchema, MapSchema, MonsterSchema, ResourceSchema,
 };
-use chrono::{DateTime, Utc};
+use chrono::{format::Item, DateTime, Utc};
 use itertools::Itertools;
 use log::{debug, info, warn};
 use serde::Deserialize;
@@ -340,7 +340,7 @@ impl Character {
             if !self
                 .bank
                 .read()
-                .is_ok_and(|b| b.has_item(&mat.code).unwrap().quantity >= mat.quantity * quantity)
+                .is_ok_and(|b| b.has_item(&mat.code) >= mat.quantity * quantity)
             {
                 warn!("{}: not enough resources in bank to withdraw the materials required to craft [{code}] * {quantity}", self.name);
                 return false;
@@ -448,7 +448,6 @@ impl Character {
     fn inventory_total(&self) -> i32 {
         self.data()
             .inventory
-            .as_ref()
             .map_or(0, |inv| inv.iter().map(|i| i.quantity).sum())
     }
 
@@ -539,8 +538,8 @@ impl Character {
         if let Some(upgrade) = self.weapon_upgrade_in_bank() {
             debug!("{}: weapon_upgrade_in_bank: {:#?}", self.name, upgrade);
             let equiped = self.equipment_in(Slot::Weapon);
-            if self.action_withdraw(&upgrade, 1).is_ok() {
-                let _ = self.action_equip(&upgrade, Slot::Weapon);
+            if self.action_withdraw(&upgrade.code, 1).is_ok() {
+                let _ = self.action_equip(&upgrade.code, Slot::Weapon);
             }
             if let Some(equiped) = equiped {
                 let _ = self.action_deposit(&equiped.code, 1);
@@ -552,8 +551,8 @@ impl Character {
         if let Some(upgrade) = self.armor_upgrade_in_bank(slot) {
             debug!("{}: armor_upgrade_in_bank: {:#?}", self.name, upgrade);
             let equiped = self.equipment_in(slot);
-            if self.action_withdraw(&upgrade, 1).is_ok() {
-                let _ = self.action_equip(&upgrade, slot);
+            if self.action_withdraw(&upgrade.code, 1).is_ok() {
+                let _ = self.action_equip(&upgrade.code, slot);
             }
             if let Some(equiped) = equiped {
                 let _ = self.action_deposit(&equiped.code, 1);
@@ -561,35 +560,28 @@ impl Character {
         }
     }
 
-    fn weapon_upgrade_in_bank(&self) -> Option<String> {
+    fn weapon_upgrade_in_bank(&self) -> Option<&ItemSchema> {
         self.items
             .equipable_at_level(self.data().level, Slot::Weapon)
-            .iter()
+            .into_iter()
+            .filter(|i| self.bank.read().is_ok_and(|b| b.has_item(&i.code) > 0))
             .filter(|i| self.weapon_damage() < i.damages())
-            .find(|i| {
-                self.bank
-                    .read()
-                    .is_ok_and(|b| b.has_item(&i.code).is_some())
-            })
-            .map(|weapon| weapon.code.clone())
+            .max_by_key(|i| i.damages())
     }
 
-    fn armor_upgrade_in_bank(&self, slot: Slot) -> Option<String> {
+    fn armor_upgrade_in_bank(&self, slot: Slot) -> Option<&ItemSchema> {
         self.items
             .equipable_at_level(self.data().level, slot)
-            .iter()
+            .into_iter()
+            .filter(|i| self.bank.read().is_ok_and(|b| b.has_item(&i.code) > 0))
             .filter(|i| {
-                self.equipment_in(slot).is_none()
-                    || self
-                        .equipment_in(slot)
-                        .is_some_and(|current| current.health() < i.damages())
+                if let Some(equiped) = self.equipment_in(slot) {
+                    equiped.damage_increase() < i.damage_increase()
+                } else {
+                    true
+                }
             })
-            .find(|i| {
-                self.bank
-                    .read()
-                    .is_ok_and(|b| b.has_item(&i.code).is_some())
-            })
-            .map(|weapon| weapon.code.clone())
+            .max_by_key(|i| i.damage_increase())
     }
 
     // fn fight_until_unsuccessful(&self, x: i32, y: i32) {

@@ -23,8 +23,12 @@ impl Bank {
         }
     }
 
-    pub fn has_item(&self, code: &str) -> Option<&SimpleItemSchema> {
-        self.content.iter().find(|i| i.code == code)
+    pub fn has_item(&self, code: &str) -> i32 {
+        self.content
+            .iter()
+            .find(|i| i.code == code)
+            .map(|i| i.quantity)
+            .unwrap_or(0)
     }
 
     ///. return the number of time the item `code` can be crafted with the mats available in bank
@@ -32,10 +36,7 @@ impl Bank {
         self.items
             .mats(code)
             .iter()
-            .map(|mat| {
-                self.has_item(&mat.code)
-                    .map_or(0, |schema| schema.quantity / mat.quantity)
-            })
+            .map(|mat| self.has_item(&mat.code) / mat.quantity)
             .min()
             .unwrap_or(0)
     }
