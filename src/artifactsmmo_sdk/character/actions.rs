@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use super::Character;
 use crate::artifactsmmo_sdk::{items::Slot, MapSchemaExt, ResponseSchema};
 use artifactsmmo_openapi::{
@@ -18,9 +20,9 @@ use artifactsmmo_openapi::{
     },
     models::{
         fight_schema, BankItemTransactionResponseSchema, CharacterFightResponseSchema,
-        CharacterMovementResponseSchema, EquipmentResponseSchema, RecyclingResponseSchema,
-        SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema,
-        TaskRewardResponseSchema,
+        CharacterMovementResponseSchema, DropSchema, EquipmentResponseSchema,
+        RecyclingResponseSchema, SkillResponseSchema, TaskCancelledResponseSchema,
+        TaskResponseSchema, TaskRewardResponseSchema,
     },
 };
 use log::{error, info};
@@ -51,6 +53,30 @@ impl ResponseSchema for CharacterFightResponseSchema {
                 self.data.character.name, self.data.fight.turns
             ),
         }
+    }
+}
+
+struct DropSchemas<'a>(&'a Vec<DropSchema>);
+
+impl <'a>Display for DropSchemas<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut items: String = "".to_string();
+        for item in self.0 {
+            if !items.is_empty() {
+                items.push_str(", ");
+            }
+            items.push_str(&format!("{} x{}", item.code, item.quantity));
+        }
+        write!(f, "{}", items)
+    }
+}
+
+impl ResponseSchema for SkillResponseSchema {
+    fn pretty(&self) -> String {
+        format!(
+            "{} gathered {} ({}x)",
+            self.data.character.name, DropSchemas(&self.data.details.items), self.data.details.xp,
+        )
     }
 }
 
@@ -98,7 +124,7 @@ impl Character {
         let res = self.my_api.gather(&self.name);
         match res {
             Ok(ref res) => {
-                info!("{}: gathered: {:?}", self.name, res.data.details);
+                info!("{}", res.pretty());
                 self.data
                     .write()
                     .unwrap()
