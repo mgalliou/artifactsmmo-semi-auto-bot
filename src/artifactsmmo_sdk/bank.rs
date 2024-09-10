@@ -19,7 +19,7 @@ impl Bank {
         Bank {
             items,
             details: *api.details().unwrap().data,
-            content: api.items(None, None, None).unwrap(),
+            content: api.items(None).unwrap(),
         }
     }
 

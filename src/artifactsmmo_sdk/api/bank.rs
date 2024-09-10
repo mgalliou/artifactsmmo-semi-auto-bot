@@ -29,14 +29,17 @@ impl BankApi {
     pub fn items(
         &self,
         code: Option<&str>,
-        page: Option<i32>,
-        size: Option<i32>,
     ) -> Result<Vec<SimpleItemSchema>, Error<GetBankItemsMyBankItemsGetError>> {
         let mut items: Vec<SimpleItemSchema> = vec![];
         let mut current_page = 1;
         let mut finished = false;
         while !finished {
-            let resp = get_bank_items_my_bank_items_get(&self.configuration, code, page, size);
+            let resp = get_bank_items_my_bank_items_get(
+                &self.configuration,
+                code,
+                Some(current_page),
+                Some(100),
+            );
             match resp {
                 Ok(resp) => {
                     items.append(&mut resp.data.clone());
