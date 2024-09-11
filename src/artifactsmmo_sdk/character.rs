@@ -119,6 +119,7 @@ impl Character {
                 self.process_raw_mats();
             }
             self.deposit_all_mats();
+            self.deposit_all_consumables();
         }
     }
 
@@ -132,17 +133,24 @@ impl Character {
     }
 
     fn process_raw_mats(&self) {
-        let processed = self.inventory_raw_mats().into_iter().filter_map(|rm| {
-            self.items
-                .crafted_with(&rm.code)
-                .into_iter()
-                .filter(|cw| self.has_mats_for(&cw.code) > 0)
-                .max_by_key(|cw| cw.level)
-        });
-        processed.clone().for_each(|p| {
+        let processed = self
+            .inventory_raw_mats()
+            .into_iter()
+            .filter_map(|rm| {
+                let crafted_with = self.items.crafted_with(&rm.code);
+                if crafted_with.len() == 1 {
+                    Some(crafted_with)
+                } else {
+                    None
+                }
+            })
+            .flatten()
+            .filter(|cw| self.has_mats_for(&cw.code) > 0)
+            .max_by_key(|cw| cw.level);
+        processed.iter().for_each(|p| {
             self.craft_all(&p.code);
         });
-        processed.for_each(|p| self.deposit_all_of(&p.code));
+        processed.iter().for_each(|p| self.deposit_all_of(&p.code));
     }
 
     fn inventory_raw_mats(&self) -> Vec<&ItemSchema> {
