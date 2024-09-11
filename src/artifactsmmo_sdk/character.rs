@@ -132,6 +132,9 @@ impl Character {
         }
     }
 
+    /// Process the raw materials in the Character inventory by converting the
+    /// materials having only one possible receipe, and depositing the crafted 
+    /// items.
     fn process_raw_mats(&self) {
         let processed = self
             .inventory_raw_mats()
