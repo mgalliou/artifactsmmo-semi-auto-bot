@@ -13,7 +13,7 @@ use super::{
 use artifactsmmo_openapi::models::{
     CharacterSchema, InventorySlot, ItemSchema, MapSchema, MonsterSchema, ResourceSchema,
 };
-use chrono::{format::Item, DateTime, Utc};
+use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use log::{debug, info, warn};
 use serde::Deserialize;
@@ -97,7 +97,7 @@ impl Character {
             } else if let Some(craft) = self.conf().target_craft {
                 self.craft_all_from_bank(&craft);
             } else if let Some(monster) = self.target_monster() {
-                self.improve_equipment();
+                self.improve_equipment(monster);
                 self.kill_monster(&monster.code);
             } else if let Some(resource) = self.target_resource() {
                 self.gather_resource(&resource.code);
@@ -319,6 +319,18 @@ impl Character {
         }
     }
 
+    fn deposit_all_consumables(&self) {
+        if self.inventory_total() <= 0 {
+            return;
+        }
+        info!("{}: depositing all consumables to the bank.", self.name);
+        for slot in self.inventory_copy() {
+            if slot.quantity > 0 && self.items.is_of_type(&slot.code, Type::Consumable) {
+                let _ = self.action_deposit(&slot.code, slot.quantity);
+            }
+        }
+    }
+
     fn deposit_all(&self) {
         if self.inventory_total() <= 0 {
             return;
@@ -333,7 +345,7 @@ impl Character {
 
     fn deposit_all_of(&self, code: &str) {
         let amount = self.amount_in_inventory(code);
-        if amount >= 0 {
+        if amount > 0 {
             let _ = self.action_deposit(code, amount);
         }
     }
@@ -505,20 +517,20 @@ impl Character {
 
     fn weapon_damage(&self) -> i32 {
         self.equipment_in(Slot::Weapon)
-            .map(|w| w.damages())
+            .map(|w| w.total_attack_damage())
             .unwrap_or(0)
     }
 
-    fn improve_equipment(&self) {
-        self.improve_weapon();
-        self.improve_slot(Slot::Helmet);
-        self.improve_slot(Slot::LegArmor);
-        self.improve_slot(Slot::BodyArmor);
-        self.improve_slot(Slot::Boots);
-        self.improve_slot(Slot::Shield);
-        self.improve_slot(Slot::Ring1);
-        self.improve_slot(Slot::Ring2);
-        self.improve_slot(Slot::Amulet);
+    fn improve_equipment(&self, monster: &MonsterSchema) {
+        self.improve_slot(Slot::Weapon, monster);
+        //self.improve_slot(Slot::Helmet, monster);
+        //self.improve_slot(Slot::LegArmor, monster);
+        //self.improve_slot(Slot::BodyArmor, monster);
+        //self.improve_slot(Slot::Boots, monster);
+        //self.improve_slot(Slot::Shield, monster);
+        //self.improve_slot(Slot::Ring1, monster);
+        //self.improve_slot(Slot::Ring2, monster);
+        //self.improve_slot(Slot::Amulet, monster);
         //self.improve_slot(Slot::Artifact1);
         //self.improve_slot(Slot::Artifact2);
         //self.improve_slot(Slot::Artifact3);
@@ -526,70 +538,79 @@ impl Character {
         //self.improve_slot(Slot::Consumable2);
     }
 
-    fn improve_slot(&self, slot: Slot) {
-        match slot {
-            Slot::Weapon => self.improve_weapon(),
-            Slot::Shield
-            | Slot::Helmet
-            | Slot::BodyArmor
-            | Slot::LegArmor
-            | Slot::Boots
-            | Slot::Ring1
-            | Slot::Ring2
-            | Slot::Amulet => self.improve_armor(slot),
-            Slot::Artifact1 | Slot::Artifact2 | Slot::Artifact3 => todo!(),
-            Slot::Consumable1 | Slot::Consumable2 => todo!(),
-        }
-    }
-
-    fn improve_weapon(&self) {
-        if let Some(upgrade) = self.weapon_upgrade_in_bank() {
-            debug!("{}: weapon_upgrade_in_bank: {:#?}", self.name, upgrade);
-            let equiped = self.equipment_in(Slot::Weapon);
-            if self.action_withdraw(&upgrade.code, 1).is_ok() {
-                let _ = self.action_equip(&upgrade.code, Slot::Weapon);
-            }
-            if let Some(equiped) = equiped {
-                let _ = self.action_deposit(&equiped.code, 1);
-            }
-        }
-    }
-
-    fn improve_armor(&self, slot: Slot) {
-        if let Some(upgrade) = self.armor_upgrade_in_bank(slot) {
-            debug!("{}: armor_upgrade_in_bank: {:#?}", self.name, upgrade);
+    fn improve_slot(&self, slot: Slot, monster: &MonsterSchema) {
+        if let Some(upgrade) = if slot == Slot::Weapon {
+            self.weapon_upgrade(monster)
+        } else {
+            self.armor_upgrade(slot, monster)
+        } {
+            debug!("{}: upgrade found: {}", self.name, upgrade.code);
             let equiped = self.equipment_in(slot);
-            if self.action_withdraw(&upgrade.code, 1).is_ok() {
+            if self.amount_in_inventory(&upgrade.code) > 0 {
                 let _ = self.action_equip(&upgrade.code, slot);
-            }
-            if let Some(equiped) = equiped {
-                let _ = self.action_deposit(&equiped.code, 1);
+            } else if self.action_withdraw(&upgrade.code, 1).is_ok() {
+                let _ = self.action_equip(&upgrade.code, slot);
+                if let Some(equiped) = equiped {
+                    let _ = self.action_deposit(&equiped.code, 1);
+                }
             }
         }
     }
 
-    fn weapon_upgrade_in_bank(&self) -> Option<&ItemSchema> {
+    fn weapon_upgrade(&self, monster: &MonsterSchema) -> Option<&ItemSchema> {
         self.items
             .equipable_at_level(self.data().level, Slot::Weapon)
             .into_iter()
-            .filter(|i| self.bank.read().is_ok_and(|b| b.has_item(&i.code) > 0))
-            .filter(|i| self.weapon_damage() < i.damages())
-            .max_by_key(|i| i.damages())
+            .filter(|i| {
+                self.amount_in_inventory(&i.code) > 0
+                    || self.bank.read().is_ok_and(|b| b.has_item(&i.code) > 0)
+            })
+            .filter(|i| {
+                self.equipment_in(Slot::Weapon).is_none()
+                    || self.equipment_in(Slot::Weapon).is_some_and(|e| {
+                        e.attack_damage_against(monster) < i.attack_damage_against(monster)
+                    })
+            })
+            .max_by_key(|i| i.total_attack_damage())
     }
 
-    fn armor_upgrade_in_bank(&self, slot: Slot) -> Option<&ItemSchema> {
-        self.items
+    fn armor_upgrade(&self, slot: Slot, monster: &MonsterSchema) -> Option<&ItemSchema> {
+        let upgrades = self
+            .items
             .equipable_at_level(self.data().level, slot)
             .into_iter()
-            .filter(|i| self.bank.read().is_ok_and(|b| b.has_item(&i.code) > 0))
+            .filter(|i| {
+                self.amount_in_inventory(&i.code) > 0
+                    || self.bank.read().is_ok_and(|b| b.has_item(&i.code) > 0)
+            });
+        let damage_upgrade = upgrades
+            .clone()
+            .filter(|i| i.total_damage_increase() > 0)
+            .collect_vec();
+        let resistance_upgrade = upgrades
+            .clone()
+            .filter(|i| i.total_resistance() > 0)
+            .collect_vec();
+        let health_upgrade = upgrades.clone().filter(|i| i.health() > 0).collect_vec();
+        if let Some(equiped) = self.equipment_in(slot) {
+            if damage_upgrade.is_empty() {}
+        }
+        upgrades
             .filter(|i| {
                 if let Some(equiped) = self.equipment_in(slot) {
-                    equiped.damage_increase() < i.damage_increase()
+                    equiped.total_damage_increase() < i.total_damage_increase()
+                        || equiped.total_resistance() < i.total_resistance()
                 } else {
                     true
                 }
             })
-            .max_by_key(|i| i.damage_increase())
+            .max_by_key(|i| {
+                if i.total_damage_increase() > 0 {
+                    i.total_damage_increase()
+                } else {
+                    i.total_resistance()
+                }
+            })
     }
 
     // fn fight_until_unsuccessful(&self, x: i32, y: i32) {

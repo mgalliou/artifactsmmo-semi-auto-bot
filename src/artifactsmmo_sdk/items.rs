@@ -1,7 +1,7 @@
 use super::skill::Skill;
-use super::ItemSchemaExt;
 use super::{account::Account, api::items::ItemsApi, monsters::Monsters, resources::Resources};
-use artifactsmmo_openapi::models::{equip_schema, unequip_schema};
+use super::{ItemSchemaExt, MonsterSchemaExt};
+use artifactsmmo_openapi::models::{equip_schema, unequip_schema, MonsterSchema};
 use artifactsmmo_openapi::models::{
     CraftSchema, GeItemSchema, ItemEffectSchema, ItemSchema, SimpleItemSchema,
 };
@@ -9,6 +9,7 @@ use itertools::Itertools;
 use log::debug;
 use std::str::FromStr;
 use std::{sync::Arc, vec::Vec};
+use strum::IntoEnumIterator;
 use strum_macros::{AsRefStr, EnumIter, EnumString};
 
 pub struct Items {
@@ -159,6 +160,15 @@ impl Slot {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, AsRefStr, EnumIter, EnumString)]
+#[strum(serialize_all = "snake_case")]
+pub enum DamageType {
+    Air,
+    Earth,
+    Fire,
+    Water,
+}
+
 impl ItemSchemaExt for ItemSchema {
     fn is_raw_mat(&self) -> bool {
         self.r#type == "resource"
@@ -201,7 +211,7 @@ impl ItemSchemaExt for ItemSchema {
         self.effects.iter().flatten().collect_vec()
     }
 
-    fn damages(&self) -> i32 {
+    fn total_attack_damage(&self) -> i32 {
         self.effects()
             .iter()
             .filter(|e| e.name.starts_with("attack_"))
@@ -209,7 +219,15 @@ impl ItemSchemaExt for ItemSchema {
             .sum()
     }
 
-    fn damage_increase(&self) -> i32 {
+    fn attack_damage(&self, r#type: DamageType) -> i32 {
+        self.effects()
+            .iter()
+            .find(|e| e.name == "attack_".to_string() + r#type.as_ref())
+            .map(|e| e.value)
+            .unwrap_or(0)
+    }
+
+    fn total_damage_increase(&self) -> i32 {
         self.effects()
             .iter()
             .filter(|e| e.name.starts_with("dmg_"))
@@ -217,7 +235,24 @@ impl ItemSchemaExt for ItemSchema {
             .sum()
     }
 
-    fn resistance(&self) -> i32 {
+    fn attack_damage_against(&self, monster: &MonsterSchema) -> i32 {
+        DamageType::iter()
+            .map(|t| {
+                (self.attack_damage(t) as f32 * (1.0 - (monster.resistance(t) as f32 / 100.0)))
+                    as i32
+            })
+            .sum()
+    }
+
+    fn damage_increase(&self, r#type: DamageType) -> i32 {
+        self.effects()
+            .iter()
+            .find(|e| e.name == "dmg_".to_string() + r#type.as_ref())
+            .map(|e| e.value)
+            .unwrap_or(0)
+    }
+
+    fn total_resistance(&self) -> i32 {
         self.effects()
             .iter()
             .filter(|e| e.name.starts_with("res_"))
@@ -498,13 +533,13 @@ mod tests {
     use itertools::Itertools;
 
     use crate::artifactsmmo_sdk::{
-        account::Account, config::Config, monsters::Monsters, resources::Resources,
+        account::Account, config::Config, monsters::Monsters, resources::Resources, ItemSchemaExt,
     };
 
     use super::Items;
 
     #[test]
-    fn tests() {
+    fn potential_upgrade() {
         let config: Config = Figment::new()
             .merge(Toml::file_exact("ArtifactsMMO.toml"))
             .extract()
@@ -528,5 +563,25 @@ mod tests {
                 "adventurer_vest"
             ]
         )
+    }
+
+    #[test]
+    fn item_damage_against() {
+        let config: Config = Figment::new()
+            .merge(Toml::file_exact("ArtifactsMMO.toml"))
+            .extract()
+            .unwrap();
+        let account = Account::new(&config.base_url, &config.token);
+        let resources = Arc::new(Resources::new(&account));
+        let monsters = Arc::new(Monsters::new(&account));
+        let items = Arc::new(Items::new(&account, resources.clone(), monsters.clone()));
+
+        assert_eq!(
+            items
+                .get("skull_staff")
+                .unwrap()
+                .attack_damage_against(monsters.get("ogre").unwrap()),
+            48
+        );
     }
 }

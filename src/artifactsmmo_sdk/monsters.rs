@@ -1,8 +1,19 @@
-use super::{account::Account, api::monsters::MonstersApi};
+use super::{account::Account, api::monsters::MonstersApi, items::DamageType, MonsterSchemaExt};
 use artifactsmmo_openapi::models::MonsterSchema;
 
 pub struct Monsters {
     pub data: Vec<MonsterSchema>,
+}
+
+impl MonsterSchemaExt for MonsterSchema {
+    fn resistance(&self, r#type: DamageType) -> i32 {
+        match r#type {
+            DamageType::Air => self.res_air,
+            DamageType::Earth => self.res_earth,
+            DamageType::Fire => self.res_fire,
+            DamageType::Water => self.res_water,
+        }
+    }
 }
 
 impl Monsters {
