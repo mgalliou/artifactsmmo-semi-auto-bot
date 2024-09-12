@@ -133,27 +133,19 @@ impl Character {
     }
 
     /// Process the raw materials in the Character inventory by converting the
-    /// materials having only one possible receipe, and depositing the crafted 
+    /// materials having only one possible receipe, and depositing the crafted
     /// items.
     fn process_raw_mats(&self) {
-        let processed = self
+        let unique_crafts = self
             .inventory_raw_mats()
             .into_iter()
-            .filter_map(|rm| {
-                let crafted_with = self.items.crafted_with(&rm.code);
-                if crafted_with.len() == 1 {
-                    Some(crafted_with)
-                } else {
-                    None
-                }
-            })
-            .flatten()
+            .filter_map(|rm| self.items.unique_craft(&rm.code))
             .filter(|cw| self.has_mats_for(&cw.code) > 0)
-            .max_by_key(|cw| cw.level);
-        processed.iter().for_each(|p| {
+            .collect_vec();
+        unique_crafts.iter().for_each(|p| {
             self.craft_all(&p.code);
         });
-        processed.iter().for_each(|p| self.deposit_all_of(&p.code));
+        unique_crafts.iter().for_each(|p| self.deposit_all_of(&p.code));
     }
 
     fn inventory_raw_mats(&self) -> Vec<&ItemSchema> {

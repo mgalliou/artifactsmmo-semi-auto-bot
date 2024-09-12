@@ -345,6 +345,17 @@ impl Items {
             .collect_vec()
     }
 
+    /// Takes an item `code` and returns the only item it can be crafted in, or 
+    /// `None` otherwise.
+    pub fn unique_craft(&self, code: &str) -> Option<&ItemSchema> {
+        let crafts = self.crafted_with(code);
+        if crafts.len() == 1 {
+            return Some(crafts[0])
+        }
+        None
+    }
+
+
     /// Takes an item `code` and returns the items crafted with it as base mat.
     pub fn crafted_with_base_mat(&self, code: &str) -> Vec<&ItemSchema> {
         self.data
