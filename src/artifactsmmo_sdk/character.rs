@@ -145,16 +145,24 @@ impl Character {
         unique_crafts.iter().for_each(|p| {
             self.craft_all(&p.code);
         });
-        unique_crafts.iter().for_each(|p| self.deposit_all_of(&p.code));
+        unique_crafts
+            .iter()
+            .for_each(|p| self.deposit_all_of(&p.code));
     }
 
     fn inventory_raw_mats(&self) -> Vec<&ItemSchema> {
-        self.data()
-            .inventory
-            .iter()
+        self.data
+            .read()
+            .map(|d| {
+                d.inventory
+                    .iter()
+                    .flatten()
+                    .filter_map(|slot| self.items.get(&slot.code))
+                    .filter(|i| i.is_raw_mat())
+                    .collect_vec()
+            })
+            .into_iter()
             .flatten()
-            .filter_map(|slot| self.items.get(&slot.code))
-            .filter(|i| i.is_raw_mat())
             .collect_vec()
     }
 
