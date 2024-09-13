@@ -89,7 +89,7 @@ impl Character {
             let _ = self.action_unequip(Slot::Weapon);
             self.deposit_all();
         };
-        loop {
+        while self.conf.read().is_ok_and(|c| c.role != Role::Idle) {
             self.process_inventory();
             self.process_task();
             if let Some(skill) = self.target_skill_to_level() {
