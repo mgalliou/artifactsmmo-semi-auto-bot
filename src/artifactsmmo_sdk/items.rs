@@ -345,16 +345,15 @@ impl Items {
             .collect_vec()
     }
 
-    /// Takes an item `code` and returns the only item it can be crafted in, or 
+    /// Takes an item `code` and returns the only item it can be crafted in, or
     /// `None` otherwise.
     pub fn unique_craft(&self, code: &str) -> Option<&ItemSchema> {
         let crafts = self.crafted_with(code);
         if crafts.len() == 1 {
-            return Some(crafts[0])
+            return Some(crafts[0]);
         }
         None
     }
-
 
     /// Takes an item `code` and returns the items crafted with it as base mat.
     pub fn crafted_with_base_mat(&self, code: &str) -> Vec<&ItemSchema> {
@@ -474,16 +473,51 @@ impl Items {
     /// Takes a `level` and a `skill` and returns the best items to level the
     /// skill based on its meterials drop rate, and value on the Grand Exchange.
     pub fn best_for_leveling(&self, level: i32, skill: Skill) -> Option<&ItemSchema> {
-        self.providing_exp(level, skill)
-            .into_iter()
-            .filter(|i| !i.is_crafted_with("jasper_crystal") || i.is_crafted_with("magical_cure"))
-            .min_set_by_key(|i| self.mats_mob_average_lvl(&i.code))
-            .into_iter()
-            .min_set_by_key(|i| (self.base_mats_drop_rate(&i.code) * 100.0) as i32)
-            .into_iter()
-            .min_set_by_key(|i| self.base_mats_buy_price(&i.code))
-            .into_iter()
-            .max_by_key(|i| i.level)
+        match skill {
+            Skill::Gearcrafting => {
+                if level > 20 {
+                    self.get("skeleton_helm")
+                } else if level > 15 {
+                    self.get("iron_helmet")
+                } else if level > 5 {
+                    self.get("copper_leg")
+                } else {
+                    self.get("copper_helmet")
+                }
+            }
+            Skill::Weaponcrafting => {
+                if level >= 21 {
+                    self.get("skull_staff")
+                } else if level > 11 {
+                    self.get("iron_dagger")
+                } else {
+                    self.get("copper_dagger")
+                }
+            }
+            Skill::Jewelrycrafting => {
+                if level >= 20 {
+                    self.get("life_ring")
+                } else if level > 11 {
+                    self.get("iron_ring")
+                } else {
+                    self.get("copper_ring")
+                }
+            }
+            Skill::Mining => None,
+            Skill::Woodcutting => None,
+            Skill::Cooking => None,
+            Skill::Fishing => None,
+        }
+        //self.providing_exp(level, skill)
+        //    .into_iter()
+        //    .filter(|i| !i.is_crafted_with("jasper_crystal") || i.is_crafted_with("magical_cure"))
+        //    .min_set_by_key(|i| self.mats_mob_average_lvl(&i.code))
+        //    .into_iter()
+        //    .min_set_by_key(|i| (self.base_mats_drop_rate(&i.code) * 100.0) as i32)
+        //    .into_iter()
+        //    .min_set_by_key(|i| self.base_mats_buy_price(&i.code))
+        //    .into_iter()
+        //    .max_by_key(|i| i.level)
     }
 
     /// Takes a `level` and a `skill` and returns the items providing experince
