@@ -235,11 +235,10 @@ impl ItemSchemaExt for ItemSchema {
             .sum()
     }
 
-    fn attack_damage_against(&self, monster: &MonsterSchema) -> i32 {
+    fn attack_damage_against(&self, monster: &MonsterSchema) -> f32 {
         DamageType::iter()
             .map(|t| {
-                (self.attack_damage(t) as f32 * (1.0 - (monster.resistance(t) as f32 / 100.0)))
-                    as i32
+                self.attack_damage(t) as f32 * (1.0 - (monster.resistance(t) as f32 / 100.0))
             })
             .sum()
     }
@@ -626,7 +625,14 @@ mod tests {
                 .get("skull_staff")
                 .unwrap()
                 .attack_damage_against(monsters.get("ogre").unwrap()),
-            48
+            48.0
+        );
+        assert_eq!(
+            items
+                .get("dreadful_staff")
+                .unwrap()
+                .attack_damage_against(monsters.get("vampire").unwrap()),
+            57.5
         );
     }
 }

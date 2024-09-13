@@ -26,7 +26,7 @@ trait ItemSchemaExt {
     fn effects(&self) -> Vec<&ItemEffectSchema>;
     fn total_attack_damage(&self) -> i32;
     fn attack_damage(&self, r#type: DamageType) -> i32;
-    fn attack_damage_against(&self, monster: &MonsterSchema) -> i32;
+    fn attack_damage_against(&self, monster: &MonsterSchema) -> f32;
     fn total_damage_increase(&self) -> i32;
     fn damage_increase(&self, r#type: DamageType) -> i32;
     fn total_resistance(&self) -> i32;
