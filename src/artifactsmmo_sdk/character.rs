@@ -27,8 +27,8 @@ use std::{
     vec::Vec,
 };
 use strum::IntoEnumIterator;
-
 mod actions;
+use ordered_float::OrderedFloat;
 
 pub struct Character {
     name: String,
@@ -382,8 +382,8 @@ impl Character {
         true
     }
 
-    /// Withdraw the maximum amount of mats to craft the maximum amount of the
-    /// item `code` and returns the maximum amount that can be crafted.
+    /// Withdraw the maximum amount of materials to craft the maximum amount of
+    /// the item `code` and returns the maximum amount that can be crafted.
     fn withdraw_max_mats_for(&self, code: &str) -> i32 {
         info!(
             "{}: getting maximum amount of materials in bank to craft '{}'.",
@@ -467,14 +467,10 @@ impl Character {
     fn amount_in_inventory(&self, code: &str) -> i32 {
         self.data()
             .inventory
-            .as_ref()
-            .map(|inv| {
-                inv.iter()
-                    .filter(|i| i.code == code)
-                    .map(|i| i.quantity)
-                    .sum()
-            })
-            .unwrap_or(0)
+            .iter()
+            .flatten()
+            .find(|i| i.code == code)
+            .map_or(0, |i| i.quantity)
     }
 
     fn inventory_free_space(&self) -> i32 {
@@ -537,13 +533,14 @@ impl Character {
             .unwrap_or(0)
     }
 
+    /// Equip the best gear available for the given `monster`.
     fn improve_equipment(&self, monster: &MonsterSchema) {
         self.improve_slot(Slot::Weapon, monster);
         self.improve_slot(Slot::Helmet, monster);
         self.improve_slot(Slot::LegArmor, monster);
         self.improve_slot(Slot::BodyArmor, monster);
-        //self.improve_slot(Slot::Boots, monster);
-        //self.improve_slot(Slot::Shield, monster);
+        self.improve_slot(Slot::Boots, monster);
+        self.improve_slot(Slot::Shield, monster);
         self.improve_slot(Slot::Ring1, monster);
         self.improve_slot(Slot::Ring2, monster);
         self.improve_slot(Slot::Amulet, monster);
@@ -554,33 +551,78 @@ impl Character {
         //self.improve_slot(Slot::Consumable2);
     }
 
+    /// Equip the given `slot` with the best item available for the given `monster`.
     fn improve_slot(&self, slot: Slot, monster: &MonsterSchema) {
-        if let Some(upgrade) = if slot == Slot::Weapon {
-            self.weapon_upgrade(monster)
-        } else {
-            self.armor_upgrade(slot, monster)
-        } {
-            debug!("{}: upgrade found: {}", self.name, upgrade.code);
-            let equiped = self.equipment_in(slot);
+        if let Some(upgrade) = self.best_in_slot_against(slot, monster).filter(|u| {
+            self.equipment_in(slot).is_none()
+                || self.equipment_in(slot).is_some_and(|i| i.code != u.code)
+        }) {
+            info!("{}: upgrade found: {}", self.name, upgrade.code);
             if self.amount_in_inventory(&upgrade.code) > 0 {
                 let _ = self.action_equip(&upgrade.code, slot);
             } else if self.action_withdraw(&upgrade.code, 1).is_ok() {
                 let _ = self.action_equip(&upgrade.code, slot);
-                if let Some(equiped) = equiped {
+                if let Some(equiped) = self.equipment_in(slot) {
                     let _ = self.action_deposit(&equiped.code, 1);
                 }
+            } else {
+                info!(
+                    "{}: upgrade not found in bank of inventory: '{}'",
+                    self.name, upgrade.code
+                );
             }
         }
     }
 
-    fn weapon_upgrade(&self, monster: &MonsterSchema) -> Option<&ItemSchema> {
+    /// Returns the best item for the given `slot` against the given `monster`
+    /// Based on item attack damage, damage increase and `monster` resistances.
+    fn best_in_slot_against(&self, slot: Slot, monster: &MonsterSchema) -> Option<&ItemSchema> {
+        match slot {
+            Slot::Weapon => self.weapon_upgrade_in_bank(monster),
+            Slot::Amulet if self.data().level <= 5 => self.items.get("life_amulet"),
+            Slot::BodyArmor
+            | Slot::LegArmor
+            | Slot::Helmet
+            | Slot::Ring1
+            | Slot::Ring2
+            | Slot::Amulet => self.armor_damage_upgrades_in_bank(slot, monster),
+            Slot::Boots if self.data().level >= 20 => self.items.get("steel_boots"),
+            Slot::Boots if self.data().level >= 15 => self.items.get("adventurer_boots"),
+            Slot::Boots if self.data().level >= 10 => self.items.get("iron_boots"),
+            Slot::Boots => self.items.get("copper_boots"),
+            Slot::Shield if self.data().level >= 30 => self.items.get("golden_shield"),
+            Slot::Shield if self.data().level >= 20 => self.items.get("steel_shield"),
+            Slot::Shield if self.data().level >= 10 => self.items.get("slime_shield"),
+            Slot::Shield => self.items.get("wooden_shield"),
+            _ => None,
+        }
+    }
+
+    fn has_in_bank_or_inv(&self, code: &str) -> bool {
+        self.amount_in_inventory(code) > 0 || self.bank.read().is_ok_and(|b| b.has_item(code) > 0)
+    }
+
+    /// Returns
+    fn weapon_upgrades(&self, monster: &MonsterSchema) -> Vec<&ItemSchema> {
         self.items
             .equipable_at_level(self.data().level, Slot::Weapon)
             .into_iter()
             .filter(|i| {
-                self.amount_in_inventory(&i.code) > 0
-                    || self.bank.read().is_ok_and(|b| b.has_item(&i.code) > 0)
+                self.equipment_in(Slot::Weapon).is_none()
+                    || self.equipment_in(Slot::Weapon).is_some_and(|e| {
+                        e.attack_damage_against(monster) < i.attack_damage_against(monster)
+                    })
             })
+            .collect_vec()
+    }
+
+    /// Returns all best upgrade available for the given `monster` based on
+    /// the currently equiped weapon and the `monster` resistances.
+    fn weapon_upgrade_in_bank(&self, monster: &MonsterSchema) -> Option<&ItemSchema> {
+        self.items
+            .equipable_at_level(self.data().level, Slot::Weapon)
+            .into_iter()
+            .filter(|i| self.has_in_bank_or_inv(&i.code))
             .filter(|i| {
                 self.equipment_in(Slot::Weapon).is_none()
                     || self.equipment_in(Slot::Weapon).is_some_and(|e| {
@@ -590,30 +632,35 @@ impl Character {
             .max_by_key(|i| i.total_attack_damage())
     }
 
-    /// Returns the best damage upgrade for the given armor `slot` based on the currently equiped
-    /// weapon against the given `Monster`.
-    fn armor_upgrade(&self, slot: Slot, monster: &MonsterSchema) -> Option<&ItemSchema> {
-        let upgrades = self
-            .items
+    /// Returns the best upgrade available in bank or inventory for the given
+    /// armor `slot` against the given `monster`, based on the currently equiped
+    /// weapon and the `monster` resitances.
+    fn armor_damage_upgrades_in_bank(
+        &self,
+        slot: Slot,
+        monster: &MonsterSchema,
+    ) -> Option<&ItemSchema> {
+        self.items
+            .equipable_at_level(self.data().level, slot)
+            .into_iter()
+            .filter(|i| self.has_in_bank_or_inv(&i.code))
+            .filter(|i| {
+                self.damage_inc_from_slot(slot, monster) < self.damage_inc_against_with(i, monster)
+            })
+            .max_by_key(|i| OrderedFloat(self.damage_inc_against_with(i, monster)))
+    }
+
+    /// Returns all damage upgrades for the given armor `slot` against the given
+    /// `monster`, based on the currently equiped weapon and the `monster`
+    /// resitances.
+    fn armor_damage_upgrades(&self, slot: Slot, monster: &MonsterSchema) -> Vec<&ItemSchema> {
+        self.items
             .equipable_at_level(self.data().level, slot)
             .into_iter()
             .filter(|i| {
-                self.amount_in_inventory(&i.code) > 0
-                    || self.bank.read().is_ok_and(|b| b.has_item(&i.code) > 0)
-            });
-
-        if let Some(best) = upgrades.max_by_key(|u| self.damage_inc_against_with(u, monster)) {
-            if let Some(equiped) = self.equipment_in(slot) {
-                let best_dmg = self.damage_inc_against_with(best, monster);
-                let cur_dmg = self.damage_inc_against_with(equiped, monster);
-                if cur_dmg < best_dmg {
-                    return Some(best);
-                }
-                return None;
-            }
-            return Some(best);
-        }
-        None
+                self.damage_inc_from_slot(slot, monster) < self.damage_inc_against_with(i, monster)
+            })
+            .collect_vec()
     }
 
     fn attack_damage(&self, r#type: DamageType) -> i32 {
@@ -644,17 +691,21 @@ impl Character {
             .sum()
     }
 
-    fn damage_inc_against_with(&self, armor: &ItemSchema, monster: &MonsterSchema) -> i32 {
+    fn damage_inc_against_with(&self, armor: &ItemSchema, monster: &MonsterSchema) -> f32 {
         DamageType::iter()
             .map(|t| {
-                (self
-                    .equipment_in(Slot::Weapon)
+                self.equipment_in(Slot::Weapon)
                     .map_or(1, |i| i.attack_damage(t)) as f32
                     * (1.0 + armor.damage_increase(t) as f32)
                     / 100.0
-                    * (1.0 - (monster.resistance(t) as f32 / 100.0))) as i32
+                    * (1.0 - (monster.resistance(t) as f32 / 100.0))
             })
-            .sum::<i32>()
+            .sum::<f32>()
+    }
+
+    fn damage_inc_from_slot(&self, slot: Slot, monster: &MonsterSchema) -> f32 {
+        self.equipment_in(slot)
+            .map_or(0.0, |i| self.damage_inc_against_with(i, monster))
     }
 
     // fn fight_until_unsuccessful(&self, x: i32, y: i32) {

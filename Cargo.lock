@@ -55,6 +55,7 @@ dependencies = [
  "futures",
  "itertools",
  "log",
+ "ordered-float",
  "reqwest",
  "rustyline",
  "serde",
@@ -887,6 +888,15 @@ dependencies = [
  "libc",
  "pkg-config",
  "vcpkg",
+]
+
+[[package]]
+name = "ordered-float"
+version = "4.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a91171844676f8c7990ce64959210cd2eaef32c2612c50f9fae9f8aaa6065a6"
+dependencies = [
+ "num-traits",
 ]
 
 [[package]]
