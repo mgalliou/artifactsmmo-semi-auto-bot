@@ -30,7 +30,7 @@ use log::{error, info};
 impl ResponseSchema for CharacterMovementResponseSchema {
     fn pretty(&self) -> String {
         format!(
-            "{} moved to {}",
+            "{}: moved to {}",
             self.data.character.name,
             self.data.destination.pretty()
         )
@@ -65,7 +65,7 @@ impl <'a>Display for DropSchemas<'a> {
             if !items.is_empty() {
                 items.push_str(", ");
             }
-            items.push_str(&format!("{} x{}", item.code, item.quantity));
+            items.push_str(&format!("'{}' x{}", item.code, item.quantity));
         }
         write!(f, "{}", items)
     }
@@ -74,7 +74,7 @@ impl <'a>Display for DropSchemas<'a> {
 impl ResponseSchema for SkillResponseSchema {
     fn pretty(&self) -> String {
         format!(
-            "{} gathered {} ({}x)",
+            "{}: gathered '{}' ({}xp)",
             self.data.character.name, DropSchemas(&self.data.details.items), self.data.details.xp,
         )
     }
