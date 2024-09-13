@@ -3,12 +3,12 @@ use super::{
     api::my_character::MyCharacterApi,
     bank::Bank,
     char_config::CharConfig,
-    items::{Items, Slot, Type},
+    items::{DamageType, Items, Slot, Type},
     maps::Maps,
     monsters::Monsters,
     resources::Resources,
     skill::Skill,
-    ItemSchemaExt, MapSchemaExt,
+    ItemSchemaExt, MapSchemaExt, MonsterSchemaExt,
 };
 use artifactsmmo_openapi::models::{
     CharacterSchema, InventorySlot, ItemSchema, MapSchema, MonsterSchema, ResourceSchema,
@@ -26,6 +26,7 @@ use std::{
     time::Duration,
     vec::Vec,
 };
+use strum::IntoEnumIterator;
 
 mod actions;
 
@@ -538,14 +539,14 @@ impl Character {
 
     fn improve_equipment(&self, monster: &MonsterSchema) {
         self.improve_slot(Slot::Weapon, monster);
-        //self.improve_slot(Slot::Helmet, monster);
-        //self.improve_slot(Slot::LegArmor, monster);
-        //self.improve_slot(Slot::BodyArmor, monster);
+        self.improve_slot(Slot::Helmet, monster);
+        self.improve_slot(Slot::LegArmor, monster);
+        self.improve_slot(Slot::BodyArmor, monster);
         //self.improve_slot(Slot::Boots, monster);
         //self.improve_slot(Slot::Shield, monster);
-        //self.improve_slot(Slot::Ring1, monster);
-        //self.improve_slot(Slot::Ring2, monster);
-        //self.improve_slot(Slot::Amulet, monster);
+        self.improve_slot(Slot::Ring1, monster);
+        self.improve_slot(Slot::Ring2, monster);
+        self.improve_slot(Slot::Amulet, monster);
         //self.improve_slot(Slot::Artifact1);
         //self.improve_slot(Slot::Artifact2);
         //self.improve_slot(Slot::Artifact3);
@@ -589,6 +590,8 @@ impl Character {
             .max_by_key(|i| i.total_attack_damage())
     }
 
+    /// Returns the best damage upgrade for the given armor `slot` based on the currently equiped
+    /// weapon against the given `Monster`.
     fn armor_upgrade(&self, slot: Slot, monster: &MonsterSchema) -> Option<&ItemSchema> {
         let upgrades = self
             .items
@@ -598,34 +601,60 @@ impl Character {
                 self.amount_in_inventory(&i.code) > 0
                     || self.bank.read().is_ok_and(|b| b.has_item(&i.code) > 0)
             });
-        let damage_upgrade = upgrades
-            .clone()
-            .filter(|i| i.total_damage_increase() > 0)
-            .collect_vec();
-        let resistance_upgrade = upgrades
-            .clone()
-            .filter(|i| i.total_resistance() > 0)
-            .collect_vec();
-        let health_upgrade = upgrades.clone().filter(|i| i.health() > 0).collect_vec();
-        if let Some(equiped) = self.equipment_in(slot) {
-            if damage_upgrade.is_empty() {}
+
+        if let Some(best) = upgrades.max_by_key(|u| self.damage_inc_against_with(u, monster)) {
+            if let Some(equiped) = self.equipment_in(slot) {
+                let best_dmg = self.damage_inc_against_with(best, monster);
+                let cur_dmg = self.damage_inc_against_with(equiped, monster);
+                if cur_dmg < best_dmg {
+                    return Some(best);
+                }
+                return None;
+            }
+            return Some(best);
         }
-        upgrades
-            .filter(|i| {
-                if let Some(equiped) = self.equipment_in(slot) {
-                    equiped.total_damage_increase() < i.total_damage_increase()
-                        || equiped.total_resistance() < i.total_resistance()
-                } else {
-                    true
-                }
+        None
+    }
+
+    fn attack_damage(&self, r#type: DamageType) -> i32 {
+        self.data.read().map_or(0, |d| match r#type {
+            DamageType::Air => d.attack_air,
+            DamageType::Earth => d.attack_earth,
+            DamageType::Fire => d.attack_fire,
+            DamageType::Water => d.attack_water,
+        })
+    }
+
+    fn damage_increase(&self, r#type: DamageType) -> i32 {
+        self.data.read().map_or(0, |d| match r#type {
+            DamageType::Air => d.dmg_air,
+            DamageType::Earth => d.dmg_earth,
+            DamageType::Fire => d.dmg_fire,
+            DamageType::Water => d.dmg_water,
+        })
+    }
+
+    fn attack_damage_against(&self, monster: &MonsterSchema) -> f32 {
+        DamageType::iter()
+            .map(|t| {
+                self.attack_damage(t) as f32
+                    * self.damage_increase(t) as f32
+                    * monster.resistance(t) as f32
             })
-            .max_by_key(|i| {
-                if i.total_damage_increase() > 0 {
-                    i.total_damage_increase()
-                } else {
-                    i.total_resistance()
-                }
+            .sum()
+    }
+
+    fn damage_inc_against_with(&self, armor: &ItemSchema, monster: &MonsterSchema) -> i32 {
+        DamageType::iter()
+            .map(|t| {
+                (self
+                    .equipment_in(Slot::Weapon)
+                    .map_or(1, |i| i.attack_damage(t)) as f32
+                    * (1.0 + armor.damage_increase(t) as f32)
+                    / 100.0
+                    * (1.0 - (monster.resistance(t) as f32 / 100.0))) as i32
             })
+            .sum::<i32>()
     }
 
     // fn fight_until_unsuccessful(&self, x: i32, y: i32) {
