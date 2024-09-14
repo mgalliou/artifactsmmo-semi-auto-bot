@@ -579,7 +579,7 @@ impl Character {
     fn best_in_slot_against(&self, slot: Slot, monster: &MonsterSchema) -> Option<&ItemSchema> {
         match slot {
             Slot::Weapon => self.weapon_upgrade_in_bank(monster),
-            Slot::Amulet if self.data().level <= 5 => self.items.get("life_amulet"),
+            Slot::Amulet if self.data().level >= 5 && self.data().level < 10 => self.items.get("life_amulet"),
             Slot::BodyArmor
             | Slot::LegArmor
             | Slot::Helmet
