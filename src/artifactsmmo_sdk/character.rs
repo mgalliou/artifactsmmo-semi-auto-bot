@@ -571,12 +571,13 @@ impl Character {
                 || self.equipment_in(slot).is_some_and(|i| i.code != u.code)
         }) {
             info!("{}: upgrade found: {}", self.name, upgrade.code);
+            let prev_equiped = self.equipment_in(slot);
             if self.amount_in_inventory(&upgrade.code) > 0 {
                 let _ = self.action_equip(&upgrade.code, slot);
             } else if self.action_withdraw(&upgrade.code, 1).is_ok() {
                 let _ = self.action_equip(&upgrade.code, slot);
-                if let Some(equiped) = self.equipment_in(slot) {
-                    let _ = self.action_deposit(&equiped.code, 1);
+                if let Some(i) = prev_equiped {
+                    let _ = self.action_deposit(&i.code, 1);
                 }
             } else {
                 info!(
