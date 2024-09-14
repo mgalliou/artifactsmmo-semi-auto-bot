@@ -42,6 +42,7 @@ trait MapSchemaExt {
 
 trait MonsterSchemaExt {
     fn resistance(&self, r#type: DamageType) -> i32;
+    fn attack_damage(&self, r#type: DamageType) -> i32;
 }
 
 trait ResponseSchema {

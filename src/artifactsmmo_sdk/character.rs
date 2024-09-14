@@ -174,6 +174,15 @@ impl Character {
         false
     }
 
+    fn can_kill(&self, monster: &MonsterSchema) -> bool {
+        let turns_to_kill = monster.hp as f32 / self.attack_damage_against(monster);
+        let turns_to_be_killed = self
+            .data
+            .read()
+            .map_or(0.0, |d| d.hp as f32 / self.attack_damage_from(monster));
+        turns_to_be_killed < turns_to_kill
+    }
+
     fn gather_resource(&self, code: &str) -> bool {
         if let Some(map) = self.closest_map_with_resource(code) {
             return self.action_move(map.x, map.y) && self.action_gather().is_ok();
@@ -579,7 +588,9 @@ impl Character {
     fn best_in_slot_against(&self, slot: Slot, monster: &MonsterSchema) -> Option<&ItemSchema> {
         match slot {
             Slot::Weapon => self.weapon_upgrade_in_bank(monster),
-            Slot::Amulet if self.data().level >= 5 && self.data().level < 10 => self.items.get("life_amulet"),
+            Slot::Amulet if self.data().level >= 5 && self.data().level < 10 => {
+                self.items.get("life_amulet")
+            }
             Slot::BodyArmor
             | Slot::LegArmor
             | Slot::Helmet
@@ -681,13 +692,27 @@ impl Character {
         })
     }
 
+    fn resistance(&self, r#type: DamageType) -> i32 {
+        self.data.read().map_or(0, |d| match r#type {
+            DamageType::Air => d.res_air,
+            DamageType::Earth => d.res_earth,
+            DamageType::Fire => d.res_fire,
+            DamageType::Water => d.res_water,
+        })
+    }
+
     fn attack_damage_against(&self, monster: &MonsterSchema) -> f32 {
         DamageType::iter()
             .map(|t| {
-                self.attack_damage(t) as f32
-                    * self.damage_increase(t) as f32
-                    * monster.resistance(t) as f32
+                self.attack_damage(t) as f32 * (1.0 + self.damage_increase(t) as f32) / 100.0
+                    * (1.0 - (monster.resistance(t) as f32))
             })
+            .sum()
+    }
+
+    fn attack_damage_from(&self, monster: &MonsterSchema) -> f32 {
+        DamageType::iter()
+            .map(|t| monster.attack_damage(t) as f32 * (1.0 - (self.resistance(t) as f32 / 100.0)))
             .sum()
     }
 

@@ -6,6 +6,15 @@ pub struct Monsters {
 }
 
 impl MonsterSchemaExt for MonsterSchema {
+    fn attack_damage(&self, r#type: DamageType) -> i32 {
+        match r#type {
+            DamageType::Air => self.attack_air,
+            DamageType::Earth => self.attack_earth,
+            DamageType::Fire => self.attack_fire,
+            DamageType::Water => self.attack_water,
+        }
+    }
+
     fn resistance(&self, r#type: DamageType) -> i32 {
         match r#type {
             DamageType::Air => self.res_air,
