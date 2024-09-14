@@ -471,6 +471,10 @@ impl Character {
 
     fn inventory_is_full(&self) -> bool {
         self.inventory_total() == self.data().inventory_max_items
+            || self
+                .data
+                .read()
+                .is_ok_and(|d| d.inventory.iter().flatten().all(|s| s.quantity > 0))
     }
 
     fn amount_in_inventory(&self, code: &str) -> i32 {
