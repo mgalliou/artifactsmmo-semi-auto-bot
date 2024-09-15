@@ -237,9 +237,7 @@ impl ItemSchemaExt for ItemSchema {
 
     fn attack_damage_against(&self, monster: &MonsterSchema) -> f32 {
         DamageType::iter()
-            .map(|t| {
-                self.attack_damage(t) as f32 * (1.0 - (monster.resistance(t) as f32 / 100.0))
-            })
+            .map(|t| self.attack_damage(t) as f32 * (1.0 - (monster.resistance(t) as f32 / 100.0)))
             .sum()
     }
 
@@ -477,7 +475,7 @@ impl Items {
                 if level > 30 {
                     None
                 } else if level > 20 {
-                    self.get("skeleton_helm")
+                    self.get("skeleton_helmet")
                 } else if level > 15 {
                     self.get("iron_helmet")
                 } else if level > 5 {
@@ -498,7 +496,7 @@ impl Items {
                 }
             }
             Skill::Jewelrycrafting => {
-                if level >= 25 {
+                if level > 25 {
                     None
                 } else if level > 20 {
                     self.get("life_ring")
