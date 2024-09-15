@@ -3,6 +3,7 @@ use super::{
     api::my_character::MyCharacterApi,
     bank::Bank,
     char_config::CharConfig,
+    equipment::Equipment,
     items::{DamageType, Items, Slot, Type},
     maps::Maps,
     monsters::Monsters,
@@ -171,6 +172,27 @@ impl Character {
             .into_iter()
             .flatten()
             .collect_vec()
+    }
+
+    fn equipment(&self) -> Equipment {
+        self.data
+            .read()
+            .map_or(Equipment::default(), |d| Equipment {
+                weapon: self.items.get(&d.weapon_slot),
+                shield: self.items.get(&d.shield_slot),
+                helmet: self.items.get(&d.helmet_slot),
+                body_armor: self.items.get(&d.boots_slot),
+                leg_armor: self.items.get(&d.leg_armor_slot),
+                boots: self.items.get(&d.boots_slot),
+                ring1: self.items.get(&d.ring1_slot),
+                ring2: self.items.get(&d.ring2_slot),
+                amulet: self.items.get(&d.amulet_slot),
+                artifact1: self.items.get(&d.artifact1_slot),
+                artifact2: self.items.get(&d.artifact2_slot),
+                artifact3: self.items.get(&d.artifact3_slot),
+                consumable1: self.items.get(&d.consumable1_slot),
+                consumable2: self.items.get(&d.consumable2_slot),
+            })
     }
 
     fn kill_monster(&self, code: &str) -> bool {

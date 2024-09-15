@@ -15,6 +15,7 @@ pub mod maps;
 pub mod monsters;
 pub mod resources;
 pub mod skill;
+pub mod equipment;
 
 trait ItemSchemaExt {
     fn is_raw_mat(&self) -> bool;
