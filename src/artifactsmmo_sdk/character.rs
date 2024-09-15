@@ -94,10 +94,16 @@ impl Character {
             self.process_inventory();
             self.process_task();
             if let Some(skill) = self.target_skill_to_level() {
-                self.levelup_by_crafting(skill);
-            } else if let Some(craft) = self.conf().target_craft {
-                self.craft_all_from_bank(&craft);
-            } else if let Some(monster) = self.target_monster() {
+                if self.levelup_by_crafting(skill) {
+                    continue;
+                }
+            }
+            if let Some(craft) = self.conf().target_craft {
+                if self.craft_all_from_bank(&craft) > 0 {
+                    continue;
+                }
+            }
+             if let Some(monster) = self.target_monster() {
                 self.improve_equipment(monster);
                 self.kill_monster(&monster.code);
             } else if let Some(resource) = self.target_resource() {
