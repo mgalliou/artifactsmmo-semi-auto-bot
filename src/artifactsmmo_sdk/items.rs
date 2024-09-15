@@ -474,7 +474,9 @@ impl Items {
     pub fn best_for_leveling(&self, level: i32, skill: Skill) -> Option<&ItemSchema> {
         match skill {
             Skill::Gearcrafting => {
-                if level > 20 {
+                if level > 30 {
+                    None
+                } else if level > 20 {
                     self.get("skeleton_helm")
                 } else if level > 15 {
                     self.get("iron_helmet")
@@ -485,7 +487,9 @@ impl Items {
                 }
             }
             Skill::Weaponcrafting => {
-                if level >= 21 {
+                if level > 30 {
+                    None
+                } else if level > 20 {
                     self.get("skull_staff")
                 } else if level > 11 {
                     self.get("iron_dagger")
@@ -494,7 +498,9 @@ impl Items {
                 }
             }
             Skill::Jewelrycrafting => {
-                if level >= 20 {
+                if level >= 25 {
+                    None
+                } else if level > 20 {
                     self.get("life_ring")
                 } else if level > 11 {
                     self.get("iron_ring")
