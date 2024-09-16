@@ -15,7 +15,7 @@ use super::{
 use artifactsmmo_openapi::models::{
     CharacterSchema, InventorySlot, ItemSchema, MapSchema, MonsterSchema, ResourceSchema,
 };
-use chrono::{Date, DateTime, Utc};
+use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use log::{debug, info, warn};
 use serde::Deserialize;
@@ -359,11 +359,18 @@ impl Character {
             }
         }
         if let Some(item) = self.conf().target_item {
-            if let Some(resource) = self.resources.get(&item) {
-                if self.can_gather(resource) {
-                    return self.closest_map_with_content(&item).cloned();
-                }
+            if let Some(resource) = self
+                .resources
+                .dropping(&item)
+                .iter()
+                .find(|r| self.can_gather(r))
+            {
+                return self.closest_map_with_content(&resource.code).cloned();
             }
+            warn!(
+                "{}: does not have required level to gather '{}'.",
+                self.name, item
+            );
         }
         if let Some(skill) = self.role().to_skill() {
             if let Some(resource) = self
