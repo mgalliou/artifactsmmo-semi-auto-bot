@@ -81,7 +81,11 @@ impl Character {
 
     pub fn run(char: Character) -> Result<JoinHandle<()>, io::Error> {
         thread::Builder::new()
-            .name(char.data().name.to_owned())
+            .name(
+                char.data
+                    .read()
+                    .map_or("unknown".to_string(), |d| d.name.to_owned()),
+            )
             .spawn(move || {
                 char.run2();
             })
@@ -233,9 +237,12 @@ impl Character {
         turns_to_kill <= turns_to_be_killed
     }
 
+    fn level(&self) -> i32 {
+        self.data.read().map_or(1, |d| d.level)
+    }
     /// Returns the base health of the `Character` without its equipment.
     fn base_health(&self) -> i32 {
-        self.data.read().map_or(0, |d| 115 + 5 * d.level)
+        115 + 5 * self.level()
     }
 
     /// Move the `Character` to the closest map containing the `code` resource,
@@ -312,7 +319,7 @@ impl Character {
                     ));
                 }
             }
-        } else if let Some(monster) = self.monsters.lowest_providing_exp(self.data().level) {
+        } else if let Some(monster) = self.monsters.lowest_providing_exp(self.level()) {
             let equipment = self.best_available_equipment_against(monster);
             if self.can_kill_with(monster, &equipment) {
                 return Some((
@@ -358,7 +365,8 @@ impl Character {
     }
 
     fn task_finished(&self) -> bool {
-        self.data().task_progress >= self.data().task_total
+        self.data.read().map_or(0, |d| d.task_progress)
+            >= self.data.read().map_or(0, |d| d.task_total)
     }
 
     fn equipment_in(&self, slot: Slot) -> Option<&ItemSchema> {
@@ -739,38 +747,32 @@ impl Character {
         weapon: &ItemSchema,
     ) -> Option<&ItemSchema> {
         match slot {
-            Slot::Amulet if self.data().level >= 5 && self.data().level < 10 => {
-                self.items.get("life_amulet")
-            }
+            Slot::Amulet if self.level() >= 5 && self.level() < 10 => self.items.get("life_amulet"),
             Slot::BodyArmor
             | Slot::LegArmor
             | Slot::Helmet
             | Slot::Ring1
             | Slot::Ring2
             | Slot::Amulet => self.best_available_armor_against_with_weapon(slot, monster, weapon),
-            Slot::Boots if self.data().level >= 20 && self.has_available("steel_boots", slot) => {
+            Slot::Boots if self.level() >= 20 && self.has_available("steel_boots", slot) => {
                 self.items.get("steel_boots")
             }
-            Slot::Boots
-                if self.data().level >= 15 && self.has_available("adventurer_boots", slot) =>
-            {
+            Slot::Boots if self.level() >= 15 && self.has_available("adventurer_boots", slot) => {
                 self.items.get("adventurer_boots")
             }
-            Slot::Boots if self.data().level >= 10 && self.has_available("iron_boots", slot) => {
+            Slot::Boots if self.level() >= 10 && self.has_available("iron_boots", slot) => {
                 self.items.get("iron_boots")
             }
             Slot::Boots if self.has_available("copper_boots", slot) => {
                 self.items.get("copper_boots")
             }
-            Slot::Shield
-                if self.data().level >= 30 && self.has_available("golden_shield", slot) =>
-            {
+            Slot::Shield if self.level() >= 30 && self.has_available("golden_shield", slot) => {
                 self.items.get("golden_shield")
             }
-            Slot::Shield if self.data().level >= 20 && self.has_available("steel_shield", slot) => {
+            Slot::Shield if self.level() >= 20 && self.has_available("steel_shield", slot) => {
                 self.items.get("steel_shield")
             }
-            Slot::Shield if self.data().level >= 10 && self.has_available("slime_shield", slot) => {
+            Slot::Shield if self.level() >= 10 && self.has_available("slime_shield", slot) => {
                 self.items.get("slime_shield")
             }
             Slot::Shield if self.has_available("wooden_shield", slot) => {
@@ -796,7 +798,7 @@ impl Character {
     /// the currently equiped weapon and the `monster` resistances.
     fn best_available_weapon_against(&self, monster: &MonsterSchema) -> Vec<&ItemSchema> {
         self.items
-            .equipable_at_level(self.data().level, Slot::Weapon)
+            .equipable_at_level(self.level(), Slot::Weapon)
             .into_iter()
             .filter(|i| self.has_available(&i.code, Slot::Weapon))
             .max_set_by_key(|i| OrderedFloat(i.attack_damage_against(monster)))
@@ -812,7 +814,7 @@ impl Character {
         weapon: &ItemSchema,
     ) -> Option<&ItemSchema> {
         self.items
-            .equipable_at_level(self.data().level, slot)
+            .equipable_at_level(self.level(), slot)
             .into_iter()
             .filter(|i| self.has_available(&i.code, slot))
             .max_by_key(|i| {
