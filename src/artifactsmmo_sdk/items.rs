@@ -80,7 +80,7 @@ impl PartialEq<SubType> for String {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, AsRefStr, EnumString)]
+#[derive(Debug, Copy, Clone, PartialEq, AsRefStr, EnumString, EnumIter)]
 #[strum(serialize_all = "snake_case")]
 pub enum Slot {
     Weapon,
