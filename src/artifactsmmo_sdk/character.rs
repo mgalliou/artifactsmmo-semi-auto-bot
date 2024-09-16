@@ -198,6 +198,8 @@ impl Character {
             })
     }
 
+    /// Move the `Character` to the closest map containing the `code` resource,
+    /// then fight. Returns true is the API request went successfully.
     fn kill_monster(&self, code: &str) -> bool {
         if let Some(map) = self.closest_map_with_resource(code) {
             return self.action_move(map.x, map.y) && self.action_fight().is_ok();
@@ -205,6 +207,8 @@ impl Character {
         false
     }
 
+    /// Checks if the `Character` could kill the given `monster` with the given
+    /// `equipment`
     fn can_kill_with(&self, monster: &MonsterSchema, equipment: &Equipment) -> bool {
         let turns_to_kill = (monster.hp as f32 / equipment.attack_damage_against(monster)).ceil();
         let turns_to_be_killed = ((self.base_health() + equipment.health_increase()) as f32
@@ -217,10 +221,13 @@ impl Character {
         turns_to_kill <= turns_to_be_killed
     }
 
+    /// Returns the base health of the `Character` without its equipment.
     fn base_health(&self) -> i32 {
         self.data.read().map_or(0, |d| 115 + 5 * d.level)
     }
 
+    /// Move the `Character` to the closest map containing the `code` resource,
+    /// then gather. Returns true is the API request went successfully.
     fn gather_resource(&self, code: &str) -> bool {
         if let Some(map) = self.closest_map_with_resource(code) {
             return self.action_move(map.x, map.y) && self.action_gather().is_ok();
@@ -228,6 +235,8 @@ impl Character {
         false
     }
 
+    /// Returns the next skill that should leveled by the Character, based on
+    /// its configuration and the items available in bank.
     fn target_skill_to_level(&self) -> Option<Skill> {
         let mut skills = vec![];
         if self.conf().weaponcraft {
@@ -250,6 +259,9 @@ impl Character {
         })
     }
 
+    /// Returns the target monster for the current character with the best
+    /// equipment available. The main priority is events (TODO), then tasks, then
+    /// target from config file, then lowest level target.
     fn target_monster_with_equipment(&self) -> Option<(&MonsterSchema, Equipment)> {
         if self.conf().do_tasks && self.data().task_type == "monsters" && !self.task_finished() {
             if let Some(monster) = self.monsters.get(&self.data().task) {
