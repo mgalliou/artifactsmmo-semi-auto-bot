@@ -5,3 +5,4 @@ pub mod maps;
 pub mod monsters;
 pub mod my_character;
 pub mod resources;
+pub mod events;

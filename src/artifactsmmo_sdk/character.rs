@@ -1,6 +1,6 @@
 use super::{
     account::Account,
-    api::my_character::MyCharacterApi,
+    api::{events::EventsApi, my_character::MyCharacterApi},
     bank::Bank,
     char_config::CharConfig,
     compute_damage,
@@ -12,8 +12,11 @@ use super::{
     skill::Skill,
     ItemSchemaExt, MapSchemaExt, MonsterSchemaExt,
 };
-use artifactsmmo_openapi::models::{
-    CharacterSchema, InventorySlot, ItemSchema, MapSchema, MonsterSchema, ResourceSchema,
+use artifactsmmo_openapi::{
+    apis::events_api,
+    models::{
+        CharacterSchema, InventorySlot, ItemSchema, MapSchema, MonsterSchema, ResourceSchema,
+    },
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
@@ -35,6 +38,7 @@ use ordered_float::OrderedFloat;
 pub struct Character {
     name: String,
     my_api: MyCharacterApi,
+    events_api: EventsApi,
     account: Account,
     maps: Arc<Maps>,
     resources: Arc<Resources>,
@@ -61,6 +65,10 @@ impl Character {
             name: data.read().map(|d| d.name.to_owned()).unwrap(),
             conf,
             my_api: MyCharacterApi::new(
+                &account.configuration.base_path,
+                &account.configuration.bearer_access_token.clone().unwrap(),
+            ),
+            events_api: EventsApi::new(
                 &account.configuration.base_path,
                 &account.configuration.bearer_access_token.clone().unwrap(),
             ),
@@ -106,9 +114,10 @@ impl Character {
                 }
             }
             if self.conf().role == Role::Fighter {
-                if let Some((monster, equipment)) = self.target_monster_with_equipment() {
+                if let Some((map, equipment)) = self.target_map_with_equipment() {
                     self.equip_equipment(&equipment);
-                    self.kill_monster(&monster.code);
+                    self.action_move(map.x, map.y);
+                    let _ = self.action_fight();
                 }
             } else if let Some(resource) = self.target_resource() {
                 self.gather_resource(&resource.code);
@@ -201,7 +210,7 @@ impl Character {
     /// Move the `Character` to the closest map containing the `code` resource,
     /// then fight. Returns true is the API request went successfully.
     fn kill_monster(&self, code: &str) -> bool {
-        if let Some(map) = self.closest_map_with_resource(code) {
+        if let Some(map) = self.closest_map_with_content(code) {
             return self.action_move(map.x, map.y) && self.action_fight().is_ok();
         }
         false
@@ -229,7 +238,7 @@ impl Character {
     /// Move the `Character` to the closest map containing the `code` resource,
     /// then gather. Returns true is the API request went successfully.
     fn gather_resource(&self, code: &str) -> bool {
-        if let Some(map) = self.closest_map_with_resource(code) {
+        if let Some(map) = self.closest_map_with_content(code) {
             return self.action_move(map.x, map.y) && self.action_gather().is_ok();
         }
         false
@@ -259,15 +268,34 @@ impl Character {
         })
     }
 
-    /// Returns the target monster for the current character with the best
-    /// equipment available. The main priority is events (TODO), then tasks, then
-    /// target from config file, then lowest level target.
-    fn target_monster_with_equipment(&self) -> Option<(&MonsterSchema, Equipment)> {
+    /// Returns the map containing the best monster for the current character
+    /// alongside the best equipment available to fight the target `monster` if
+    /// it call be killed with it. The monster priority order is events,
+    /// then tasks, then target from config file, then lowest level target.
+    fn target_map_with_equipment(&self) -> Option<(MapSchema, Equipment)> {
+        if let Ok(events) = self.events_api.all() {
+            for event in events {
+                if let Some(monster) = event
+                    .map
+                    .content
+                    .as_ref()
+                    .and_then(|c| self.monsters.get(&c.code))
+                {
+                    let equipment = self.best_available_equipment_against(monster);
+                    if self.can_kill_with(monster, &equipment) {
+                        return Some(((*event.map.clone()), equipment));
+                    }
+                }
+            }
+        }
         if self.conf().do_tasks && self.data().task_type == "monsters" && !self.task_finished() {
             if let Some(monster) = self.monsters.get(&self.data().task) {
                 let equipment = self.best_available_equipment_against(monster);
                 if self.can_kill_with(monster, &equipment) {
-                    return Some((monster, equipment));
+                    return Some((
+                        self.closest_map_with_content(&monster.code)?.clone(),
+                        equipment,
+                    ));
                 }
             }
         }
@@ -275,13 +303,19 @@ impl Character {
             if let Some(monster) = self.monsters.get(monster_code) {
                 let equipment = self.best_available_equipment_against(monster);
                 if self.can_kill_with(monster, &equipment) {
-                    return Some((monster, equipment));
+                    return Some((
+                        self.closest_map_with_content(&monster.code)?.clone(),
+                        equipment,
+                    ));
                 }
             }
         } else if let Some(monster) = self.monsters.lowest_providing_exp(self.data().level) {
             let equipment = self.best_available_equipment_against(monster);
             if self.can_kill_with(monster, &equipment) {
-                return Some((monster, equipment));
+                return Some((
+                    self.closest_map_with_content(&monster.code)?.clone(),
+                    equipment,
+                ));
             }
         }
         None
@@ -582,7 +616,7 @@ impl Character {
         Maps::closest_from_amoung(self.data().x, self.data().y, maps)
     }
 
-    fn closest_map_with_resource(&self, code: &str) -> Option<&MapSchema> {
+    fn closest_map_with_content(&self, code: &str) -> Option<&MapSchema> {
         let maps = self.maps.with_ressource(code);
         if maps.is_empty() {
             return None;
