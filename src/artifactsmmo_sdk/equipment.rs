@@ -39,6 +39,12 @@ impl<'a> Equipment<'a> {
             .sum()
     }
 
+    pub fn attack_damage_from(&self, monster: &MonsterSchema) -> f32 {
+        DamageType::iter()
+            .map(|t| compute_damage(monster.attack_damage(t), 0, self.resistance(t)))
+            .sum()
+    }
+
     // TODO: handle consumables
     fn damage_increase(&self, t: DamageType) -> i32 {
         Slot::iter()
@@ -69,5 +75,11 @@ impl<'a> Equipment<'a> {
             Slot::Consumable1 => self.consumable1,
             Slot::Consumable2 => self.consumable2,
         }
+    }
+
+    fn resistance(&self, t: DamageType) -> i32 {
+        Slot::iter()
+            .map(|s| self.slot(s).map_or(0, |i| i.resistance(t)))
+            .sum()
     }
 }

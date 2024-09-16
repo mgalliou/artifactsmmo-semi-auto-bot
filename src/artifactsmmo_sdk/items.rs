@@ -227,6 +227,14 @@ impl ItemSchemaExt for ItemSchema {
             .unwrap_or(0)
     }
 
+    fn resistance(&self, r#type: DamageType) -> i32 {
+        self.effects()
+            .iter()
+            .find(|e| e.name == "res_".to_string() + r#type.as_ref())
+            .map(|e| e.value)
+            .unwrap_or(0)
+    }
+
     fn total_damage_increase(&self) -> i32 {
         self.effects()
             .iter()

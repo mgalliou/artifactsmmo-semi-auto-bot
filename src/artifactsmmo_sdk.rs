@@ -31,6 +31,7 @@ trait ItemSchemaExt {
     fn attack_damage_against(&self, monster: &MonsterSchema) -> f32;
     fn total_damage_increase(&self) -> i32;
     fn damage_increase(&self, r#type: DamageType) -> i32;
+    fn resistance(&self, r#type: DamageType) -> i32;
     fn total_resistance(&self) -> i32;
     fn health(&self) -> i32;
 }

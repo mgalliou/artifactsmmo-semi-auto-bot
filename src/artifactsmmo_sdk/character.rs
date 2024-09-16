@@ -115,7 +115,7 @@ impl Character {
                 }
             }
             if self.role() == Role::Fighter {
-                if let Some((map, equipment)) = self.target_map_with_equipment() {
+                if let Some((map, equipment)) = self.best_monster_map_with_equipment() {
                     self.equip_equipment(&equipment);
                     self.action_move(map.x, map.y);
                     let _ = self.action_fight();
@@ -240,7 +240,7 @@ impl Character {
     fn can_kill_with(&self, monster: &MonsterSchema, equipment: &Equipment) -> bool {
         let turns_to_kill = (monster.hp as f32 / equipment.attack_damage_against(monster)).ceil();
         let turns_to_be_killed = ((self.base_health() + equipment.health_increase()) as f32
-            / self.attack_damage_from(monster))
+            / equipment.attack_damage_from(monster))
         .ceil();
         debug!(
             "{}: '{}': turn to kill: {}, turns to be killed {}",
@@ -294,7 +294,7 @@ impl Character {
     /// alongside the best equipment available to fight the target `monster` if
     /// it call be killed with it. The monster priority order is events,
     /// then tasks, then target from config file, then lowest level target.
-    fn target_map_with_equipment(&self) -> Option<(MapSchema, Equipment)> {
+    fn best_monster_map_with_equipment(&self) -> Option<(MapSchema, Equipment)> {
         if let Ok(events) = self.events_api.all() {
             for event in events {
                 if let Some(monster) = event
@@ -699,10 +699,7 @@ impl Character {
     }
 
     fn best_available_equipment_against(&self, monster: &MonsterSchema) -> Equipment {
-        let mut weapons = self.best_available_weapon_against(monster);
-        if weapons.is_empty() {
-            weapons.push(self.equipment_in(Slot::Weapon).expect("should exit"))
-        }
+        let weapons = self.best_available_weapon_against(monster);
         let best_equipment = weapons
             .iter()
             .map(|w| self.best_available_equipment_against_with_weapon(monster, w))
