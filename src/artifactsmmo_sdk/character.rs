@@ -105,10 +105,11 @@ impl Character {
                     continue;
                 }
             }
-            if let Some(monster) = self.target_monster() {
-                let equipment = self.best_available_equipment_against(monster);
-                self.equip_equipment(&equipment);
-                self.kill_monster(&monster.code);
+            if self.conf().role == Role::Fighter {
+                if let Some((monster, equipment)) = self.target_monster_with_equipment() {
+                    self.equip_equipment(&equipment);
+                    self.kill_monster(&monster.code);
+                }
             } else if let Some(resource) = self.target_resource() {
                 self.gather_resource(&resource.code);
             }
@@ -204,13 +205,20 @@ impl Character {
         false
     }
 
-    fn can_kill(&self, monster: &MonsterSchema) -> bool {
-        let turns_to_kill = monster.hp as f32 / self.attack_damage_against(monster);
-        let turns_to_be_killed = self
-            .data
-            .read()
-            .map_or(0.0, |d| d.hp as f32 / self.attack_damage_from(monster));
-        turns_to_be_killed < turns_to_kill
+    fn can_kill_with(&self, monster: &MonsterSchema, equipment: &Equipment) -> bool {
+        let turns_to_kill = (monster.hp as f32 / equipment.attack_damage_against(monster)).ceil();
+        let turns_to_be_killed = ((self.base_health() + equipment.health_increase()) as f32
+            / self.attack_damage_from(monster))
+        .ceil();
+        debug!(
+            "{}: '{}': turn to kill: {}, turns to be killed {}",
+            self.name, monster.code, turns_to_kill, turns_to_be_killed
+        );
+        turns_to_kill <= turns_to_be_killed
+    }
+
+    fn base_health(&self) -> i32 {
+        self.data.read().map_or(0, |d| 115 + 5 * d.level)
     }
 
     fn gather_resource(&self, code: &str) -> bool {
@@ -242,15 +250,26 @@ impl Character {
         })
     }
 
-    fn target_monster(&self) -> Option<&MonsterSchema> {
-        if self.conf().role == Role::Fighter {
-            if self.conf().do_tasks && self.data().task_type == "monsters" && !self.task_finished()
-            {
-                return self.monsters.get(&self.data().task);
-            } else if let Some(monster) = &self.conf().fight_target {
-                return self.monsters.get(monster);
-            } else {
-                return self.monsters.lowest_providing_exp(self.data().level);
+    fn target_monster_with_equipment(&self) -> Option<(&MonsterSchema, Equipment)> {
+        if self.conf().do_tasks && self.data().task_type == "monsters" && !self.task_finished() {
+            if let Some(monster) = self.monsters.get(&self.data().task) {
+                let equipment = self.best_available_equipment_against(monster);
+                if self.can_kill_with(monster, &equipment) {
+                    return Some((monster, equipment));
+                }
+            }
+        }
+        if let Some(monster_code) = &self.conf().fight_target {
+            if let Some(monster) = self.monsters.get(monster_code) {
+                let equipment = self.best_available_equipment_against(monster);
+                if self.can_kill_with(monster, &equipment) {
+                    return Some((monster, equipment));
+                }
+            }
+        } else if let Some(monster) = self.monsters.lowest_providing_exp(self.data().level) {
+            let equipment = self.best_available_equipment_against(monster);
+            if self.can_kill_with(monster, &equipment) {
+                return Some((monster, equipment));
             }
         }
         None

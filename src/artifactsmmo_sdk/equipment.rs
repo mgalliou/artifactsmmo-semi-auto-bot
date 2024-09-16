@@ -6,7 +6,7 @@ use super::{
 use artifactsmmo_openapi::models::{ItemSchema, MonsterSchema};
 use strum::IntoEnumIterator;
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct Equipment<'a> {
     pub weapon: Option<&'a ItemSchema>,
     pub shield: Option<&'a ItemSchema>,
@@ -43,6 +43,12 @@ impl<'a> Equipment<'a> {
     fn damage_increase(&self, t: DamageType) -> i32 {
         Slot::iter()
             .map(|s| self.slot(s).map_or(0, |i| i.damage_increase(t)))
+            .sum()
+    }
+
+    pub fn health_increase(&self) -> i32 {
+        Slot::iter()
+            .map(|s| self.slot(s).map_or(0, |i| i.health()))
             .sum()
     }
 
