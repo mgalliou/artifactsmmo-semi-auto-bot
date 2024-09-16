@@ -331,7 +331,8 @@ impl Character {
                     ));
                 }
             }
-        } else if let Some(monster) = self.monsters.lowest_providing_exp(self.level()) {
+        } 
+        if let Some(monster) = self.monsters.lowest_providing_exp(self.level()) {
             let equipment = self.best_available_equipment_against(monster);
             if self.can_kill_with(monster, &equipment) {
                 return Some((
