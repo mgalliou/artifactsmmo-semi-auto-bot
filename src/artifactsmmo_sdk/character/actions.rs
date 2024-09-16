@@ -82,7 +82,7 @@ impl ResponseSchema for SkillResponseSchema {
 
 impl Character {
     pub(crate) fn action_move(&self, x: i32, y: i32) -> bool {
-        if (self.data().x, self.data().y) == (x, y) {
+        if self.position() == (x, y) {
             return true;
         }
         self.wait_for_cooldown();
@@ -339,7 +339,7 @@ impl Character {
         let res = self.my_api.cancel_task(&self.name);
         match res {
             Ok(ref res) => {
-                info!("{}: canceled task: {:?}", self.name, self.data().task);
+                info!("{}: canceled task: {:?}", self.name, self.task());
                 self.data
                     .write()
                     .unwrap()

@@ -15,7 +15,7 @@ use super::{
 use artifactsmmo_openapi::models::{
     CharacterSchema, InventorySlot, ItemSchema, MapSchema, MonsterSchema, ResourceSchema,
 };
-use chrono::{DateTime, Utc};
+use chrono::{Date, DateTime, Utc};
 use itertools::Itertools;
 use log::{debug, info, warn};
 use serde::Deserialize;
@@ -93,7 +93,7 @@ impl Character {
 
     fn run2(&self) {
         info!("{}: started !", self.name);
-        if Role::Fighter != self.conf().role
+        if self.role() != Role::Fighter
             && self
                 .equipment_in(Slot::Weapon)
                 .is_some_and(|w| w.code == "wooden_stick")
@@ -101,7 +101,7 @@ impl Character {
             let _ = self.action_unequip(Slot::Weapon);
             self.deposit_all();
         };
-        while self.conf.read().is_ok_and(|c| c.role != Role::Idle) {
+        while self.role() != Role::Idle {
             self.process_inventory();
             self.process_task();
             if let Some(skill) = self.target_skill_to_level() {
@@ -114,15 +114,15 @@ impl Character {
                     continue;
                 }
             }
-            if self.conf().role == Role::Fighter {
+            if self.role() == Role::Fighter {
                 if let Some((map, equipment)) = self.target_map_with_equipment() {
                     self.equip_equipment(&equipment);
                     self.action_move(map.x, map.y);
                     let _ = self.action_fight();
                 }
-            } else if self.conf().role == Role::Miner
-                || self.conf().role == Role::Woodcutter
-                || self.conf().role == Role::Fisher
+            } else if self.role() == Role::Miner
+                || self.role() == Role::Woodcutter
+                || self.role() == Role::Fisher
             {
                 if let Some(map) = self.best_resource_map() {
                     self.action_move(map.x, map.y);
@@ -136,8 +136,8 @@ impl Character {
         self.conf.read().unwrap().clone()
     }
 
-    fn data(&self) -> CharacterSchema {
-        self.data.read().unwrap().clone()
+    fn role(&self) -> Role {
+        self.conf.read().map_or(Role::Idle, |d| d.role)
     }
 
     fn process_inventory(&self) {
@@ -151,12 +151,24 @@ impl Character {
     }
 
     fn process_task(&self) {
-        if self.data().task.is_empty() || self.task_finished() {
+        if self.task().is_empty() || self.task_finished() {
             if self.task_finished() {
                 let _ = self.action_complete_task();
             }
             let _ = self.action_accept_task();
         }
+    }
+
+    fn task(&self) -> String {
+        self.data
+            .read()
+            .map_or("".to_string(), |d| d.task.to_owned())
+    }
+
+    fn task_type(&self) -> String {
+        self.data
+            .read()
+            .map_or("".to_string(), |d| d.task.to_owned())
     }
 
     /// Process the raw materials in the Character inventory by converting the
@@ -298,8 +310,8 @@ impl Character {
                 }
             }
         }
-        if self.conf().do_tasks && self.data().task_type == "monsters" && !self.task_finished() {
-            if let Some(monster) = self.monsters.get(&self.data().task) {
+        if self.conf().do_tasks && self.task_type() == "monsters" && !self.task_finished() {
+            if let Some(monster) = self.monsters.get(&self.task()) {
                 let equipment = self.best_available_equipment_against(monster);
                 if self.can_kill_with(monster, &equipment) {
                     return Some((
@@ -353,7 +365,7 @@ impl Character {
                 }
             }
         }
-        if let Some(skill) = self.conf().role.to_skill() {
+        if let Some(skill) = self.role().to_skill() {
             if let Some(resource) = self
                 .resources
                 .lowest_providing_exp(self.skill_level(skill), skill)
@@ -370,24 +382,26 @@ impl Character {
     }
 
     fn equipment_in(&self, slot: Slot) -> Option<&ItemSchema> {
-        let binding = self.data();
-        let code = match slot {
-            Slot::Weapon => &binding.weapon_slot,
-            Slot::Shield => &binding.shield_slot,
-            Slot::Helmet => &binding.helmet_slot,
-            Slot::BodyArmor => &binding.body_armor_slot,
-            Slot::LegArmor => &binding.leg_armor_slot,
-            Slot::Boots => &binding.boots_slot,
-            Slot::Ring1 => &binding.ring1_slot,
-            Slot::Ring2 => &binding.ring2_slot,
-            Slot::Amulet => &binding.amulet_slot,
-            Slot::Artifact1 => &binding.artifact1_slot,
-            Slot::Artifact2 => &binding.artifact2_slot,
-            Slot::Artifact3 => &binding.artifact3_slot,
-            Slot::Consumable1 => &binding.consumable1_slot,
-            Slot::Consumable2 => &binding.consumable2_slot,
-        };
-        self.items.get(code)
+        self.data
+            .read()
+            .map(|d| match slot {
+                Slot::Weapon => d.weapon_slot.to_owned(),
+                Slot::Shield => d.shield_slot.to_owned(),
+                Slot::Helmet => d.helmet_slot.to_owned(),
+                Slot::BodyArmor => d.body_armor_slot.to_owned(),
+                Slot::LegArmor => d.leg_armor_slot.to_owned(),
+                Slot::Boots => d.boots_slot.to_owned(),
+                Slot::Ring1 => d.ring1_slot.to_owned(),
+                Slot::Ring2 => d.ring2_slot.to_owned(),
+                Slot::Amulet => d.amulet_slot.to_owned(),
+                Slot::Artifact1 => d.artifact1_slot.to_owned(),
+                Slot::Artifact2 => d.artifact2_slot.to_owned(),
+                Slot::Artifact3 => d.artifact3_slot.to_owned(),
+                Slot::Consumable1 => d.consumable1_slot.to_owned(),
+                Slot::Consumable2 => d.consumable2_slot.to_owned(),
+            })
+            .map(|i| self.items.get(&i))
+            .ok()?
     }
 
     //TODO: handle item already in inventory
@@ -419,25 +433,25 @@ impl Character {
     }
 
     fn skill_level(&self, skill: Skill) -> i32 {
-        match skill {
-            Skill::Cooking => self.data().cooking_level,
-            Skill::Fishing => self.data().fishing_level,
-            Skill::Gearcrafting => self.data().gearcrafting_level,
-            Skill::Jewelrycrafting => self.data().jewelrycrafting_level,
-            Skill::Mining => self.data().mining_level,
-            Skill::Weaponcrafting => self.data().weaponcrafting_level,
-            Skill::Woodcutting => self.data().woodcutting_level,
-        }
+        self.data.read().map_or(1, |d| match skill {
+            Skill::Cooking => d.cooking_level,
+            Skill::Fishing => d.fishing_level,
+            Skill::Gearcrafting => d.gearcrafting_level,
+            Skill::Jewelrycrafting => d.jewelrycrafting_level,
+            Skill::Mining => d.mining_level,
+            Skill::Weaponcrafting => d.weaponcrafting_level,
+            Skill::Woodcutting => d.woodcutting_level,
+        })
     }
 
     /// Returns a copy of the inventory to be used while depositing or
     /// withdrawing items.
     fn inventory_copy(&self) -> Vec<InventorySlot> {
-        self.data()
-            .inventory
-            .iter()
+        self.data
+            .read()
+            .map(|d| d.inventory.iter().flatten().cloned().collect_vec())
+            .into_iter()
             .flatten()
-            .cloned()
             .collect_vec()
     }
 
@@ -478,7 +492,7 @@ impl Character {
     }
 
     fn deposit_all_of(&self, code: &str) {
-        let amount = self.amount_in_inventory(code);
+        let amount = self.has_in_inventory(code);
         if amount > 0 {
             let _ = self.action_deposit(code, amount);
         }
@@ -580,37 +594,44 @@ impl Character {
     }
 
     fn cooldown_expiration(&self) -> Option<DateTime<Utc>> {
-        self.data()
-            .cooldown_expiration
-            .as_ref()
-            .map(|cd| DateTime::parse_from_rfc3339(cd).ok().map(|dt| dt.to_utc()))?
+        self.data
+            .read()
+            .map(|d| {
+                d.cooldown_expiration
+                    .as_ref()
+                    .map(|cd| DateTime::parse_from_rfc3339(cd).ok().map(|dt| dt.to_utc()))?
+            })
+            .ok()?
     }
 
     fn inventory_is_full(&self) -> bool {
-        self.inventory_total() == self.data().inventory_max_items
+        self.inventory_total() >= self.data.read().map_or(100, |d| d.inventory_max_items)
             || self
                 .data
                 .read()
                 .is_ok_and(|d| d.inventory.iter().flatten().all(|s| s.quantity > 0))
     }
 
-    fn amount_in_inventory(&self, code: &str) -> i32 {
-        self.data()
-            .inventory
-            .iter()
-            .flatten()
-            .find(|i| i.code == code)
-            .map_or(0, |i| i.quantity)
+    fn has_in_inventory(&self, code: &str) -> i32 {
+        self.data.read().map_or(0, |d| {
+            d.inventory
+                .iter()
+                .flatten()
+                .find(|i| i.code == code)
+                .map_or(0, |i| i.quantity)
+        })
     }
 
     fn inventory_free_space(&self) -> i32 {
-        self.data().inventory_max_items - self.inventory_total()
+        self.data
+            .read()
+            .map_or(0, |d| d.inventory_max_items - self.inventory_total())
     }
 
     fn inventory_total(&self) -> i32 {
-        self.data()
-            .inventory
-            .map_or(0, |inv| inv.iter().map(|i| i.quantity).sum())
+        self.data.read().map_or(0, |d| {
+            d.inventory.iter().flatten().map(|i| i.quantity).sum()
+        })
     }
 
     fn has_mats_for(&self, code: &str) -> i32 {
@@ -618,13 +639,19 @@ impl Character {
             .mats(code)
             .iter()
             .filter(|mat| mat.quantity > 0)
-            .map(|mat| self.amount_in_inventory(&mat.code) / mat.quantity)
+            .map(|mat| self.has_in_inventory(&mat.code) / mat.quantity)
             .min()
             .unwrap_or(0)
     }
 
     fn closest_map_among<'a>(&'a self, maps: Vec<&'a MapSchema>) -> Option<&MapSchema> {
-        Maps::closest_from_amoung(self.data().x, self.data().y, maps)
+        let (x, y) = self.position();
+        Maps::closest_from_amoung(x, y, maps)
+    }
+
+    fn position(&self) -> (i32, i32) {
+        let (x, y) = self.data.read().map_or((0, 0), |d| (d.x, d.y));
+        (x, y)
     }
 
     fn closest_map_with_content(&self, code: &str) -> Option<&MapSchema> {
@@ -652,11 +679,11 @@ impl Character {
             if let Some(item) = equipment.slot(s) {
                 if prev_equiped.is_some_and(|e| e.code == item.code) {
                     debug!("{}: item already equiped: '{}'.", self.name, item.code)
-                } else if self.amount_in_inventory(&item.code) > 0 {
+                } else if self.has_in_inventory(&item.code) > 0 {
                     let _ = self.action_equip(&item.code, s);
-                } else if self.bank.read().is_ok_and(|b| {
-                    b.has_item(&item.code) > 0 && self.action_withdraw(&item.code, 1).is_ok()
-                }) {
+                } else if self.has_in_bank(&item.code) > 0
+                    && self.action_withdraw(&item.code, 1).is_ok()
+                {
                     let _ = self.action_equip(&item.code, s);
                     if let Some(i) = prev_equiped {
                         let _ = self.action_deposit(&i.code, 1);
@@ -782,8 +809,11 @@ impl Character {
         }
     }
 
+    fn has_in_bank(&self, code: &str) -> i32 {
+        self.bank.read().map_or(0, |b| b.has_item(code))
+    }
     fn has_in_bank_or_inv(&self, code: &str) -> bool {
-        self.amount_in_inventory(code) > 0 || self.bank.read().is_ok_and(|b| b.has_item(code) > 0)
+        self.has_in_bank(code) > 0 || self.has_in_inventory(code) > 0
     }
 
     fn has_available(&self, code: &str, slot: Slot) -> bool {
@@ -878,7 +908,7 @@ impl Character {
     // }
 }
 
-#[derive(Debug, Default, PartialEq, Clone, Deserialize)]
+#[derive(Debug, Default, PartialEq, Copy, Clone, Deserialize)]
 pub enum Role {
     Fighter,
     Miner,
