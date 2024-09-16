@@ -630,14 +630,32 @@ impl Character {
             | Slot::Ring1
             | Slot::Ring2
             | Slot::Amulet => self.armor_damage_upgrades_in_bank(slot, monster),
-            Slot::Boots if self.data().level >= 20 => self.items.get("steel_boots"),
-            Slot::Boots if self.data().level >= 15 => self.items.get("adventurer_boots"),
-            Slot::Boots if self.data().level >= 10 => self.items.get("iron_boots"),
-            Slot::Boots => self.items.get("copper_boots"),
-            Slot::Shield if self.data().level >= 30 => self.items.get("golden_shield"),
-            Slot::Shield if self.data().level >= 20 => self.items.get("steel_shield"),
-            Slot::Shield if self.data().level >= 10 => self.items.get("slime_shield"),
-            Slot::Shield => self.items.get("wooden_shield"),
+            Slot::Boots if self.data().level >= 20 && self.has_in_bank_or_inv("steel_boots") => {
+                self.items.get("steel_boots")
+            }
+            Slot::Boots
+                if self.data().level >= 15 && self.has_in_bank_or_inv("adventurer_boots") =>
+            {
+                self.items.get("adventurer_boots")
+            }
+            Slot::Boots if self.data().level >= 10 && self.has_in_bank_or_inv("iron_boots") => {
+                self.items.get("iron_boots")
+            }
+            Slot::Boots if self.has_in_bank_or_inv("copper_boots") => {
+                self.items.get("copper_boots")
+            }
+            Slot::Shield if self.data().level >= 30 && self.has_in_bank_or_inv("golden_shield") => {
+                self.items.get("golden_shield")
+            }
+            Slot::Shield if self.data().level >= 20 && self.has_in_bank_or_inv("steel_shield") => {
+                self.items.get("steel_shield")
+            }
+            Slot::Shield if self.data().level >= 10 && self.has_in_bank_or_inv("slime_shield") => {
+                self.items.get("slime_shield")
+            }
+            Slot::Shield if self.has_in_bank_or_inv("wooden_shield") => {
+                self.items.get("wooden_shield")
+            }
             _ => None,
         }
     }
