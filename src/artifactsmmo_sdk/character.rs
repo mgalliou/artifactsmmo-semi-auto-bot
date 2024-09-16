@@ -119,8 +119,14 @@ impl Character {
                     self.action_move(map.x, map.y);
                     let _ = self.action_fight();
                 }
-            } else if let Some(resource) = self.target_resource() {
-                self.gather_resource(&resource.code);
+            } else if self.conf().role == Role::Miner
+                || self.conf().role == Role::Woodcutter
+                || self.conf().role == Role::Fisher
+            {
+                if let Some(map) = self.best_resource_map() {
+                    self.action_move(map.x, map.y);
+                    let _ = self.action_gather();
+                }
             }
         }
     }
@@ -321,26 +327,37 @@ impl Character {
         None
     }
 
-    fn target_resource(&self) -> Option<&ResourceSchema> {
-        match self.conf().role {
-            Role::Miner | Role::Woodcutter | Role::Fisher => {
-                if let Some(item) = &self.conf().target_item {
-                    return self
-                        .resources
-                        .dropping(item)
-                        .iter()
-                        .min_by_key(|r| r.level)
-                        .copied();
-                } else if let Some(skill) = self.conf().role.to_skill() {
-                    return self
-                        .resources
-                        .lowest_providing_exp(self.skill_level(skill), skill);
-                } else {
-                    None
+    fn best_resource_map(&self) -> Option<MapSchema> {
+        if let Ok(events) = self.events_api.all() {
+            for event in events {
+                if let Some(resource) = event
+                    .map
+                    .content
+                    .as_ref()
+                    .and_then(|c| self.resources.get(&c.code))
+                {
+                    if self.can_gather(resource) {
+                        return Some(*event.map.clone());
+                    }
                 }
             }
-            _ => None,
         }
+        if let Some(item) = self.conf().target_item {
+            if let Some(resource) = self.resources.get(&item) {
+                if self.can_gather(resource) {
+                    return self.closest_map_with_content(&item).cloned();
+                }
+            }
+        }
+        if let Some(skill) = self.conf().role.to_skill() {
+            if let Some(resource) = self
+                .resources
+                .lowest_providing_exp(self.skill_level(skill), skill)
+            {
+                return self.closest_map_with_content(&resource.code).cloned();
+            }
+        }
+        None
     }
 
     fn task_finished(&self) -> bool {
@@ -1066,6 +1083,10 @@ impl Character {
     fn slot_attack_damage_against(&self, slot: Slot, monster: &MonsterSchema) -> f32 {
         self.equipment_in(slot)
             .map_or(0.0, |i| self.armor_attack_damage_against(i, monster))
+    }
+
+    fn can_gather(&self, resource: &ResourceSchema) -> bool {
+        self.skill_level(resource.skill.into()) >= resource.level
     }
 
     // fn fight_until_unsuccessful(&self, x: i32, y: i32) {
