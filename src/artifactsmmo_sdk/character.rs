@@ -133,7 +133,6 @@ impl Character {
         };
     }
 
-
     fn is_gatherer(&self) -> bool {
         matches!(self.role(), Role::Miner | Role::Woodcutter | Role::Fisher)
     }
@@ -714,8 +713,8 @@ impl Character {
     }
 
     fn best_available_equipment_against(&self, monster: &MonsterSchema) -> Equipment {
-        let weapons = self.best_available_weapon_against(monster);
-        let best_equipment = weapons
+        let best_equipment = self
+            .available_equipable_weapons()
             .iter()
             .map(|w| self.best_available_equipment_against_with_weapon(monster, w))
             .max_by_key(|e| OrderedFloat(e.attack_damage_against(monster)));
@@ -836,14 +835,13 @@ impl Character {
         Slot::iter().any(|s| self.equipment_in(s).is_some_and(|e| e.code == code))
     }
 
-    /// Returns all the best weapon upgrades available for the given `monster` based on
-    /// the currently equiped weapon and the `monster` resistances.
-    fn best_available_weapon_against(&self, monster: &MonsterSchema) -> Vec<&ItemSchema> {
+    /// Returns all the weapons available and equipable by the `Character`
+    fn available_equipable_weapons(&self) -> Vec<&ItemSchema> {
         self.items
             .equipable_at_level(self.level(), Slot::Weapon)
             .into_iter()
             .filter(|i| self.has_available(&i.code, Slot::Weapon))
-            .max_set_by_key(|i| OrderedFloat(i.attack_damage_against(monster)))
+            .collect_vec()
     }
 
     /// Returns the best upgrade available in bank or inventory for the given
