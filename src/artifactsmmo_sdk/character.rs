@@ -137,7 +137,7 @@ impl Character {
     }
 
     fn role(&self) -> Role {
-        self.conf.read().map_or(Role::Idle, |d| d.role)
+        self.conf.read().map_or(Role::default(), |d| d.role)
     }
 
     fn process_inventory(&self) {
@@ -384,10 +384,10 @@ impl Character {
         None
     }
 
-    // TODO: fix
     fn task_finished(&self) -> bool {
-        self.data.read().map_or(0, |d| d.task_progress)
-            >= self.data.read().map_or(0, |d| d.task_total)
+        self.data
+            .read()
+            .map_or(false, |d| d.task_progress >= d.task_total)
     }
 
     fn equipment_in(&self, slot: Slot) -> Option<&ItemSchema> {
