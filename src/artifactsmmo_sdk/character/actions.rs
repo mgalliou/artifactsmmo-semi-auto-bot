@@ -252,7 +252,7 @@ impl Character {
         let res = self.my_api.craft(&self.name, code, quantity);
         match res {
             Ok(ref res) => {
-                info!("{}: crafted '{}'x{}", self.name, code, quantity);
+                info!("{}: crafted '{}'x{}.", self.name, code, quantity);
                 self.data
                     .write()
                     .unwrap()
