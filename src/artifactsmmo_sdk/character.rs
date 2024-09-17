@@ -93,14 +93,7 @@ impl Character {
 
     fn run_loop(&self) {
         info!("{}: started !", self.name);
-        if self.role() != Role::Fighter
-            && self
-                .equipment_in(Slot::Weapon)
-                .is_some_and(|w| w.code == "wooden_stick")
-        {
-            let _ = self.action_unequip(Slot::Weapon);
-            self.deposit_all();
-        };
+        self.handle_wooden_stick();
         while self.role() != Role::Idle {
             self.process_inventory();
             self.process_task();
@@ -120,16 +113,29 @@ impl Character {
                     self.action_move(map.x, map.y);
                     let _ = self.action_fight();
                 }
-            } else if self.role() == Role::Miner
-                || self.role() == Role::Woodcutter
-                || self.role() == Role::Fisher
-            {
+            } else if self.is_gatherer() {
                 if let Some(map) = self.best_resource_map() {
                     self.action_move(map.x, map.y);
                     let _ = self.action_gather();
                 }
             }
         }
+    }
+
+    fn handle_wooden_stick(&self) {
+        if self.role() != Role::Fighter
+            && self
+                .equipment_in(Slot::Weapon)
+                .is_some_and(|w| w.code == "wooden_stick")
+        {
+            let _ = self.action_unequip(Slot::Weapon);
+            let _ = self.action_deposit("wooden_stick", 1);
+        };
+    }
+
+
+    fn is_gatherer(&self) -> bool {
+        matches!(self.role(), Role::Miner | Role::Woodcutter | Role::Fisher)
     }
 
     fn conf(&self) -> CharConfig {
