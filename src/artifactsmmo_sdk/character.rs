@@ -490,7 +490,10 @@ impl Character {
         if self.inventory_total() <= 0 {
             return;
         }
-        info!("{}: going to deposit all consumables to the bank.", self.name);
+        info!(
+            "{}: going to deposit all consumables to the bank.",
+            self.name
+        );
         for slot in self.inventory_copy() {
             if slot.quantity > 0 && self.items.is_of_type(&slot.code, Type::Consumable) {
                 let _ = self.action_deposit(&slot.code, slot.quantity);
@@ -558,7 +561,10 @@ impl Character {
     /// Craft the maximum amount of the item `code` with the materials currently available
     /// in the character inventory and returns the amount crafted.
     fn craft_all(&self, code: &str) -> i32 {
-        info!("{}: going to craft all '{}' with materials available in inventory.", self.name, code);
+        info!(
+            "{}: going to craft all '{}' with materials available in inventory.",
+            self.name, code
+        );
         let n = self.has_mats_for(code);
         if n > 0 && self.action_craft(code, n).is_ok() {
             n
@@ -582,7 +588,10 @@ impl Character {
     }
 
     fn move_to_bank(&self) {
-        let _ = self.action_move(4, 1);
+        if let Some(map) = self.closest_map_with_content("bank") {
+            let (x, y) = (map.x, map.y);
+            self.action_move(x, y);
+        };
     }
 
     fn wait_for_cooldown(&self) {
