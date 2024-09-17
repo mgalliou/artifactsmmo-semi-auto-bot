@@ -420,9 +420,9 @@ impl Character {
 
     //TODO: handle item already in inventory
     fn levelup_by_crafting(&self, skill: Skill) -> bool {
-        info!("{} leveling {:#?} by crafting.", self.name, skill);
         let mut crafted_once = false;
         if let Some(best) = self.items.best_for_leveling(self.skill_level(skill), skill) {
+            info!("{}: leveling {:#?} by crafting.", self.name, skill);
             self.deposit_all_mats();
             self.deposit_all_consumables();
             self.withdraw_max_mats_for(&best.code);
@@ -441,8 +441,8 @@ impl Character {
     }
 
     fn craft_all_from_bank(&self, code: &str) -> i32 {
-        info!("{}: crafting all '{}' from bank.", self.name, code);
         if self.bank.read().is_ok_and(|b| b.has_mats_for(code) > 0) {
+            info!("{}: going to crafting all '{}' from bank.", self.name, code);
             self.deposit_all_mats();
             self.deposit_all_consumables();
             self.withdraw_max_mats_for(code);
@@ -490,7 +490,7 @@ impl Character {
         if self.inventory_total() <= 0 {
             return;
         }
-        info!("{}: depositing all consumables to the bank.", self.name);
+        info!("{}: going to deposit all consumables to the bank.", self.name);
         for slot in self.inventory_copy() {
             if slot.quantity > 0 && self.items.is_of_type(&slot.code, Type::Consumable) {
                 let _ = self.action_deposit(&slot.code, slot.quantity);
@@ -502,7 +502,7 @@ impl Character {
         if self.inventory_total() <= 0 {
             return;
         }
-        info!("{} depositing all items to the bank.", self.name);
+        info!("{}: going to deposite all items to the bank.", self.name);
         for slot in self.inventory_copy() {
             if slot.quantity > 0 {
                 let _ = self.action_deposit(&slot.code, slot.quantity);
@@ -520,17 +520,17 @@ impl Character {
     /// Withdraw the materials required to craft the `quantity` of the
     /// item `code` and returns the maximum amount that can be crafted.
     fn withdraw_mats_for(&self, code: &str, quantity: i32) -> bool {
-        info!(
-            "{}: withdrawing materials for '{code}'x{quantity}.",
-            self.name
-        );
         let mats = self.items.mats(code);
         for mat in &mats {
             if self.has_in_bank(&mat.code) < mat.quantity * quantity {
-                warn!("{}: not enough resources in bank to withdraw the materials required to craft '{code}'x{quantity}", self.name);
+                warn!("{}: not enough materials in bank to withdraw the materials required to craft '{code}'x{quantity}", self.name);
                 return false;
             }
         }
+        info!(
+            "{}: going to withdraw materials for '{code}'x{quantity}.",
+            self.name
+        );
         for mat in &mats {
             let _ = self.action_withdraw(&mat.code, mat.quantity * quantity);
         }
@@ -541,7 +541,7 @@ impl Character {
     /// the item `code` and returns the maximum amount that can be crafted.
     fn withdraw_max_mats_for(&self, code: &str) -> i32 {
         info!(
-            "{}: getting maximum amount of materials in bank to craft '{code}'.",
+            "{}: going to withdraw from the bank the materials to craft the maximum amount of '{code}'.",
             self.name
         );
         let can_carry = self.inventory_free_space() / self.items.mats_quantity_for(code);
@@ -558,7 +558,7 @@ impl Character {
     /// Craft the maximum amount of the item `code` with the materials currently available
     /// in the character inventory and returns the amount crafted.
     fn craft_all(&self, code: &str) -> i32 {
-        info!("{}: going to craft all '{}'.", self.name, code);
+        info!("{}: going to craft all '{}' with materials available in inventory.", self.name, code);
         let n = self.has_mats_for(code);
         if n > 0 && self.action_craft(code, n).is_ok() {
             n
