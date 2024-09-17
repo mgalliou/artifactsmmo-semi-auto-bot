@@ -527,7 +527,7 @@ impl Character {
         );
         let mats = self.items.mats(code);
         for mat in &mats {
-            if self.has_in_bank(code) < mat.quantity * quantity {
+            if self.has_in_bank(&mat.code) < mat.quantity * quantity {
                 warn!("{}: not enough resources in bank to withdraw the materials required to craft '{code}'x{quantity}", self.name);
                 return false;
             }
