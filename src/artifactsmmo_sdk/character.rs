@@ -17,7 +17,7 @@ use artifactsmmo_openapi::models::{
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
-use log::{debug, info, warn};
+use log::{debug, error, info, warn};
 use serde::Deserialize;
 use std::{
     cmp::Ordering,
@@ -331,7 +331,7 @@ impl Character {
                     ));
                 }
             }
-        } 
+        }
         if let Some(monster) = self.monsters.lowest_providing_exp(self.level()) {
             let equipment = self.best_available_equipment_against(monster);
             if self.can_kill_with(monster, &equipment) {
@@ -384,6 +384,7 @@ impl Character {
         None
     }
 
+    // TODO: fix
     fn task_finished(&self) -> bool {
         self.data.read().map_or(0, |d| d.task_progress)
             >= self.data.read().map_or(0, |d| d.task_total)
@@ -431,7 +432,7 @@ impl Character {
     }
 
     fn craft_all_from_bank(&self, code: &str) -> i32 {
-        debug!("{}: crafting all '{}' from bank.", self.name, code);
+        info!("{}: crafting all '{}' from bank.", self.name, code);
         if self.bank.read().is_ok_and(|b| b.has_mats_for(code) > 0) {
             self.deposit_all();
             self.withdraw_max_mats_for(code);
@@ -510,7 +511,7 @@ impl Character {
     /// item `code` and returns the maximum amount that can be crafted.
     fn withdraw_mats_for(&self, code: &str, quantity: i32) -> bool {
         info!(
-            "{}: withdrawing materials for '{} x{}'.",
+            "{}: withdrawing materials for '{}'x{}.",
             self.name, code, quantity
         );
         let mats = self.items.mats(code);
@@ -520,7 +521,7 @@ impl Character {
                 .read()
                 .is_ok_and(|b| b.has_item(&mat.code) >= mat.quantity * quantity)
             {
-                warn!("{}: not enough resources in bank to withdraw the materials required to craft [{code}] * {quantity}", self.name);
+                warn!("{}: not enough resources in bank to withdraw the materials required to craft '{code}'x{quantity}", self.name);
                 return false;
             }
         }
@@ -686,7 +687,6 @@ impl Character {
             let prev_equiped = self.equipment_in(s);
             if let Some(item) = equipment.slot(s) {
                 if prev_equiped.is_some_and(|e| e.code == item.code) {
-                    debug!("{}: item already equiped: '{}'.", self.name, item.code)
                 } else if self.has_in_inventory(&item.code) > 0 {
                     let _ = self.action_equip(&item.code, s);
                 } else if self.has_in_bank(&item.code) > 0
@@ -697,8 +697,8 @@ impl Character {
                         let _ = self.action_deposit(&i.code, 1);
                     }
                 } else {
-                    info!(
-                        "{}: upgrade not found in bank of inventory: '{}'",
+                    error!(
+                        "{}: upgrade not found in bank or inventory: '{}'.",
                         self.name, item.code
                     );
                 }

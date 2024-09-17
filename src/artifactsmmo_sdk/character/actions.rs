@@ -30,7 +30,7 @@ use log::{error, info};
 impl ResponseSchema for CharacterMovementResponseSchema {
     fn pretty(&self) -> String {
         format!(
-            "{}: moved to {}",
+            "{}: moved to {}.",
             self.data.character.name,
             self.data.destination.pretty()
         )
@@ -41,42 +41,81 @@ impl ResponseSchema for CharacterFightResponseSchema {
     fn pretty(&self) -> String {
         match self.data.fight.result {
             fight_schema::Result::Win => format!(
-                "{} win his fight after {} turns ({}xp, {}g, {:?}).",
+                "{} won a fight after {} turns ({}xp, {}g, [{}]).",
                 self.data.character.name,
                 self.data.fight.turns,
                 self.data.fight.xp,
                 self.data.fight.gold,
-                self.data.fight.drops
+                DropSchemas(&self.data.fight.drops)
             ),
             fight_schema::Result::Lose => format!(
-                "{} loose his fight after {} turns.",
+                "{} lost a fight after {} turns.",
                 self.data.character.name, self.data.fight.turns
             ),
         }
     }
 }
 
+impl ResponseSchema for SkillResponseSchema {
+    fn pretty(&self) -> String {
+        format!(
+            "{}: gathered [{}] ({}xp).",
+            self.data.character.name,
+            DropSchemas(&self.data.details.items),
+            self.data.details.xp,
+        )
+    }
+}
+
+impl ResponseSchema for RecyclingResponseSchema {
+    fn pretty(&self) -> String {
+        format!(
+            "{}: recycled and received {}.",
+            self.data.character.name,
+            DropSchemas(&self.data.details.items)
+        )
+    }
+}
+
+impl ResponseSchema for TaskResponseSchema {
+    fn pretty(&self) -> String {
+        format!(
+            "{}: accepted new [{:?}] task: '{}'x{}.",
+            self.data.character.name,
+            self.data.task.r#type,
+            self.data.task.code,
+            self.data.task.total,
+        )
+    }
+}
+
+impl ResponseSchema for TaskRewardResponseSchema {
+    fn pretty(&self) -> String {
+        format!(
+            "{}: completed task and was rewarded with '{}'x{}.",
+            self.data.character.name, self.data.reward.code, self.data.reward.quantity
+        )
+    }
+}
+
+impl ResponseSchema for TaskCancelledResponseSchema {
+    fn pretty(&self) -> String {
+        format!("{}: cancelled current task.", self.data.character.name,)
+    }
+}
+
 struct DropSchemas<'a>(&'a Vec<DropSchema>);
 
-impl <'a>Display for DropSchemas<'a> {
+impl<'a> Display for DropSchemas<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut items: String = "".to_string();
         for item in self.0 {
             if !items.is_empty() {
                 items.push_str(", ");
             }
-            items.push_str(&format!("'{}' x{}", item.code, item.quantity));
+            items.push_str(&format!("'{}'x{}", item.code, item.quantity));
         }
         write!(f, "{}", items)
-    }
-}
-
-impl ResponseSchema for SkillResponseSchema {
-    fn pretty(&self) -> String {
-        format!(
-            "{}: gathered '{}' ({}xp)",
-            self.data.character.name, DropSchemas(&self.data.details.items), self.data.details.xp,
-        )
     }
 }
 
@@ -94,7 +133,7 @@ impl Character {
                     .unwrap()
                     .clone_from(res.data.character.as_ref())
             }
-            Err(ref e) => error!("{}: error while moving: {}", self.name, e),
+            Err(ref e) => error!("{}: error while moving to {},{}: {}", self.name, x, y, e),
         }
         false
     }
@@ -112,7 +151,7 @@ impl Character {
                     .unwrap()
                     .clone_from(res.data.character.as_ref())
             }
-            Err(ref e) => error!("{}: error during fight: {}", self.name, e),
+            Err(ref e) => error!("{}: error while fighting: {}", self.name, e),
         };
         res
     }
@@ -130,7 +169,7 @@ impl Character {
                     .unwrap()
                     .clone_from(res.data.character.as_ref());
             }
-            Err(ref e) => error!("{}: error during gathering: {}", self.name, e),
+            Err(ref e) => error!("{}: error while gathering: {}", self.name, e),
         };
         res
     }
@@ -148,7 +187,10 @@ impl Character {
         let res = self.my_api.withdraw(&self.name, code, quantity);
         match res {
             Ok(ref res) => {
-                info!("{}: withdrawed {} {}", self.name, code, quantity);
+                info!(
+                    "{}: withdrawed '{}'x{} from bank.",
+                    self.name, code, quantity
+                );
                 self.data
                     .write()
                     .unwrap()
@@ -159,7 +201,7 @@ impl Character {
                     .map(|mut bank| bank.content = res.data.bank.clone());
             }
             Err(ref e) => error!(
-                "{}: error while withdrawing {} * {}: {}",
+                "{}: error while withdrawing '{}'x{}: {}.",
                 self.name, code, quantity, e
             ),
         }
@@ -179,7 +221,10 @@ impl Character {
         let res = self.my_api.deposit(&self.name, code, quantity);
         match res {
             Ok(ref res) => {
-                info!("{}: deposited {} * {}", self.name, code, quantity);
+                info!(
+                    "{}: deposited '{}'x{} into the bank.",
+                    self.name, code, quantity
+                );
                 self.data
                     .write()
                     .unwrap()
@@ -190,7 +235,7 @@ impl Character {
                     .map(|mut bank| bank.content = res.data.bank.clone());
             }
             Err(ref e) => error!(
-                "{}: error while depositing {} * {}: {}",
+                "{}: error while depositing '{}'x{}: {}",
                 self.name, code, quantity, e
             ),
         }
@@ -207,13 +252,16 @@ impl Character {
         let res = self.my_api.craft(&self.name, code, quantity);
         match res {
             Ok(ref res) => {
-                info!("{}: crafted {}, {}", self.name, quantity, code);
+                info!("{}: crafted '{}'x{}", self.name, code, quantity);
                 self.data
                     .write()
                     .unwrap()
                     .clone_from(res.data.character.as_ref());
             }
-            Err(ref e) => error!("{}: error during crafting: {}", self.name, e),
+            Err(ref e) => error!(
+                "{}: error while crafting '{}'x{}: {}.",
+                self.name, code, quantity, e
+            ),
         };
         res
     }
@@ -228,13 +276,13 @@ impl Character {
         let res = self.my_api.recycle(&self.name, code, quantity);
         match res {
             Ok(ref res) => {
-                info!("{}: recycled {}, {}", self.name, quantity, code);
+                info!("{}", res.pretty());
                 self.data
                     .write()
                     .unwrap()
                     .clone_from(res.data.character.as_ref());
             }
-            Err(ref e) => error!("{}: error during crafting: {}", self.name, e),
+            Err(ref e) => error!("{}: error while recycling: {}.", self.name, e),
         };
         res
     }
@@ -254,7 +302,7 @@ impl Character {
         match res {
             Ok(ref res) => {
                 info!(
-                    "{}: equiped {} in {:?} slot",
+                    "{}: equiped '{}' in the {:?} slot.",
                     self.name, res.data.item.code, res.data.slot
                 );
                 self.data
@@ -262,7 +310,7 @@ impl Character {
                     .unwrap()
                     .clone_from(res.data.character.as_ref());
             }
-            Err(ref e) => error!("{}: error while unequiping: {}", self.name, e),
+            Err(ref e) => error!("{}: error while equiping: {}.", self.name, e),
         }
         res
     }
@@ -278,7 +326,7 @@ impl Character {
         match res {
             Ok(ref res) => {
                 info!(
-                    "{}: unequiped {} from {:?} slot",
+                    "{}: unequiped '{}' from the {:?} slot.",
                     self.name, res.data.item.code, res.data.slot
                 );
                 self.data
@@ -286,7 +334,7 @@ impl Character {
                     .unwrap()
                     .clone_from(res.data.character.as_ref());
             }
-            Err(ref e) => error!("{}: error while unequiping: {}", self.name, e),
+            Err(ref e) => error!("{}: error while unequiping: {}.", self.name, e),
         }
         res
     }
@@ -299,13 +347,13 @@ impl Character {
         let res = self.my_api.accept_task(&self.name);
         match res {
             Ok(ref res) => {
-                info!("{}: accepted new task: {:?}", self.name, res.data.task);
+                info!("{}", res.pretty());
                 self.data
                     .write()
                     .unwrap()
                     .clone_from(res.data.character.as_ref());
             }
-            Err(ref e) => error!("{}: error while accepting: {}", self.name, e),
+            Err(ref e) => error!("{}: error while accepting task: {}.", self.name, e),
         }
         res
     }
@@ -319,13 +367,13 @@ impl Character {
         let res = self.my_api.complete_task(&self.name);
         match res {
             Ok(ref res) => {
-                error!("{}: completed task: {:?}", self.name, res.data.reward);
+                info!("{}", res.pretty());
                 self.data
                     .write()
                     .unwrap()
                     .clone_from(res.data.character.as_ref());
             }
-            Err(ref e) => error!("{}: error while accepting: {}", self.name, e),
+            Err(ref e) => error!("{}: error while completing task: {}.", self.name, e),
         }
         res
     }
@@ -339,13 +387,13 @@ impl Character {
         let res = self.my_api.cancel_task(&self.name);
         match res {
             Ok(ref res) => {
-                info!("{}: canceled task: {:?}", self.name, self.task());
+                info!("{}", res.pretty());
                 self.data
                     .write()
                     .unwrap()
                     .clone_from(res.data.character.as_ref());
             }
-            Err(ref e) => error!("{}: error while accepting: {}", self.name, e),
+            Err(ref e) => error!("{}: error while cancelling task: {}.", self.name, e),
         }
         res
     }
