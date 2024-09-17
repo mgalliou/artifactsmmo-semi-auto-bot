@@ -87,11 +87,11 @@ impl Character {
                     .map_or("unknown".to_string(), |d| d.name.to_owned()),
             )
             .spawn(move || {
-                char.run2();
+                char.run_loop();
             })
     }
 
-    fn run2(&self) {
+    fn run_loop(&self) {
         info!("{}: started !", self.name);
         if self.role() != Role::Fighter
             && self
