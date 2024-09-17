@@ -616,11 +616,10 @@ impl Character {
     }
 
     fn inventory_is_full(&self) -> bool {
-        self.inventory_total() >= self.data.read().map_or(100, |d| d.inventory_max_items)
-            || self
-                .data
-                .read()
-                .is_ok_and(|d| d.inventory.iter().flatten().all(|s| s.quantity > 0))
+        self.data.read().map_or(false, |d| {
+            self.inventory_total() >= d.inventory_max_items
+                || d.inventory.iter().flatten().all(|s| s.quantity > 0)
+        })
     }
 
     fn has_in_inventory(&self, code: &str) -> i32 {
