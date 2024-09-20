@@ -81,11 +81,7 @@ impl Character {
 
     pub fn run(char: Character) -> Result<JoinHandle<()>, io::Error> {
         thread::Builder::new()
-            .name(
-                char.data
-                    .read()
-                    .map_or("unknown".to_string(), |d| d.name.to_owned()),
-            )
+            .name(char.name.to_owned())
             .spawn(move || {
                 char.run_loop();
             })
@@ -145,6 +141,8 @@ impl Character {
         self.conf.read().map_or(Role::default(), |d| d.role)
     }
 
+    /// If inventory is full, process the raw materials if possible and deposit
+    /// all the consumables and resources in inventory to the bank.
     fn process_inventory(&self) {
         if self.inventory_is_full() {
             if self.conf().process_gathered {
@@ -155,6 +153,8 @@ impl Character {
         }
     }
 
+    /// Completes task if the current task is finished and accepts a new
+    /// one.
     fn process_task(&self) {
         if self.task().is_empty() || self.task_finished() {
             if self.task_finished() {
@@ -551,6 +551,7 @@ impl Character {
         })
     }
 
+    /// Moves to the closest bank.
     fn move_to_bank(&self) {
         if let Some(map) = self.closest_map_with_content("bank") {
             let (x, y) = (map.x, map.y);
@@ -572,6 +573,7 @@ impl Character {
         sleep(s);
     }
 
+    /// Returns the remaining cooldown duration of the `Character`.
     fn remaining_cooldown(&self) -> Duration {
         if let Some(exp) = self.cooldown_expiration() {
             let synced = Utc::now() - self.account.server_offset;
@@ -582,6 +584,7 @@ impl Character {
         Duration::from_secs(0)
     }
 
+    /// Returns the cooldown expiration timestamp of the `Character`.
     fn cooldown_expiration(&self) -> Option<DateTime<Utc>> {
         self.data
             .read()
