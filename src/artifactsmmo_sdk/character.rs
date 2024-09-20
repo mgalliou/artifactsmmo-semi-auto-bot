@@ -19,14 +19,9 @@ use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use log::{debug, error, info, warn};
 use serde::Deserialize;
+use strum_macros::Display;
 use std::{
-    cmp::Ordering,
-    io,
-    option::Option,
-    sync::{Arc, RwLock},
-    thread::{self, sleep, JoinHandle},
-    time::Duration,
-    vec::Vec,
+    cmp::Ordering, fmt::Display, io, option::Option, sync::{Arc, RwLock}, thread::{self, sleep, JoinHandle}, time::Duration, vec::Vec
 };
 use strum::IntoEnumIterator;
 mod actions;
@@ -150,8 +145,8 @@ impl Character {
             if self.conf().process_gathered {
                 self.process_raw_mats();
             }
-            self.deposit_all_mats();
-            self.deposit_all_consumables();
+            self.deposit_all(Type::Consumable);
+            self.deposit_all(Type::Resource);
         }
     }
 
@@ -410,8 +405,8 @@ impl Character {
         let mut crafted_once = false;
         if let Some(best) = self.items.best_for_leveling(self.skill_level(skill), skill) {
             info!("{}: leveling {:#?} by crafting.", self.name, skill);
-            self.deposit_all_mats();
-            self.deposit_all_consumables();
+            self.deposit_all(Type::Resource);
+            self.deposit_all(Type::Consumable);
             self.withdraw_max_mats_for(&best.code);
             let mut crafted = -1;
             while self.skill_level(skill) - best.level <= 10 && crafted != 0 {
@@ -422,7 +417,7 @@ impl Character {
                     let _ = self.action_recycle(&best.code, crafted);
                 }
             }
-            self.deposit_all_mats();
+            self.deposit_all(Type::Resource);
         }
         crafted_once
     }
@@ -430,8 +425,8 @@ impl Character {
     fn craft_all_from_bank(&self, code: &str) -> i32 {
         if self.bank.read().is_ok_and(|b| b.has_mats_for(code) > 0) {
             info!("{}: going to crafting all '{}' from bank.", self.name, code);
-            self.deposit_all_mats();
-            self.deposit_all_consumables();
+            self.deposit_all(Type::Resource);
+            self.deposit_all(Type::Consumable);
             self.withdraw_max_mats_for(code);
             return self.craft_all(code);
         }
@@ -450,45 +445,20 @@ impl Character {
         })
     }
 
-    fn deposit_all_mats(&self) {
+    /// Deposit all the items of the given `type` to the bank.
+    fn deposit_all(&self, r#type: Type) {
         if self.inventory_total() <= 0 {
             return;
         }
-        info!("{}: depositing all materials to the bank.", self.name);
+        info!("{}: depositing all items of type '{}' to the bank.", self.name, r#type);
         for slot in self.inventory_copy() {
-            if slot.quantity > 0 && self.items.is_of_type(&slot.code, Type::Resource) {
+            if slot.quantity > 0 && self.items.is_of_type(&slot.code, r#type) {
                 let _ = self.action_deposit(&slot.code, slot.quantity);
             }
         }
     }
 
-    fn deposit_all_consumables(&self) {
-        if self.inventory_total() <= 0 {
-            return;
-        }
-        info!(
-            "{}: going to deposit all consumables to the bank.",
-            self.name
-        );
-        for slot in self.inventory_copy() {
-            if slot.quantity > 0 && self.items.is_of_type(&slot.code, Type::Consumable) {
-                let _ = self.action_deposit(&slot.code, slot.quantity);
-            }
-        }
-    }
-
-    fn deposit_all(&self) {
-        if self.inventory_total() <= 0 {
-            return;
-        }
-        info!("{}: going to deposite all items to the bank.", self.name);
-        for slot in self.inventory_copy() {
-            if slot.quantity > 0 {
-                let _ = self.action_deposit(&slot.code, slot.quantity);
-            }
-        }
-    }
-
+    /// Deposit all of the given `item` to the bank.
     fn deposit_all_of(&self, code: &str) {
         let amount = self.has_in_inventory(code);
         if amount > 0 {

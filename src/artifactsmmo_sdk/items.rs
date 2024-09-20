@@ -10,7 +10,7 @@ use log::debug;
 use std::str::FromStr;
 use std::{sync::Arc, vec::Vec};
 use strum::IntoEnumIterator;
-use strum_macros::{AsRefStr, EnumIter, EnumString};
+use strum_macros::{AsRefStr, Display, EnumIter, EnumString};
 
 pub struct Items {
     pub data: Vec<ItemSchema>,
@@ -19,7 +19,7 @@ pub struct Items {
     monsters: Arc<Monsters>,
 }
 
-#[derive(Debug, PartialEq, AsRefStr, EnumIter, EnumString)]
+#[derive(Debug, Copy, Clone, PartialEq, Display, AsRefStr, EnumIter, EnumString)]
 #[strum(serialize_all = "snake_case")]
 pub enum Type {
     Consumable,
