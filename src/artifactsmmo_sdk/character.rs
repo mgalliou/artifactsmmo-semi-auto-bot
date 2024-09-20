@@ -200,24 +200,6 @@ impl Character {
             .for_each(|p| self.deposit_all_of(&p.code));
     }
 
-    /// Return the `ItemSchema` of the raw materials present in the `Character`
-    /// inventory.
-    fn inventory_raw_mats(&self) -> Vec<&ItemSchema> {
-        self.data
-            .read()
-            .map(|d| {
-                d.inventory
-                    .iter()
-                    .flatten()
-                    .filter_map(|slot| self.items.get(&slot.code))
-                    .filter(|i| i.is_raw_mat())
-                    .collect_vec()
-            })
-            .into_iter()
-            .flatten()
-            .collect_vec()
-    }
-
     /// Returns the current `Equipment` of the `Character`, containing item schemas.
     fn equipment(&self) -> Equipment {
         self.data
@@ -468,17 +450,6 @@ impl Character {
         })
     }
 
-    /// Returns a copy of the inventory to be used while depositing or
-    /// withdrawing items.
-    fn inventory_copy(&self) -> Vec<InventorySlot> {
-        self.data
-            .read()
-            .map(|d| d.inventory.iter().flatten().cloned().collect_vec())
-            .into_iter()
-            .flatten()
-            .collect_vec()
-    }
-
     fn deposit_all_mats(&self) {
         if self.inventory_total() <= 0 {
             return;
@@ -678,6 +649,35 @@ impl Character {
             .map(|mat| self.has_in_inventory(&mat.code) / mat.quantity)
             .min()
             .unwrap_or(0)
+    }
+
+    /// Returns a copy of the inventory to be used while depositing or
+    /// withdrawing items.
+    fn inventory_copy(&self) -> Vec<InventorySlot> {
+        self.data
+            .read()
+            .map(|d| d.inventory.iter().flatten().cloned().collect_vec())
+            .into_iter()
+            .flatten()
+            .collect_vec()
+    }
+
+    /// Return the `ItemSchema` of the raw materials present in the `Character`
+    /// inventory.
+    fn inventory_raw_mats(&self) -> Vec<&ItemSchema> {
+        self.data
+            .read()
+            .map(|d| {
+                d.inventory
+                    .iter()
+                    .flatten()
+                    .filter_map(|slot| self.items.get(&slot.code))
+                    .filter(|i| i.is_raw_mat())
+                    .collect_vec()
+            })
+            .into_iter()
+            .flatten()
+            .collect_vec()
     }
 
     /// Returns the closest map from the `Character` among the `maps` given.
