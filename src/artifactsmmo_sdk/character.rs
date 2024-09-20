@@ -629,6 +629,8 @@ impl Character {
             .ok()?
     }
 
+    /// Checks if the `Character` inventory is full (all slots are occupied or
+    /// `inventory_max_items` is reached).
     fn inventory_is_full(&self) -> bool {
         self.data.read().map_or(false, |d| {
             self.inventory_total() >= d.inventory_max_items
@@ -636,6 +638,7 @@ impl Character {
         })
     }
 
+    /// Returns the amount of the given item `code` in the `Character` inventory.
     fn has_in_inventory(&self, code: &str) -> i32 {
         self.data.read().map_or(0, |d| {
             d.inventory
@@ -646,18 +649,22 @@ impl Character {
         })
     }
 
+    /// Returns the free spaces in the `Character` inventory.
     fn inventory_free_space(&self) -> i32 {
         self.data
             .read()
             .map_or(0, |d| d.inventory_max_items - self.inventory_total())
     }
 
+    /// Returns the amount of item in the `Character` inventory.
     fn inventory_total(&self) -> i32 {
         self.data.read().map_or(0, |d| {
             d.inventory.iter().flatten().map(|i| i.quantity).sum()
         })
     }
 
+    /// Returns the amount of the given item `code` that can be crafted with
+    /// the materials currently in the `Character` inventory.
     fn has_mats_for(&self, code: &str) -> i32 {
         self.items
             .mats(code)
@@ -668,16 +675,22 @@ impl Character {
             .unwrap_or(0)
     }
 
+    /// Returns the closest map from the `Character` among the `maps` given.
     fn closest_map_among<'a>(&'a self, maps: Vec<&'a MapSchema>) -> Option<&MapSchema> {
         let (x, y) = self.position();
         Maps::closest_from_amoung(x, y, maps)
     }
 
+
+    /// Returns the `Character` position (coordinates).
     fn position(&self) -> (i32, i32) {
         let (x, y) = self.data.read().map_or((0, 0), |d| (d.x, d.y));
         (x, y)
     }
 
+
+    /// Returns the closest map from the `Character` containing the given
+    /// content `code`.
     fn closest_map_with_content(&self, code: &str) -> Option<&MapSchema> {
         let maps = self.maps.with_ressource(code);
         if maps.is_empty() {
@@ -686,6 +699,8 @@ impl Character {
         self.closest_map_among(maps)
     }
 
+    /// Moves the `Character` to the crafting station corresponding to the skill
+    /// required to craft the given item `code`.
     fn move_to_craft(&self, code: &str) -> bool {
         if let Some(dest) = self
             .items
