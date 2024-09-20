@@ -286,7 +286,7 @@ impl Character {
         code: &str,
         slot: Slot,
     ) -> Result<EquipmentResponseSchema, Error<ActionEquipItemMyNameActionEquipPostError>> {
-        if self.equipment_in(slot).is_some() {
+        if self.equiped_in(slot).is_some() {
             let _ = self.action_unequip(slot);
         }
         self.wait_for_cooldown();

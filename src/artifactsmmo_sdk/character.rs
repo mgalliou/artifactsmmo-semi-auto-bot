@@ -121,7 +121,7 @@ impl Character {
     fn handle_wooden_stick(&self) {
         if self.role() != Role::Fighter
             && self
-                .equipment_in(Slot::Weapon)
+                .equiped_in(Slot::Weapon)
                 .is_some_and(|w| w.code == "wooden_stick")
         {
             let _ = self.action_unequip(Slot::Weapon);
@@ -383,7 +383,7 @@ impl Character {
     }
 
     /// Returns the item equiped in the `given` slot.
-    fn equipment_in(&self, slot: Slot) -> Option<&ItemSchema> {
+    fn equiped_in(&self, slot: Slot) -> Option<&ItemSchema> {
         self.data
             .read()
             .map(|d| {
@@ -709,7 +709,7 @@ impl Character {
 
     fn equip_equipment(&self, equipment: &Equipment) {
         Slot::iter().for_each(|s| {
-            let prev_equiped = self.equipment_in(s);
+            let prev_equiped = self.equiped_in(s);
             if let Some(item) = equipment.slot(s) {
                 if prev_equiped.is_some_and(|e| e.code == item.code) {
                 } else if self.has_in_inventory(&item.code) > 0 {
@@ -847,11 +847,11 @@ impl Character {
     }
 
     fn has_available(&self, code: &str, slot: Slot) -> bool {
-        self.has_in_bank_or_inv(code) || self.equipment_in(slot).is_some_and(|e| e.code == code)
+        self.has_in_bank_or_inv(code) || self.equiped_in(slot).is_some_and(|e| e.code == code)
     }
 
     fn has_equiped(&self, code: &str) -> bool {
-        Slot::iter().any(|s| self.equipment_in(s).is_some_and(|e| e.code == code))
+        Slot::iter().any(|s| self.equiped_in(s).is_some_and(|e| e.code == code))
     }
 
     /// Returns all the weapons available and equipable by the `Character`
