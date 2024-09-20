@@ -128,10 +128,7 @@ impl Character {
         match self.my_api.move_to(&self.name, x, y) {
             Ok(res) => {
                 info!("{}", res.pretty());
-                self.data
-                    .write()
-                    .unwrap()
-                    .clone_from(res.data.character.as_ref())
+                self.update_data(&res.data.character);
             }
             Err(ref e) => error!("{}: error while moving to {},{}: {}", self.name, x, y, e),
         }
@@ -146,10 +143,7 @@ impl Character {
         match res {
             Ok(ref res) => {
                 info!("{}", res.pretty());
-                self.data
-                    .write()
-                    .unwrap()
-                    .clone_from(res.data.character.as_ref())
+                self.update_data(&res.data.character);
             }
             Err(ref e) => error!("{}: error while fighting: {}", self.name, e),
         };
@@ -164,10 +158,7 @@ impl Character {
         match res {
             Ok(ref res) => {
                 info!("{}", res.pretty());
-                self.data
-                    .write()
-                    .unwrap()
-                    .clone_from(res.data.character.as_ref());
+                self.update_data(&res.data.character);
             }
             Err(ref e) => error!("{}: error while gathering: {}", self.name, e),
         };
@@ -191,10 +182,7 @@ impl Character {
                     "{}: withdrawed '{}'x{} from bank.",
                     self.name, code, quantity
                 );
-                self.data
-                    .write()
-                    .unwrap()
-                    .clone_from(res.data.character.as_ref());
+                self.update_data(&res.data.character);
                 self.bank.update_content(&res.data.bank);
             }
             Err(ref e) => error!(
@@ -222,10 +210,7 @@ impl Character {
                     "{}: deposited '{}'x{} into the bank.",
                     self.name, code, quantity
                 );
-                self.data
-                    .write()
-                    .unwrap()
-                    .clone_from(res.data.character.as_ref());
+                self.update_data(&res.data.character);
                 self.bank.update_content(&res.data.bank);
             }
             Err(ref e) => error!(
@@ -247,10 +232,7 @@ impl Character {
         match res {
             Ok(ref res) => {
                 info!("{}: crafted '{}'x{}.", self.name, code, quantity);
-                self.data
-                    .write()
-                    .unwrap()
-                    .clone_from(res.data.character.as_ref());
+                self.update_data(&res.data.character);
             }
             Err(ref e) => error!(
                 "{}: error while crafting '{}'x{}: {}.",
@@ -271,10 +253,7 @@ impl Character {
         match res {
             Ok(ref res) => {
                 info!("{}", res.pretty());
-                self.data
-                    .write()
-                    .unwrap()
-                    .clone_from(res.data.character.as_ref());
+                self.update_data(&res.data.character);
             }
             Err(ref e) => error!("{}: error while recycling: {}.", self.name, e),
         };
@@ -299,10 +278,7 @@ impl Character {
                     "{}: equiped '{}' in the {:?} slot.",
                     self.name, res.data.item.code, res.data.slot
                 );
-                self.data
-                    .write()
-                    .unwrap()
-                    .clone_from(res.data.character.as_ref());
+                self.update_data(&res.data.character);
             }
             Err(ref e) => error!("{}: error while equiping: {}.", self.name, e),
         }
@@ -323,10 +299,7 @@ impl Character {
                     "{}: unequiped '{}' from the {:?} slot.",
                     self.name, res.data.item.code, res.data.slot
                 );
-                self.data
-                    .write()
-                    .unwrap()
-                    .clone_from(res.data.character.as_ref());
+                self.update_data(&res.data.character);
             }
             Err(ref e) => error!("{}: error while unequiping: {}.", self.name, e),
         }
@@ -342,10 +315,7 @@ impl Character {
         match res {
             Ok(ref res) => {
                 info!("{}", res.pretty());
-                self.data
-                    .write()
-                    .unwrap()
-                    .clone_from(res.data.character.as_ref());
+                self.update_data(&res.data.character);
             }
             Err(ref e) => error!("{}: error while accepting task: {}.", self.name, e),
         }
@@ -362,10 +332,7 @@ impl Character {
         match res {
             Ok(ref res) => {
                 info!("{}", res.pretty());
-                self.data
-                    .write()
-                    .unwrap()
-                    .clone_from(res.data.character.as_ref());
+                self.update_data(&res.data.character);
             }
             Err(ref e) => error!("{}: error while completing task: {}.", self.name, e),
         }
@@ -382,10 +349,7 @@ impl Character {
         match res {
             Ok(ref res) => {
                 info!("{}", res.pretty());
-                self.data
-                    .write()
-                    .unwrap()
-                    .clone_from(res.data.character.as_ref());
+                self.update_data(&res.data.character);
             }
             Err(ref e) => error!("{}: error while cancelling task: {}.", self.name, e),
         }

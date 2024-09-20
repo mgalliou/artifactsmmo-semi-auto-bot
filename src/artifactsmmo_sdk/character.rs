@@ -137,6 +137,12 @@ impl Character {
         self.conf.read().unwrap().clone()
     }
 
+    fn update_data(&self, schema: &CharacterSchema) {
+        if let Ok(mut d) = self.data.write() {
+            d.clone_from(schema)
+        }
+    }
+
     fn role(&self) -> Role {
         self.conf.read().map_or(Role::default(), |d| d.role)
     }
