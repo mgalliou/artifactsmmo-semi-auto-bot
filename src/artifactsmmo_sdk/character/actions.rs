@@ -195,10 +195,7 @@ impl Character {
                     .write()
                     .unwrap()
                     .clone_from(res.data.character.as_ref());
-                let _ = self
-                    .bank
-                    .write()
-                    .map(|mut bank| bank.content = res.data.bank.clone());
+                self.bank.update_content(&res.data.bank);
             }
             Err(ref e) => error!(
                 "{}: error while withdrawing '{}'x{}: {}.",
@@ -229,10 +226,7 @@ impl Character {
                     .write()
                     .unwrap()
                     .clone_from(res.data.character.as_ref());
-                let _ = self
-                    .bank
-                    .write()
-                    .map(|mut bank| bank.content = res.data.bank.clone());
+                self.bank.update_content(&res.data.bank);
             }
             Err(ref e) => error!(
                 "{}: error while depositing '{}'x{}: {}",

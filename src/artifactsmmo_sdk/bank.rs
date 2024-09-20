@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use artifactsmmo_openapi::models::{BankSchema, SimpleItemSchema};
 
@@ -6,8 +6,8 @@ use super::{account::Account, api::bank::BankApi, items::Items};
 
 pub struct Bank {
     items: Arc<Items>,
-    pub details: BankSchema,
-    pub content: Vec<SimpleItemSchema>,
+    pub details: RwLock<BankSchema>,
+    pub content: RwLock<Vec<SimpleItemSchema>>,
 }
 
 impl Bank {
@@ -18,17 +18,18 @@ impl Bank {
         );
         Bank {
             items,
-            details: *api.details().unwrap().data,
-            content: api.items(None).unwrap(),
+            details: RwLock::new(*api.details().unwrap().data),
+            content: RwLock::new(api.items(None).unwrap()),
         }
     }
 
     pub fn has_item(&self, code: &str) -> i32 {
-        self.content
-            .iter()
-            .find(|i| i.code == code)
-            .map(|i| i.quantity)
-            .unwrap_or(0)
+        self.content.read().map_or(0, |c| {
+            c.iter()
+                .find(|i| i.code == code)
+                .map(|i| i.quantity)
+                .unwrap_or(0)
+        })
     }
 
     ///. return the number of time the item `code` can be crafted with the mats available in bank
@@ -39,5 +40,11 @@ impl Bank {
             .map(|mat| self.has_item(&mat.code) / mat.quantity)
             .min()
             .unwrap_or(0)
+    }
+
+    pub fn update_content(&self, content: &Vec<SimpleItemSchema>) {
+        if let Ok(mut c) = self.content.write() {
+            c.clone_from(content)
+        }
     }
 }

@@ -21,7 +21,6 @@ use log::{debug, error, info, warn};
 use serde::Deserialize;
 use std::{
     cmp::Ordering,
-    fmt::Display,
     io,
     option::Option,
     sync::{Arc, RwLock},
@@ -30,7 +29,6 @@ use std::{
     vec::Vec,
 };
 use strum::IntoEnumIterator;
-use strum_macros::Display;
 mod actions;
 use ordered_float::OrderedFloat;
 
@@ -43,7 +41,7 @@ pub struct Character {
     resources: Arc<Resources>,
     monsters: Arc<Monsters>,
     items: Arc<Items>,
-    bank: Arc<RwLock<Bank>>,
+    bank: Arc<Bank>,
     pub conf: Arc<RwLock<CharConfig>>,
     pub data: Arc<RwLock<CharacterSchema>>,
 }
@@ -56,7 +54,7 @@ impl Character {
         resources: Arc<Resources>,
         monsters: Arc<Monsters>,
         items: Arc<Items>,
-        bank: Arc<RwLock<Bank>>,
+        bank: Arc<Bank>,
         conf: Arc<RwLock<CharConfig>>,
         data: Arc<RwLock<CharacterSchema>>,
     ) -> Character {
@@ -286,7 +284,7 @@ impl Character {
         skills.into_iter().find(|&skill| {
             self.items
                 .best_for_leveling(self.skill_level(skill), skill)
-                .is_some_and(|i| self.bank.read().is_ok_and(|b| b.has_mats_for(&i.code) > 0))
+                .is_some_and(|i| self.bank.has_mats_for(&i.code) > 0)
         })
     }
 
@@ -439,7 +437,7 @@ impl Character {
     // NOTE: maybe its not this function responsability to deposit items before
     // withdrawing mats.
     fn craft_max_from_bank(&self, code: &str) -> i32 {
-        if self.bank.read().is_ok_and(|b| b.has_mats_for(code) > 0) {
+        if self.bank.has_mats_for(code) > 0 {
             info!("{}: going to crafting all '{}' from bank.", self.name, code);
             self.deposit_all(Type::Resource);
             self.deposit_all(Type::Consumable);
@@ -514,7 +512,7 @@ impl Character {
             self.name
         );
         let can_carry = self.inventory_free_space() / self.items.mats_quantity_for(code);
-        let can_craft_from_bank = self.bank.read().map_or(0, |b| b.has_mats_for(code));
+        let can_craft_from_bank = self.bank.has_mats_for(code);
         let max = if can_craft_from_bank < can_carry {
             can_craft_from_bank
         } else {
@@ -838,7 +836,7 @@ impl Character {
     }
 
     fn has_in_bank(&self, code: &str) -> i32 {
-        self.bank.read().map_or(0, |b| b.has_item(code))
+        self.bank.has_item(code)
     }
     fn has_in_bank_or_inv(&self, code: &str) -> bool {
         self.has_in_bank(code) > 0 || self.has_in_inventory(code) > 0
