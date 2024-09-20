@@ -386,23 +386,24 @@ impl Character {
     fn equipment_in(&self, slot: Slot) -> Option<&ItemSchema> {
         self.data
             .read()
-            .map(|d| match slot {
-                Slot::Weapon => d.weapon_slot.to_owned(),
-                Slot::Shield => d.shield_slot.to_owned(),
-                Slot::Helmet => d.helmet_slot.to_owned(),
-                Slot::BodyArmor => d.body_armor_slot.to_owned(),
-                Slot::LegArmor => d.leg_armor_slot.to_owned(),
-                Slot::Boots => d.boots_slot.to_owned(),
-                Slot::Ring1 => d.ring1_slot.to_owned(),
-                Slot::Ring2 => d.ring2_slot.to_owned(),
-                Slot::Amulet => d.amulet_slot.to_owned(),
-                Slot::Artifact1 => d.artifact1_slot.to_owned(),
-                Slot::Artifact2 => d.artifact2_slot.to_owned(),
-                Slot::Artifact3 => d.artifact3_slot.to_owned(),
-                Slot::Consumable1 => d.consumable1_slot.to_owned(),
-                Slot::Consumable2 => d.consumable2_slot.to_owned(),
+            .map(|d| {
+                self.items.get(match slot {
+                    Slot::Weapon => &d.weapon_slot,
+                    Slot::Shield => &d.shield_slot,
+                    Slot::Helmet => &d.helmet_slot,
+                    Slot::BodyArmor => &d.body_armor_slot,
+                    Slot::LegArmor => &d.leg_armor_slot,
+                    Slot::Boots => &d.boots_slot,
+                    Slot::Ring1 => &d.ring1_slot,
+                    Slot::Ring2 => &d.ring2_slot,
+                    Slot::Amulet => &d.amulet_slot,
+                    Slot::Artifact1 => &d.artifact1_slot,
+                    Slot::Artifact2 => &d.artifact2_slot,
+                    Slot::Artifact3 => &d.artifact3_slot,
+                    Slot::Consumable1 => &d.consumable1_slot,
+                    Slot::Consumable2 => &d.consumable2_slot,
+                })
             })
-            .map(|i| self.items.get(&i))
             .ok()?
     }
 
