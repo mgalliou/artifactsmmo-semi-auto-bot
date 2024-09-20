@@ -176,6 +176,12 @@ impl Character {
             .map_or("".to_string(), |d| d.task_type.to_owned())
     }
 
+    fn task_finished(&self) -> bool {
+        self.data
+            .read()
+            .map_or(false, |d| d.task_progress >= d.task_total)
+    }
+
     /// Process the raw materials in the Character inventory by converting the
     /// materials having only one possible receipe, and depositing the crafted
     /// items.
@@ -194,6 +200,8 @@ impl Character {
             .for_each(|p| self.deposit_all_of(&p.code));
     }
 
+    /// Return the `ItemSchema` of the raw materials present in the `Character`
+    /// inventory.
     fn inventory_raw_mats(&self) -> Vec<&ItemSchema> {
         self.data
             .read()
@@ -210,6 +218,7 @@ impl Character {
             .collect_vec()
     }
 
+    /// Returns the current `Equipment` of the `Character`, containing item schemas.
     fn equipment(&self) -> Equipment {
         self.data
             .read()
@@ -254,9 +263,11 @@ impl Character {
         turns_to_kill <= turns_to_be_killed
     }
 
+    /// Returns the level of the `Character`.
     fn level(&self) -> i32 {
         self.data.read().map_or(1, |d| d.level)
     }
+
     /// Returns the base health of the `Character` without its equipment.
     fn base_health(&self) -> i32 {
         115 + 5 * self.level()
@@ -387,12 +398,6 @@ impl Character {
             }
         }
         None
-    }
-
-    fn task_finished(&self) -> bool {
-        self.data
-            .read()
-            .map_or(false, |d| d.task_progress >= d.task_total)
     }
 
     fn equipment_in(&self, slot: Slot) -> Option<&ItemSchema> {
@@ -681,13 +686,11 @@ impl Character {
         Maps::closest_from_amoung(x, y, maps)
     }
 
-
     /// Returns the `Character` position (coordinates).
     fn position(&self) -> (i32, i32) {
         let (x, y) = self.data.read().map_or((0, 0), |d| (d.x, d.y));
         (x, y)
     }
-
 
     /// Returns the closest map from the `Character` containing the given
     /// content `code`.
