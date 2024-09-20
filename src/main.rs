@@ -28,7 +28,7 @@ fn main() -> Result<()> {
     let resources = Arc::new(Resources::new(&account));
     let monsters = Arc::new(Monsters::new(&account));
     let items = Arc::new(Items::new(&account, resources.clone(), monsters.clone()));
-    let bank = Arc::new(RwLock::new(Bank::new(&account, items.clone())));
+    let bank = Arc::new(Bank::new(&account, items.clone()));
     let chars_conf = init_char_conf(&config.characters);
     let chars_schema = init_chars_schema(config);
     let characters = chars_conf
