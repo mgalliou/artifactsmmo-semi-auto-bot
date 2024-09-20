@@ -173,7 +173,7 @@ impl Character {
     fn task_type(&self) -> String {
         self.data
             .read()
-            .map_or("".to_string(), |d| d.task.to_owned())
+            .map_or("".to_string(), |d| d.task_type.to_owned())
     }
 
     /// Process the raw materials in the Character inventory by converting the
