@@ -19,11 +19,18 @@ use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use log::{debug, error, info, warn};
 use serde::Deserialize;
-use strum_macros::Display;
 use std::{
-    cmp::Ordering, fmt::Display, io, option::Option, sync::{Arc, RwLock}, thread::{self, sleep, JoinHandle}, time::Duration, vec::Vec
+    cmp::Ordering,
+    fmt::Display,
+    io,
+    option::Option,
+    sync::{Arc, RwLock},
+    thread::{self, sleep, JoinHandle},
+    time::Duration,
+    vec::Vec,
 };
 use strum::IntoEnumIterator;
+use strum_macros::Display;
 mod actions;
 use ordered_float::OrderedFloat;
 
@@ -98,7 +105,7 @@ impl Character {
                 }
             }
             if let Some(craft) = self.conf().target_craft {
-                if self.craft_all_from_bank(&craft) > 0 {
+                if self.craft_max_from_bank(&craft) > 0 {
                     continue;
                 }
             }
@@ -377,6 +384,7 @@ impl Character {
         None
     }
 
+    /// Returns the item equiped in the `given` slot.
     fn equipment_in(&self, slot: Slot) -> Option<&ItemSchema> {
         self.data
             .read()
@@ -400,6 +408,10 @@ impl Character {
             .ok()?
     }
 
+    /// Finds the best item  to level the given `skill` and crafts the
+    /// maximum amount that can be crafted in one go with the material
+    /// availables in bank. Items are crafted then recycled until no more items
+    /// can be crafted or until crafting no longer provides XP.
     //TODO: handle item already in inventory
     fn levelup_by_crafting(&self, skill: Skill) -> bool {
         let mut crafted_once = false;
@@ -422,7 +434,11 @@ impl Character {
         crafted_once
     }
 
-    fn craft_all_from_bank(&self, code: &str) -> i32 {
+    /// Crafts the maxmium amount of the given item `code` that can be crafted in
+    /// one go with the materials available in the bank.
+    // NOTE: maybe its not this function responsability to deposit items before
+    // withdrawing mats.
+    fn craft_max_from_bank(&self, code: &str) -> i32 {
         if self.bank.read().is_ok_and(|b| b.has_mats_for(code) > 0) {
             info!("{}: going to crafting all '{}' from bank.", self.name, code);
             self.deposit_all(Type::Resource);
@@ -433,6 +449,7 @@ impl Character {
         0
     }
 
+    /// Returns the `Character` level in the given `skill`.
     fn skill_level(&self, skill: Skill) -> i32 {
         self.data.read().map_or(1, |d| match skill {
             Skill::Cooking => d.cooking_level,
@@ -445,12 +462,15 @@ impl Character {
         })
     }
 
-    /// Deposit all the items of the given `type` to the bank.
+    /// Deposits all the items of the given `type` to the bank.
     fn deposit_all(&self, r#type: Type) {
         if self.inventory_total() <= 0 {
             return;
         }
-        info!("{}: depositing all items of type '{}' to the bank.", self.name, r#type);
+        info!(
+            "{}: depositing all items of type '{}' to the bank.",
+            self.name, r#type
+        );
         for slot in self.inventory_copy() {
             if slot.quantity > 0 && self.items.is_of_type(&slot.code, r#type) {
                 let _ = self.action_deposit(&slot.code, slot.quantity);
