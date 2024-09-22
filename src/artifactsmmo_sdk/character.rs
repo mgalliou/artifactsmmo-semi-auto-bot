@@ -678,16 +678,28 @@ impl Character {
             .collect_vec()
     }
 
-    /// Returns the closest map from the `Character` among the `maps` given.
-    fn closest_map_among<'a>(&'a self, maps: Vec<&'a MapSchema>) -> Option<&MapSchema> {
-        let (x, y) = self.position();
-        Maps::closest_from_amoung(x, y, maps)
+    fn move_to_closest_map_of_type(&self, r#type: &str) {
+        if let Some(map) = self.closest_map_of_type(r#type) {
+            let (x, y) = (map.x, map.y);
+            self.action_move(x, y);
+        };
     }
 
-    /// Returns the `Character` position (coordinates).
-    fn position(&self) -> (i32, i32) {
-        let (x, y) = self.data.read().map_or((0, 0), |d| (d.x, d.y));
-        (x, y)
+    fn move_to_closest_map_with_content(&self, code: &str) {
+        if let Some(map) = self.closest_map_with_content(code) {
+            let (x, y) = (map.x, map.y);
+            self.action_move(x, y);
+        };
+    }
+
+    /// Returns the closest map from the `Character` containing the given
+    /// content `type`.
+    fn closest_map_of_type(&self, r#type: &str) -> Option<&MapSchema> {
+        let maps = self.maps.of_type(r#type);
+        if maps.is_empty() {
+            return None;
+        }
+        self.closest_map_among(maps)
     }
 
     /// Returns the closest map from the `Character` containing the given
@@ -698,6 +710,18 @@ impl Character {
             return None;
         }
         self.closest_map_among(maps)
+    }
+
+    /// Returns the closest map from the `Character` among the `maps` given.
+    fn closest_map_among<'a>(&'a self, maps: Vec<&'a MapSchema>) -> Option<&MapSchema> {
+        let (x, y) = self.position();
+        Maps::closest_from_amoung(x, y, maps)
+    }
+
+    /// Returns the `Character` position (coordinates).
+    fn position(&self) -> (i32, i32) {
+        let (x, y) = self.data.read().map_or((0, 0), |d| (d.x, d.y));
+        (x, y)
     }
 
     /// Moves the `Character` to the crafting station corresponding to the skill

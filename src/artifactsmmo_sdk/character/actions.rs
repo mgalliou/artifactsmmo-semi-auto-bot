@@ -173,7 +173,7 @@ impl Character {
         BankItemTransactionResponseSchema,
         Error<ActionWithdrawBankMyNameActionBankWithdrawPostError>,
     > {
-        self.move_to_bank();
+        self.move_to_closest_map_of_type("bank");
         self.wait_for_cooldown();
         let res = self.my_api.withdraw(&self.name, code, quantity);
         match res {
@@ -201,7 +201,7 @@ impl Character {
         BankItemTransactionResponseSchema,
         Error<ActionDepositBankMyNameActionBankDepositPostError>,
     > {
-        self.move_to_bank();
+        self.move_to_closest_map_of_type("bank");
         self.wait_for_cooldown();
         let res = self.my_api.deposit(&self.name, code, quantity);
         match res {
@@ -309,7 +309,7 @@ impl Character {
     pub(crate) fn action_accept_task(
         &self,
     ) -> Result<TaskResponseSchema, Error<ActionAcceptNewTaskMyNameActionTaskNewPostError>> {
-        self.action_move(1, 2);
+        self.move_to_closest_map_of_type("tasks_master");
         self.wait_for_cooldown();
         let res = self.my_api.accept_task(&self.name);
         match res {
@@ -326,7 +326,7 @@ impl Character {
         &self,
     ) -> Result<TaskRewardResponseSchema, Error<ActionCompleteTaskMyNameActionTaskCompletePostError>>
     {
-        self.action_move(1, 2);
+        self.move_to_closest_map_of_type("tasks_master");
         self.wait_for_cooldown();
         let res = self.my_api.complete_task(&self.name);
         match res {
@@ -343,7 +343,7 @@ impl Character {
         &self,
     ) -> Result<TaskCancelledResponseSchema, Error<ActionTaskCancelMyNameActionTaskCancelPostError>>
     {
-        self.action_move(1, 2);
+        self.move_to_closest_map_of_type("tasks_master");
         self.wait_for_cooldown();
         let res = self.my_api.cancel_task(&self.name);
         match res {
