@@ -1,3 +1,5 @@
+use std::sync::RwLock;
+
 use super::api::{characters::CharactersApi, my_character::MyCharacterApi};
 use artifactsmmo_openapi::{
     apis::{
@@ -11,12 +13,11 @@ use artifactsmmo_openapi::{
 use chrono::{DateTime, TimeDelta, Utc};
 use log::debug;
 
-#[derive(Clone)]
 pub struct Account {
     pub configuration: Configuration,
     pub character_api: CharactersApi,
     pub my_characters_api: MyCharacterApi,
-    pub server_offset: TimeDelta,
+    pub server_offset: RwLock<TimeDelta>,
 }
 
 impl Account {
@@ -24,23 +25,13 @@ impl Account {
         let mut configuration = Configuration::new();
         configuration.base_path = base_path.to_owned();
         configuration.bearer_access_token = Some(token.to_owned());
-        let mut account = Account {
+        let account = Account {
             configuration,
             character_api: CharactersApi::new(base_path, token),
             my_characters_api: MyCharacterApi::new(base_path, token),
-            server_offset: TimeDelta::default(),
+            server_offset: RwLock::new(TimeDelta::default()),
         };
-        let server_time = account.server_time().unwrap();
-        let now = Utc::now();
-        account.server_offset = now - server_time;
-        debug!("system time: {}", now);
-        debug!("server time: {}", account.server_time().unwrap());
-        debug!(
-            "time offset: {}s and {}ms",
-            account.server_offset.num_seconds(),
-            account.server_offset.subsec_nanos() / 1000000
-        );
-        debug!("synced time: {}", now - account.server_offset);
+        account.update_offset();
         account
     }
 
@@ -56,6 +47,20 @@ impl Account {
             },
             Err(_) => None,
         }
+    }
+
+    pub fn update_offset(&self) {
+        let server_time = self.server_time().unwrap();
+        let now = Utc::now();
+        let _ = self.server_offset.write().map(|mut so| *so = now - server_time);
+        debug!("system time: {}", now);
+        debug!("server time: {}", self.server_time().unwrap());
+        debug!(
+            "time offset: {}s and {}ms",
+            self.server_offset.read().unwrap().num_seconds(),
+            self.server_offset.read().unwrap().subsec_nanos() / 1000000
+        );
+        debug!("synced time: {}", now - *self.server_offset.read().unwrap());
     }
 
     pub fn get_character(

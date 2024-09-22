@@ -23,7 +23,7 @@ fn main() -> Result<()> {
         .merge(Toml::file_exact("ArtifactsMMO.toml"))
         .extract()
         .unwrap();
-    let account = Account::new(&config.base_url, &config.token);
+    let account = Arc::new(Account::new(&config.base_url, &config.token));
     let maps = Arc::new(Maps::new(&account));
     let resources = Arc::new(Resources::new(&account));
     let monsters = Arc::new(Monsters::new(&account));
@@ -36,7 +36,7 @@ fn main() -> Result<()> {
         .zip(chars_schema.iter())
         .map(|(conf, schema)| {
             Character::new(
-                &account,
+                account.clone(),
                 maps.clone(),
                 resources.clone(),
                 monsters.clone(),

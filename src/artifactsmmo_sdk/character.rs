@@ -36,7 +36,7 @@ pub struct Character {
     name: String,
     my_api: MyCharacterApi,
     events_api: EventsApi,
-    account: Account,
+    account: Arc<Account>,
     maps: Arc<Maps>,
     resources: Arc<Resources>,
     monsters: Arc<Monsters>,
@@ -49,7 +49,7 @@ pub struct Character {
 impl Character {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        account: &Account,
+        account: Arc<Account>,
         maps: Arc<Maps>,
         resources: Arc<Resources>,
         monsters: Arc<Monsters>,
@@ -558,14 +558,6 @@ impl Character {
         })
     }
 
-    /// Moves to the closest bank.
-    fn move_to_bank(&self) {
-        if let Some(map) = self.closest_map_with_content("bank") {
-            let (x, y) = (map.x, map.y);
-            self.action_move(x, y);
-        };
-    }
-
     fn wait_for_cooldown(&self) {
         let s = self.remaining_cooldown();
         if s.is_zero() {
@@ -583,7 +575,7 @@ impl Character {
     /// Returns the remaining cooldown duration of the `Character`.
     fn remaining_cooldown(&self) -> Duration {
         if let Some(exp) = self.cooldown_expiration() {
-            let synced = Utc::now() - self.account.server_offset;
+            let synced = Utc::now() - *self.account.server_offset.read().unwrap();
             if synced.cmp(&exp.to_utc()) == Ordering::Less {
                 return (exp.to_utc() - synced).to_std().unwrap();
             }

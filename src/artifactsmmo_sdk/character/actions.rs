@@ -26,6 +26,7 @@ use artifactsmmo_openapi::{
     },
 };
 use log::{error, info};
+use reqwest::StatusCode;
 
 impl ResponseSchema for CharacterMovementResponseSchema {
     fn pretty(&self) -> String {
@@ -130,7 +131,15 @@ impl Character {
                 info!("{}", res.pretty());
                 self.update_data(&res.data.character);
             }
-            Err(ref e) => error!("{}: error while moving to {},{}: {}", self.name, x, y, e),
+            Err(ref e) => {
+                if let Error::ResponseError(e) = e {
+                    if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
+                        self.account.update_offset();
+                        return self.action_move(x, y);
+                    }
+                };
+                error!("{}: error while moving to {},{}: {}", self.name, x, y, e)
+            }
         }
         false
     }
@@ -145,7 +154,15 @@ impl Character {
                 info!("{}", res.pretty());
                 self.update_data(&res.data.character);
             }
-            Err(ref e) => error!("{}: error while fighting: {}", self.name, e),
+            Err(ref e) => {
+                if let Error::ResponseError(e) = e {
+                    if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
+                        self.account.update_offset();
+                        return self.action_fight();
+                    }
+                };
+                error!("{}: error while fighting: {}", self.name, e)
+            }
         };
         res
     }
@@ -160,7 +177,15 @@ impl Character {
                 info!("{}", res.pretty());
                 self.update_data(&res.data.character);
             }
-            Err(ref e) => error!("{}: error while gathering: {}", self.name, e),
+            Err(ref e) => {
+                if let Error::ResponseError(e) = e {
+                    if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
+                        self.account.update_offset();
+                        return self.action_gather();
+                    }
+                };
+                error!("{}: error while fighting: {}", self.name, e)
+            }
         };
         res
     }
@@ -185,10 +210,18 @@ impl Character {
                 self.update_data(&res.data.character);
                 self.bank.update_content(&res.data.bank);
             }
-            Err(ref e) => error!(
-                "{}: error while withdrawing '{}'x{}: {}.",
-                self.name, code, quantity, e
-            ),
+            Err(ref e) => {
+                if let Error::ResponseError(e) = e {
+                    if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
+                        self.account.update_offset();
+                        return self.action_withdraw(code, quantity);
+                    }
+                };
+                error!(
+                    "{}: error while withdrawing '{}'x{}: {}.",
+                    self.name, code, quantity, e
+                )
+            }
         }
         res
     }
@@ -213,10 +246,18 @@ impl Character {
                 self.update_data(&res.data.character);
                 self.bank.update_content(&res.data.bank);
             }
-            Err(ref e) => error!(
-                "{}: error while depositing '{}'x{}: {}",
-                self.name, code, quantity, e
-            ),
+            Err(ref e) => {
+                if let Error::ResponseError(e) = e {
+                    if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
+                        self.account.update_offset();
+                        return self.action_deposit(code, quantity);
+                    }
+                };
+                error!(
+                    "{}: error while depositing '{}'x{}: {}",
+                    self.name, code, quantity, e
+                )
+            }
         }
         res
     }
@@ -234,10 +275,18 @@ impl Character {
                 info!("{}: crafted '{}'x{}.", self.name, code, quantity);
                 self.update_data(&res.data.character);
             }
-            Err(ref e) => error!(
-                "{}: error while crafting '{}'x{}: {}.",
-                self.name, code, quantity, e
-            ),
+            Err(ref e) => {
+                if let Error::ResponseError(e) = e {
+                    if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
+                        self.account.update_offset();
+                        return self.action_craft(code, quantity);
+                    }
+                };
+                error!(
+                    "{}: error while crafting '{}'x{}: {}.",
+                    self.name, code, quantity, e
+                )
+            }
         };
         res
     }
@@ -255,7 +304,15 @@ impl Character {
                 info!("{}", res.pretty());
                 self.update_data(&res.data.character);
             }
-            Err(ref e) => error!("{}: error while recycling: {}.", self.name, e),
+            Err(ref e) => {
+                if let Error::ResponseError(e) = e {
+                    if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
+                        self.account.update_offset();
+                        return self.action_recycle(code, quantity);
+                    }
+                };
+                error!("{}: error while recycling: {}.", self.name, e)
+            }
         };
         res
     }
@@ -280,7 +337,15 @@ impl Character {
                 );
                 self.update_data(&res.data.character);
             }
-            Err(ref e) => error!("{}: error while equiping: {}.", self.name, e),
+            Err(ref e) => {
+                if let Error::ResponseError(e) = e {
+                    if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
+                        self.account.update_offset();
+                        return self.action_equip(code, slot);
+                    }
+                };
+                error!("{}: error while equiping: {}.", self.name, e)
+            }
         }
         res
     }
@@ -301,7 +366,15 @@ impl Character {
                 );
                 self.update_data(&res.data.character);
             }
-            Err(ref e) => error!("{}: error while unequiping: {}.", self.name, e),
+            Err(ref e) => {
+                if let Error::ResponseError(e) = e {
+                    if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
+                        self.account.update_offset();
+                        return self.action_unequip(slot);
+                    }
+                };
+                error!("{}: error while equiping: {}.", self.name, e)
+            }
         }
         res
     }
@@ -317,7 +390,15 @@ impl Character {
                 info!("{}", res.pretty());
                 self.update_data(&res.data.character);
             }
-            Err(ref e) => error!("{}: error while accepting task: {}.", self.name, e),
+            Err(ref e) => {
+                if let Error::ResponseError(e) = e {
+                    if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
+                        self.account.update_offset();
+                        return self.action_accept_task();
+                    }
+                };
+                error!("{}: error while equiping: {}.", self.name, e)
+            }
         }
         res
     }
@@ -334,7 +415,15 @@ impl Character {
                 info!("{}", res.pretty());
                 self.update_data(&res.data.character);
             }
-            Err(ref e) => error!("{}: error while completing task: {}.", self.name, e),
+            Err(ref e) => {
+                if let Error::ResponseError(e) = e {
+                    if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
+                        self.account.update_offset();
+                        return self.action_complete_task();
+                    }
+                };
+                error!("{}: error while equiping: {}.", self.name, e)
+            }
         }
         res
     }
@@ -351,7 +440,15 @@ impl Character {
                 info!("{}", res.pretty());
                 self.update_data(&res.data.character);
             }
-            Err(ref e) => error!("{}: error while cancelling task: {}.", self.name, e),
+            Err(ref e) => {
+                if let Error::ResponseError(e) = e {
+                    if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
+                        self.account.update_offset();
+                        return self.action_cancel_task();
+                    }
+                };
+                error!("{}: error while equiping: {}.", self.name, e)
+            }
         }
         res
     }
