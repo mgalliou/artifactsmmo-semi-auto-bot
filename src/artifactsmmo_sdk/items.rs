@@ -249,6 +249,12 @@ impl ItemSchemaExt for ItemSchema {
             .sum()
     }
 
+    fn damage_from(&self, monster: &MonsterSchema) -> f32 {
+        DamageType::iter()
+            .map(|t| compute_damage(monster.attack_damage(t), 0, self.resistance(t)))
+            .sum()
+    }
+
     fn damage_increase(&self, r#type: DamageType) -> i32 {
         self.effects()
             .iter()

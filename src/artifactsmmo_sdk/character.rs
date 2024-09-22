@@ -816,31 +816,9 @@ impl Character {
             | Slot::Helmet
             | Slot::Ring1
             | Slot::Ring2
-            | Slot::Amulet => self.best_available_armor_against_with_weapon(slot, monster, weapon),
-            Slot::Boots if self.level() >= 20 && self.has_available("steel_boots", slot) => {
-                self.items.get("steel_boots")
-            }
-            Slot::Boots if self.level() >= 15 && self.has_available("adventurer_boots", slot) => {
-                self.items.get("adventurer_boots")
-            }
-            Slot::Boots if self.level() >= 10 && self.has_available("iron_boots", slot) => {
-                self.items.get("iron_boots")
-            }
-            Slot::Boots if self.has_available("copper_boots", slot) => {
-                self.items.get("copper_boots")
-            }
-            Slot::Shield if self.level() >= 30 && self.has_available("golden_shield", slot) => {
-                self.items.get("golden_shield")
-            }
-            Slot::Shield if self.level() >= 20 && self.has_available("steel_shield", slot) => {
-                self.items.get("steel_shield")
-            }
-            Slot::Shield if self.level() >= 10 && self.has_available("slime_shield", slot) => {
-                self.items.get("slime_shield")
-            }
-            Slot::Shield if self.has_available("wooden_shield", slot) => {
-                self.items.get("wooden_shield")
-            }
+            | Slot::Amulet
+            | Slot::Boots
+            | Slot::Shield => self.best_available_armor_against_with_weapon(slot, monster, weapon),
             _ => None,
         }
     }
@@ -878,13 +856,21 @@ impl Character {
         monster: &MonsterSchema,
         weapon: &ItemSchema,
     ) -> Option<&ItemSchema> {
-        self.items
+        let available = self
+            .items
             .equipable_at_level(self.level(), slot)
             .into_iter()
             .filter(|i| self.has_available(&i.code, slot))
-            .max_by_key(|i| {
-                OrderedFloat(self.armor_attack_damage_against_with_weapon(i, monster, weapon))
-            })
+            .collect_vec();
+        let mut upgrade = available.iter().max_by_key(|i| {
+            OrderedFloat(self.armor_attack_damage_against_with_weapon(i, monster, weapon))
+        });
+        if upgrade.is_some_and(|i| i.total_damage_increase() <= 0) {
+            upgrade = available
+                .iter()
+                .min_by_key(|i| OrderedFloat(i.damage_from(monster)))
+        }
+        upgrade.copied()
     }
 
     fn resistance(&self, r#type: DamageType) -> i32 {
