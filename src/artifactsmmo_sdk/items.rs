@@ -511,7 +511,7 @@ impl Items {
             }
             Skill::Jewelrycrafting => {
                 if level > 25 {
-                    None
+                    self.get("steel_ring")
                 } else if level > 20 {
                     self.get("life_ring")
                 } else if level > 11 {
