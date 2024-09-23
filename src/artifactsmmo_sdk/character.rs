@@ -1,5 +1,5 @@
 use super::{
-    api::{events::EventsApi, my_character::MyCharacterApi},
+    api::{characters::CharactersApi, events::EventsApi, my_character::MyCharacterApi},
     bank::Bank,
     char_config::CharConfig,
     compute_damage,
@@ -36,6 +36,7 @@ use ordered_float::OrderedFloat;
 pub struct Character {
     pub name: String,
     my_api: MyCharacterApi,
+    api: CharactersApi,
     events_api: EventsApi,
     game: Arc<Game>,
     maps: Arc<Maps>,
@@ -60,6 +61,7 @@ impl Character {
             name: data.read().map(|d| d.name.to_owned()).unwrap(),
             conf,
             my_api: MyCharacterApi::new(&config.base_url, &config.token),
+            api: CharactersApi::new(&config.base_url, &config.token),
             events_api: EventsApi::new(&config.base_url, &config.token),
             game: game.clone(),
             maps: game.maps.clone(),
@@ -82,7 +84,12 @@ impl Character {
     pub fn toggle_idle(&self) {
         if let Ok(mut conf) = self.conf.write() {
             conf.idle ^= true;
-            info!("{} toggled idle: {}." , self.name, conf.idle);
+            info!("{} toggled idle: {}.", self.name, conf.idle);
+            if !conf.idle {
+                if let Ok(resp) = self.api.get(&self.name) {
+                    self.update_data(&resp.data)
+                }
+            }
         }
     }
 

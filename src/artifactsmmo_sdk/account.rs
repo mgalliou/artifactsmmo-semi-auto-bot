@@ -14,7 +14,7 @@ use artifactsmmo_openapi::{
 };
 use itertools::Itertools;
 use std::sync::RwLock;
-use std::{char, sync::Arc};
+use std::sync::Arc;
 
 pub struct Account {
     pub configuration: Configuration,
