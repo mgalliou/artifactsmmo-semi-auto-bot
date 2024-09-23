@@ -24,40 +24,20 @@ fn main() -> Result<()> {
         .iter()
         .map(|c| Character::run(c.clone()).unwrap())
         .collect_vec();
-    run_command_line(account.characters.clone(), game.items.clone())?;
+    run_cli(game.clone(), &account)?;
     handles.into_iter().for_each(|h| {
         h.join().unwrap();
     });
     Ok(())
 }
 
-fn run_command_line(_characters: Arc<Vec<Arc<Character>>>, items: Arc<Items>) -> Result<()> {
+fn run_cli(game: Arc<Game>, account: &Account) -> Result<()> {
     let mut rl = DefaultEditor::new()?;
     loop {
         let readline = rl.readline(">> ");
         match readline {
             Ok(line) => {
-                let args = line.split_whitespace().collect_vec();
-                match args.first() {
-                    Some(cmd) => match *cmd {
-                        "items" => match args.get(1) {
-                            Some(verb) => match (*verb, args.get(2), args.get(3)) {
-                                ("bfl", Some(lvl), Some(skill)) => println!(
-                                    "{:#?}",
-                                    items.best_for_leveling(
-                                        lvl.parse().unwrap(),
-                                        Skill::from_str(skill).unwrap()
-                                    )
-                                ),
-                                _ => println!("error"),
-                            },
-
-                            None => println!("error"),
-                        },
-                        _ => println!("error"),
-                    },
-                    None => todo!(),
-                }
+                handle_cmd_line(line, game.clone(), account);
             }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");
@@ -74,4 +54,42 @@ fn run_command_line(_characters: Arc<Vec<Arc<Character>>>, items: Arc<Items>) ->
         }
     }
     Ok(())
+}
+
+fn handle_cmd_line(line: String, game: Arc<Game>, account: &Account) {
+    let args = line.split_whitespace().collect_vec();
+    if let Some(cmd) = args.first() {
+        match *cmd {
+            "items" => handle_items(&args[1..], &game.items),
+            "char" => handle_char(&args[1..], account),
+            _ => println!("error"),
+        }
+    }
+}
+
+fn handle_char(args: &[&str], account: &Account) {
+    if let (Some(verb), Some(name)) = (args.first(), args.get(1)) {
+        match account.get_character_by_name(name) {
+            Some(char) => {
+                match *verb {
+                    "idle" => char.toggle_idle(),
+                    _ => eprintln!("invalid verb")
+                }
+
+            }
+            _ => eprintln!("character not found: {}", name),
+        }
+    }
+}
+
+fn handle_items(args: &[&str], items: &Arc<Items>) {
+    if let Some(verb) = args.first() {
+        match (*verb, args.get(1), args.get(2)) {
+            ("bfl", Some(lvl), Some(skill)) => println!(
+                "{:#?}",
+                items.best_for_leveling(lvl.parse().unwrap(), Skill::from_str(skill).unwrap())
+            ),
+            _ => println!("error"),
+        };
+    }
 }

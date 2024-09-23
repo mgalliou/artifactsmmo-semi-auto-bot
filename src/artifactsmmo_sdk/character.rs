@@ -1,5 +1,17 @@
 use super::{
-    api::{events::EventsApi, my_character::MyCharacterApi}, bank::Bank, char_config::CharConfig, compute_damage, config::Config, equipment::Equipment, game::Game, items::{DamageType, Items, Slot, Type}, maps::Maps, monsters::Monsters, resources::Resources, skill::Skill, ItemSchemaExt, MonsterSchemaExt
+    api::{events::EventsApi, my_character::MyCharacterApi},
+    bank::Bank,
+    char_config::CharConfig,
+    compute_damage,
+    config::Config,
+    equipment::Equipment,
+    game::Game,
+    items::{DamageType, Items, Slot, Type},
+    maps::Maps,
+    monsters::Monsters,
+    resources::Resources,
+    skill::Skill,
+    ItemSchemaExt, MonsterSchemaExt,
 };
 use artifactsmmo_openapi::models::{
     CharacterSchema, InventorySlot, ItemSchema, MapSchema, MonsterSchema, ResourceSchema,
@@ -22,7 +34,7 @@ mod actions;
 use ordered_float::OrderedFloat;
 
 pub struct Character {
-    name: String,
+    pub name: String,
     my_api: MyCharacterApi,
     events_api: EventsApi,
     game: Arc<Game>,
@@ -47,14 +59,8 @@ impl Character {
         Character {
             name: data.read().map(|d| d.name.to_owned()).unwrap(),
             conf,
-            my_api: MyCharacterApi::new(
-                &config.base_url,
-                &config.token,
-            ),
-            events_api: EventsApi::new(
-                &config.base_url,
-                &config.token,
-            ),
+            my_api: MyCharacterApi::new(&config.base_url, &config.token),
+            events_api: EventsApi::new(&config.base_url, &config.token),
             game: game.clone(),
             maps: game.maps.clone(),
             resources: game.resources.clone(),
@@ -73,10 +79,20 @@ impl Character {
             })
     }
 
+    pub fn toggle_idle(&self) {
+        if let Ok(mut conf) = self.conf.write() {
+            conf.idle ^= true;
+            info!("{} toggled idle: {}." , self.name, conf.idle);
+        }
+    }
+
     fn run_loop(&self) {
         info!("{}: started !", self.name);
         self.handle_wooden_stick();
-        while self.role() != Role::Idle {
+        loop {
+            if self.conf.read().unwrap().idle {
+                continue;
+            }
             self.process_inventory();
             self.process_task();
             if let Some(skill) = self.target_skill_to_level() {
@@ -933,13 +949,12 @@ impl Character {
 
 #[derive(Debug, Default, PartialEq, Copy, Clone, Deserialize)]
 pub enum Role {
+    #[default]
     Fighter,
     Miner,
     Woodcutter,
     Fisher,
     Weaponcrafter,
-    #[default]
-    Idle,
 }
 
 impl Role {
@@ -950,7 +965,6 @@ impl Role {
             Role::Woodcutter => Some(Skill::Woodcutting),
             Role::Fisher => Some(Skill::Fishing),
             Role::Weaponcrafter => Some(Skill::Weaponcrafting),
-            Role::Idle => None,
         }
     }
 }

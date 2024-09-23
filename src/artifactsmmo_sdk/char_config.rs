@@ -4,6 +4,8 @@ use serde::Deserialize;
 #[derive(Debug, Default, Clone, Deserialize)]
 pub struct CharConfig {
     #[serde(default)]
+    pub idle: bool,
+    #[serde(default)]
     pub role: Role,
     #[serde(default)]
     pub fight_target: Option<String>,

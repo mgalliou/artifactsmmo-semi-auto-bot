@@ -1,7 +1,7 @@
 use super::{
     api::{characters::CharactersApi, my_character::MyCharacterApi},
     bank::Bank,
-    character::Character,
+    character::{self, Character},
     config::Config,
     game::Game,
 };
@@ -13,8 +13,8 @@ use artifactsmmo_openapi::{
     models::CharacterSchema,
 };
 use itertools::Itertools;
-use std::sync::Arc;
 use std::sync::RwLock;
+use std::{char, sync::Arc};
 
 pub struct Account {
     pub configuration: Configuration,
@@ -67,12 +67,8 @@ impl Account {
         }
     }
 
-    pub fn get_character_by_name(&self, name: &str) -> Option<CharacterSchema> {
-        if let Ok(c) = self.my_characters_api.all() {
-            c.data.iter().find(|c| c.name == name).cloned()
-        } else {
-            None
-        }
+    pub fn get_character_by_name(&self, name: &str) -> Option<Arc<Character>> {
+        self.characters.iter().find(|c| c.name == name).cloned()
     }
 }
 
