@@ -1,5 +1,5 @@
 use super::{
-    account::Account, api::{events::EventsApi, my_character::MyCharacterApi}, bank::Bank, char_config::CharConfig, compute_damage, equipment::Equipment, game::Game, items::{DamageType, Items, Slot, Type}, maps::Maps, monsters::Monsters, resources::Resources, skill::Skill, ItemSchemaExt, MonsterSchemaExt
+    api::{events::EventsApi, my_character::MyCharacterApi}, bank::Bank, char_config::CharConfig, compute_damage, config::Config, equipment::Equipment, game::Game, items::{DamageType, Items, Slot, Type}, maps::Maps, monsters::Monsters, resources::Resources, skill::Skill, ItemSchemaExt, MonsterSchemaExt
 };
 use artifactsmmo_openapi::models::{
     CharacterSchema, InventorySlot, ItemSchema, MapSchema, MonsterSchema, ResourceSchema,
@@ -25,7 +25,7 @@ pub struct Character {
     name: String,
     my_api: MyCharacterApi,
     events_api: EventsApi,
-    account: Arc<Account>,
+    game: Arc<Game>,
     maps: Arc<Maps>,
     resources: Arc<Resources>,
     monsters: Arc<Monsters>,
@@ -38,7 +38,7 @@ pub struct Character {
 impl Character {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        account: Arc<Account>,
+        config: &Config,
         game: Arc<Game>,
         bank: Arc<Bank>,
         conf: Arc<RwLock<CharConfig>>,
@@ -48,14 +48,14 @@ impl Character {
             name: data.read().map(|d| d.name.to_owned()).unwrap(),
             conf,
             my_api: MyCharacterApi::new(
-                &account.configuration.base_path,
-                &account.configuration.bearer_access_token.clone().unwrap(),
+                &config.base_url,
+                &config.token,
             ),
             events_api: EventsApi::new(
-                &account.configuration.base_path,
-                &account.configuration.bearer_access_token.clone().unwrap(),
+                &config.base_url,
+                &config.token,
             ),
-            account: account.clone(),
+            game: game.clone(),
             maps: game.maps.clone(),
             resources: game.resources.clone(),
             monsters: game.monsters.clone(),
@@ -65,7 +65,7 @@ impl Character {
         }
     }
 
-    pub fn run(char: Character) -> Result<JoinHandle<()>, io::Error> {
+    pub fn run(char: Arc<Character>) -> Result<JoinHandle<()>, io::Error> {
         thread::Builder::new()
             .name(char.name.to_owned())
             .spawn(move || {
@@ -561,7 +561,7 @@ impl Character {
     /// Returns the remaining cooldown duration of the `Character`.
     fn remaining_cooldown(&self) -> Duration {
         if let Some(exp) = self.cooldown_expiration() {
-            let synced = Utc::now() - *self.account.server_offset.read().unwrap();
+            let synced = Utc::now() - *self.game.server_offset.read().unwrap();
             if synced.cmp(&exp.to_utc()) == Ordering::Less {
                 return (exp.to_utc() - synced).to_std().unwrap();
             }

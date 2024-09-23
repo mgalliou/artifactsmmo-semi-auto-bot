@@ -283,10 +283,7 @@ impl ItemSchemaExt for ItemSchema {
 
 impl Items {
     pub fn new(config: &Config, resources: Arc<Resources>, monsters: Arc<Monsters>) -> Items {
-        let api = ItemsApi::new(
-            &config.base_url,
-            &config.token,
-        );
+        let api = ItemsApi::new(&config.base_url, &config.token);
         Items {
             data: api.all(None, None, None, None, None, None).unwrap().clone(),
             api,
@@ -587,17 +584,15 @@ impl Items {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
+    use crate::artifactsmmo_sdk::{
+        config::Config, monsters::Monsters, resources::Resources, ItemSchemaExt,
+    };
     use figment::{
         providers::{Format, Toml},
         Figment,
     };
     use itertools::Itertools;
-
-    use crate::artifactsmmo_sdk::{
-        account::Account, config::Config, monsters::Monsters, resources::Resources, ItemSchemaExt,
-    };
+    use std::sync::Arc;
 
     use super::Items;
 
@@ -607,7 +602,6 @@ mod tests {
             .merge(Toml::file_exact("ArtifactsMMO.toml"))
             .extract()
             .unwrap();
-        let account = Account::new(&config);
         let resources = Arc::new(Resources::new(&config));
         let monsters = Arc::new(Monsters::new(&config));
         let items = Arc::new(Items::new(&config, resources.clone(), monsters.clone()));
@@ -634,7 +628,6 @@ mod tests {
             .merge(Toml::file_exact("ArtifactsMMO.toml"))
             .extract()
             .unwrap();
-        let account = Account::new(&config);
         let resources = Arc::new(Resources::new(&config));
         let monsters = Arc::new(Monsters::new(&config));
         let items = Arc::new(Items::new(&config, resources.clone(), monsters.clone()));

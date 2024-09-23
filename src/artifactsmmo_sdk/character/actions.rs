@@ -134,7 +134,7 @@ impl Character {
             Err(ref e) => {
                 if let Error::ResponseError(e) = e {
                     if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
-                        self.account.update_offset();
+                        self.game.update_offset();
                         return self.action_move(x, y);
                     }
                 };
@@ -157,7 +157,7 @@ impl Character {
             Err(ref e) => {
                 if let Error::ResponseError(e) = e {
                     if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
-                        self.account.update_offset();
+                        self.game.update_offset();
                         return self.action_fight();
                     }
                 };
@@ -180,7 +180,7 @@ impl Character {
             Err(ref e) => {
                 if let Error::ResponseError(e) = e {
                     if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
-                        self.account.update_offset();
+                        self.game.update_offset();
                         return self.action_gather();
                     }
                 };
@@ -213,7 +213,7 @@ impl Character {
             Err(ref e) => {
                 if let Error::ResponseError(e) = e {
                     if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
-                        self.account.update_offset();
+                        self.game.update_offset();
                         return self.action_withdraw(code, quantity);
                     }
                 };
@@ -249,7 +249,7 @@ impl Character {
             Err(ref e) => {
                 if let Error::ResponseError(e) = e {
                     if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
-                        self.account.update_offset();
+                        self.game.update_offset();
                         return self.action_deposit(code, quantity);
                     }
                 };
@@ -278,7 +278,7 @@ impl Character {
             Err(ref e) => {
                 if let Error::ResponseError(e) = e {
                     if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
-                        self.account.update_offset();
+                        self.game.update_offset();
                         return self.action_craft(code, quantity);
                     }
                 };
@@ -307,7 +307,7 @@ impl Character {
             Err(ref e) => {
                 if let Error::ResponseError(e) = e {
                     if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
-                        self.account.update_offset();
+                        self.game.update_offset();
                         return self.action_recycle(code, quantity);
                     }
                 };
@@ -340,7 +340,7 @@ impl Character {
             Err(ref e) => {
                 if let Error::ResponseError(e) = e {
                     if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
-                        self.account.update_offset();
+                        self.game.update_offset();
                         return self.action_equip(code, slot);
                     }
                 };
@@ -369,7 +369,7 @@ impl Character {
             Err(ref e) => {
                 if let Error::ResponseError(e) = e {
                     if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
-                        self.account.update_offset();
+                        self.game.update_offset();
                         return self.action_unequip(slot);
                     }
                 };
@@ -393,7 +393,7 @@ impl Character {
             Err(ref e) => {
                 if let Error::ResponseError(e) = e {
                     if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
-                        self.account.update_offset();
+                        self.game.update_offset();
                         return self.action_accept_task();
                     }
                 };
@@ -418,7 +418,7 @@ impl Character {
             Err(ref e) => {
                 if let Error::ResponseError(e) = e {
                     if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
-                        self.account.update_offset();
+                        self.game.update_offset();
                         return self.action_complete_task();
                     }
                 };
@@ -443,7 +443,7 @@ impl Character {
             Err(ref e) => {
                 if let Error::ResponseError(e) = e {
                     if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
-                        self.account.update_offset();
+                        self.game.update_offset();
                         return self.action_cancel_task();
                     }
                 };

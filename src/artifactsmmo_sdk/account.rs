@@ -1,66 +1,56 @@
-use std::sync::RwLock;
-
-use super::{api::{characters::CharactersApi, my_character::MyCharacterApi}, config::Config};
+use super::{
+    api::{characters::CharactersApi, my_character::MyCharacterApi},
+    bank::Bank,
+    character::Character,
+    config::Config,
+    game::Game,
+};
+use crate::artifactsmmo_sdk::char_config::CharConfig;
 use artifactsmmo_openapi::{
     apis::{
-        configuration::Configuration,
-        default_api::{get_status_get, GetStatusGetError},
-        my_characters_api::GetMyCharactersMyCharactersGetError,
-        Error,
+        configuration::Configuration, my_characters_api::GetMyCharactersMyCharactersGetError, Error,
     },
-    models::{CharacterSchema, StatusResponseSchema},
+    models::CharacterSchema,
 };
-use chrono::{DateTime, TimeDelta, Utc};
-use log::debug;
+use itertools::Itertools;
+use std::sync::Arc;
+use std::sync::RwLock;
 
 pub struct Account {
     pub configuration: Configuration,
     pub character_api: CharactersApi,
     pub my_characters_api: MyCharacterApi,
-    pub server_offset: RwLock<TimeDelta>,
+    pub characters: Arc<Vec<Arc<Character>>>,
 }
 
 impl Account {
-    pub fn new(config: &Config) -> Account {
+    pub fn new(config: &Config, game: Arc<Game>) -> Account {
         let mut configuration = Configuration::new();
         configuration.base_path = config.base_url.to_owned();
         configuration.bearer_access_token = Some(config.base_url.to_owned());
-        let account = Account {
+        let my_characters_api = MyCharacterApi::new(&config.base_url, &config.token);
+        let bank = Arc::new(Bank::new(config, game.items.clone()));
+        let chars_conf = init_char_conf(&config.characters);
+        let chars_schema = init_chars_schema(config);
+        let characters = chars_conf
+            .into_iter()
+            .zip(chars_schema.iter())
+            .map(|(conf, schema)| {
+                Arc::new(Character::new(
+                    config,
+                    game.clone(),
+                    bank.clone(),
+                    conf.clone(),
+                    schema.clone(),
+                ))
+            })
+            .collect_vec();
+        Account {
             configuration,
             character_api: CharactersApi::new(&config.base_url, &config.token),
-            my_characters_api: MyCharacterApi::new(&config.base_url, &config.token),
-            server_offset: RwLock::new(TimeDelta::default()),
-        };
-        account.update_offset();
-        account
-    }
-
-    pub fn server_status(&self) -> Result<StatusResponseSchema, Error<GetStatusGetError>> {
-        get_status_get(&self.configuration)
-    }
-
-    pub fn server_time(&self) -> Option<DateTime<Utc>> {
-        match get_status_get(&self.configuration) {
-            Ok(s) => match DateTime::parse_from_rfc3339(&s.data.server_time) {
-                Ok(t) => Some(t.to_utc()),
-                Err(_) => None,
-            },
-            Err(_) => None,
+            my_characters_api,
+            characters: Arc::new(characters),
         }
-    }
-
-    pub fn update_offset(&self) {
-        let server_time = self.server_time().unwrap();
-        let now = Utc::now();
-        let _ = self.server_offset.write().map(|mut so| *so = now - server_time);
-        debug!("system time: {}", now);
-        debug!("server time: {}", self.server_time().unwrap());
-        debug!(
-            "time offset: {}s and {}ms",
-            self.server_offset.read().unwrap().num_seconds(),
-            self.server_offset.read().unwrap().subsec_nanos() / 1000000
-        );
-        debug!("synced time: {}", now - *self.server_offset.read().unwrap());
     }
 
     pub fn get_character(
@@ -84,4 +74,22 @@ impl Account {
             None
         }
     }
+}
+
+fn init_char_conf(confs: &[CharConfig]) -> Vec<Arc<RwLock<CharConfig>>> {
+    confs
+        .iter()
+        .map(|c| Arc::new(RwLock::new(c.clone())))
+        .collect_vec()
+}
+
+fn init_chars_schema(config: &Config) -> Vec<Arc<RwLock<CharacterSchema>>> {
+    let my_characters_api = MyCharacterApi::new(&config.base_url, &config.token);
+    my_characters_api
+        .characters()
+        .unwrap()
+        .data
+        .into_iter()
+        .map(|s| Arc::new(RwLock::new(s)))
+        .collect_vec()
 }
