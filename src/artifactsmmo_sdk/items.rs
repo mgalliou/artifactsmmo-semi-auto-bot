@@ -259,7 +259,10 @@ impl ItemSchemaExt for ItemSchema {
     fn damage_increase(&self, r#type: DamageType) -> i32 {
         self.effects()
             .iter()
-            .find(|e| e.name == "dmg_".to_string() + r#type.as_ref())
+            .find(|e| {
+                e.name == "dmg_".to_string() + r#type.as_ref()
+                    || e.name == "boost_dmg_".to_string() + r#type.as_ref()
+            })
             .map(|e| e.value)
             .unwrap_or(0)
     }
@@ -275,7 +278,7 @@ impl ItemSchemaExt for ItemSchema {
     fn health(&self) -> i32 {
         self.effects()
             .iter()
-            .find(|e| e.name == "hp")
+            .find(|e| e.name == "hp" || e.name == "boost_hp")
             .map(|e| e.value)
             .unwrap_or(0)
     }
