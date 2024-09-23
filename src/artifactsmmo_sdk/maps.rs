@@ -1,4 +1,4 @@
-use super::{account::Account, api::maps::MapsApi, skill::Skill, MapSchemaExt};
+use super::{api::maps::MapsApi, config::Config, skill::Skill, MapSchemaExt};
 use artifactsmmo_openapi::models::{MapContentSchema, MapSchema, ResourceSchema};
 use itertools::Itertools;
 
@@ -31,10 +31,10 @@ impl MapSchemaExt for MapSchema {
 }
 
 impl Maps {
-    pub fn new(account: &Account) -> Maps {
+    pub fn new(config: &Config) -> Maps {
         let api = MapsApi::new(
-            &account.configuration.base_path,
-            &account.configuration.bearer_access_token.clone().unwrap(),
+            &config.base_url,
+            &config.token,
         );
         Maps {
             data: api.all(None, None).unwrap().clone(),

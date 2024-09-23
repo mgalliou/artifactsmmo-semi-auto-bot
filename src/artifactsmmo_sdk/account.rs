@@ -1,6 +1,6 @@
 use std::sync::RwLock;
 
-use super::api::{characters::CharactersApi, my_character::MyCharacterApi};
+use super::{api::{characters::CharactersApi, my_character::MyCharacterApi}, config::Config};
 use artifactsmmo_openapi::{
     apis::{
         configuration::Configuration,
@@ -21,14 +21,14 @@ pub struct Account {
 }
 
 impl Account {
-    pub fn new(base_path: &str, token: &str) -> Account {
+    pub fn new(config: &Config) -> Account {
         let mut configuration = Configuration::new();
-        configuration.base_path = base_path.to_owned();
-        configuration.bearer_access_token = Some(token.to_owned());
+        configuration.base_path = config.base_url.to_owned();
+        configuration.bearer_access_token = Some(config.base_url.to_owned());
         let account = Account {
             configuration,
-            character_api: CharactersApi::new(base_path, token),
-            my_characters_api: MyCharacterApi::new(base_path, token),
+            character_api: CharactersApi::new(&config.base_url, &config.token),
+            my_characters_api: MyCharacterApi::new(&config.base_url, &config.token),
             server_offset: RwLock::new(TimeDelta::default()),
         };
         account.update_offset();

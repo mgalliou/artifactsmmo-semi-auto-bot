@@ -1,4 +1,4 @@
-use super::{account::Account, api::resources::ResourcesApi, skill::Skill};
+use super::{api::resources::ResourcesApi, config::Config, skill::Skill};
 use artifactsmmo_openapi::models::ResourceSchema;
 
 pub struct Resources {
@@ -6,10 +6,10 @@ pub struct Resources {
 }
 
 impl Resources {
-    pub fn new(account: &Account) -> Resources {
+    pub fn new(config: &Config) -> Resources {
         let api = ResourcesApi::new(
-            &account.configuration.base_path,
-            &account.configuration.bearer_access_token.clone().unwrap(),
+            &config.base_url,
+            &config.token,
         );
         Resources {
             data: api.all(None, None, None, None).unwrap().clone(),

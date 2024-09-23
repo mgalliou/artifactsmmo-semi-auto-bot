@@ -1,4 +1,4 @@
-use super::{account::Account, api::monsters::MonstersApi, items::DamageType, MonsterSchemaExt};
+use super::{account::Account, api::monsters::MonstersApi, config::Config, items::DamageType, MonsterSchemaExt};
 use artifactsmmo_openapi::models::MonsterSchema;
 
 pub struct Monsters {
@@ -26,10 +26,10 @@ impl MonsterSchemaExt for MonsterSchema {
 }
 
 impl Monsters {
-    pub fn new(account: &Account) -> Monsters {
+    pub fn new(config: &Config) -> Monsters {
         let api = MonstersApi::new(
-            &account.configuration.base_path,
-            &account.configuration.bearer_access_token.clone().unwrap(),
+            &config.base_url,
+            &config.token,
         );
         Monsters {
             data: api.all(None, None, None).unwrap().clone(),

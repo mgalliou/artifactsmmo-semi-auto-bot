@@ -2,7 +2,7 @@ use std::sync::{Arc, RwLock};
 
 use artifactsmmo_openapi::models::{BankSchema, SimpleItemSchema};
 
-use super::{account::Account, api::bank::BankApi, items::Items};
+use super::{api::bank::BankApi, config::Config, items::Items};
 
 pub struct Bank {
     items: Arc<Items>,
@@ -11,10 +11,10 @@ pub struct Bank {
 }
 
 impl Bank {
-    pub fn new(account: &Account, items: Arc<Items>) -> Bank {
+    pub fn new(config: &Config, items: Arc<Items>) -> Bank {
         let api = BankApi::new(
-            &account.configuration.base_path,
-            &account.configuration.bearer_access_token.clone().unwrap(),
+            &config.base_url,
+            &config.token,
         );
         Bank {
             items,

@@ -1,5 +1,6 @@
+use super::config::Config;
 use super::skill::Skill;
-use super::{account::Account, api::items::ItemsApi, monsters::Monsters, resources::Resources};
+use super::{api::items::ItemsApi, monsters::Monsters, resources::Resources};
 use super::{compute_damage, ItemSchemaExt, MonsterSchemaExt};
 use artifactsmmo_openapi::models::{equip_schema, unequip_schema, MonsterSchema};
 use artifactsmmo_openapi::models::{
@@ -281,10 +282,10 @@ impl ItemSchemaExt for ItemSchema {
 }
 
 impl Items {
-    pub fn new(account: &Account, resources: Arc<Resources>, monsters: Arc<Monsters>) -> Items {
+    pub fn new(config: &Config, resources: Arc<Resources>, monsters: Arc<Monsters>) -> Items {
         let api = ItemsApi::new(
-            &account.configuration.base_path,
-            &account.configuration.bearer_access_token.clone().unwrap(),
+            &config.base_url,
+            &config.token,
         );
         Items {
             data: api.all(None, None, None, None, None, None).unwrap().clone(),
@@ -606,10 +607,10 @@ mod tests {
             .merge(Toml::file_exact("ArtifactsMMO.toml"))
             .extract()
             .unwrap();
-        let account = Account::new(&config.base_url, &config.token);
-        let resources = Arc::new(Resources::new(&account));
-        let monsters = Arc::new(Monsters::new(&account));
-        let items = Arc::new(Items::new(&account, resources.clone(), monsters.clone()));
+        let account = Account::new(&config);
+        let resources = Arc::new(Resources::new(&config));
+        let monsters = Arc::new(Monsters::new(&config));
+        let items = Arc::new(Items::new(&config, resources.clone(), monsters.clone()));
 
         assert_eq!(
             items
@@ -633,10 +634,10 @@ mod tests {
             .merge(Toml::file_exact("ArtifactsMMO.toml"))
             .extract()
             .unwrap();
-        let account = Account::new(&config.base_url, &config.token);
-        let resources = Arc::new(Resources::new(&account));
-        let monsters = Arc::new(Monsters::new(&account));
-        let items = Arc::new(Items::new(&account, resources.clone(), monsters.clone()));
+        let account = Account::new(&config);
+        let resources = Arc::new(Resources::new(&config));
+        let monsters = Arc::new(Monsters::new(&config));
+        let items = Arc::new(Items::new(&config, resources.clone(), monsters.clone()));
 
         assert_eq!(
             items
