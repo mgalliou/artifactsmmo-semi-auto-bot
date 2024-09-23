@@ -1,16 +1,5 @@
 use super::{
-    account::Account,
-    api::{events::EventsApi, my_character::MyCharacterApi},
-    bank::Bank,
-    char_config::CharConfig,
-    compute_damage,
-    equipment::Equipment,
-    items::{DamageType, Items, Slot, Type},
-    maps::Maps,
-    monsters::Monsters,
-    resources::Resources,
-    skill::Skill,
-    ItemSchemaExt, MonsterSchemaExt,
+    account::Account, api::{events::EventsApi, my_character::MyCharacterApi}, bank::Bank, char_config::CharConfig, compute_damage, equipment::Equipment, game::Game, items::{DamageType, Items, Slot, Type}, maps::Maps, monsters::Monsters, resources::Resources, skill::Skill, ItemSchemaExt, MonsterSchemaExt
 };
 use artifactsmmo_openapi::models::{
     CharacterSchema, InventorySlot, ItemSchema, MapSchema, MonsterSchema, ResourceSchema,
@@ -50,10 +39,7 @@ impl Character {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         account: Arc<Account>,
-        maps: Arc<Maps>,
-        resources: Arc<Resources>,
-        monsters: Arc<Monsters>,
-        items: Arc<Items>,
+        game: Arc<Game>,
         bank: Arc<Bank>,
         conf: Arc<RwLock<CharConfig>>,
         data: Arc<RwLock<CharacterSchema>>,
@@ -70,10 +56,10 @@ impl Character {
                 &account.configuration.bearer_access_token.clone().unwrap(),
             ),
             account: account.clone(),
-            maps,
-            resources,
-            monsters,
-            items,
+            maps: game.maps.clone(),
+            resources: game.resources.clone(),
+            monsters: game.monsters.clone(),
+            items: game.items.clone(),
             bank,
             data,
         }

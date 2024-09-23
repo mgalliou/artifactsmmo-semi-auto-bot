@@ -5,6 +5,7 @@ use artifactsmmo_openapi::models::{
 use items::{DamageType, Type};
 use skill::Skill;
 
+pub mod game;
 pub mod account;
 pub mod api;
 pub mod bank;

@@ -1,4 +1,4 @@
-use super::{account::Account, api::monsters::MonstersApi, config::Config, items::DamageType, MonsterSchemaExt};
+use super::{api::monsters::MonstersApi, config::Config, items::DamageType, MonsterSchemaExt};
 use artifactsmmo_openapi::models::MonsterSchema;
 
 pub struct Monsters {

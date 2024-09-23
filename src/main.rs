@@ -1,8 +1,7 @@
 use artifactsmmo_openapi::models::CharacterSchema;
 use artifactsmmo_playground::artifactsmmo_sdk::{
     account::Account, api::my_character::MyCharacterApi, bank::Bank, char_config::CharConfig,
-    character::Character, config::Config, items::Items, maps::Maps, monsters::Monsters,
-    resources::Resources, skill::Skill,
+    character::Character, config::Config, game::Game, items::Items, skill::Skill,
 };
 use figment::{
     providers::{Format, Toml},
@@ -24,11 +23,8 @@ fn main() -> Result<()> {
         .extract()
         .unwrap();
     let account = Arc::new(Account::new(&config));
-    let maps = Arc::new(Maps::new(&config));
-    let resources = Arc::new(Resources::new(&config));
-    let monsters = Arc::new(Monsters::new(&config));
-    let items = Arc::new(Items::new(&config, resources.clone(), monsters.clone()));
-    let bank = Arc::new(Bank::new(&config, items.clone()));
+    let game = Arc::new(Game::new(&config));
+    let bank = Arc::new(Bank::new(&config, game.items.clone()));
     let chars_conf = init_char_conf(&config.characters);
     let chars_schema = init_chars_schema(config);
     let characters = chars_conf
@@ -37,10 +33,7 @@ fn main() -> Result<()> {
         .map(|(conf, schema)| {
             Character::new(
                 account.clone(),
-                maps.clone(),
-                resources.clone(),
-                monsters.clone(),
-                items.clone(),
+                game.clone(),
                 bank.clone(),
                 conf.clone(),
                 schema.clone(),
@@ -51,7 +44,7 @@ fn main() -> Result<()> {
         .into_iter()
         .map(|c| Character::run(c).unwrap())
         .collect_vec();
-    run_command_line(chars_schema, items.clone())?;
+    run_command_line(chars_schema, game.items.clone())?;
     handles.into_iter().for_each(|h| {
         h.join().unwrap();
     });
