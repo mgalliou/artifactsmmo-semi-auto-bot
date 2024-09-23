@@ -448,6 +448,21 @@ impl Character {
         crafted_once
     }
 
+    /// Crafts the given `quantity` of the given item `code` if the required
+    /// materials are available in bank.
+    pub fn craft_from_bank(&self, code: &str, quantity: i32) -> i32 {
+        if self.bank.has_mats_for(code) >= quantity {
+            info!("{}: going to crafting all '{}' from bank.", self.name, code);
+            self.deposit_all(Type::Resource);
+            self.deposit_all(Type::Consumable);
+            self.withdraw_mats_for(code, quantity);
+            if self.action_craft(code, quantity).is_ok() {
+                return quantity;
+            };
+        }
+        0
+    }
+
     /// Crafts the maxmium amount of the given item `code` that can be crafted in
     /// one go with the materials available in the bank.
     // NOTE: maybe its not this function responsability to deposit items before

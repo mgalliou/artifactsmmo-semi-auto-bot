@@ -12,7 +12,7 @@ use rustyline::{error::ReadlineError, DefaultEditor};
 use std::{str::FromStr, sync::Arc};
 
 fn main() -> Result<()> {
-    let _ = simple_logging::log_to_file("artifactsmmo.log", LevelFilter::Debug);
+    let _ = simple_logging::log_to_file("artifactsmmo.log", LevelFilter::Info);
     let config: Config = Figment::new()
         .merge(Toml::file_exact("ArtifactsMMO.toml"))
         .extract()
@@ -70,13 +70,19 @@ fn handle_cmd_line(line: String, game: Arc<Game>, account: &Account) {
 fn handle_char(args: &[&str], account: &Account) {
     if let (Some(verb), Some(name)) = (args.first(), args.get(1)) {
         match account.get_character_by_name(name) {
-            Some(char) => {
-                match *verb {
-                    "idle" => char.toggle_idle(),
-                    _ => eprintln!("invalid verb")
-                }
-
-            }
+            Some(char) => match *verb {
+                "idle" => char.toggle_idle(),
+                "craft" => match (args.get(2), args.get(3)) {
+                    (Some(code), Some(quantity)) => {
+                        char.craft_from_bank(code, quantity.parse::<i32>().unwrap_or(0));
+                    }
+                    (Some(code), None) => {
+                        char.craft_from_bank(code, 1);
+                    }
+                    _ => eprint!("missing args"),
+                },
+                _ => eprintln!("invalid verb"),
+            },
             _ => eprintln!("character not found: {}", name),
         }
     }
