@@ -1,8 +1,9 @@
 use artifactsmmo_openapi::models::{
-    CraftSchema, ItemEffectSchema, MapContentSchema, MonsterSchema, ResourceSchema,
-    SimpleItemSchema,
+    CharacterSchema, CraftSchema, ItemEffectSchema, MapContentSchema, MonsterSchema, ResourceSchema, SimpleItemSchema
 };
 use items::{DamageType, Type};
+use reqwest::StatusCode;
+use serde::{Deserialize, Serialize};
 use skill::Skill;
 
 pub mod game;
@@ -51,8 +52,30 @@ trait MonsterSchemaExt {
     fn attack_damage(&self, r#type: DamageType) -> i32;
 }
 
+trait ActiveEventSchemaExt {
+    fn resource(&self) -> Option<ResourceSchema>;
+    fn monster(&self) -> Option<MonsterSchema>;
+}
+
 trait ResponseSchema {
+    fn character(&self) -> &CharacterSchema;
     fn pretty(&self) -> String;
+}
+
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ApiErrorSchema {
+    error: ApiError,
+}
+
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ApiError {
+    code: i32,
+    message: String
+}
+
+pub(crate) trait ActionError {
+    fn status_code(&self) -> Option<StatusCode>;
+    fn api_error(&self) -> Option<ApiErrorSchema>;
 }
 
 pub fn compute_damage(attack_damage: i32, damage_increase: i32, target_resistance: i32) -> f32 {

@@ -1,32 +1,261 @@
-use std::fmt::Display;
-
 use super::Character;
-use crate::artifactsmmo_sdk::{items::Slot, MapSchemaExt, ResponseSchema};
+use crate::artifactsmmo_sdk::{
+    items::Slot, ActionError, ApiErrorSchema, MapSchemaExt, ResponseSchema,
+};
 use artifactsmmo_openapi::{
-    apis::{
-        my_characters_api::{
-            ActionAcceptNewTaskMyNameActionTaskNewPostError,
-            ActionCompleteTaskMyNameActionTaskCompletePostError,
-            ActionCraftingMyNameActionCraftingPostError,
-            ActionDepositBankMyNameActionBankDepositPostError,
-            ActionEquipItemMyNameActionEquipPostError, ActionFightMyNameActionFightPostError,
-            ActionGatheringMyNameActionGatheringPostError,
-            ActionRecyclingMyNameActionRecyclingPostError,
-            ActionTaskCancelMyNameActionTaskCancelPostError,
-            ActionUnequipItemMyNameActionUnequipPostError,
-            ActionWithdrawBankMyNameActionBankWithdrawPostError,
-        },
-        Error,
-    },
+    apis::Error,
     models::{
-        fight_schema, BankItemTransactionResponseSchema, CharacterFightResponseSchema,
-        CharacterMovementResponseSchema, DropSchema, EquipmentResponseSchema,
-        RecyclingResponseSchema, SkillResponseSchema, TaskCancelledResponseSchema,
-        TaskResponseSchema, TaskRewardResponseSchema,
+        cooldown_schema::Reason, fight_schema, BankItemTransactionResponseSchema,
+        CharacterFightResponseSchema, CharacterMovementResponseSchema, CharacterSchema, DropSchema,
+        EquipmentResponseSchema, RecyclingResponseSchema, SkillResponseSchema,
+        TaskCancelledResponseSchema, TaskResponseSchema, TaskRewardResponseSchema,
     },
 };
 use log::{error, info};
 use reqwest::StatusCode;
+use std::fmt::Display;
+
+impl Character {
+    pub(crate) fn perform_action(&self, action: Action) -> Result<(), Box<dyn ActionError>> {
+        self.wait_for_cooldown();
+        let res: Result<Box<dyn ResponseSchema>, Box<dyn ActionError>> = match action {
+            Action::Move { x, y } => self
+                .my_api
+                .move_to(&self.name, x, y)
+                .map(|r| r.into())
+                .map_err(|e| e.into()),
+            Action::Fight => self
+                .my_api
+                .fight(&self.name)
+                .map(|r| r.into())
+                .map_err(|e| e.into()),
+            Action::Gather => self
+                .my_api
+                .gather(&self.name)
+                .map(|r| r.into())
+                .map_err(|e| e.into()),
+            Action::Craft { code, quantity } => self
+                .my_api
+                .craft(&self.name, code, quantity)
+                .map(|r| r.into())
+                .map_err(|e| e.into()),
+            Action::Withdraw { code, quantity } => self
+                .my_api
+                .withdraw(&self.name, code, quantity)
+                .map(|r| r.into())
+                .map_err(|e| e.into()),
+            Action::Deposit { code, quantity } => self
+                .my_api
+                .deposit(&self.name, code, quantity)
+                .map(|r| r.into())
+                .map_err(|e| e.into()),
+            Action::Recycle { code, quantity } => self
+                .my_api
+                .recycle(&self.name, code, quantity)
+                .map(|r| r.into())
+                .map_err(|e| e.into()),
+            Action::Equip {
+                code,
+                slot,
+                quantity,
+            } => self
+                .my_api
+                .equip(&self.name, code, slot.to_equip_schema(), Some(quantity))
+                .map(|r| r.into())
+                .map_err(|e| e.into()),
+            Action::Unequip { slot, quantity } => {
+                self.my_api
+                    .unequip(&self.name, slot.to_unequip_schema(), Some(quantity))
+            }
+            .map(|r| r.into())
+            .map_err(|e| e.into()),
+            Action::AcceptTask => self
+                .my_api
+                .accept_task(&self.name)
+                .map(|r| r.into())
+                .map_err(|e| e.into()),
+            Action::CompleteTask => self
+                .my_api
+                .complete_task(&self.name)
+                .map(|r| r.into())
+                .map_err(|e| e.into()),
+            Action::CancelTask => self
+                .my_api
+                .cancel_task(&self.name)
+                .map(|r| r.into())
+                .map_err(|e| e.into()),
+        };
+        match res {
+            Ok(ref res) => {
+                info!("{}", res.pretty());
+                self.update_data(res.character());
+                Ok(())
+            }
+            Err(e) => self.handle_action_error(action, e),
+        }
+    }
+
+    pub fn action_move(&self, x: i32, y: i32) -> bool {
+        if self.position() == (x, y) {
+            return true;
+        }
+        self.perform_action(Action::Move { x, y }).is_ok()
+    }
+
+    pub fn action_fight(&self) -> bool {
+        self.perform_action(Action::Fight).is_ok()
+    }
+
+    pub fn action_gather(&self) -> bool {
+        self.perform_action(Action::Gather).is_ok()
+    }
+
+    pub fn action_withdraw(&self, code: &str, quantity: i32) -> bool {
+        self.move_to_closest_map_of_type("bank");
+        self.perform_action(Action::Withdraw { code, quantity })
+            .is_ok()
+    }
+
+    pub fn action_deposit(&self, code: &str, quantity: i32) -> bool {
+        self.move_to_closest_map_of_type("bank");
+        self.perform_action(Action::Deposit { code, quantity })
+            .is_ok()
+    }
+
+    pub fn action_craft(&self, code: &str, quantity: i32) -> bool {
+        self.move_to_craft(code);
+        self.perform_action(Action::Craft { code, quantity })
+            .is_ok()
+    }
+
+    pub fn action_recycle(&self, code: &str, quantity: i32) -> bool {
+        self.move_to_craft(code);
+        self.perform_action(Action::Recycle { code, quantity })
+            .is_ok()
+    }
+
+    pub fn action_equip(&self, code: &str, slot: Slot, quantity: i32) -> bool {
+        if self.equiped_in(slot).is_some() {
+            let quantity = match slot {
+                Slot::Consumable1 => self.data.read().unwrap().consumable1_slot_quantity,
+                Slot::Consumable2 => self.data.read().unwrap().consumable2_slot_quantity,
+                _ => 1,
+            };
+            let _ = self.action_unequip(slot, quantity);
+        }
+        self.perform_action(Action::Equip {
+            code,
+            slot,
+            quantity,
+        })
+        .is_ok()
+    }
+
+    pub fn action_unequip(&self, slot: Slot, quantity: i32) -> bool {
+        self.perform_action(Action::Unequip { slot, quantity })
+            .is_ok()
+    }
+
+    pub fn action_accept_task(&self) -> bool {
+        self.move_to_closest_map_of_type("tasks_master");
+        self.perform_action(Action::AcceptTask).is_ok()
+    }
+
+    pub fn action_complete_task(&self) -> bool {
+        self.move_to_closest_map_of_type("tasks_master");
+        self.perform_action(Action::CompleteTask).is_ok()
+    }
+
+    pub fn action_cancel_task(&self) -> bool {
+        self.move_to_closest_map_of_type("tasks_master");
+        self.perform_action(Action::CancelTask).is_ok()
+    }
+
+    fn handle_action_error(
+        &self,
+        action: Action,
+        e: Box<dyn ActionError>,
+    ) -> Result<(), Box<dyn ActionError>> {
+        if e.status_code()
+            .is_some_and(|s| s.eq(&StatusCode::from_u16(499).unwrap()))
+        {
+            self.game.update_offset();
+            return self.perform_action(action);
+        };
+        error!(
+            "{}: error while performing action: {:?}",
+            self.name,
+            e.api_error()
+        );
+        Err(e)
+    }
+}
+
+#[derive(Debug)]
+pub enum Action<'a> {
+    Move {
+        x: i32,
+        y: i32,
+    },
+    Fight,
+    Gather,
+    Craft {
+        code: &'a str,
+        quantity: i32,
+    },
+    Withdraw {
+        code: &'a str,
+        quantity: i32,
+    },
+    Deposit {
+        code: &'a str,
+        quantity: i32,
+    },
+    Recycle {
+        code: &'a str,
+        quantity: i32,
+    },
+    Equip {
+        code: &'a str,
+        slot: Slot,
+        quantity: i32,
+    },
+    Unequip {
+        slot: Slot,
+        quantity: i32,
+    },
+    AcceptTask,
+    CompleteTask,
+    CancelTask,
+}
+
+impl<T> ActionError for Error<T> {
+    fn status_code(&self) -> Option<StatusCode> {
+        if let Error::ResponseError(e) = self {
+            return Some(e.status);
+        }
+        None
+    }
+
+    fn api_error(&self) -> Option<ApiErrorSchema> {
+        if let Error::ResponseError(e) = self {
+            match serde_json::from_str(&e.content) {
+                Ok(e) => return Some(e),
+                Err(e) => {
+                    error!("{}", e);
+                    return None;
+                }
+            }
+        }
+        None
+    }
+}
+
+impl<T: 'static> From<Error<T>> for Box<dyn ActionError> {
+    fn from(value: Error<T>) -> Self {
+        Box::new(value)
+    }
+}
 
 impl ResponseSchema for CharacterMovementResponseSchema {
     fn pretty(&self) -> String {
@@ -35,6 +264,10 @@ impl ResponseSchema for CharacterMovementResponseSchema {
             self.data.character.name,
             self.data.destination.pretty()
         )
+    }
+
+    fn character(&self) -> &CharacterSchema {
+        &self.data.character
     }
 }
 
@@ -55,6 +288,10 @@ impl ResponseSchema for CharacterFightResponseSchema {
             ),
         }
     }
+
+    fn character(&self) -> &CharacterSchema {
+        &self.data.character
+    }
 }
 
 impl ResponseSchema for SkillResponseSchema {
@@ -66,6 +303,30 @@ impl ResponseSchema for SkillResponseSchema {
             self.data.details.xp,
         )
     }
+
+    fn character(&self) -> &CharacterSchema {
+        &self.data.character
+    }
+}
+
+impl ResponseSchema for BankItemTransactionResponseSchema {
+    fn pretty(&self) -> String {
+        if self.data.cooldown.reason == Reason::WithdrawBank {
+            format!(
+                "{}: withdrawed '{}' from the bank.",
+                self.data.character.name, self.data.item.code
+            )
+        } else {
+            format!(
+                "{}: deposited '{}' to the bank.",
+                self.data.character.name, self.data.item.code
+            )
+        }
+    }
+
+    fn character(&self) -> &CharacterSchema {
+        &self.data.character
+    }
 }
 
 impl ResponseSchema for RecyclingResponseSchema {
@@ -75,6 +336,30 @@ impl ResponseSchema for RecyclingResponseSchema {
             self.data.character.name,
             DropSchemas(&self.data.details.items)
         )
+    }
+
+    fn character(&self) -> &CharacterSchema {
+        &self.data.character
+    }
+}
+
+impl ResponseSchema for EquipmentResponseSchema {
+    fn pretty(&self) -> String {
+        if self.data.cooldown.reason == Reason::Equip {
+            format!(
+                "{}: equiped '{}' in the '{:?}' slot",
+                &self.data.character.name, &self.data.item.code, &self.data.slot
+            )
+        } else {
+            format!(
+                "{}: unequiped '{}' from the '{:?}' slot",
+                &self.data.character.name, &self.data.item.code, &self.data.slot
+            )
+        }
+    }
+
+    fn character(&self) -> &CharacterSchema {
+        &self.data.character
     }
 }
 
@@ -88,6 +373,10 @@ impl ResponseSchema for TaskResponseSchema {
             self.data.task.total,
         )
     }
+
+    fn character(&self) -> &CharacterSchema {
+        &self.data.character
+    }
 }
 
 impl ResponseSchema for TaskRewardResponseSchema {
@@ -97,11 +386,25 @@ impl ResponseSchema for TaskRewardResponseSchema {
             self.data.character.name, self.data.reward.code, self.data.reward.quantity
         )
     }
+
+    fn character(&self) -> &CharacterSchema {
+        &self.data.character
+    }
 }
 
 impl ResponseSchema for TaskCancelledResponseSchema {
     fn pretty(&self) -> String {
         format!("{}: cancelled current task.", self.data.character.name,)
+    }
+
+    fn character(&self) -> &CharacterSchema {
+        &self.data.character
+    }
+}
+
+impl<T: ResponseSchema + 'static> From<T> for Box<dyn ResponseSchema> {
+    fn from(value: T) -> Self {
+        Box::new(value)
     }
 }
 
@@ -117,339 +420,5 @@ impl<'a> Display for DropSchemas<'a> {
             items.push_str(&format!("'{}'x{}", item.code, item.quantity));
         }
         write!(f, "{}", items)
-    }
-}
-
-impl Character {
-    pub(crate) fn action_move(&self, x: i32, y: i32) -> bool {
-        if self.position() == (x, y) {
-            return true;
-        }
-        self.wait_for_cooldown();
-        match self.my_api.move_to(&self.name, x, y) {
-            Ok(res) => {
-                info!("{}", res.pretty());
-                self.update_data(&res.data.character);
-            }
-            Err(ref e) => {
-                if let Error::ResponseError(e) = e {
-                    if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
-                        self.game.update_offset();
-                        return self.action_move(x, y);
-                    }
-                };
-                error!("{}: error while moving to {},{}: {}", self.name, x, y, e)
-            }
-        }
-        false
-    }
-
-    pub(crate) fn action_fight(
-        &self,
-    ) -> Result<CharacterFightResponseSchema, Error<ActionFightMyNameActionFightPostError>> {
-        self.wait_for_cooldown();
-        let res = self.my_api.fight(&self.name);
-        match res {
-            Ok(ref res) => {
-                info!("{}", res.pretty());
-                self.update_data(&res.data.character);
-            }
-            Err(ref e) => {
-                if let Error::ResponseError(e) = e {
-                    if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
-                        self.game.update_offset();
-                        return self.action_fight();
-                    }
-                };
-                error!("{}: error while fighting: {}", self.name, e)
-            }
-        };
-        res
-    }
-
-    pub(crate) fn action_gather(
-        &self,
-    ) -> Result<SkillResponseSchema, Error<ActionGatheringMyNameActionGatheringPostError>> {
-        self.wait_for_cooldown();
-        let res = self.my_api.gather(&self.name);
-        match res {
-            Ok(ref res) => {
-                info!("{}", res.pretty());
-                self.update_data(&res.data.character);
-            }
-            Err(ref e) => {
-                if let Error::ResponseError(e) = e {
-                    if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
-                        self.game.update_offset();
-                        return self.action_gather();
-                    }
-                };
-                error!("{}: error while fighting: {}", self.name, e)
-            }
-        };
-        res
-    }
-
-    pub(crate) fn action_withdraw(
-        &self,
-        code: &str,
-        quantity: i32,
-    ) -> Result<
-        BankItemTransactionResponseSchema,
-        Error<ActionWithdrawBankMyNameActionBankWithdrawPostError>,
-    > {
-        self.move_to_closest_map_of_type("bank");
-        self.wait_for_cooldown();
-        let res = self.my_api.withdraw(&self.name, code, quantity);
-        match res {
-            Ok(ref res) => {
-                info!(
-                    "{}: withdrawed '{}'x{} from bank.",
-                    self.name, code, quantity
-                );
-                self.update_data(&res.data.character);
-                self.bank.update_content(&res.data.bank);
-            }
-            Err(ref e) => {
-                if let Error::ResponseError(e) = e {
-                    if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
-                        self.game.update_offset();
-                        return self.action_withdraw(code, quantity);
-                    }
-                };
-                error!(
-                    "{}: error while withdrawing '{}'x{}: {}.",
-                    self.name, code, quantity, e
-                )
-            }
-        }
-        res
-    }
-
-    pub(crate) fn action_deposit(
-        &self,
-        code: &str,
-        quantity: i32,
-    ) -> Result<
-        BankItemTransactionResponseSchema,
-        Error<ActionDepositBankMyNameActionBankDepositPostError>,
-    > {
-        self.move_to_closest_map_of_type("bank");
-        self.wait_for_cooldown();
-        let res = self.my_api.deposit(&self.name, code, quantity);
-        match res {
-            Ok(ref res) => {
-                info!(
-                    "{}: deposited '{}'x{} into the bank.",
-                    self.name, code, quantity
-                );
-                self.update_data(&res.data.character);
-                self.bank.update_content(&res.data.bank);
-            }
-            Err(ref e) => {
-                if let Error::ResponseError(e) = e {
-                    if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
-                        self.game.update_offset();
-                        return self.action_deposit(code, quantity);
-                    }
-                };
-                error!(
-                    "{}: error while depositing '{}'x{}: {}",
-                    self.name, code, quantity, e
-                )
-            }
-        }
-        res
-    }
-
-    pub(crate) fn action_craft(
-        &self,
-        code: &str,
-        quantity: i32,
-    ) -> Result<SkillResponseSchema, Error<ActionCraftingMyNameActionCraftingPostError>> {
-        self.move_to_craft(code);
-        self.wait_for_cooldown();
-        let res = self.my_api.craft(&self.name, code, quantity);
-        match res {
-            Ok(ref res) => {
-                info!("{}: crafted '{}'x{}.", self.name, code, quantity);
-                self.update_data(&res.data.character);
-            }
-            Err(ref e) => {
-                if let Error::ResponseError(e) = e {
-                    if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
-                        self.game.update_offset();
-                        return self.action_craft(code, quantity);
-                    }
-                };
-                error!(
-                    "{}: error while crafting '{}'x{}: {}.",
-                    self.name, code, quantity, e
-                )
-            }
-        };
-        res
-    }
-
-    pub(crate) fn action_recycle(
-        &self,
-        code: &str,
-        quantity: i32,
-    ) -> Result<RecyclingResponseSchema, Error<ActionRecyclingMyNameActionRecyclingPostError>> {
-        self.move_to_craft(code);
-        self.wait_for_cooldown();
-        let res = self.my_api.recycle(&self.name, code, quantity);
-        match res {
-            Ok(ref res) => {
-                info!("{}", res.pretty());
-                self.update_data(&res.data.character);
-            }
-            Err(ref e) => {
-                if let Error::ResponseError(e) = e {
-                    if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
-                        self.game.update_offset();
-                        return self.action_recycle(code, quantity);
-                    }
-                };
-                error!("{}: error while recycling: {}.", self.name, e)
-            }
-        };
-        res
-    }
-
-    pub(crate) fn action_equip(
-        &self,
-        code: &str,
-        slot: Slot,
-    ) -> Result<EquipmentResponseSchema, Error<ActionEquipItemMyNameActionEquipPostError>> {
-        if self.equiped_in(slot).is_some() {
-            let _ = self.action_unequip(slot);
-        }
-        self.wait_for_cooldown();
-        let res = self
-            .my_api
-            .equip(&self.name, code, slot.to_equip_schema(), None);
-        match res {
-            Ok(ref res) => {
-                info!(
-                    "{}: equiped '{}' in the {:?} slot.",
-                    self.name, res.data.item.code, res.data.slot
-                );
-                self.update_data(&res.data.character);
-            }
-            Err(ref e) => {
-                if let Error::ResponseError(e) = e {
-                    if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
-                        self.game.update_offset();
-                        return self.action_equip(code, slot);
-                    }
-                };
-                error!("{}: error while equiping: {}.", self.name, e)
-            }
-        }
-        res
-    }
-
-    pub(crate) fn action_unequip(
-        &self,
-        slot: Slot,
-    ) -> Result<EquipmentResponseSchema, Error<ActionUnequipItemMyNameActionUnequipPostError>> {
-        self.wait_for_cooldown();
-        let res = self
-            .my_api
-            .unequip(&self.name, slot.to_unequip_schema(), None);
-        match res {
-            Ok(ref res) => {
-                info!(
-                    "{}: unequiped '{}' from the {:?} slot.",
-                    self.name, res.data.item.code, res.data.slot
-                );
-                self.update_data(&res.data.character);
-            }
-            Err(ref e) => {
-                if let Error::ResponseError(e) = e {
-                    if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
-                        self.game.update_offset();
-                        return self.action_unequip(slot);
-                    }
-                };
-                error!("{}: error while equiping: {}.", self.name, e)
-            }
-        }
-        res
-    }
-
-    pub(crate) fn action_accept_task(
-        &self,
-    ) -> Result<TaskResponseSchema, Error<ActionAcceptNewTaskMyNameActionTaskNewPostError>> {
-        self.move_to_closest_map_of_type("tasks_master");
-        self.wait_for_cooldown();
-        let res = self.my_api.accept_task(&self.name);
-        match res {
-            Ok(ref res) => {
-                info!("{}", res.pretty());
-                self.update_data(&res.data.character);
-            }
-            Err(ref e) => {
-                if let Error::ResponseError(e) = e {
-                    if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
-                        self.game.update_offset();
-                        return self.action_accept_task();
-                    }
-                };
-                error!("{}: error while equiping: {}.", self.name, e)
-            }
-        }
-        res
-    }
-
-    pub(crate) fn action_complete_task(
-        &self,
-    ) -> Result<TaskRewardResponseSchema, Error<ActionCompleteTaskMyNameActionTaskCompletePostError>>
-    {
-        self.move_to_closest_map_of_type("tasks_master");
-        self.wait_for_cooldown();
-        let res = self.my_api.complete_task(&self.name);
-        match res {
-            Ok(ref res) => {
-                info!("{}", res.pretty());
-                self.update_data(&res.data.character);
-            }
-            Err(ref e) => {
-                if let Error::ResponseError(e) = e {
-                    if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
-                        self.game.update_offset();
-                        return self.action_complete_task();
-                    }
-                };
-                error!("{}: error while equiping: {}.", self.name, e)
-            }
-        }
-        res
-    }
-
-    pub(crate) fn action_cancel_task(
-        &self,
-    ) -> Result<TaskCancelledResponseSchema, Error<ActionTaskCancelMyNameActionTaskCancelPostError>>
-    {
-        self.move_to_closest_map_of_type("tasks_master");
-        self.wait_for_cooldown();
-        let res = self.my_api.cancel_task(&self.name);
-        match res {
-            Ok(ref res) => {
-                info!("{}", res.pretty());
-                self.update_data(&res.data.character);
-            }
-            Err(ref e) => {
-                if let Error::ResponseError(e) = e {
-                    if e.status.eq(&StatusCode::from_u16(499).unwrap()) {
-                        self.game.update_offset();
-                        return self.action_cancel_task();
-                    }
-                };
-                error!("{}: error while equiping: {}.", self.name, e)
-            }
-        }
-        res
     }
 }

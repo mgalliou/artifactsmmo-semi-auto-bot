@@ -12,7 +12,7 @@ use rustyline::{error::ReadlineError, DefaultEditor};
 use std::{str::FromStr, sync::Arc};
 
 fn main() -> Result<()> {
-    let _ = simple_logging::log_to_file("artifactsmmo.log", LevelFilter::Info);
+    let _ = simple_logging::log_to_file("artifactsmmo.log", LevelFilter::Debug);
     let config: Config = Figment::new()
         .merge(Toml::file_exact("ArtifactsMMO.toml"))
         .extract()
@@ -72,6 +72,7 @@ fn handle_char(args: &[&str], account: &Account) {
         match account.get_character_by_name(name) {
             Some(char) => match *verb {
                 "idle" => char.toggle_idle(),
+                "fight" => {char.action_fight();},
                 "craft" => match (args.get(2), args.get(3)) {
                     (Some(code), Some(quantity)) => {
                         char.craft_from_bank(code, quantity.parse::<i32>().unwrap_or(0));

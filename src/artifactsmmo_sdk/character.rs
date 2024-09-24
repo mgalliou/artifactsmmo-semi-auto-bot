@@ -133,7 +133,7 @@ impl Character {
                 .equiped_in(Slot::Weapon)
                 .is_some_and(|w| w.code == "wooden_stick")
         {
-            let _ = self.action_unequip(Slot::Weapon);
+            let _ = self.action_unequip(Slot::Weapon, 1);
             let _ = self.action_deposit("wooden_stick", 1);
         };
     }
@@ -249,7 +249,7 @@ impl Character {
     /// then fight. Returns true is the API request went successfully.
     fn kill_monster(&self, code: &str) -> bool {
         if let Some(map) = self.closest_map_with_content(code) {
-            return self.action_move(map.x, map.y) && self.action_fight().is_ok();
+            return self.action_move(map.x, map.y) && self.action_fight();
         }
         false
     }
@@ -282,7 +282,7 @@ impl Character {
     /// then gather. Returns true is the API request went successfully.
     fn gather_resource(&self, code: &str) -> bool {
         if let Some(map) = self.closest_map_with_content(code) {
-            return self.action_move(map.x, map.y) && self.action_gather().is_ok();
+            return self.action_move(map.x, map.y) && self.action_gather();
         }
         false
     }
@@ -461,7 +461,7 @@ impl Character {
             self.deposit_all(Type::Resource);
             self.deposit_all(Type::Consumable);
             self.withdraw_mats_for(code, quantity);
-            if self.action_craft(code, quantity).is_ok() {
+            if self.action_craft(code, quantity) {
                 return quantity;
             };
         }
@@ -566,7 +566,7 @@ impl Character {
             self.name, code
         );
         let n = self.has_mats_for(code);
-        if n > 0 && self.action_craft(code, n).is_ok() {
+        if n > 0 && self.action_craft(code, n) {
             n
         } else {
             0
@@ -579,7 +579,7 @@ impl Character {
         info!("{}: recycling all '{}'.", self.name, code);
         let item = self.inventory_copy().into_iter().find(|i| i.code == code);
         item.map_or(0, |i| {
-            if self.action_recycle(&i.code, i.quantity).is_ok() {
+            if self.action_recycle(&i.code, i.quantity) {
                 i.quantity
             } else {
                 0
@@ -764,11 +764,11 @@ impl Character {
             if let Some(item) = equipment.slot(s) {
                 if prev_equiped.is_some_and(|e| e.code == item.code) {
                 } else if self.has_in_inventory(&item.code) > 0 {
-                    let _ = self.action_equip(&item.code, s);
+                    let _ = self.action_equip(&item.code, s, 1);
                 } else if self.has_in_bank(&item.code) > 0
-                    && self.action_withdraw(&item.code, 1).is_ok()
+                    && self.action_withdraw(&item.code, 1)
                 {
-                    let _ = self.action_equip(&item.code, s);
+                    let _ = self.action_equip(&item.code, s, 1);
                     if let Some(i) = prev_equiped {
                         let _ = self.action_deposit(&i.code, 1);
                     }
