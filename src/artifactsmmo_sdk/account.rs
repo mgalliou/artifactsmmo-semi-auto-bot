@@ -1,7 +1,7 @@
 use super::{
     api::{characters::CharactersApi, my_character::MyCharacterApi},
     bank::Bank,
-    character::{self, Character},
+    character::Character,
     config::Config,
     game::Game,
 };
@@ -13,8 +13,8 @@ use artifactsmmo_openapi::{
     models::CharacterSchema,
 };
 use itertools::Itertools;
-use std::sync::RwLock;
 use std::sync::Arc;
+use std::sync::RwLock;
 
 pub struct Account {
     pub configuration: Configuration,

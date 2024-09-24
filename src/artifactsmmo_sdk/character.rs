@@ -1,10 +1,11 @@
 use super::{
-    api::{characters::CharactersApi, events::EventsApi, my_character::MyCharacterApi},
+    api::{characters::CharactersApi, my_character::MyCharacterApi},
     bank::Bank,
     char_config::CharConfig,
     compute_damage,
     config::Config,
     equipment::Equipment,
+    events::Events,
     game::Game,
     items::{DamageType, Items, Slot, Type},
     maps::Maps,
@@ -37,12 +38,12 @@ pub struct Character {
     pub name: String,
     my_api: MyCharacterApi,
     api: CharactersApi,
-    events_api: EventsApi,
     game: Arc<Game>,
     maps: Arc<Maps>,
     resources: Arc<Resources>,
     monsters: Arc<Monsters>,
     items: Arc<Items>,
+    events: Arc<Events>,
     bank: Arc<Bank>,
     pub conf: Arc<RwLock<CharConfig>>,
     pub data: Arc<RwLock<CharacterSchema>>,
@@ -62,12 +63,12 @@ impl Character {
             conf,
             my_api: MyCharacterApi::new(&config.base_url, &config.token),
             api: CharactersApi::new(&config.base_url, &config.token),
-            events_api: EventsApi::new(&config.base_url, &config.token),
             game: game.clone(),
             maps: game.maps.clone(),
             resources: game.resources.clone(),
             monsters: game.monsters.clone(),
             items: game.items.clone(),
+            events: game.events.clone(),
             bank,
             data,
         }
@@ -100,6 +101,7 @@ impl Character {
             if self.conf.read().unwrap().idle {
                 continue;
             }
+            self.events.refresh();
             self.process_inventory();
             self.process_task();
             if let Some(skill) = self.target_skill_to_level() {
@@ -308,18 +310,16 @@ impl Character {
     /// it call be killed with it. The monster priority order is events,
     /// then tasks, then target from config file, then lowest level target.
     fn best_monster_map_with_equipment(&self) -> Option<(MapSchema, Equipment)> {
-        if let Ok(events) = self.events_api.all() {
-            for event in events {
-                if let Some(monster) = event
-                    .map
-                    .content
-                    .as_ref()
-                    .and_then(|c| self.monsters.get(&c.code))
-                {
-                    let equipment = self.best_available_equipment_against(monster);
-                    if self.can_kill_with(monster, &equipment) {
-                        return Some(((*event.map.clone()), equipment));
-                    }
+        for event in self.events.of_type("monsters") {
+            if let Some(monster) = event
+                .map
+                .content
+                .as_ref()
+                .and_then(|c| self.monsters.get(&c.code))
+            {
+                let equipment = self.best_available_equipment_against(monster);
+                if self.can_kill_with(monster, &equipment) {
+                    return Some(((*event.map.clone()), equipment));
                 }
             }
         }
@@ -359,17 +359,15 @@ impl Character {
     }
 
     fn best_resource_map(&self) -> Option<MapSchema> {
-        if let Ok(events) = self.events_api.all() {
-            for event in events {
-                if let Some(resource) = event
-                    .map
-                    .content
-                    .as_ref()
-                    .and_then(|c| self.resources.get(&c.code))
-                {
-                    if self.can_gather(resource) {
-                        return Some(*event.map.clone());
-                    }
+        for event in self.events.of_type("resource") {
+            if let Some(resource) = event
+                .map
+                .content
+                .as_ref()
+                .and_then(|c| self.resources.get(&c.code))
+            {
+                if self.can_gather(resource) {
+                    return Some(*event.map.clone());
                 }
             }
         }

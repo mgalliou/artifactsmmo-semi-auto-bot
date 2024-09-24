@@ -17,6 +17,7 @@ pub mod items;
 pub mod maps;
 pub mod monsters;
 pub mod resources;
+pub mod events;
 pub mod skill;
 
 trait ItemSchemaExt {

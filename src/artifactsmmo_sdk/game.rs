@@ -2,7 +2,7 @@ use artifactsmmo_openapi::{apis::{configuration::Configuration, default_api::{ge
 use chrono::{DateTime, TimeDelta, Utc};
 use log::debug;
 
-use super::{config::Config, items::Items, maps::Maps, monsters::Monsters, resources::Resources};
+use super::{config::Config, events::Events, items::Items, maps::Maps, monsters::Monsters, resources::Resources};
 use std::sync::{Arc, RwLock};
 
 pub struct Game {
@@ -11,6 +11,7 @@ pub struct Game {
     pub resources: Arc<Resources>,
     pub monsters: Arc<Monsters>,
     pub items: Arc<Items>,
+    pub events: Arc<Events>,
     pub server_offset: RwLock<TimeDelta>,
 }
 
@@ -27,6 +28,7 @@ impl Game {
             resources: resources.clone(),
             monsters: monsters.clone(),
             items: Arc::new(Items::new(config, resources.clone(), monsters.clone())),
+            events: Arc::new(Events::new(config)),
             server_offset: RwLock::new(TimeDelta::default()),
         };
         game.update_offset();
