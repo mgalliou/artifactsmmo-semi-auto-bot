@@ -345,7 +345,8 @@ impl Character {
                 }
             }
         }
-        if let Some(monster) = self.monsters.lowest_providing_exp(self.level()) {
+        // TODO: find highest killable
+        if let Some(monster) = self.monsters.highest_providing_exp(self.level()) {
             let equipment = self.best_available_equipment_against(monster);
             if self.can_kill_with(monster, &equipment) {
                 return Some((
