@@ -87,9 +87,7 @@ impl Character {
             conf.idle ^= true;
             info!("{} toggled idle: {}.", self.name, conf.idle);
             if !conf.idle {
-                if let Ok(resp) = self.api.get(&self.name) {
-                    self.update_data(&resp.data)
-                }
+                self.refresh_data()
             }
         }
     }
@@ -148,6 +146,14 @@ impl Character {
         self.conf.read().unwrap().clone()
     }
 
+    /// Refresh the `Character` schema from API.
+    fn refresh_data(&self) {
+        if let Ok(resp) = self.api.get(&self.name) {
+            self.update_data(&resp.data)
+        }
+    }
+
+    /// Update the `Character` schema with the given `schema.
     fn update_data(&self, schema: &CharacterSchema) {
         if let Ok(mut d) = self.data.write() {
             d.clone_from(schema)
