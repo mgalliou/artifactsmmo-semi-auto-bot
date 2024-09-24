@@ -389,7 +389,7 @@ impl Character {
         if let Some(skill) = self.role().to_skill() {
             if let Some(resource) = self
                 .resources
-                .lowest_providing_exp(self.skill_level(skill), skill)
+                .highest_providing_exp(self.skill_level(skill), skill)
             {
                 return self.closest_map_with_content(&resource.code).cloned();
             }
