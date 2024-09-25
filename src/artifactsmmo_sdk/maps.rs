@@ -77,18 +77,22 @@ impl Maps {
             .collect_vec()
     }
 
-    pub fn with_content(&self, code: &str) -> Option<&MapSchema> {
+    pub fn with_content_code(&self, code: &str) -> Option<&MapSchema> {
         self.data.iter().find(|m| m.content_is(code))
+    }
+
+    pub fn with_content_schema(&self, schema: &MapContentSchema) -> Vec<&MapSchema> {
+        self.data.iter().filter(|m| m.content().is_some_and(|c| c == *schema)).collect_vec()
     }
 
     pub fn to_craft(&self, skill: Skill) -> Option<&MapSchema> {
         match skill {
-            Skill::Weaponcrafting => self.with_content("weaponcrafting"),
-            Skill::Gearcrafting => self.with_content("gearcrafting"),
-            Skill::Jewelrycrafting => self.with_content("jewelrycrafting"),
-            Skill::Cooking => self.with_content("cooking"),
-            Skill::Woodcutting => self.with_content("woodcutting"),
-            Skill::Mining => self.with_content("mining"),
+            Skill::Weaponcrafting => self.with_content_code("weaponcrafting"),
+            Skill::Gearcrafting => self.with_content_code("gearcrafting"),
+            Skill::Jewelrycrafting => self.with_content_code("jewelrycrafting"),
+            Skill::Cooking => self.with_content_code("cooking"),
+            Skill::Woodcutting => self.with_content_code("woodcutting"),
+            Skill::Mining => self.with_content_code("mining"),
             _ => None,
         }
     }

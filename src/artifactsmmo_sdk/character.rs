@@ -15,7 +15,8 @@ use super::{
     ItemSchemaExt, MonsterSchemaExt,
 };
 use artifactsmmo_openapi::models::{
-    CharacterSchema, InventorySlot, ItemSchema, MapSchema, MonsterSchema, ResourceSchema,
+    CharacterSchema, InventorySlot, ItemSchema, MapContentSchema, MapSchema, MonsterSchema,
+    ResourceSchema,
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
@@ -183,7 +184,11 @@ impl Character {
             if self.task_finished() {
                 let _ = self.action_complete_task();
             }
-            let _ = self.action_accept_task();
+            if self.role() == Role::Fighter {
+                let _ = self.action_accept_task("monsters");
+            } else {
+                let _ = self.action_accept_task("items");
+            }
         }
     }
 
@@ -248,7 +253,7 @@ impl Character {
     /// Move the `Character` to the closest map containing the `code` resource,
     /// then fight. Returns true is the API request went successfully.
     fn kill_monster(&self, code: &str) -> bool {
-        if let Some(map) = self.closest_map_with_content(code) {
+        if let Some(map) = self.closest_map_with_content_code(code) {
             return self.action_move(map.x, map.y) && self.action_fight();
         }
         false
@@ -281,7 +286,7 @@ impl Character {
     /// Move the `Character` to the closest map containing the `code` resource,
     /// then gather. Returns true is the API request went successfully.
     fn gather_resource(&self, code: &str) -> bool {
-        if let Some(map) = self.closest_map_with_content(code) {
+        if let Some(map) = self.closest_map_with_content_code(code) {
             return self.action_move(map.x, map.y) && self.action_gather();
         }
         false
@@ -334,7 +339,7 @@ impl Character {
                 let equipment = self.best_available_equipment_against(monster);
                 if self.can_kill_with(monster, &equipment) {
                     return Some((
-                        self.closest_map_with_content(&monster.code)?.clone(),
+                        self.closest_map_with_content_code(&monster.code)?.clone(),
                         equipment,
                     ));
                 }
@@ -345,7 +350,7 @@ impl Character {
                 let equipment = self.best_available_equipment_against(monster);
                 if self.can_kill_with(monster, &equipment) {
                     return Some((
-                        self.closest_map_with_content(&monster.code)?.clone(),
+                        self.closest_map_with_content_code(&monster.code)?.clone(),
                         equipment,
                     ));
                 }
@@ -356,7 +361,7 @@ impl Character {
             let equipment = self.best_available_equipment_against(monster);
             if self.can_kill_with(monster, &equipment) {
                 return Some((
-                    self.closest_map_with_content(&monster.code)?.clone(),
+                    self.closest_map_with_content_code(&monster.code)?.clone(),
                     equipment,
                 ));
             }
@@ -384,7 +389,7 @@ impl Character {
                 .iter()
                 .find(|r| self.can_gather(r))
             {
-                return self.closest_map_with_content(&resource.code).cloned();
+                return self.closest_map_with_content_code(&resource.code).cloned();
             }
             warn!(
                 "{}: does not have required level to gather '{}'.",
@@ -396,7 +401,7 @@ impl Character {
                 .resources
                 .highest_providing_exp(self.skill_level(skill), skill)
             {
-                return self.closest_map_with_content(&resource.code).cloned();
+                return self.closest_map_with_content_code(&resource.code).cloned();
             }
         }
         None
@@ -457,7 +462,10 @@ impl Character {
     /// materials are available in bank.
     pub fn craft_from_bank(&self, code: &str, quantity: i32) -> i32 {
         if self.bank.has_mats_for(code) >= quantity {
-            info!("{}: going to craft '{}'x{} from bank.", self.name, code, quantity);
+            info!(
+                "{}: going to craft '{}'x{} from bank.",
+                self.name, code, quantity
+            );
             self.deposit_all(Type::Resource);
             self.deposit_all(Type::Consumable);
             self.withdraw_mats_for(code, quantity);
@@ -465,7 +473,10 @@ impl Character {
                 return quantity;
             };
         }
-        error!("{}: to enough materials to craft '{}'x{} from bank.", self.name, code, quantity);
+        error!(
+            "{}: to enough materials to craft '{}'x{} from bank.",
+            self.name, code, quantity
+        );
         0
     }
 
@@ -481,7 +492,10 @@ impl Character {
             self.withdraw_max_mats_for(code);
             return self.craft_all(code);
         }
-        error!("{}: to enough materials to craft '{}' from bank.", self.name, code);
+        error!(
+            "{}: to enough materials to craft '{}' from bank.",
+            self.name, code
+        );
         0
     }
 
@@ -708,8 +722,15 @@ impl Character {
         };
     }
 
-    fn move_to_closest_map_with_content(&self, code: &str) {
-        if let Some(map) = self.closest_map_with_content(code) {
+    fn move_to_closest_map_with_content_code(&self, code: &str) {
+        if let Some(map) = self.closest_map_with_content_code(code) {
+            let (x, y) = (map.x, map.y);
+            self.action_move(x, y);
+        };
+    }
+
+    fn move_to_closest_map_with_content_schema(&self, schema: &MapContentSchema) {
+        if let Some(map) = self.closest_map_with_content_schema(schema) {
             let (x, y) = (map.x, map.y);
             self.action_move(x, y);
         };
@@ -727,8 +748,18 @@ impl Character {
 
     /// Returns the closest map from the `Character` containing the given
     /// content `code`.
-    fn closest_map_with_content(&self, code: &str) -> Option<&MapSchema> {
+    fn closest_map_with_content_code(&self, code: &str) -> Option<&MapSchema> {
         let maps = self.maps.with_ressource(code);
+        if maps.is_empty() {
+            return None;
+        }
+        self.closest_map_among(maps)
+    }
+
+    /// Returns the closest map from the `Character` containing the given
+    /// content schema.
+    fn closest_map_with_content_schema(&self, schema: &MapContentSchema) -> Option<&MapSchema> {
+        let maps = self.maps.with_content_schema(schema);
         if maps.is_empty() {
             return None;
         }
@@ -767,9 +798,7 @@ impl Character {
                 if prev_equiped.is_some_and(|e| e.code == item.code) {
                 } else if self.has_in_inventory(&item.code) > 0 {
                     let _ = self.action_equip(&item.code, s, 1);
-                } else if self.has_in_bank(&item.code) > 0
-                    && self.action_withdraw(&item.code, 1)
-                {
+                } else if self.has_in_bank(&item.code) > 0 && self.action_withdraw(&item.code, 1) {
                     let _ = self.action_equip(&item.code, s, 1);
                     if let Some(i) = prev_equiped {
                         let _ = self.action_deposit(&i.code, 1);

@@ -7,7 +7,7 @@ use artifactsmmo_openapi::{
     models::{
         cooldown_schema::Reason, fight_schema, BankItemTransactionResponseSchema,
         CharacterFightResponseSchema, CharacterMovementResponseSchema, CharacterSchema, DropSchema,
-        EquipmentResponseSchema, RecyclingResponseSchema, SkillResponseSchema,
+        EquipmentResponseSchema, MapContentSchema, RecyclingResponseSchema, SkillResponseSchema,
         TaskCancelledResponseSchema, TaskResponseSchema, TasksRewardResponseSchema,
     },
 };
@@ -156,18 +156,27 @@ impl Character {
             .is_ok()
     }
 
-    pub fn action_accept_task(&self) -> bool {
-        self.move_to_closest_map_of_type("tasks_master");
+    pub fn action_accept_task(&self, r#type: &str) -> bool {
+        self.move_to_closest_map_with_content_schema(&MapContentSchema {
+            r#type: "tasks_master".to_owned(),
+            code: r#type.to_owned(),
+        });
         self.perform_action(Action::AcceptTask).is_ok()
     }
 
     pub fn action_complete_task(&self) -> bool {
-        self.move_to_closest_map_of_type("tasks_master");
+        self.move_to_closest_map_with_content_schema(&MapContentSchema {
+            r#type: "tasks_master".to_owned(),
+            code: self.task_type().to_owned(),
+        });
         self.perform_action(Action::CompleteTask).is_ok()
     }
 
     pub fn action_cancel_task(&self) -> bool {
-        self.move_to_closest_map_of_type("tasks_master");
+        self.move_to_closest_map_with_content_schema(&MapContentSchema {
+            r#type: "tasks_master".to_owned(),
+            code: self.task_type().to_owned(),
+        });
         self.perform_action(Action::CancelTask).is_ok()
     }
 
