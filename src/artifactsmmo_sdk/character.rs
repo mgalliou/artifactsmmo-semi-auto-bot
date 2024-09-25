@@ -155,10 +155,35 @@ impl Character {
     }
 
     fn handle_monster_event(&self) -> bool {
-        for event in self.events.of_type("monster") {
-            if let Some(monster) = self.monsters.get(event.content_code()) {
-                return self.kill_monster(monster, Some(&event.map));
-            }
+        self.events.of_type("monster").iter().any(|e| {
+            self.monsters
+                .get(e.content_code())
+                .is_some_and(|m| self.kill_monster(m, Some(&e.map)))
+        })
+    }
+
+    fn handle_item_task(&self) -> bool {
+        let in_bank = self.bank.has_item(&self.task());
+        let missing = self.task_missing();
+        let item = &self.task();
+        if in_bank > 0 {
+            self.deposit_all(Type::Consumable);
+            self.deposit_all(Type::Resource);
+            self.deposit_all(Type::Currency);
+            if missing > self.inventory_free_space() {
+                self.action_withdraw(item, self.inventory_free_space())
+            } else {
+                self.action_withdraw(item, missing)
+            };
+            return self.action_task_trade(item, self.has_in_inventory(&self.task()));
+        } else {
+            error!(
+                "{}: missing item in bank to complete task: '{}' {}/{}",
+                self.name,
+                self.task(),
+                self.task_progress(),
+                self.task_total()
+            )
         }
         false
     }
@@ -212,21 +237,6 @@ impl Character {
         }
     }
 
-    /// Completes task if the current task is finished and accepts a new
-    /// one.
-    fn process_task(&self) {
-        if self.task().is_empty() || self.task_finished() {
-            if self.task_finished() {
-                let _ = self.action_complete_task();
-            }
-            if self.role() == Role::Fighter {
-                let _ = self.action_accept_task("monsters");
-            } else {
-                let _ = self.action_accept_task("items");
-            }
-        }
-    }
-
     fn task(&self) -> String {
         self.data
             .read()
@@ -239,10 +249,20 @@ impl Character {
             .map_or("".to_string(), |d| d.task_type.to_owned())
     }
 
+    fn task_total(&self) -> i32 {
+        self.data.read().map_or(0, |d| d.task_total)
+    }
+
+    fn task_progress(&self) -> i32 {
+        self.data.read().map_or(0, |d| d.task_progress)
+    }
+
     fn task_finished(&self) -> bool {
-        self.data
-            .read()
-            .map_or(false, |d| d.task_progress >= d.task_total)
+        self.task_progress() >= self.task_total()
+    }
+
+    fn task_missing(&self) -> i32 {
+        self.task_total() - self.task_progress()
     }
 
     /// Process the raw materials in the Character inventory by converting the

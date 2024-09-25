@@ -8,7 +8,8 @@ use artifactsmmo_openapi::{
         cooldown_schema::Reason, fight_schema, BankItemTransactionResponseSchema,
         CharacterFightResponseSchema, CharacterMovementResponseSchema, CharacterSchema, DropSchema,
         EquipmentResponseSchema, MapContentSchema, RecyclingResponseSchema, SkillResponseSchema,
-        TaskCancelledResponseSchema, TaskResponseSchema, TasksRewardResponseSchema,
+        TaskCancelledResponseSchema, TaskResponseSchema, TaskTradeResponseSchema,
+        TasksRewardResponseSchema,
     },
 };
 use log::{error, info};
@@ -83,6 +84,11 @@ impl Character {
             Action::CancelTask => self
                 .my_api
                 .cancel_task(&self.name)
+                .map(|r| r.into())
+                .map_err(|e| e.into()),
+            Action::TaskTrade { code, quantity } => self
+                .my_api
+                .task_trade(&self.name, code, quantity)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
         };
@@ -190,6 +196,15 @@ impl Character {
         self.perform_action(Action::CancelTask).is_ok()
     }
 
+    pub fn action_task_trade(&self, code: &str, quantity: i32) -> bool {
+        self.move_to_closest_map_with_content_schema(&MapContentSchema {
+            r#type: "tasks_master".to_owned(),
+            code: "items".to_owned(),
+        });
+        self.perform_action(Action::TaskTrade { code, quantity })
+            .is_ok()
+    }
+
     fn handle_action_error(
         &self,
         action: Action,
@@ -246,6 +261,10 @@ pub enum Action<'a> {
     AcceptTask,
     CompleteTask,
     CancelTask,
+    TaskTrade {
+        code: &'a str,
+        quantity: i32,
+    },
 }
 
 impl<T> ActionError for Error<T> {
@@ -414,6 +433,19 @@ impl ResponseSchema for TasksRewardResponseSchema {
 impl ResponseSchema for TaskCancelledResponseSchema {
     fn pretty(&self) -> String {
         format!("{}: cancelled current task.", self.data.character.name,)
+    }
+
+    fn character(&self) -> &CharacterSchema {
+        &self.data.character
+    }
+}
+
+impl ResponseSchema for TaskTradeResponseSchema {
+    fn pretty(&self) -> String {
+        format!(
+            "{}: traded '{}'x{} with the taskmaster.",
+            self.data.character.name, self.data.trade.code, self.data.trade.quantity
+        )
     }
 
     fn character(&self) -> &CharacterSchema {

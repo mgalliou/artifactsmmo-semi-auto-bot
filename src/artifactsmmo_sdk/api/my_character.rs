@@ -10,6 +10,7 @@ use artifactsmmo_openapi::{
             action_gathering_my_name_action_gathering_post, action_move_my_name_action_move_post,
             action_recycling_my_name_action_recycling_post,
             action_task_cancel_my_name_action_task_cancel_post,
+            action_task_trade_my_name_action_task_trade_post,
             action_unequip_item_my_name_action_unequip_post,
             action_withdraw_bank_my_name_action_bank_withdraw_post,
             get_my_characters_my_characters_get, ActionAcceptNewTaskMyNameActionTaskNewPostError,
@@ -20,6 +21,7 @@ use artifactsmmo_openapi::{
             ActionGatheringMyNameActionGatheringPostError, ActionMoveMyNameActionMovePostError,
             ActionRecyclingMyNameActionRecyclingPostError,
             ActionTaskCancelMyNameActionTaskCancelPostError,
+            ActionTaskTradeMyNameActionTaskTradePostError,
             ActionUnequipItemMyNameActionUnequipPostError,
             ActionWithdrawBankMyNameActionBankWithdrawPostError,
             GetMyCharactersMyCharactersGetError,
@@ -31,7 +33,8 @@ use artifactsmmo_openapi::{
         CharacterFightResponseSchema, CharacterMovementResponseSchema, CraftingSchema,
         DestinationSchema, EquipSchema, EquipmentResponseSchema, MyCharactersListSchema,
         RecyclingResponseSchema, RecyclingSchema, SimpleItemSchema, SkillResponseSchema,
-        TaskCancelledResponseSchema, TaskResponseSchema, TasksRewardResponseSchema, UnequipSchema,
+        TaskCancelledResponseSchema, TaskResponseSchema, TaskTradeResponseSchema,
+        TasksRewardResponseSchema, UnequipSchema,
     },
 };
 
@@ -180,6 +183,19 @@ impl MyCharacterApi {
     ) -> Result<TaskCancelledResponseSchema, Error<ActionTaskCancelMyNameActionTaskCancelPostError>>
     {
         action_task_cancel_my_name_action_task_cancel_post(&self.configuration, name)
+    }
+
+    pub fn task_trade(
+        &self,
+        name: &str,
+        item_code: &str,
+        quantity: i32,
+    ) -> Result<TaskTradeResponseSchema, Error<ActionTaskTradeMyNameActionTaskTradePostError>> {
+        action_task_trade_my_name_action_task_trade_post(
+            &self.configuration,
+            name,
+            SimpleItemSchema::new(item_code.to_owned(), quantity),
+        )
     }
 
     pub fn all(

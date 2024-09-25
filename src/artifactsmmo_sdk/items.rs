@@ -536,6 +536,7 @@ pub enum Type {
     Amulet,
     Ring,
     Artifact,
+    Currency,
 }
 
 impl Type {
