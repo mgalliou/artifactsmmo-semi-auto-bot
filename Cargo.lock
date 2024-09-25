@@ -50,6 +50,7 @@ name = "artifactsmmo-playground"
 version = "0.1.0"
 dependencies = [
  "artifactsmmo-openapi",
+ "as-any",
  "chrono",
  "figment",
  "futures",
@@ -64,6 +65,12 @@ dependencies = [
  "strum",
  "strum_macros",
 ]
+
+[[package]]
+name = "as-any"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5b8a30a44e99a1c83ccb2a6298c563c888952a1c9134953db26876528f84c93a"
 
 [[package]]
 name = "atomic"

@@ -14,6 +14,7 @@ use artifactsmmo_openapi::{
 use log::{error, info};
 use reqwest::StatusCode;
 use std::fmt::Display;
+use strum_macros::EnumIs;
 
 impl Character {
     pub(crate) fn perform_action(&self, action: Action) -> Result<(), Box<dyn ActionError>> {
@@ -89,6 +90,15 @@ impl Character {
             Ok(ref res) => {
                 info!("{}", res.pretty());
                 self.update_data(res.character());
+                if action.is_withdraw() || action.is_deposit() {
+                    self.bank.update_content(
+                        &res.as_any()
+                            .downcast_ref::<BankItemTransactionResponseSchema>()
+                            .unwrap()
+                            .data
+                            .bank,
+                    )
+                }
                 Ok(())
             }
             Err(e) => self.handle_action_error(action, e),
@@ -200,7 +210,7 @@ impl Character {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, EnumIs)]
 pub enum Action<'a> {
     Move {
         x: i32,

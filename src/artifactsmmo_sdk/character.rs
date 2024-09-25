@@ -846,6 +846,9 @@ impl Character {
         })
     }
 
+    //fn best_tool_for_resource(&self, resource: &ResourceSchema) -> Option<&ItemSchema> {
+    //}
+
     fn best_available_equipment_against(&self, monster: &MonsterSchema) -> Equipment {
         let best_equipment = self
             .available_equipable_weapons()

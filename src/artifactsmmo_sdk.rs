@@ -1,12 +1,13 @@
 use artifactsmmo_openapi::models::{
-    CharacterSchema, CraftSchema, ItemEffectSchema, MapContentSchema, MonsterSchema, ResourceSchema, SimpleItemSchema
+    CharacterSchema, CraftSchema, ItemEffectSchema, MapContentSchema, MonsterSchema,
+    ResourceSchema, SimpleItemSchema,
 };
+use as_any::AsAny;
 use items::{DamageType, Type};
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use skill::Skill;
 
-pub mod game;
 pub mod account;
 pub mod api;
 pub mod bank;
@@ -14,11 +15,12 @@ pub mod char_config;
 pub mod character;
 pub mod config;
 pub mod equipment;
+pub mod events;
+pub mod game;
 pub mod items;
 pub mod maps;
 pub mod monsters;
 pub mod resources;
-pub mod events;
 pub mod skill;
 
 trait ItemSchemaExt {
@@ -57,7 +59,7 @@ trait ActiveEventSchemaExt {
     fn monster(&self) -> Option<MonsterSchema>;
 }
 
-trait ResponseSchema {
+trait ResponseSchema: AsAny {
     fn character(&self) -> &CharacterSchema;
     fn pretty(&self) -> String;
 }
@@ -70,7 +72,7 @@ pub struct ApiErrorSchema {
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ApiError {
     code: i32,
-    message: String
+    message: String,
 }
 
 pub(crate) trait ActionError {
