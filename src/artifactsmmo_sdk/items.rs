@@ -282,6 +282,13 @@ impl ItemSchemaExt for ItemSchema {
             .map(|e| e.value)
             .unwrap_or(0)
     }
+
+    fn skill_cooldown_reduction(&self, skill: Skill) -> i32 {
+        self.effects()
+            .iter()
+            .find_map(|e| (e.name == skill.as_ref()).then_some(e.value))
+            .unwrap_or(0)
+    }
 }
 
 impl Items {

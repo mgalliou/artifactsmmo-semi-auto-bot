@@ -40,6 +40,7 @@ trait ItemSchemaExt {
     fn resistance(&self, r#type: DamageType) -> i32;
     fn total_resistance(&self) -> i32;
     fn health(&self) -> i32;
+    fn skill_cooldown_reduction(&self, skill: Skill) -> i32;
 }
 
 trait MapSchemaExt {

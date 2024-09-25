@@ -1,3 +1,5 @@
+use crate::artifactsmmo_sdk::MapSchemaExt;
+
 use super::{
     api::{characters::CharactersApi, my_character::MyCharacterApi},
     bank::Bank,
@@ -124,6 +126,11 @@ impl Character {
                 }
             } else if self.is_gatherer() {
                 if let Some(map) = self.best_resource_map() {
+                    if let Some(tool) =
+                        self.best_available_tool_for_resource(&map.content().unwrap().code)
+                    {
+                        self.equip_item_from_bank_or_inventory(Slot::Weapon, tool)
+                    }
                     self.action_move(map.x, map.y);
                     let _ = self.action_gather();
                 }
@@ -159,6 +166,9 @@ impl Character {
                 .and_then(|c| self.resources.get(&c.code))
             {
                 if self.can_gather(resource) {
+                    if let Some(tool) = self.best_available_tool_for_resource(&resource.code) {
+                        self.equip_item_from_bank_or_inventory(Slot::Weapon, tool)
+                    }
                     self.action_move(event.map.x, event.map.y);
                     self.action_gather();
                 }
@@ -826,28 +836,41 @@ impl Character {
 
     fn equip_equipment(&self, equipment: &Equipment) {
         Slot::iter().for_each(|s| {
-            let prev_equiped = self.equiped_in(s);
             if let Some(item) = equipment.slot(s) {
-                if prev_equiped.is_some_and(|e| e.code == item.code) {
-                } else if self.has_in_inventory(&item.code) > 0 {
-                    let _ = self.action_equip(&item.code, s, 1);
-                } else if self.has_in_bank(&item.code) > 0 && self.action_withdraw(&item.code, 1) {
-                    let _ = self.action_equip(&item.code, s, 1);
-                    if let Some(i) = prev_equiped {
-                        let _ = self.action_deposit(&i.code, 1);
-                    }
-                } else {
-                    error!(
-                        "{}: upgrade not found in bank or inventory: '{}'.",
-                        self.name, item.code
-                    );
-                }
+                self.equip_item_from_bank_or_inventory(s, item);
             }
         })
     }
 
-    //fn best_tool_for_resource(&self, resource: &ResourceSchema) -> Option<&ItemSchema> {
-    //}
+    fn equip_item_from_bank_or_inventory(&self, s: Slot, item: &ItemSchema) {
+        let prev_equiped = self.equiped_in(s);
+        if prev_equiped.is_some_and(|e| e.code == item.code) {
+        } else if self.has_in_inventory(&item.code) > 0 {
+            let _ = self.action_equip(&item.code, s, 1);
+        } else if self.has_in_bank(&item.code) > 0 && self.action_withdraw(&item.code, 1) {
+            let _ = self.action_equip(&item.code, s, 1);
+            if let Some(i) = prev_equiped {
+                let _ = self.action_deposit(&i.code, 1);
+            }
+        } else {
+            error!(
+                "{}: upgrade not found in bank or inventory: '{}'.",
+                self.name, item.code
+            );
+        }
+    }
+
+    fn best_available_tool_for_resource(&self, code: &str) -> Option<&ItemSchema> {
+        match self.resources.get(code) {
+            Some(resource) => self
+                .items
+                .equipable_at_level(self.level(), Slot::Weapon)
+                .into_iter()
+                .filter(|i| self.has_available(&i.code, Slot::Weapon))
+                .min_by_key(|i| i.skill_cooldown_reduction(Skill::from(resource.skill))),
+            None => None,
+        }
+    }
 
     fn best_available_equipment_against(&self, monster: &MonsterSchema) -> Equipment {
         let best_equipment = self
