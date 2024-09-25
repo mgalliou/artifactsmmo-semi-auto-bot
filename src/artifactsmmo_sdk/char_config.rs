@@ -10,6 +10,8 @@ pub struct CharConfig {
     #[serde(default)]
     pub fight_target: Option<String>,
     #[serde(default)]
+    pub do_events: bool,
+    #[serde(default)]
     pub do_tasks: bool,
     #[serde(default)]
     pub level: bool,

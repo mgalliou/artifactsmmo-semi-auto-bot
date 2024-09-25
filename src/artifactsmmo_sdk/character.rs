@@ -14,7 +14,6 @@ use super::{
     skill::Skill,
     ActiveEventSchemaExt, ItemSchemaExt, MonsterSchemaExt,
 };
-use crate::artifactsmmo_sdk::MapSchemaExt;
 use artifactsmmo_openapi::models::{
     CharacterSchema, InventorySlot, ItemSchema, MapContentSchema, MapSchema, MonsterSchema,
     ResourceSchema,
@@ -103,7 +102,6 @@ impl Character {
             }
             self.events.refresh();
             self.process_inventory();
-            self.process_task();
             if let Some(skill) = self.target_skill_to_level() {
                 if self.levelup_by_crafting(skill) {
                     continue;
@@ -114,7 +112,10 @@ impl Character {
                     continue;
                 }
             }
-            if self.handle_events() {
+            if self.conf().do_events && self.handle_events() {
+                continue;
+            }
+            if self.conf().do_tasks && self.handle_task() {
                 continue;
             }
             if self.role() == Role::Fighter && self.find_and_kill() {
@@ -145,6 +146,28 @@ impl Character {
         false
     }
 
+    fn handle_task(&self) -> bool {
+        if self.task().is_empty() || self.task_finished() {
+            if self.task_finished() {
+                let _ = self.action_complete_task();
+            }
+            if self.role() == Role::Fighter {
+                let _ = self.action_accept_task("monsters");
+            } else {
+                let _ = self.action_accept_task("items");
+            }
+        }
+        if let Some(monster) = self.monsters.get(&self.task()) {
+            if self.kill_monster(monster, None) {
+                return true;
+            }
+        }
+        if self.handle_item_task() {
+            return true;
+        }
+        false
+    }
+
     fn handle_resource_event(&self) -> bool {
         for event in self.events.of_type("resource") {
             if let Some(resource) = self.resources.get(event.content_code()) {
@@ -166,7 +189,8 @@ impl Character {
         let in_bank = self.bank.has_item(&self.task());
         let missing = self.task_missing();
         let item = &self.task();
-        if in_bank > 0 {
+        let craftable = self.bank.has_mats_for(item);
+        if in_bank >= missing {
             self.deposit_all(Type::Consumable);
             self.deposit_all(Type::Resource);
             self.deposit_all(Type::Currency);
@@ -176,6 +200,13 @@ impl Character {
                 self.action_withdraw(item, missing)
             };
             return self.action_task_trade(item, self.has_in_inventory(&self.task()));
+        } else if self.can_craft(item) && craftable > 0 {
+            let max = self.max_withdrawable_to_craft(item);
+            if max > self.task_missing() {
+                return self.craft_item(item, self.task_missing()) > 0;
+            } else {
+                return self.craft_item(item, max) > 0;
+            };
         } else {
             error!(
                 "{}: missing item in bank to complete task: '{}' {}/{}",
@@ -390,13 +421,6 @@ impl Character {
 
     /// Find a target and kill it if possible.
     fn find_and_kill(&self) -> bool {
-        if self.conf().do_tasks && self.task_type() == "monsters" && !self.task_finished() {
-            if let Some(monster) = self.monsters.get(&self.task()) {
-                if self.kill_monster(monster, None) {
-                    return true;
-                }
-            }
-        }
         if let Some(monster_code) = &self.conf().fight_target {
             if let Some(monster) = self.monsters.get(monster_code) {
                 if self.kill_monster(monster, None) {
@@ -485,25 +509,56 @@ impl Character {
         crafted_once
     }
 
-    /// Crafts the given `quantity` of the given item `code` if the required
-    /// materials are available in bank.
-    pub fn craft_from_bank(&self, code: &str, quantity: i32) -> i32 {
-        if self.bank.has_mats_for(code) >= quantity {
-            info!(
-                "{}: going to craft '{}'x{} from bank.",
+    pub fn craft_item(&self, code: &str, quantity: i32) -> i32 {
+        if !self.can_craft(code) {
+            return 0;
+        }
+        if self.bank.has_mats_for(code) < quantity {
+            error!(
+                "{}: not enough materials to craft '{}'x{} from bank.",
                 self.name, code, quantity
             );
+            return 0;
+        }
+        let mut crafted = 0;
+        let mut craftable = self.bank.has_mats_for(code);
+        info!("{}: is going to craft '{}'x{}", self.name, code, quantity);
+        while crafted < quantity && craftable > 0 {
             self.deposit_all(Type::Resource);
             self.deposit_all(Type::Consumable);
-            self.withdraw_mats_for(code, quantity);
-            if self.action_craft(code, quantity) {
-                return quantity;
+            let max = self.max_withdrawable_to_craft(code);
+            if max > quantity - crafted {
+                crafted += self.craft_from_bank(code, quantity - crafted)
+            } else {
+                crafted += self.craft_from_bank(code, max)
             };
+            craftable = self.bank.has_mats_for(code);
         }
-        error!(
-            "{}: to enough materials to craft '{}'x{} from bank.",
+        quantity
+    }
+
+    /// Crafts the given `quantity` of the given item `code` if the required
+    /// materials to craft them in one go are available in bank.
+    pub fn craft_from_bank(&self, code: &str, quantity: i32) -> i32 {
+        if self.bank.has_mats_for(code) < quantity {
+            error!(
+                "{}: to enough materials to craft '{}'x{} from bank.",
+                self.name, code, quantity
+            );
+            return 0;
+        }
+        self.max_withdrawable_to_craft(code);
+        info!(
+            "{}: going to craft '{}'x{} from bank.",
             self.name, code, quantity
         );
+        self.deposit_all(Type::Resource);
+        self.deposit_all(Type::Consumable);
+        self.withdraw_mats_for(code, quantity);
+        if self.action_craft(code, quantity) {
+            self.action_deposit(code, quantity);
+            return quantity;
+        };
         0
     }
 
@@ -590,15 +645,17 @@ impl Character {
             "{}: going to withdraw from the bank the materials to craft the maximum amount of '{code}'.",
             self.name
         );
-        let can_carry = self.inventory_free_space() / self.items.mats_quantity_for(code);
-        let can_craft_from_bank = self.bank.has_mats_for(code);
-        let max = if can_craft_from_bank < can_carry {
-            can_craft_from_bank
-        } else {
-            can_carry
-        };
+        let max = self.max_craftable_items(code);
         self.withdraw_mats_for(code, max);
         max
+    }
+
+    /// Calculates the maximum number of items that can be crafted in one go based on available
+    /// inventory space and bank materials.
+    fn max_craftable_items(&self, code: &str) -> i32 {
+        let can_carry = self.inventory_free_space() / self.items.mats_quantity_for(code);
+        let can_craft_from_bank = self.bank.has_mats_for(code);
+        std::cmp::min(can_craft_from_bank, can_carry)
     }
 
     /// Craft the maximum amount of the item `code` with the materials currently available
@@ -1026,6 +1083,15 @@ impl Character {
 
     fn can_gather(&self, resource: &ResourceSchema) -> bool {
         self.skill_level(resource.skill.into()) >= resource.level
+    }
+
+    fn can_craft(&self, code: &str) -> bool {
+        if let Some(item) = self.items.get(code) {
+            if let Some(skill) = item.skill_to_craft() {
+                return self.skill_level(skill) >= item.level;
+            }
+        }
+        false
     }
 
     // fn fight_until_unsuccessful(&self, x: i32, y: i32) {
