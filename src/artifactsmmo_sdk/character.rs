@@ -12,7 +12,7 @@ use super::{
     monsters::Monsters,
     resources::Resources,
     skill::Skill,
-    ItemSchemaExt, MonsterSchemaExt,
+    ActiveEventSchemaExt, ItemSchemaExt, MonsterSchemaExt,
 };
 use crate::artifactsmmo_sdk::MapSchemaExt;
 use artifactsmmo_openapi::models::{
@@ -158,12 +158,7 @@ impl Character {
 
     fn handle_resource_event(&self) -> bool {
         for event in self.events.of_type("resource") {
-            if let Some(resource) = event
-                .map
-                .content
-                .as_ref()
-                .and_then(|c| self.resources.get(&c.code))
-            {
+            if let Some(resource) = self.resources.get(event.content_code()) {
                 if self.can_gather(resource) {
                     if let Some(tool) = self.best_available_tool_for_resource(&resource.code) {
                         self.equip_item_from_bank_or_inventory(Slot::Weapon, tool)
@@ -178,12 +173,7 @@ impl Character {
 
     fn handle_monster_event(&self) -> bool {
         for event in self.events.of_type("monster") {
-            if let Some(monster) = event
-                .map
-                .content
-                .as_ref()
-                .and_then(|c| self.monsters.get(&c.code))
-            {
+            if let Some(monster) = self.monsters.get(event.content_code()) {
                 let equipment = self.best_available_equipment_against(monster);
                 if self.can_kill_with(monster, &equipment) {
                     self.equip_equipment(&equipment);

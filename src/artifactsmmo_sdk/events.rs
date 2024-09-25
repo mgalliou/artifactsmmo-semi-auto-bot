@@ -1,4 +1,4 @@
-use super::{api::events::EventsApi, config::Config, MapSchemaExt};
+use super::{api::events::EventsApi, config::Config, ActiveEventSchemaExt, MapSchemaExt};
 use artifactsmmo_openapi::models::ActiveEventSchema;
 use chrono::{DateTime, Duration, Utc};
 use itertools::Itertools;
@@ -45,5 +45,11 @@ impl Events {
                     .cloned()
             })
             .collect_vec()
+    }
+}
+
+impl ActiveEventSchemaExt for ActiveEventSchema {
+    fn content_code(&self) -> &String {
+        self.map.content.as_ref().map(|c| &c.code).expect("event to have content")
     }
 }

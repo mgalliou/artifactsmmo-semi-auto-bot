@@ -56,8 +56,7 @@ trait MonsterSchemaExt {
 }
 
 trait ActiveEventSchemaExt {
-    fn resource(&self) -> Option<ResourceSchema>;
-    fn monster(&self) -> Option<MonsterSchema>;
+    fn content_code(&self) -> &String;
 }
 
 trait ResponseSchema: AsAny {
