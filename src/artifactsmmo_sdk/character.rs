@@ -117,22 +117,11 @@ impl Character {
             if self.handle_events() {
                 continue;
             }
-            if self.role() == Role::Fighter {
-                if let Some((map, equipment)) = self.best_monster_map_with_equipment() {
-                    self.equip_equipment(&equipment);
-                    self.action_move(map.x, map.y);
-                    let _ = self.action_fight();
-                }
-            } else if self.is_gatherer() {
-                if let Some(map) = self.best_resource_map() {
-                    if let Some(tool) =
-                        self.best_available_tool_for_resource(&map.content().unwrap().code)
-                    {
-                        self.equip_item_from_bank_or_inventory(Slot::Weapon, tool)
-                    }
-                    self.action_move(map.x, map.y);
-                    let _ = self.action_gather();
-                }
+            if self.role() == Role::Fighter && self.find_and_kill() {
+                continue;
+            }
+            if self.is_gatherer() && self.find_and_gather() {
+                continue;
             }
         }
     }
@@ -159,13 +148,7 @@ impl Character {
     fn handle_resource_event(&self) -> bool {
         for event in self.events.of_type("resource") {
             if let Some(resource) = self.resources.get(event.content_code()) {
-                if self.can_gather(resource) {
-                    if let Some(tool) = self.best_available_tool_for_resource(&resource.code) {
-                        self.equip_item_from_bank_or_inventory(Slot::Weapon, tool)
-                    }
-                    self.action_move(event.map.x, event.map.y);
-                    self.action_gather();
-                }
+                return self.gather_resource(resource, Some(&event.map));
             }
         }
         false
@@ -174,12 +157,7 @@ impl Character {
     fn handle_monster_event(&self) -> bool {
         for event in self.events.of_type("monster") {
             if let Some(monster) = self.monsters.get(event.content_code()) {
-                let equipment = self.best_available_equipment_against(monster);
-                if self.can_kill_with(monster, &equipment) {
-                    self.equip_equipment(&equipment);
-                    self.action_move(event.map.x, event.map.y);
-                    return self.action_fight();
-                }
+                return self.kill_monster(monster, Some(&event.map));
             }
         }
         false
@@ -307,13 +285,21 @@ impl Character {
             })
     }
 
-    /// Move the `Character` to the closest map containing the `code` resource,
-    /// then fight. Returns true is the API request went successfully.
-    fn kill_monster(&self, code: &str) -> bool {
-        if let Some(map) = self.closest_map_with_content_code(code) {
-            return self.action_move(map.x, map.y) && self.action_fight();
+    /// Checks if an equipment making the `Character` able to kill the given
+    /// `monster` is available, equip it, then move the `Character` to the given
+    /// map or the closest containing the `monster` and fight it.
+    fn kill_monster(&self, monster: &MonsterSchema, map: Option<&MapSchema>) -> bool {
+        let equipment = self.best_available_equipment_against(monster);
+        if !self.can_kill_with(monster, &equipment) {
+            return false;
         }
-        false
+        self.equip_equipment(&equipment);
+        if let Some(map) = map {
+            self.action_move(map.x, map.y);
+        } else if let Some(map) = self.closest_map_with_content_code(&monster.code) {
+            self.action_move(map.x, map.y);
+        }
+        self.action_fight()
     }
 
     /// Checks if the `Character` could kill the given `monster` with the given
@@ -340,13 +326,22 @@ impl Character {
         115 + 5 * self.level()
     }
 
-    /// Move the `Character` to the closest map containing the `code` resource,
-    /// then gather. Returns true is the API request went successfully.
-    fn gather_resource(&self, code: &str) -> bool {
-        if let Some(map) = self.closest_map_with_content_code(code) {
-            return self.action_move(map.x, map.y) && self.action_gather();
+    /// Checks if the character is able to gather the given `resource`. if it
+    /// can, equips the best available appropriate tool, then move the `Character`
+    /// to the given map or the closest containing the `resource` and gather it.  
+    fn gather_resource(&self, resource: &ResourceSchema, map: Option<&MapSchema>) -> bool {
+        if !self.can_gather(resource) {
+            return false;
         }
-        false
+        if let Some(tool) = self.best_available_tool_for_resource(&resource.code) {
+            self.equip_item_from_bank_or_inventory(Slot::Weapon, tool)
+        }
+        if let Some(map) = map {
+            self.action_move(map.x, map.y);
+        } else if let Some(map) = self.closest_map_with_content_code(&resource.code) {
+            self.action_move(map.x, map.y);
+        }
+        self.action_gather()
     }
 
     /// Returns the next skill that should leveled by the Character, based on
@@ -373,70 +368,50 @@ impl Character {
         })
     }
 
-    /// Returns the map containing the best monster for the current character
-    /// alongside the best equipment available to fight the target `monster` if
-    /// it call be killed with it. The monster priority order is events,
-    /// then tasks, then target from config file, then lowest level target.
-    fn best_monster_map_with_equipment(&self) -> Option<(MapSchema, Equipment)> {
+    /// Find a target and kill it if possible.
+    fn find_and_kill(&self) -> bool {
         if self.conf().do_tasks && self.task_type() == "monsters" && !self.task_finished() {
             if let Some(monster) = self.monsters.get(&self.task()) {
-                let equipment = self.best_available_equipment_against(monster);
-                if self.can_kill_with(monster, &equipment) {
-                    return Some((
-                        self.closest_map_with_content_code(&monster.code)?.clone(),
-                        equipment,
-                    ));
+                if self.kill_monster(monster, None) {
+                    return true;
                 }
             }
         }
         if let Some(monster_code) = &self.conf().fight_target {
             if let Some(monster) = self.monsters.get(monster_code) {
-                let equipment = self.best_available_equipment_against(monster);
-                if self.can_kill_with(monster, &equipment) {
-                    return Some((
-                        self.closest_map_with_content_code(&monster.code)?.clone(),
-                        equipment,
-                    ));
+                if self.kill_monster(monster, None) {
+                    return true;
                 }
             }
         }
         // TODO: find highest killable
         if let Some(monster) = self.monsters.highest_providing_exp(self.level()) {
-            let equipment = self.best_available_equipment_against(monster);
-            if self.can_kill_with(monster, &equipment) {
-                return Some((
-                    self.closest_map_with_content_code(&monster.code)?.clone(),
-                    equipment,
-                ));
+            if self.kill_monster(monster, None) {
+                return true;
             }
         }
-        None
+        false
     }
 
-    fn best_resource_map(&self) -> Option<MapSchema> {
+    fn find_and_gather(&self) -> bool {
         if let Some(item) = self.conf().target_item {
-            if let Some(resource) = self
-                .resources
-                .dropping(&item)
-                .iter()
-                .find(|r| self.can_gather(r))
-            {
-                return self.closest_map_with_content_code(&resource.code).cloned();
+            if let Some(resource) = self.resources.dropping(&item).first() {
+                if self.gather_resource(resource, None) {
+                    return true;
+                }
             }
-            warn!(
-                "{}: does not have required level to gather '{}'.",
-                self.name, item
-            );
         }
         if let Some(skill) = self.role().to_skill() {
             if let Some(resource) = self
                 .resources
                 .highest_providing_exp(self.skill_level(skill), skill)
             {
-                return self.closest_map_with_content_code(&resource.code).cloned();
+                if self.gather_resource(resource, None) {
+                    return true;
+                }
             }
         }
-        None
+        false
     }
 
     /// Returns the item equiped in the `given` slot.
