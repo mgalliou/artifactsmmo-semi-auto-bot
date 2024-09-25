@@ -113,6 +113,9 @@ impl Character {
                     continue;
                 }
             }
+            if self.handle_events() {
+                continue;
+            }
             if self.role() == Role::Fighter {
                 if let Some((map, equipment)) = self.best_monster_map_with_equipment() {
                     self.equip_equipment(&equipment);
@@ -126,6 +129,61 @@ impl Character {
                 }
             }
         }
+    }
+
+    fn handle_events(&self) -> bool {
+        if self.role() == Role::Fighter {
+            if self.handle_monster_event() {
+                return true;
+            }
+            if self.handle_resource_event() {
+                return true;
+            }
+        } else {
+            if self.handle_resource_event() {
+                return true;
+            }
+            if self.handle_monster_event() {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn handle_resource_event(&self) -> bool {
+        for event in self.events.of_type("resource") {
+            if let Some(resource) = event
+                .map
+                .content
+                .as_ref()
+                .and_then(|c| self.resources.get(&c.code))
+            {
+                if self.can_gather(resource) {
+                    self.action_move(event.map.x, event.map.y);
+                    self.action_gather();
+                }
+            }
+        }
+        false
+    }
+
+    fn handle_monster_event(&self) -> bool {
+        for event in self.events.of_type("monster") {
+            if let Some(monster) = event
+                .map
+                .content
+                .as_ref()
+                .and_then(|c| self.monsters.get(&c.code))
+            {
+                let equipment = self.best_available_equipment_against(monster);
+                if self.can_kill_with(monster, &equipment) {
+                    self.equip_equipment(&equipment);
+                    self.action_move(event.map.x, event.map.y);
+                    return self.action_fight();
+                }
+            }
+        }
+        false
     }
 
     fn handle_wooden_stick(&self) {
@@ -321,19 +379,6 @@ impl Character {
     /// it call be killed with it. The monster priority order is events,
     /// then tasks, then target from config file, then lowest level target.
     fn best_monster_map_with_equipment(&self) -> Option<(MapSchema, Equipment)> {
-        for event in self.events.of_type("monster") {
-            if let Some(monster) = event
-                .map
-                .content
-                .as_ref()
-                .and_then(|c| self.monsters.get(&c.code))
-            {
-                let equipment = self.best_available_equipment_against(monster);
-                if self.can_kill_with(monster, &equipment) {
-                    return Some(((*event.map.clone()), equipment));
-                }
-            }
-        }
         if self.conf().do_tasks && self.task_type() == "monsters" && !self.task_finished() {
             if let Some(monster) = self.monsters.get(&self.task()) {
                 let equipment = self.best_available_equipment_against(monster);
@@ -370,18 +415,6 @@ impl Character {
     }
 
     fn best_resource_map(&self) -> Option<MapSchema> {
-        for event in self.events.of_type("resource") {
-            if let Some(resource) = event
-                .map
-                .content
-                .as_ref()
-                .and_then(|c| self.resources.get(&c.code))
-            {
-                if self.can_gather(resource) {
-                    return Some(*event.map.clone());
-                }
-            }
-        }
         if let Some(item) = self.conf().target_item {
             if let Some(resource) = self
                 .resources
