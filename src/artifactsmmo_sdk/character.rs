@@ -316,7 +316,7 @@ impl Character {
     /// it call be killed with it. The monster priority order is events,
     /// then tasks, then target from config file, then lowest level target.
     fn best_monster_map_with_equipment(&self) -> Option<(MapSchema, Equipment)> {
-        for event in self.events.of_type("monsters") {
+        for event in self.events.of_type("monster") {
             if let Some(monster) = event
                 .map
                 .content
@@ -457,7 +457,7 @@ impl Character {
     /// materials are available in bank.
     pub fn craft_from_bank(&self, code: &str, quantity: i32) -> i32 {
         if self.bank.has_mats_for(code) >= quantity {
-            info!("{}: going to crafting all '{}' from bank.", self.name, code);
+            info!("{}: going to craft '{}'x{} from bank.", self.name, code, quantity);
             self.deposit_all(Type::Resource);
             self.deposit_all(Type::Consumable);
             self.withdraw_mats_for(code, quantity);
@@ -465,6 +465,7 @@ impl Character {
                 return quantity;
             };
         }
+        error!("{}: to enough materials to craft '{}'x{} from bank.", self.name, code, quantity);
         0
     }
 
@@ -480,6 +481,7 @@ impl Character {
             self.withdraw_max_mats_for(code);
             return self.craft_all(code);
         }
+        error!("{}: to enough materials to craft '{}' from bank.", self.name, code);
         0
     }
 

@@ -27,11 +27,7 @@ use artifactsmmo_openapi::{
         Error,
     },
     models::{
-        equip_schema, unequip_schema, BankItemTransactionResponseSchema,
-        CharacterFightResponseSchema, CharacterMovementResponseSchema, CraftingSchema,
-        DestinationSchema, EquipSchema, EquipmentResponseSchema, MyCharactersListSchema,
-        RecyclingResponseSchema, RecyclingSchema, SimpleItemSchema, SkillResponseSchema,
-        TaskCancelledResponseSchema, TaskResponseSchema, TaskRewardResponseSchema, UnequipSchema,
+        equip_schema, unequip_schema, BankItemTransactionResponseSchema, CharacterFightResponseSchema, CharacterMovementResponseSchema, CraftingSchema, DestinationSchema, EquipSchema, EquipmentResponseSchema, MyCharactersListSchema, RecyclingResponseSchema, RecyclingSchema, SimpleItemSchema, SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema, TasksRewardResponseSchema, UnequipSchema
     },
 };
 
@@ -169,7 +165,7 @@ impl MyCharacterApi {
     pub fn complete_task(
         &self,
         name: &str,
-    ) -> Result<TaskRewardResponseSchema, Error<ActionCompleteTaskMyNameActionTaskCompletePostError>>
+    ) -> Result<TasksRewardResponseSchema, Error<ActionCompleteTaskMyNameActionTaskCompletePostError>>
     {
         action_complete_task_my_name_action_task_complete_post(&self.configuration, name)
     }

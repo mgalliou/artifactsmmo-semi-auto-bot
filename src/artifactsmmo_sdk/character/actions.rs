@@ -8,7 +8,7 @@ use artifactsmmo_openapi::{
         cooldown_schema::Reason, fight_schema, BankItemTransactionResponseSchema,
         CharacterFightResponseSchema, CharacterMovementResponseSchema, CharacterSchema, DropSchema,
         EquipmentResponseSchema, RecyclingResponseSchema, SkillResponseSchema,
-        TaskCancelledResponseSchema, TaskResponseSchema, TaskRewardResponseSchema,
+        TaskCancelledResponseSchema, TaskResponseSchema, TasksRewardResponseSchema,
     },
 };
 use log::{error, info};
@@ -379,7 +379,7 @@ impl ResponseSchema for TaskResponseSchema {
     }
 }
 
-impl ResponseSchema for TaskRewardResponseSchema {
+impl ResponseSchema for TasksRewardResponseSchema {
     fn pretty(&self) -> String {
         format!(
             "{}: completed task and was rewarded with '{}'x{}.",
