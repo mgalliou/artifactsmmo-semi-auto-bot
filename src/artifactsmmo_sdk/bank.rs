@@ -12,10 +12,7 @@ pub struct Bank {
 
 impl Bank {
     pub fn new(config: &Config, items: Arc<Items>) -> Bank {
-        let api = BankApi::new(
-            &config.base_url,
-            &config.token,
-        );
+        let api = BankApi::new(&config.base_url, &config.token);
         Bank {
             items,
             details: RwLock::new(*api.details().unwrap().data),

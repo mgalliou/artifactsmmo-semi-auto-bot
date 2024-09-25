@@ -7,10 +7,7 @@ pub struct Resources {
 
 impl Resources {
     pub fn new(config: &Config) -> Resources {
-        let api = ResourcesApi::new(
-            &config.base_url,
-            &config.token,
-        );
+        let api = ResourcesApi::new(&config.base_url, &config.token);
         Resources {
             data: api.all(None, None, None, None).unwrap().clone(),
         }

@@ -27,7 +27,11 @@ use artifactsmmo_openapi::{
         Error,
     },
     models::{
-        equip_schema, unequip_schema, BankItemTransactionResponseSchema, CharacterFightResponseSchema, CharacterMovementResponseSchema, CraftingSchema, DestinationSchema, EquipSchema, EquipmentResponseSchema, MyCharactersListSchema, RecyclingResponseSchema, RecyclingSchema, SimpleItemSchema, SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema, TasksRewardResponseSchema, UnequipSchema
+        equip_schema, unequip_schema, BankItemTransactionResponseSchema,
+        CharacterFightResponseSchema, CharacterMovementResponseSchema, CraftingSchema,
+        DestinationSchema, EquipSchema, EquipmentResponseSchema, MyCharactersListSchema,
+        RecyclingResponseSchema, RecyclingSchema, SimpleItemSchema, SkillResponseSchema,
+        TaskCancelledResponseSchema, TaskResponseSchema, TasksRewardResponseSchema, UnequipSchema,
     },
 };
 

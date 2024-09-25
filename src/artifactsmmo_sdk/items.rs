@@ -20,277 +20,6 @@ pub struct Items {
     monsters: Arc<Monsters>,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Display, AsRefStr, EnumIter, EnumString)]
-#[strum(serialize_all = "snake_case")]
-pub enum Type {
-    Consumable,
-    BodyArmor,
-    Weapon,
-    Resource,
-    LegArmor,
-    Helmet,
-    Boots,
-    Shield,
-    Amulet,
-    Ring,
-    Artifact,
-}
-
-impl PartialEq<Type> for String {
-    fn eq(&self, other: &Type) -> bool {
-        other.as_ref() == *self
-    }
-}
-
-impl Type {
-    pub fn from_slot(slot: Slot) -> Self {
-        match slot {
-            Slot::Weapon => Self::Weapon,
-            Slot::Shield => Self::Shield,
-            Slot::Helmet => Self::Helmet,
-            Slot::BodyArmor => Self::BodyArmor,
-            Slot::LegArmor => Self::LegArmor,
-            Slot::Boots => Self::Boots,
-            Slot::Ring1 => Self::Ring,
-            Slot::Ring2 => Self::Ring,
-            Slot::Amulet => Self::Amulet,
-            Slot::Artifact1 => Self::Artifact,
-            Slot::Artifact2 => Self::Artifact,
-            Slot::Artifact3 => Self::Artifact,
-            Slot::Consumable1 => Self::Consumable,
-            Slot::Consumable2 => Self::Consumable,
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, AsRefStr, EnumString)]
-#[strum(serialize_all = "snake_case")]
-pub enum SubType {
-    Mining,
-    Woodcutting,
-    Fishing,
-    Food,
-    Bar,
-    Plank,
-    Mob,
-}
-
-impl PartialEq<SubType> for String {
-    fn eq(&self, other: &SubType) -> bool {
-        other.as_ref() == *self
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, AsRefStr, EnumString, EnumIter)]
-#[strum(serialize_all = "snake_case")]
-pub enum Slot {
-    Weapon,
-    Shield,
-    Helmet,
-    BodyArmor,
-    LegArmor,
-    Boots,
-    Ring1,
-    Ring2,
-    Amulet,
-    Artifact1,
-    Artifact2,
-    Artifact3,
-    Consumable1,
-    Consumable2,
-}
-
-impl From<equip_schema::Slot> for Slot {
-    fn from(value: equip_schema::Slot) -> Self {
-        match value {
-            equip_schema::Slot::Weapon => Self::Weapon,
-            equip_schema::Slot::Shield => Self::Shield,
-            equip_schema::Slot::Helmet => Self::Helmet,
-            equip_schema::Slot::BodyArmor => Self::BodyArmor,
-            equip_schema::Slot::LegArmor => Self::LegArmor,
-            equip_schema::Slot::Boots => Self::Boots,
-            equip_schema::Slot::Ring1 => Self::Ring1,
-            equip_schema::Slot::Ring2 => Self::Ring2,
-            equip_schema::Slot::Amulet => Self::Amulet,
-            equip_schema::Slot::Artifact1 => Self::Artifact1,
-            equip_schema::Slot::Artifact2 => Self::Artifact2,
-            equip_schema::Slot::Artifact3 => Self::Artifact3,
-            equip_schema::Slot::Consumable1 => Self::Consumable1,
-            equip_schema::Slot::Consumable2 => Self::Consumable2,
-        }
-    }
-}
-
-impl Slot {
-    pub fn to_equip_schema(&self) -> equip_schema::Slot {
-        match &self {
-            Slot::Weapon => equip_schema::Slot::Weapon,
-            Slot::Shield => equip_schema::Slot::Shield,
-            Slot::Helmet => equip_schema::Slot::Helmet,
-            Slot::BodyArmor => equip_schema::Slot::BodyArmor,
-            Slot::LegArmor => equip_schema::Slot::LegArmor,
-            Slot::Boots => equip_schema::Slot::Boots,
-            Slot::Ring1 => equip_schema::Slot::Ring1,
-            Slot::Ring2 => equip_schema::Slot::Ring2,
-            Slot::Amulet => equip_schema::Slot::Amulet,
-            Slot::Artifact1 => equip_schema::Slot::Artifact1,
-            Slot::Artifact2 => equip_schema::Slot::Artifact2,
-            Slot::Artifact3 => equip_schema::Slot::Artifact3,
-            Slot::Consumable1 => equip_schema::Slot::Consumable1,
-            Slot::Consumable2 => equip_schema::Slot::Consumable2,
-        }
-    }
-
-    pub fn to_unequip_schema(&self) -> unequip_schema::Slot {
-        match &self {
-            Slot::Weapon => unequip_schema::Slot::Weapon,
-            Slot::Shield => unequip_schema::Slot::Shield,
-            Slot::Helmet => unequip_schema::Slot::Helmet,
-            Slot::BodyArmor => unequip_schema::Slot::BodyArmor,
-            Slot::LegArmor => unequip_schema::Slot::LegArmor,
-            Slot::Boots => unequip_schema::Slot::Boots,
-            Slot::Ring1 => unequip_schema::Slot::Ring1,
-            Slot::Ring2 => unequip_schema::Slot::Ring2,
-            Slot::Amulet => unequip_schema::Slot::Amulet,
-            Slot::Artifact1 => unequip_schema::Slot::Artifact1,
-            Slot::Artifact2 => unequip_schema::Slot::Artifact2,
-            Slot::Artifact3 => unequip_schema::Slot::Artifact3,
-            Slot::Consumable1 => unequip_schema::Slot::Consumable1,
-            Slot::Consumable2 => unequip_schema::Slot::Consumable2,
-        }
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, AsRefStr, EnumIter, EnumString)]
-#[strum(serialize_all = "snake_case")]
-pub enum DamageType {
-    Air,
-    Earth,
-    Fire,
-    Water,
-}
-
-impl ItemSchemaExt for ItemSchema {
-    fn is_raw_mat(&self) -> bool {
-        self.r#type == "resource"
-            && matches!(
-                SubType::from_str(&self.subtype),
-                Ok(SubType::Mining)
-                    | Ok(SubType::Woodcutting)
-                    | Ok(SubType::Fishing)
-                    | Ok(SubType::Food)
-            )
-    }
-
-    fn is_of_type(&self, r#type: Type) -> bool {
-        self.r#type == r#type
-    }
-
-    fn is_crafted_with(&self, code: &str) -> bool {
-        self.mats().iter().any(|m| m.code == code)
-    }
-
-    fn mats(&self) -> Vec<SimpleItemSchema> {
-        self.craft_schema()
-            .into_iter()
-            .filter_map(|i| i.items)
-            .flatten()
-            .collect_vec()
-    }
-
-    fn craft_schema(&self) -> Option<CraftSchema> {
-        self.craft.clone()?.map(|c| (*c))
-    }
-
-    fn skill_to_craft(&self) -> Option<Skill> {
-        self.craft_schema()
-            .and_then(|schema| schema.skill)
-            .map(Skill::from)
-    }
-
-    fn effects(&self) -> Vec<&ItemEffectSchema> {
-        self.effects.iter().flatten().collect_vec()
-    }
-
-    fn total_attack_damage(&self) -> i32 {
-        self.effects()
-            .iter()
-            .filter(|e| e.name.starts_with("attack_"))
-            .map(|e| e.value)
-            .sum()
-    }
-
-    fn attack_damage(&self, r#type: DamageType) -> i32 {
-        self.effects()
-            .iter()
-            .find(|e| e.name == "attack_".to_string() + r#type.as_ref())
-            .map(|e| e.value)
-            .unwrap_or(0)
-    }
-
-    fn resistance(&self, r#type: DamageType) -> i32 {
-        self.effects()
-            .iter()
-            .find(|e| e.name == "res_".to_string() + r#type.as_ref())
-            .map(|e| e.value)
-            .unwrap_or(0)
-    }
-
-    fn total_damage_increase(&self) -> i32 {
-        self.effects()
-            .iter()
-            .filter(|e| e.name.starts_with("dmg_"))
-            .map(|e| e.value)
-            .sum()
-    }
-
-    fn attack_damage_against(&self, monster: &MonsterSchema) -> f32 {
-        DamageType::iter()
-            .map(|t| compute_damage(self.attack_damage(t), 0, monster.resistance(t)))
-            .sum()
-    }
-
-    fn damage_from(&self, monster: &MonsterSchema) -> f32 {
-        DamageType::iter()
-            .map(|t| compute_damage(monster.attack_damage(t), 0, self.resistance(t)))
-            .sum()
-    }
-
-    fn damage_increase(&self, r#type: DamageType) -> i32 {
-        self.effects()
-            .iter()
-            .find(|e| {
-                e.name == "dmg_".to_string() + r#type.as_ref()
-                    || e.name == "boost_dmg_".to_string() + r#type.as_ref()
-            })
-            .map(|e| e.value)
-            .unwrap_or(0)
-    }
-
-    fn total_resistance(&self) -> i32 {
-        self.effects()
-            .iter()
-            .filter(|e| e.name.starts_with("res_"))
-            .map(|e| e.value)
-            .sum()
-    }
-
-    fn health(&self) -> i32 {
-        self.effects()
-            .iter()
-            .find(|e| e.name == "hp" || e.name == "boost_hp")
-            .map(|e| e.value)
-            .unwrap_or(0)
-    }
-
-    fn skill_cooldown_reduction(&self, skill: Skill) -> i32 {
-        self.effects()
-            .iter()
-            .find_map(|e| (e.name == skill.as_ref()).then_some(e.value))
-            .unwrap_or(0)
-    }
-}
-
 impl Items {
     pub fn new(config: &Config, resources: Arc<Resources>, monsters: Arc<Monsters>) -> Items {
         let api = ItemsApi::new(&config.base_url, &config.token);
@@ -590,6 +319,277 @@ impl Items {
             })
             .collect_vec()
     }
+}
+
+impl ItemSchemaExt for ItemSchema {
+    fn is_raw_mat(&self) -> bool {
+        self.r#type == "resource"
+            && matches!(
+                SubType::from_str(&self.subtype),
+                Ok(SubType::Mining)
+                    | Ok(SubType::Woodcutting)
+                    | Ok(SubType::Fishing)
+                    | Ok(SubType::Food)
+            )
+    }
+
+    fn is_of_type(&self, r#type: Type) -> bool {
+        self.r#type == r#type
+    }
+
+    fn is_crafted_with(&self, code: &str) -> bool {
+        self.mats().iter().any(|m| m.code == code)
+    }
+
+    fn mats(&self) -> Vec<SimpleItemSchema> {
+        self.craft_schema()
+            .into_iter()
+            .filter_map(|i| i.items)
+            .flatten()
+            .collect_vec()
+    }
+
+    fn craft_schema(&self) -> Option<CraftSchema> {
+        self.craft.clone()?.map(|c| (*c))
+    }
+
+    fn skill_to_craft(&self) -> Option<Skill> {
+        self.craft_schema()
+            .and_then(|schema| schema.skill)
+            .map(Skill::from)
+    }
+
+    fn effects(&self) -> Vec<&ItemEffectSchema> {
+        self.effects.iter().flatten().collect_vec()
+    }
+
+    fn total_attack_damage(&self) -> i32 {
+        self.effects()
+            .iter()
+            .filter(|e| e.name.starts_with("attack_"))
+            .map(|e| e.value)
+            .sum()
+    }
+
+    fn attack_damage(&self, r#type: DamageType) -> i32 {
+        self.effects()
+            .iter()
+            .find(|e| e.name == "attack_".to_string() + r#type.as_ref())
+            .map(|e| e.value)
+            .unwrap_or(0)
+    }
+
+    fn resistance(&self, r#type: DamageType) -> i32 {
+        self.effects()
+            .iter()
+            .find(|e| e.name == "res_".to_string() + r#type.as_ref())
+            .map(|e| e.value)
+            .unwrap_or(0)
+    }
+
+    fn total_damage_increase(&self) -> i32 {
+        self.effects()
+            .iter()
+            .filter(|e| e.name.starts_with("dmg_"))
+            .map(|e| e.value)
+            .sum()
+    }
+
+    fn attack_damage_against(&self, monster: &MonsterSchema) -> f32 {
+        DamageType::iter()
+            .map(|t| compute_damage(self.attack_damage(t), 0, monster.resistance(t)))
+            .sum()
+    }
+
+    fn damage_from(&self, monster: &MonsterSchema) -> f32 {
+        DamageType::iter()
+            .map(|t| compute_damage(monster.attack_damage(t), 0, self.resistance(t)))
+            .sum()
+    }
+
+    fn damage_increase(&self, r#type: DamageType) -> i32 {
+        self.effects()
+            .iter()
+            .find(|e| {
+                e.name == "dmg_".to_string() + r#type.as_ref()
+                    || e.name == "boost_dmg_".to_string() + r#type.as_ref()
+            })
+            .map(|e| e.value)
+            .unwrap_or(0)
+    }
+
+    fn total_resistance(&self) -> i32 {
+        self.effects()
+            .iter()
+            .filter(|e| e.name.starts_with("res_"))
+            .map(|e| e.value)
+            .sum()
+    }
+
+    fn health(&self) -> i32 {
+        self.effects()
+            .iter()
+            .find(|e| e.name == "hp" || e.name == "boost_hp")
+            .map(|e| e.value)
+            .unwrap_or(0)
+    }
+
+    fn skill_cooldown_reduction(&self, skill: Skill) -> i32 {
+        self.effects()
+            .iter()
+            .find_map(|e| (e.name == skill.as_ref()).then_some(e.value))
+            .unwrap_or(0)
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, AsRefStr, EnumString, EnumIter)]
+#[strum(serialize_all = "snake_case")]
+pub enum Slot {
+    Weapon,
+    Shield,
+    Helmet,
+    BodyArmor,
+    LegArmor,
+    Boots,
+    Ring1,
+    Ring2,
+    Amulet,
+    Artifact1,
+    Artifact2,
+    Artifact3,
+    Consumable1,
+    Consumable2,
+}
+
+impl Slot {
+    pub fn to_equip_schema(&self) -> equip_schema::Slot {
+        match &self {
+            Slot::Weapon => equip_schema::Slot::Weapon,
+            Slot::Shield => equip_schema::Slot::Shield,
+            Slot::Helmet => equip_schema::Slot::Helmet,
+            Slot::BodyArmor => equip_schema::Slot::BodyArmor,
+            Slot::LegArmor => equip_schema::Slot::LegArmor,
+            Slot::Boots => equip_schema::Slot::Boots,
+            Slot::Ring1 => equip_schema::Slot::Ring1,
+            Slot::Ring2 => equip_schema::Slot::Ring2,
+            Slot::Amulet => equip_schema::Slot::Amulet,
+            Slot::Artifact1 => equip_schema::Slot::Artifact1,
+            Slot::Artifact2 => equip_schema::Slot::Artifact2,
+            Slot::Artifact3 => equip_schema::Slot::Artifact3,
+            Slot::Consumable1 => equip_schema::Slot::Consumable1,
+            Slot::Consumable2 => equip_schema::Slot::Consumable2,
+        }
+    }
+
+    pub fn to_unequip_schema(&self) -> unequip_schema::Slot {
+        match &self {
+            Slot::Weapon => unequip_schema::Slot::Weapon,
+            Slot::Shield => unequip_schema::Slot::Shield,
+            Slot::Helmet => unequip_schema::Slot::Helmet,
+            Slot::BodyArmor => unequip_schema::Slot::BodyArmor,
+            Slot::LegArmor => unequip_schema::Slot::LegArmor,
+            Slot::Boots => unequip_schema::Slot::Boots,
+            Slot::Ring1 => unequip_schema::Slot::Ring1,
+            Slot::Ring2 => unequip_schema::Slot::Ring2,
+            Slot::Amulet => unequip_schema::Slot::Amulet,
+            Slot::Artifact1 => unequip_schema::Slot::Artifact1,
+            Slot::Artifact2 => unequip_schema::Slot::Artifact2,
+            Slot::Artifact3 => unequip_schema::Slot::Artifact3,
+            Slot::Consumable1 => unequip_schema::Slot::Consumable1,
+            Slot::Consumable2 => unequip_schema::Slot::Consumable2,
+        }
+    }
+}
+
+impl From<equip_schema::Slot> for Slot {
+    fn from(value: equip_schema::Slot) -> Self {
+        match value {
+            equip_schema::Slot::Weapon => Self::Weapon,
+            equip_schema::Slot::Shield => Self::Shield,
+            equip_schema::Slot::Helmet => Self::Helmet,
+            equip_schema::Slot::BodyArmor => Self::BodyArmor,
+            equip_schema::Slot::LegArmor => Self::LegArmor,
+            equip_schema::Slot::Boots => Self::Boots,
+            equip_schema::Slot::Ring1 => Self::Ring1,
+            equip_schema::Slot::Ring2 => Self::Ring2,
+            equip_schema::Slot::Amulet => Self::Amulet,
+            equip_schema::Slot::Artifact1 => Self::Artifact1,
+            equip_schema::Slot::Artifact2 => Self::Artifact2,
+            equip_schema::Slot::Artifact3 => Self::Artifact3,
+            equip_schema::Slot::Consumable1 => Self::Consumable1,
+            equip_schema::Slot::Consumable2 => Self::Consumable2,
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Display, AsRefStr, EnumIter, EnumString)]
+#[strum(serialize_all = "snake_case")]
+pub enum Type {
+    Consumable,
+    BodyArmor,
+    Weapon,
+    Resource,
+    LegArmor,
+    Helmet,
+    Boots,
+    Shield,
+    Amulet,
+    Ring,
+    Artifact,
+}
+
+impl Type {
+    pub fn from_slot(slot: Slot) -> Self {
+        match slot {
+            Slot::Weapon => Self::Weapon,
+            Slot::Shield => Self::Shield,
+            Slot::Helmet => Self::Helmet,
+            Slot::BodyArmor => Self::BodyArmor,
+            Slot::LegArmor => Self::LegArmor,
+            Slot::Boots => Self::Boots,
+            Slot::Ring1 => Self::Ring,
+            Slot::Ring2 => Self::Ring,
+            Slot::Amulet => Self::Amulet,
+            Slot::Artifact1 => Self::Artifact,
+            Slot::Artifact2 => Self::Artifact,
+            Slot::Artifact3 => Self::Artifact,
+            Slot::Consumable1 => Self::Consumable,
+            Slot::Consumable2 => Self::Consumable,
+        }
+    }
+}
+
+impl PartialEq<Type> for String {
+    fn eq(&self, other: &Type) -> bool {
+        other.as_ref() == *self
+    }
+}
+
+#[derive(Debug, PartialEq, AsRefStr, EnumString)]
+#[strum(serialize_all = "snake_case")]
+pub enum SubType {
+    Mining,
+    Woodcutting,
+    Fishing,
+    Food,
+    Bar,
+    Plank,
+    Mob,
+}
+
+impl PartialEq<SubType> for String {
+    fn eq(&self, other: &SubType) -> bool {
+        other.as_ref() == *self
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, AsRefStr, EnumIter, EnumString)]
+#[strum(serialize_all = "snake_case")]
+pub enum DamageType {
+    Air,
+    Earth,
+    Fire,
+    Water,
 }
 
 #[cfg(test)]

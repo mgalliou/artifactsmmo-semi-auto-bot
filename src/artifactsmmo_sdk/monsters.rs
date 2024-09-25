@@ -5,32 +5,9 @@ pub struct Monsters {
     pub data: Vec<MonsterSchema>,
 }
 
-impl MonsterSchemaExt for MonsterSchema {
-    fn attack_damage(&self, r#type: DamageType) -> i32 {
-        match r#type {
-            DamageType::Air => self.attack_air,
-            DamageType::Earth => self.attack_earth,
-            DamageType::Fire => self.attack_fire,
-            DamageType::Water => self.attack_water,
-        }
-    }
-
-    fn resistance(&self, r#type: DamageType) -> i32 {
-        match r#type {
-            DamageType::Air => self.res_air,
-            DamageType::Earth => self.res_earth,
-            DamageType::Fire => self.res_fire,
-            DamageType::Water => self.res_water,
-        }
-    }
-}
-
 impl Monsters {
     pub fn new(config: &Config) -> Monsters {
-        let api = MonstersApi::new(
-            &config.base_url,
-            &config.token,
-        );
+        let api = MonstersApi::new(&config.base_url, &config.token);
         Monsters {
             data: api.all(None, None, None).unwrap().clone(),
         }
@@ -60,5 +37,25 @@ impl Monsters {
             .iter()
             .filter(|m| m.level <= level)
             .max_by_key(|m| m.level)
+    }
+}
+
+impl MonsterSchemaExt for MonsterSchema {
+    fn attack_damage(&self, r#type: DamageType) -> i32 {
+        match r#type {
+            DamageType::Air => self.attack_air,
+            DamageType::Earth => self.attack_earth,
+            DamageType::Fire => self.attack_fire,
+            DamageType::Water => self.attack_water,
+        }
+    }
+
+    fn resistance(&self, r#type: DamageType) -> i32 {
+        match r#type {
+            DamageType::Air => self.res_air,
+            DamageType::Earth => self.res_earth,
+            DamageType::Fire => self.res_fire,
+            DamageType::Water => self.res_water,
+        }
     }
 }

@@ -1,8 +1,18 @@
-use artifactsmmo_openapi::{apis::{configuration::Configuration, default_api::{get_status_get, GetStatusGetError}, Error}, models::StatusResponseSchema};
+use artifactsmmo_openapi::{
+    apis::{
+        configuration::Configuration,
+        default_api::{get_status_get, GetStatusGetError},
+        Error,
+    },
+    models::StatusResponseSchema,
+};
 use chrono::{DateTime, TimeDelta, Utc};
 use log::debug;
 
-use super::{config::Config, events::Events, items::Items, maps::Maps, monsters::Monsters, resources::Resources};
+use super::{
+    config::Config, events::Events, items::Items, maps::Maps, monsters::Monsters,
+    resources::Resources,
+};
 use std::sync::{Arc, RwLock};
 
 pub struct Game {

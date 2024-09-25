@@ -1,5 +1,3 @@
-use crate::artifactsmmo_sdk::MapSchemaExt;
-
 use super::{
     api::{characters::CharactersApi, my_character::MyCharacterApi},
     bank::Bank,
@@ -16,6 +14,7 @@ use super::{
     skill::Skill,
     ItemSchemaExt, MonsterSchemaExt,
 };
+use crate::artifactsmmo_sdk::MapSchemaExt;
 use artifactsmmo_openapi::models::{
     CharacterSchema, InventorySlot, ItemSchema, MapContentSchema, MapSchema, MonsterSchema,
     ResourceSchema,
@@ -1085,13 +1084,3 @@ impl Role {
         }
     }
 }
-
-pub enum Action {
-    Fight,
-    Gather,
-    Craft,
-    Withdraw,
-    Deposit,
-}
-
-pub struct Order {}
