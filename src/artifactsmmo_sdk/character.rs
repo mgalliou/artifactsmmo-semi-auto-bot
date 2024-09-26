@@ -137,8 +137,7 @@ impl Character {
             if self.conf().process_gathered {
                 self.process_raw_mats();
             }
-            self.deposit_all_of_type(Type::Consumable);
-            self.deposit_all_of_type(Type::Resource);
+            self.deposit_all()
         }
     }
 
@@ -281,21 +280,15 @@ impl Character {
     }
 
     /// Process the raw materials in the Character inventory by converting the
-    /// materials having only one possible receipe, and depositing the crafted
-    /// items.
+    /// materials having only one possible receipe.
     fn process_raw_mats(&self) {
-        let unique_crafts = self
-            .inventory_raw_mats()
+        self.inventory_raw_mats()
             .into_iter()
             .filter_map(|rm| self.items.unique_craft(&rm.code))
             .filter(|cw| self.has_mats_for(&cw.code) > 0)
-            .collect_vec();
-        unique_crafts.iter().for_each(|p| {
-            self.craft_max_from_inventory(&p.code);
-        });
-        unique_crafts
-            .iter()
-            .for_each(|p| self.deposit_all_of(&p.code));
+            .for_each(|p| {
+                self.craft_max_from_inventory(&p.code);
+            });
     }
 
     /// Find a target and kill it if possible.
