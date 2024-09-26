@@ -28,7 +28,7 @@ impl EventsApi {
                 get_all_events_events_get(&self.configuration, Some(current_page), Some(100));
             match resp {
                 Ok(resp) => {
-                    events.append(&mut resp.data.clone());
+                    events.extend(resp.data);
                     if let Some(Some(pages)) = resp.pages {
                         if current_page >= pages {
                             finished = true

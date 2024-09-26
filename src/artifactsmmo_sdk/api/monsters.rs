@@ -42,7 +42,7 @@ impl MonstersApi {
             );
             match resp {
                 Ok(resp) => {
-                    monsters.append(&mut resp.data.clone());
+                    monsters.extend(resp.data);
                     if let Some(Some(pages)) = resp.pages {
                         if current_page >= pages {
                             finished = true

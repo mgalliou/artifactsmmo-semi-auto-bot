@@ -44,7 +44,7 @@ impl ResourcesApi {
             );
             match resp {
                 Ok(resp) => {
-                    resources.append(&mut resp.data.clone());
+                    resources.extend(resp.data);
                     if let Some(Some(pages)) = resp.pages {
                         if current_page >= pages {
                             finished = true

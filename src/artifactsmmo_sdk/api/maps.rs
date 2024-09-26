@@ -40,7 +40,7 @@ impl MapsApi {
             );
             match resp {
                 Ok(resp) => {
-                    maps.append(&mut resp.data.clone());
+                    maps.extend(resp.data);
                     if let Some(Some(pages)) = resp.pages {
                         if current_page >= pages {
                             finished = true
