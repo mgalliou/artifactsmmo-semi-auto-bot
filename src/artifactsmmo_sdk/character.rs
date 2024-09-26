@@ -98,7 +98,7 @@ impl Character {
                 }
             }
             if let Some(craft) = self.conf().target_craft {
-                if self.craft_from_bank(&craft, self.max_craftable_items(&craft)) > 0 {
+                if self.craft_max_from_bank(&craft) > 0 {
                     continue;
                 }
             }
@@ -470,6 +470,20 @@ impl Character {
         quantity
     }
 
+    /// Crafts the maximum amount of given item `code` that can be crafted in one go with the
+    /// materials available in bank, then deposit the crafted items.
+    pub fn craft_max_from_bank(&self, code: &str) -> i32 {
+        let max = self.max_craftable_items(code);
+        if max <= 0 {
+            error!(
+                "{}: not enough materials in bank to craft any '{}'.",
+                self.name, code
+            );
+            return 0;
+        }
+        self.craft_from_bank(code, max)
+    }
+
     /// Crafts the given `quantity` of the given item `code` if the required
     /// materials to craft them in one go are available in bank and deposit the crafted
     /// items into the bank.
@@ -814,8 +828,9 @@ impl Character {
     fn equip_item_from_bank_or_inventory(&self, s: Slot, item: &ItemSchema) {
         let prev_equiped = self.equiped_in(s);
         if prev_equiped.is_some_and(|e| e.code == item.code) {
-            info!("{}: item {} already equiped", self.name, item.code);
-        } else if self.has_in_inventory(&item.code) > 0
+            return;
+        }
+        if self.has_in_inventory(&item.code) > 0
             || (self.bank.has_item(&item.code) > 0 && self.action_withdraw(&item.code, 1))
         {
             let _ = self.action_equip(&item.code, s, 1);
@@ -824,7 +839,7 @@ impl Character {
             }
         } else {
             error!(
-                "{}: upgrade not found in bank or inventory: '{}'.",
+                "{}: item not found in bank or inventory: '{}'.",
                 self.name, item.code
             );
         }
