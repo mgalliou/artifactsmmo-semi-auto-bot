@@ -615,15 +615,12 @@ impl Character {
     /// Reycle the maximum amount of the item `code` with the items  currently
     /// available in the character inventory and returns the amount recycled.
     fn recycle_all(&self, code: &str) -> i32 {
-        info!("{}: recycling all '{}'.", self.name, code);
-        let item = self.inventory_copy().into_iter().find(|i| i.code == code);
-        item.map_or(0, |i| {
-            if self.action_recycle(&i.code, i.quantity) {
-                i.quantity
-            } else {
-                0
-            }
-        })
+        let n = self.has_in_inventory(code);
+        if n > 0 {
+            info!("{}: recycling all '{}'.", self.name, code);
+            self.action_recycle(code, n);
+        }
+        n
     }
 
     fn wait_for_cooldown(&self) {
@@ -666,10 +663,10 @@ impl Character {
     /// Checks if the `Character` inventory is full (all slots are occupied or
     /// `inventory_max_items` is reached).
     fn inventory_is_full(&self) -> bool {
-        self.data.read().map_or(false, |d| {
-            self.inventory_total() >= d.inventory_max_items
-                || d.inventory.iter().flatten().all(|s| s.quantity > 0)
-        })
+        self.inventory_total() >= self.inventory_max_items()
+            || self.data.read().map_or(false, |d| {
+                d.inventory.iter().flatten().all(|s| s.quantity > 0)
+            })
     }
 
     /// Returns the amount of the given item `code` in the `Character` inventory.
@@ -706,7 +703,6 @@ impl Character {
         self.items
             .mats(code)
             .iter()
-            .filter(|mat| mat.quantity > 0)
             .map(|mat| self.has_in_inventory(&mat.code) / mat.quantity)
             .min()
             .unwrap_or(0)
