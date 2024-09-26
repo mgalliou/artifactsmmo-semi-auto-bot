@@ -77,10 +77,10 @@ fn handle_char(args: &[&str], account: &Account) {
                 }
                 "craft" => match (args.get(2), args.get(3)) {
                     (Some(code), Some(quantity)) => {
-                        char.craft_item(code, quantity.parse::<i32>().unwrap_or(0));
+                        char.craft_items(code, quantity.parse::<i32>().unwrap_or(0));
                     }
                     (Some(code), None) => {
-                        char.craft_item(code, 1);
+                        char.craft_items(code, 1);
                     }
                     _ => eprint!("missing args"),
                 },

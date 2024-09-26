@@ -83,16 +83,6 @@ impl Character {
             })
     }
 
-    pub fn toggle_idle(&self) {
-        if let Ok(mut conf) = self.conf.write() {
-            conf.idle ^= true;
-            info!("{} toggled idle: {}.", self.name, conf.idle);
-            if !conf.idle {
-                self.refresh_data()
-            }
-        }
-    }
-
     fn run_loop(&self) {
         info!("{}: started !", self.name);
         self.handle_wooden_stick();
@@ -108,7 +98,7 @@ impl Character {
                 }
             }
             if let Some(craft) = self.conf().target_craft {
-                if self.craft_max_from_bank(&craft) > 0 {
+                if self.craft_from_bank(&craft, self.max_craftable_items(&craft)) > 0 {
                     continue;
                 }
             }
@@ -124,7 +114,81 @@ impl Character {
             if self.is_gatherer() && self.find_and_gather() {
                 continue;
             }
+            info!("{}: no action found, sleeping for 30sec.", self.name);
+            sleep(Duration::from_secs(30));
         }
+    }
+
+    fn handle_wooden_stick(&self) {
+        if self.role() != Role::Fighter
+            && self
+                .equiped_in(Slot::Weapon)
+                .is_some_and(|w| w.code == "wooden_stick")
+        {
+            let _ = self.action_unequip(Slot::Weapon, 1);
+            let _ = self.action_deposit("wooden_stick", 1);
+        };
+    }
+
+    /// If inventory is full, process the raw materials if possible and deposit
+    /// all the consumables and resources in inventory to the bank.
+    fn process_inventory(&self) {
+        if self.inventory_is_full() {
+            if self.conf().process_gathered {
+                self.process_raw_mats();
+            }
+            self.deposit_all_of_type(Type::Consumable);
+            self.deposit_all_of_type(Type::Resource);
+        }
+    }
+
+    /// Returns the next skill that should leveled by the Character, based on
+    /// its configuration and the items available in bank.
+    fn target_skill_to_level(&self) -> Option<Skill> {
+        let mut skills = vec![];
+        if self.conf().weaponcraft {
+            skills.push(Skill::Weaponcrafting);
+        }
+        if self.conf().gearcraft {
+            skills.push(Skill::Gearcrafting);
+        }
+        if self.conf().jewelcraft {
+            skills.push(Skill::Jewelrycrafting);
+        }
+        if self.conf().cook {
+            skills.push(Skill::Cooking);
+        }
+        skills.sort_by_key(|s| self.skill_level(*s));
+        skills.into_iter().find(|&skill| {
+            self.items
+                .best_for_leveling(self.skill_level(skill), skill)
+                .is_some_and(|i| self.bank.has_mats_for(&i.code) > 0)
+        })
+    }
+
+    /// Finds the best item  to level the given `skill` and crafts the
+    /// maximum amount that can be crafted in one go with the material
+    /// availables in bank. Items are crafted then recycled until no more items
+    /// can be crafted or until crafting no longer provides XP.
+    //TODO: handle item already in inventory
+    fn levelup_by_crafting(&self, skill: Skill) -> bool {
+        let mut crafted_once = false;
+        if let Some(best) = self.items.best_for_leveling(self.skill_level(skill), skill) {
+            info!("{}: leveling {:#?} by crafting.", self.name, skill);
+            self.deposit_all();
+            self.withdraw_max_mats_for(&best.code);
+            let mut crafted = -1;
+            while self.skill_level(skill) - best.level <= 10 && crafted != 0 {
+                crafted_once = true;
+                // TODO ge prices handling
+                crafted = self.craft_max_from_inventory(&best.code);
+                if crafted > 0 {
+                    let _ = self.action_recycle(&best.code, crafted);
+                }
+            }
+            self.deposit_all_of_type(Type::Resource);
+        }
+        crafted_once
     }
 
     fn handle_events(&self) -> bool {
@@ -187,13 +251,12 @@ impl Character {
 
     fn handle_item_task(&self) -> bool {
         let in_bank = self.bank.has_item(&self.task());
-        let missing = self.task_missing();
         let item = &self.task();
+        let missing = self.task_missing();
         let craftable = self.bank.has_mats_for(item);
+
         if in_bank >= missing {
-            self.deposit_all_of_type(Type::Consumable);
-            self.deposit_all_of_type(Type::Resource);
-            self.deposit_all_of_type(Type::Currency);
+            self.deposit_all();
             if missing > self.inventory_free_space() {
                 self.action_withdraw(item, self.inventory_free_space())
             } else {
@@ -201,12 +264,10 @@ impl Character {
             };
             return self.action_task_trade(item, self.has_in_inventory(&self.task()));
         } else if self.can_craft(item) && craftable > 0 {
-            let max = self.max_craftable_items(item);
-            if max > self.task_missing() {
-                return self.craft_item(item, self.task_missing()) > 0;
-            } else {
-                return self.craft_item(item, max) > 0;
-            };
+            return self.craft_from_bank(
+                item,
+                min(self.max_craftable_items(item), self.task_missing()),
+            ) > 0;
         } else {
             error!(
                 "{}: missing item in bank to complete task: '{}' {}/{}",
@@ -217,83 +278,6 @@ impl Character {
             )
         }
         false
-    }
-
-    fn handle_wooden_stick(&self) {
-        if self.role() != Role::Fighter
-            && self
-                .equiped_in(Slot::Weapon)
-                .is_some_and(|w| w.code == "wooden_stick")
-        {
-            let _ = self.action_unequip(Slot::Weapon, 1);
-            let _ = self.action_deposit("wooden_stick", 1);
-        };
-    }
-
-    fn is_gatherer(&self) -> bool {
-        matches!(self.role(), Role::Miner | Role::Woodcutter | Role::Fisher)
-    }
-
-    fn conf(&self) -> CharConfig {
-        self.conf.read().unwrap().clone()
-    }
-
-    /// Refresh the `Character` schema from API.
-    fn refresh_data(&self) {
-        if let Ok(resp) = self.api.get(&self.name) {
-            self.update_data(&resp.data)
-        }
-    }
-
-    /// Update the `Character` schema with the given `schema.
-    fn update_data(&self, schema: &CharacterSchema) {
-        if let Ok(mut d) = self.data.write() {
-            d.clone_from(schema)
-        }
-    }
-
-    fn role(&self) -> Role {
-        self.conf.read().map_or(Role::default(), |d| d.role)
-    }
-
-    /// If inventory is full, process the raw materials if possible and deposit
-    /// all the consumables and resources in inventory to the bank.
-    fn process_inventory(&self) {
-        if self.inventory_is_full() {
-            if self.conf().process_gathered {
-                self.process_raw_mats();
-            }
-            self.deposit_all_of_type(Type::Consumable);
-            self.deposit_all_of_type(Type::Resource);
-        }
-    }
-
-    fn task(&self) -> String {
-        self.data
-            .read()
-            .map_or("".to_string(), |d| d.task.to_owned())
-    }
-
-    fn task_type(&self) -> String {
-        self.data
-            .read()
-            .map_or("".to_string(), |d| d.task_type.to_owned())
-    }
-
-    fn task_progress(&self) -> i32 {
-        self.data.read().map_or(0, |d| d.task_progress)
-    }
-
-    fn task_total(&self) -> i32 {
-        self.data.read().map_or(0, |d| d.task_total)
-    }
-
-    fn task_missing(&self) -> i32 {
-        self.task_total() - self.task_progress()
-    }
-
-    fn task_finished(&self) -> bool {
-        self.task_progress() >= self.task_total()
     }
 
     /// Process the raw materials in the Character inventory by converting the
@@ -312,111 +296,6 @@ impl Character {
         unique_crafts
             .iter()
             .for_each(|p| self.deposit_all_of(&p.code));
-    }
-
-    /// Returns the current `Equipment` of the `Character`, containing item schemas.
-    fn equipment(&self) -> Equipment {
-        self.data
-            .read()
-            .map_or(Equipment::default(), |d| Equipment {
-                weapon: self.items.get(&d.weapon_slot),
-                shield: self.items.get(&d.shield_slot),
-                helmet: self.items.get(&d.helmet_slot),
-                body_armor: self.items.get(&d.boots_slot),
-                leg_armor: self.items.get(&d.leg_armor_slot),
-                boots: self.items.get(&d.boots_slot),
-                ring1: self.items.get(&d.ring1_slot),
-                ring2: self.items.get(&d.ring2_slot),
-                amulet: self.items.get(&d.amulet_slot),
-                artifact1: self.items.get(&d.artifact1_slot),
-                artifact2: self.items.get(&d.artifact2_slot),
-                artifact3: self.items.get(&d.artifact3_slot),
-                consumable1: self.items.get(&d.consumable1_slot),
-                consumable2: self.items.get(&d.consumable2_slot),
-            })
-    }
-
-    /// Checks if an equipment making the `Character` able to kill the given
-    /// `monster` is available, equip it, then move the `Character` to the given
-    /// map or the closest containing the `monster` and fight it.
-    fn kill_monster(&self, monster: &MonsterSchema, map: Option<&MapSchema>) -> bool {
-        let equipment = self.best_available_equipment_against(monster);
-        if !self.can_kill_with(monster, &equipment) {
-            return false;
-        }
-        self.equip_equipment(&equipment);
-        if let Some(map) = map {
-            self.action_move(map.x, map.y);
-        } else if let Some(map) = self.closest_map_with_content_code(&monster.code) {
-            self.action_move(map.x, map.y);
-        }
-        self.action_fight()
-    }
-
-    /// Checks if the `Character` could kill the given `monster` with the given
-    /// `equipment`
-    fn can_kill_with(&self, monster: &MonsterSchema, equipment: &Equipment) -> bool {
-        let turns_to_kill = (monster.hp as f32 / equipment.attack_damage_against(monster)).ceil();
-        let turns_to_be_killed = ((self.base_health() + equipment.health_increase()) as f32
-            / equipment.attack_damage_from(monster))
-        .ceil();
-        debug!(
-            "{}: '{}': turn to kill: {}, turns to be killed {}",
-            self.name, monster.code, turns_to_kill, turns_to_be_killed
-        );
-        turns_to_kill <= turns_to_be_killed
-    }
-
-    /// Returns the level of the `Character`.
-    fn level(&self) -> i32 {
-        self.data.read().map_or(1, |d| d.level)
-    }
-
-    /// Returns the base health of the `Character` without its equipment.
-    fn base_health(&self) -> i32 {
-        115 + 5 * self.level()
-    }
-
-    /// Checks if the character is able to gather the given `resource`. if it
-    /// can, equips the best available appropriate tool, then move the `Character`
-    /// to the given map or the closest containing the `resource` and gather it.  
-    fn gather_resource(&self, resource: &ResourceSchema, map: Option<&MapSchema>) -> bool {
-        if !self.can_gather(resource) {
-            return false;
-        }
-        if let Some(tool) = self.best_available_tool_for_resource(&resource.code) {
-            self.equip_item_from_bank_or_inventory(Slot::Weapon, tool)
-        }
-        if let Some(map) = map {
-            self.action_move(map.x, map.y);
-        } else if let Some(map) = self.closest_map_with_content_code(&resource.code) {
-            self.action_move(map.x, map.y);
-        }
-        self.action_gather()
-    }
-
-    /// Returns the next skill that should leveled by the Character, based on
-    /// its configuration and the items available in bank.
-    fn target_skill_to_level(&self) -> Option<Skill> {
-        let mut skills = vec![];
-        if self.conf().weaponcraft {
-            skills.push(Skill::Weaponcrafting);
-        }
-        if self.conf().gearcraft {
-            skills.push(Skill::Gearcrafting);
-        }
-        if self.conf().jewelcraft {
-            skills.push(Skill::Jewelrycrafting);
-        }
-        if self.conf().cook {
-            skills.push(Skill::Cooking);
-        }
-        skills.sort_by_key(|s| self.skill_level(*s));
-        skills.into_iter().find(|&skill| {
-            self.items
-                .best_for_leveling(self.skill_level(skill), skill)
-                .is_some_and(|i| self.bank.has_mats_for(&i.code) > 0)
-        })
     }
 
     /// Find a target and kill it if possible.
@@ -458,6 +337,90 @@ impl Character {
         false
     }
 
+    /// Checks if an equipment making the `Character` able to kill the given
+    /// `monster` is available, equip it, then move the `Character` to the given
+    /// map or the closest containing the `monster` and fight it.
+    fn kill_monster(&self, monster: &MonsterSchema, map: Option<&MapSchema>) -> bool {
+        let equipment = self.best_available_equipment_against(monster);
+        if !self.can_kill_with(monster, &equipment) {
+            return false;
+        }
+        self.equip_equipment(&equipment);
+        if let Some(map) = map {
+            self.action_move(map.x, map.y);
+        } else if let Some(map) = self.closest_map_with_content_code(&monster.code) {
+            self.action_move(map.x, map.y);
+        }
+        self.action_fight()
+    }
+
+    /// Checks if the character is able to gather the given `resource`. if it
+    /// can, equips the best available appropriate tool, then move the `Character`
+    /// to the given map or the closest containing the `resource` and gather it.  
+    fn gather_resource(&self, resource: &ResourceSchema, map: Option<&MapSchema>) -> bool {
+        if !self.can_gather(resource) {
+            return false;
+        }
+        if let Some(tool) = self.best_available_tool_for_resource(&resource.code) {
+            self.equip_item_from_bank_or_inventory(Slot::Weapon, tool)
+        }
+        if let Some(map) = map {
+            self.action_move(map.x, map.y);
+        } else if let Some(map) = self.closest_map_with_content_code(&resource.code) {
+            self.action_move(map.x, map.y);
+        }
+        self.action_gather()
+    }
+
+    /// Checks if the `Character` could kill the given `monster` with the given
+    /// `equipment`
+    fn can_kill_with(&self, monster: &MonsterSchema, equipment: &Equipment) -> bool {
+        let turns_to_kill = (monster.hp as f32 / equipment.attack_damage_against(monster)).ceil();
+        let turns_to_be_killed = ((self.base_health() + equipment.health_increase()) as f32
+            / equipment.attack_damage_from(monster))
+        .ceil();
+        debug!(
+            "{}: '{}': turn to kill: {}, turns to be killed {}",
+            self.name, monster.code, turns_to_kill, turns_to_be_killed
+        );
+        turns_to_kill <= turns_to_be_killed
+    }
+
+    fn can_gather(&self, resource: &ResourceSchema) -> bool {
+        self.skill_level(resource.skill.into()) >= resource.level
+    }
+
+    fn can_craft(&self, code: &str) -> bool {
+        if let Some(item) = self.items.get(code) {
+            if let Some(skill) = item.skill_to_craft() {
+                return self.skill_level(skill) >= item.level;
+            }
+        }
+        false
+    }
+
+    /// Returns the current `Equipment` of the `Character`, containing item schemas.
+    fn equipment(&self) -> Equipment {
+        self.data
+            .read()
+            .map_or(Equipment::default(), |d| Equipment {
+                weapon: self.items.get(&d.weapon_slot),
+                shield: self.items.get(&d.shield_slot),
+                helmet: self.items.get(&d.helmet_slot),
+                body_armor: self.items.get(&d.boots_slot),
+                leg_armor: self.items.get(&d.leg_armor_slot),
+                boots: self.items.get(&d.boots_slot),
+                ring1: self.items.get(&d.ring1_slot),
+                ring2: self.items.get(&d.ring2_slot),
+                amulet: self.items.get(&d.amulet_slot),
+                artifact1: self.items.get(&d.artifact1_slot),
+                artifact2: self.items.get(&d.artifact2_slot),
+                artifact3: self.items.get(&d.artifact3_slot),
+                consumable1: self.items.get(&d.consumable1_slot),
+                consumable2: self.items.get(&d.consumable2_slot),
+            })
+    }
+
     /// Returns the item equiped in the `given` slot.
     fn equiped_in(&self, slot: Slot) -> Option<&ItemSchema> {
         self.data
@@ -483,77 +446,46 @@ impl Character {
             .ok()?
     }
 
-    /// Finds the best item  to level the given `skill` and crafts the
-    /// maximum amount that can be crafted in one go with the material
-    /// availables in bank. Items are crafted then recycled until no more items
-    /// can be crafted or until crafting no longer provides XP.
-    //TODO: handle item already in inventory
-    fn levelup_by_crafting(&self, skill: Skill) -> bool {
-        let mut crafted_once = false;
-        if let Some(best) = self.items.best_for_leveling(self.skill_level(skill), skill) {
-            info!("{}: leveling {:#?} by crafting.", self.name, skill);
-            self.deposit_all_of_type(Type::Resource);
-            self.deposit_all_of_type(Type::Consumable);
-            self.withdraw_max_mats_for(&best.code);
-            let mut crafted = -1;
-            while self.skill_level(skill) - best.level <= 10 && crafted != 0 {
-                crafted_once = true;
-                // TODO ge prices handling
-                crafted = self.craft_max_from_inventory(&best.code);
-                if crafted > 0 {
-                    let _ = self.action_recycle(&best.code, crafted);
-                }
-            }
-            self.deposit_all_of_type(Type::Resource);
-        }
-        crafted_once
-    }
-
-    pub fn craft_item(&self, code: &str, quantity: i32) -> i32 {
+    /// Withdraw the materials for, craft, then deposit the item `code` until
+    /// the given quantity is crafted.
+    pub fn craft_items(&self, code: &str, quantity: i32) -> i32 {
         if !self.can_craft(code) {
-            return 0;
-        }
-        if self.bank.has_mats_for(code) < quantity {
-            error!(
-                "{}: not enough materials to craft '{}'x{} from bank.",
-                self.name, code, quantity
-            );
             return 0;
         }
         let mut crafted = 0;
         let mut craftable = self.bank.has_mats_for(code);
         info!("{}: is going to craft '{}'x{}", self.name, code, quantity);
         while crafted < quantity && craftable > 0 {
-            self.deposit_all_of_type(Type::Resource);
-            self.deposit_all_of_type(Type::Consumable);
-            let max = self.max_craftable_items(code);
-            if max > quantity - crafted {
-                crafted += self.craft_from_bank(code, quantity - crafted)
-            } else {
-                crafted += self.craft_from_bank(code, max)
-            };
+            self.deposit_all();
+            crafted += self.craft_from_bank(
+                code,
+                min(self.max_current_craftable_items(code), quantity - crafted),
+            );
             craftable = self.bank.has_mats_for(code);
+            info!("{}: crafted {}/{} '{}", self.name, crafted, quantity, code)
+        }
+        if crafted == 0 && self.bank.has_mats_for(code) < quantity {
+            return 0;
         }
         quantity
     }
 
     /// Crafts the given `quantity` of the given item `code` if the required
-    /// materials to craft them in one go are available in bank.
+    /// materials to craft them in one go are available in bank and deposit the crafted
+    /// items into the bank.
     pub fn craft_from_bank(&self, code: &str, quantity: i32) -> i32 {
-        if self.bank.has_mats_for(code) < quantity {
+        if self.max_craftable_items(code) < quantity {
             error!(
-                "{}: to enough materials to craft '{}'x{} from bank.",
+                "{}: not enough materials in bank to craft '{}'x{}.",
                 self.name, code, quantity
             );
             return 0;
         }
-        self.max_craftable_items(code);
         info!(
             "{}: going to craft '{}'x{} from bank.",
             self.name, code, quantity
         );
-        self.deposit_all_of_type(Type::Resource);
-        self.deposit_all_of_type(Type::Consumable);
+        self.deposit_all();
         self.withdraw_mats_for(code, quantity);
         if self.action_craft(code, quantity) {
             self.action_deposit(code, quantity);
@@ -562,37 +494,17 @@ impl Character {
         0
     }
 
-    /// Crafts the maxmium amount of the given item `code` that can be crafted in
-    /// one go with the materials available in the bank.
-    // NOTE: maybe its not this function responsability to deposit items before
-    // withdrawing mats.
-    // TODO: use craft_from_bank function to DRY this method
-    fn craft_max_from_bank(&self, code: &str) -> i32 {
-        if self.bank.has_mats_for(code) > 0 {
-            info!("{}: going to crafting all '{}' from bank.", self.name, code);
-            self.deposit_all_of_type(Type::Resource);
-            self.deposit_all_of_type(Type::Consumable);
-            self.withdraw_max_mats_for(code);
-            return self.craft_max_from_inventory(code);
+    /// Deposits all the items to the bank.
+    fn deposit_all(&self) {
+        if self.inventory_total() <= 0 {
+            return;
         }
-        error!(
-            "{}: to enough materials to craft '{}' from bank.",
-            self.name, code
-        );
-        0
-    }
-
-    /// Returns the `Character` level in the given `skill`.
-    fn skill_level(&self, skill: Skill) -> i32 {
-        self.data.read().map_or(1, |d| match skill {
-            Skill::Cooking => d.cooking_level,
-            Skill::Fishing => d.fishing_level,
-            Skill::Gearcrafting => d.gearcrafting_level,
-            Skill::Jewelrycrafting => d.jewelrycrafting_level,
-            Skill::Mining => d.mining_level,
-            Skill::Weaponcrafting => d.weaponcrafting_level,
-            Skill::Woodcutting => d.woodcutting_level,
-        })
+        info!("{}: depositing all items to the bank.", self.name,);
+        for slot in self.inventory_copy() {
+            if slot.quantity > 0 {
+                let _ = self.action_deposit(&slot.code, slot.quantity);
+            }
+        }
     }
 
     /// Deposits all the items of the given `type` to the bank.
@@ -640,14 +552,10 @@ impl Character {
         true
     }
 
-    /// Withdraw the maximum amount of materials to craft the maximum amount of
-    /// the item `code` and returns the maximum amount that can be crafted.
+    /// Withdraw the maximum amount of materials considering free spaces in inventory to craft the
+    /// maximum amount of the item `code` and returns the maximum amount that can be crafted.
     fn withdraw_max_mats_for(&self, code: &str) -> i32 {
-        info!(
-            "{}: going to withdraw from the bank the materials to craft the maximum amount of '{code}'.",
-            self.name
-        );
-        let max = self.max_craftable_items(code);
+        let max = self.max_current_craftable_items(code);
         self.withdraw_mats_for(code, max);
         max
     }
@@ -657,6 +565,15 @@ impl Character {
     fn max_craftable_items(&self, code: &str) -> i32 {
         min(
             self.bank.has_mats_for(code),
+            self.inventory_max_items() / self.items.mats_quantity_for(code),
+        )
+    }
+
+    /// Calculates the maximum number of items that can be crafted in one go based on available
+    /// inventory free space and bank materials.
+    fn max_current_craftable_items(&self, code: &str) -> i32 {
+        min(
+            self.bank.has_mats_for(code),
             self.inventory_free_space() / self.items.mats_quantity_for(code),
         )
     }
@@ -664,14 +581,19 @@ impl Character {
     /// Craft the maximum amount of the item `code` with the materials currently available
     /// in the character inventory and returns the amount crafted.
     fn craft_max_from_inventory(&self, code: &str) -> i32 {
-        info!(
-            "{}: going to craft all '{}' with materials available in inventory.",
-            self.name, code
-        );
         let n = self.has_mats_for(code);
-        if n > 0 && self.action_craft(code, n) {
+        if n > 0 {
+            info!(
+                "{}: going to craft all '{}' with materials available in inventory.",
+                self.name, code
+            );
+            self.action_craft(code, n);
             n
         } else {
+            error!(
+                "{}: not enough materials in inventory to craft {}",
+                self.name, code
+            );
             0
         }
     }
@@ -747,18 +669,21 @@ impl Character {
         })
     }
 
-    /// Returns the free spaces in the `Character` inventory.
-    fn inventory_free_space(&self) -> i32 {
-        self.data
-            .read()
-            .map_or(0, |d| d.inventory_max_items - self.inventory_total())
-    }
-
     /// Returns the amount of item in the `Character` inventory.
     fn inventory_total(&self) -> i32 {
         self.data.read().map_or(0, |d| {
             d.inventory.iter().flatten().map(|i| i.quantity).sum()
         })
+    }
+
+    /// Returns the maximum number of item the inventory can contain.
+    fn inventory_max_items(&self) -> i32 {
+        self.data.read().map_or(0, |d| d.inventory_max_items)
+    }
+
+    /// Returns the free spaces in the `Character` inventory.
+    fn inventory_free_space(&self) -> i32 {
+        self.inventory_max_items() - self.inventory_total()
     }
 
     /// Returns the amount of the given item `code` that can be crafted with
@@ -1081,17 +1006,91 @@ impl Character {
             .sum::<f32>()
     }
 
-    fn can_gather(&self, resource: &ResourceSchema) -> bool {
-        self.skill_level(resource.skill.into()) >= resource.level
+    /// Refresh the `Character` schema from API.
+    fn refresh_data(&self) {
+        if let Ok(resp) = self.api.get(&self.name) {
+            self.update_data(&resp.data)
+        }
     }
 
-    fn can_craft(&self, code: &str) -> bool {
-        if let Some(item) = self.items.get(code) {
-            if let Some(skill) = item.skill_to_craft() {
-                return self.skill_level(skill) >= item.level;
+    /// Update the `Character` schema with the given `schema.
+    fn update_data(&self, schema: &CharacterSchema) {
+        if let Ok(mut d) = self.data.write() {
+            d.clone_from(schema)
+        }
+    }
+
+    pub fn toggle_idle(&self) {
+        if let Ok(mut conf) = self.conf.write() {
+            conf.idle ^= true;
+            info!("{} toggled idle: {}.", self.name, conf.idle);
+            if !conf.idle {
+                self.refresh_data()
             }
         }
-        false
+    }
+
+    fn role(&self) -> Role {
+        self.conf.read().map_or(Role::default(), |d| d.role)
+    }
+
+    fn is_gatherer(&self) -> bool {
+        matches!(self.role(), Role::Miner | Role::Woodcutter | Role::Fisher)
+    }
+
+    fn task(&self) -> String {
+        self.data
+            .read()
+            .map_or("".to_string(), |d| d.task.to_owned())
+    }
+
+    fn task_type(&self) -> String {
+        self.data
+            .read()
+            .map_or("".to_string(), |d| d.task_type.to_owned())
+    }
+
+    fn task_progress(&self) -> i32 {
+        self.data.read().map_or(0, |d| d.task_progress)
+    }
+
+    fn task_total(&self) -> i32 {
+        self.data.read().map_or(0, |d| d.task_total)
+    }
+
+    fn task_missing(&self) -> i32 {
+        self.task_total() - self.task_progress()
+    }
+
+    fn task_finished(&self) -> bool {
+        self.task_progress() >= self.task_total()
+    }
+
+    /// Returns the level of the `Character`.
+    fn level(&self) -> i32 {
+        self.data.read().map_or(1, |d| d.level)
+    }
+
+    /// Returns the `Character` level in the given `skill`.
+    fn skill_level(&self, skill: Skill) -> i32 {
+        self.data.read().map_or(1, |d| match skill {
+            Skill::Cooking => d.cooking_level,
+            Skill::Fishing => d.fishing_level,
+            Skill::Gearcrafting => d.gearcrafting_level,
+            Skill::Jewelrycrafting => d.jewelrycrafting_level,
+            Skill::Mining => d.mining_level,
+            Skill::Weaponcrafting => d.weaponcrafting_level,
+            Skill::Woodcutting => d.woodcutting_level,
+        })
+    }
+
+    /// Returns the base health of the `Character` without its equipment.
+    fn base_health(&self) -> i32 {
+        115 + 5 * self.level()
+    }
+
+    fn conf(&self) -> CharConfig {
+        self.conf.read().unwrap().clone()
     }
 }
 
