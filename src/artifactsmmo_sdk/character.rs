@@ -814,9 +814,10 @@ impl Character {
     fn equip_item_from_bank_or_inventory(&self, s: Slot, item: &ItemSchema) {
         let prev_equiped = self.equiped_in(s);
         if prev_equiped.is_some_and(|e| e.code == item.code) {
-        } else if self.has_in_inventory(&item.code) > 0 {
-            let _ = self.action_equip(&item.code, s, 1);
-        } else if self.bank.has_item(&item.code) > 0 && self.action_withdraw(&item.code, 1) {
+            info!("{}: item {} already equiped", self.name, item.code);
+        } else if self.has_in_inventory(&item.code) > 0
+            || (self.bank.has_item(&item.code) > 0 && self.action_withdraw(&item.code, 1))
+        {
             let _ = self.action_equip(&item.code, s, 1);
             if let Some(i) = prev_equiped {
                 let _ = self.action_deposit(&i.code, 1);
