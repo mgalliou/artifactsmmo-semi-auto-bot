@@ -216,11 +216,16 @@ impl Character {
             self.game.update_offset();
             return self.perform_action(action);
         };
-        error!(
-            "{}: error while performing action: {:?}",
-            self.name,
-            e.api_error()
-        );
+        match e.api_error() {
+            Some(e) => error!(
+                "{}: error while performing action '{:?}': {} ({}).",
+                self.name, action, e.error.message, e.error.code,
+            ),
+            None => error!(
+                "{}: unkown error while performing action '{:?}'.",
+                self.name, action,
+            ),
+        }
         Err(e)
     }
 }
