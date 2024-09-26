@@ -1,6 +1,5 @@
 use artifactsmmo_openapi::models::{
-    CharacterSchema, CraftSchema, ItemEffectSchema, MapContentSchema, MonsterSchema,
-    ResourceSchema, SimpleItemSchema,
+    CharacterSchema, CraftSchema, ItemEffectSchema, MapContentSchema, MapSchema, MonsterSchema, ResourceSchema, SimpleItemSchema
 };
 use as_any::AsAny;
 use items::{DamageType, Type};
