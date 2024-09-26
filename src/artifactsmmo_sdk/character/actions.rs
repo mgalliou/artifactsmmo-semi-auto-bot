@@ -334,8 +334,13 @@ impl ResponseSchema for CharacterFightResponseSchema {
 
 impl ResponseSchema for SkillResponseSchema {
     fn pretty(&self) -> String {
+        let reason = if self.data.cooldown.reason == Reason::Crafting {
+            "crafted"
+        } else {
+            "gathered"
+        };
         format!(
-            "{}: gathered [{}] ({}xp).",
+            "{}: {reason} [{}] ({}xp).",
             self.data.character.name,
             DropSchemas(&self.data.details.items),
             self.data.details.xp,
