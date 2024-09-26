@@ -23,7 +23,7 @@ use itertools::Itertools;
 use log::{debug, error, info, warn};
 use serde::Deserialize;
 use std::{
-    cmp::Ordering,
+    cmp::{min, Ordering},
     io,
     option::Option,
     sync::{Arc, RwLock},
@@ -191,9 +191,9 @@ impl Character {
         let item = &self.task();
         let craftable = self.bank.has_mats_for(item);
         if in_bank >= missing {
-            self.deposit_all(Type::Consumable);
-            self.deposit_all(Type::Resource);
-            self.deposit_all(Type::Currency);
+            self.deposit_all_of_type(Type::Consumable);
+            self.deposit_all_of_type(Type::Resource);
+            self.deposit_all_of_type(Type::Currency);
             if missing > self.inventory_free_space() {
                 self.action_withdraw(item, self.inventory_free_space())
             } else {
@@ -201,7 +201,7 @@ impl Character {
             };
             return self.action_task_trade(item, self.has_in_inventory(&self.task()));
         } else if self.can_craft(item) && craftable > 0 {
-            let max = self.max_withdrawable_to_craft(item);
+            let max = self.max_craftable_items(item);
             if max > self.task_missing() {
                 return self.craft_item(item, self.task_missing()) > 0;
             } else {
@@ -263,8 +263,8 @@ impl Character {
             if self.conf().process_gathered {
                 self.process_raw_mats();
             }
-            self.deposit_all(Type::Consumable);
-            self.deposit_all(Type::Resource);
+            self.deposit_all_of_type(Type::Consumable);
+            self.deposit_all_of_type(Type::Resource);
         }
     }
 
@@ -280,20 +280,20 @@ impl Character {
             .map_or("".to_string(), |d| d.task_type.to_owned())
     }
 
-    fn task_total(&self) -> i32 {
-        self.data.read().map_or(0, |d| d.task_total)
-    }
-
     fn task_progress(&self) -> i32 {
         self.data.read().map_or(0, |d| d.task_progress)
     }
 
-    fn task_finished(&self) -> bool {
-        self.task_progress() >= self.task_total()
+    fn task_total(&self) -> i32 {
+        self.data.read().map_or(0, |d| d.task_total)
     }
 
     fn task_missing(&self) -> i32 {
         self.task_total() - self.task_progress()
+    }
+
+    fn task_finished(&self) -> bool {
+        self.task_progress() >= self.task_total()
     }
 
     /// Process the raw materials in the Character inventory by converting the
@@ -307,7 +307,7 @@ impl Character {
             .filter(|cw| self.has_mats_for(&cw.code) > 0)
             .collect_vec();
         unique_crafts.iter().for_each(|p| {
-            self.craft_all(&p.code);
+            self.craft_max_from_inventory(&p.code);
         });
         unique_crafts
             .iter()
@@ -492,19 +492,19 @@ impl Character {
         let mut crafted_once = false;
         if let Some(best) = self.items.best_for_leveling(self.skill_level(skill), skill) {
             info!("{}: leveling {:#?} by crafting.", self.name, skill);
-            self.deposit_all(Type::Resource);
-            self.deposit_all(Type::Consumable);
+            self.deposit_all_of_type(Type::Resource);
+            self.deposit_all_of_type(Type::Consumable);
             self.withdraw_max_mats_for(&best.code);
             let mut crafted = -1;
             while self.skill_level(skill) - best.level <= 10 && crafted != 0 {
                 crafted_once = true;
                 // TODO ge prices handling
-                crafted = self.craft_all(&best.code);
+                crafted = self.craft_max_from_inventory(&best.code);
                 if crafted > 0 {
                     let _ = self.action_recycle(&best.code, crafted);
                 }
             }
-            self.deposit_all(Type::Resource);
+            self.deposit_all_of_type(Type::Resource);
         }
         crafted_once
     }
@@ -524,9 +524,9 @@ impl Character {
         let mut craftable = self.bank.has_mats_for(code);
         info!("{}: is going to craft '{}'x{}", self.name, code, quantity);
         while crafted < quantity && craftable > 0 {
-            self.deposit_all(Type::Resource);
-            self.deposit_all(Type::Consumable);
-            let max = self.max_withdrawable_to_craft(code);
+            self.deposit_all_of_type(Type::Resource);
+            self.deposit_all_of_type(Type::Consumable);
+            let max = self.max_craftable_items(code);
             if max > quantity - crafted {
                 crafted += self.craft_from_bank(code, quantity - crafted)
             } else {
@@ -547,13 +547,13 @@ impl Character {
             );
             return 0;
         }
-        self.max_withdrawable_to_craft(code);
+        self.max_craftable_items(code);
         info!(
             "{}: going to craft '{}'x{} from bank.",
             self.name, code, quantity
         );
-        self.deposit_all(Type::Resource);
-        self.deposit_all(Type::Consumable);
+        self.deposit_all_of_type(Type::Resource);
+        self.deposit_all_of_type(Type::Consumable);
         self.withdraw_mats_for(code, quantity);
         if self.action_craft(code, quantity) {
             self.action_deposit(code, quantity);
@@ -566,13 +566,14 @@ impl Character {
     /// one go with the materials available in the bank.
     // NOTE: maybe its not this function responsability to deposit items before
     // withdrawing mats.
+    // TODO: use craft_from_bank function to DRY this method
     fn craft_max_from_bank(&self, code: &str) -> i32 {
         if self.bank.has_mats_for(code) > 0 {
             info!("{}: going to crafting all '{}' from bank.", self.name, code);
-            self.deposit_all(Type::Resource);
-            self.deposit_all(Type::Consumable);
+            self.deposit_all_of_type(Type::Resource);
+            self.deposit_all_of_type(Type::Consumable);
             self.withdraw_max_mats_for(code);
-            return self.craft_all(code);
+            return self.craft_max_from_inventory(code);
         }
         error!(
             "{}: to enough materials to craft '{}' from bank.",
@@ -595,7 +596,7 @@ impl Character {
     }
 
     /// Deposits all the items of the given `type` to the bank.
-    fn deposit_all(&self, r#type: Type) {
+    fn deposit_all_of_type(&self, r#type: Type) {
         if self.inventory_total() <= 0 {
             return;
         }
@@ -620,10 +621,11 @@ impl Character {
 
     /// Withdraw the materials required to craft the `quantity` of the
     /// item `code` and returns the maximum amount that can be crafted.
+    // TODO: add check on `inventory_max_items`
     fn withdraw_mats_for(&self, code: &str, quantity: i32) -> bool {
         let mats = self.items.mats(code);
         for mat in &mats {
-            if self.has_in_bank(&mat.code) < mat.quantity * quantity {
+            if self.bank.has_item(&mat.code) < mat.quantity * quantity {
                 warn!("{}: not enough materials in bank to withdraw the materials required to craft '{code}'x{quantity}", self.name);
                 return false;
             }
@@ -651,16 +653,17 @@ impl Character {
     }
 
     /// Calculates the maximum number of items that can be crafted in one go based on available
-    /// inventory space and bank materials.
+    /// inventory free space and bank materials.
     fn max_craftable_items(&self, code: &str) -> i32 {
-        let can_carry = self.inventory_free_space() / self.items.mats_quantity_for(code);
-        let can_craft_from_bank = self.bank.has_mats_for(code);
-        std::cmp::min(can_craft_from_bank, can_carry)
+        min(
+            self.bank.has_mats_for(code),
+            self.inventory_free_space() / self.items.mats_quantity_for(code),
+        )
     }
 
     /// Craft the maximum amount of the item `code` with the materials currently available
     /// in the character inventory and returns the amount crafted.
-    fn craft_all(&self, code: &str) -> i32 {
+    fn craft_max_from_inventory(&self, code: &str) -> i32 {
         info!(
             "{}: going to craft all '{}' with materials available in inventory.",
             self.name, code
@@ -673,7 +676,7 @@ impl Character {
         }
     }
 
-    /// Craft the maximum amount of the item `code` with the items  currently
+    /// Reycle the maximum amount of the item `code` with the items  currently
     /// available in the character inventory and returns the amount recycled.
     fn recycle_all(&self, code: &str) -> i32 {
         info!("{}: recycling all '{}'.", self.name, code);
@@ -888,7 +891,7 @@ impl Character {
         if prev_equiped.is_some_and(|e| e.code == item.code) {
         } else if self.has_in_inventory(&item.code) > 0 {
             let _ = self.action_equip(&item.code, s, 1);
-        } else if self.has_in_bank(&item.code) > 0 && self.action_withdraw(&item.code, 1) {
+        } else if self.bank.has_item(&item.code) > 0 && self.action_withdraw(&item.code, 1) {
             let _ = self.action_equip(&item.code, s, 1);
             if let Some(i) = prev_equiped {
                 let _ = self.action_deposit(&i.code, 1);
@@ -999,11 +1002,8 @@ impl Character {
         }
     }
 
-    fn has_in_bank(&self, code: &str) -> i32 {
-        self.bank.has_item(code)
-    }
     fn has_in_bank_or_inv(&self, code: &str) -> bool {
-        self.has_in_bank(code) > 0 || self.has_in_inventory(code) > 0
+        self.bank.has_item(code) > 0 || self.has_in_inventory(code) > 0
     }
 
     fn has_available(&self, code: &str, slot: Slot) -> bool {
@@ -1093,25 +1093,6 @@ impl Character {
         }
         false
     }
-
-    // fn fight_until_unsuccessful(&self, x: i32, y: i32) {
-    //     let _ = self.move_to(x, y);
-
-    //     loop {
-    //         if let Err(Error::ResponseError(res)) = self.fight() {
-    //             if res.status.eq(&StatusCode::from_u16(499).unwrap()) {
-    //                 error!("{}: needs to cooldown", self.name);
-    //                 self.cool_down(self.remaining_cooldown());
-    //             }
-    //             if res.status.eq(&StatusCode::from_u16(497).unwrap()) {
-    //                 error!("{}: inventory is full", self.name);
-    //                 self.move_to_bank();
-    //                 self.deposit_all();
-    //                 let _ = self.move_to(x, y);
-    //             }
-    //         }
-    //     }
-    // }
 }
 
 #[derive(Debug, Default, PartialEq, Copy, Clone, Deserialize)]
