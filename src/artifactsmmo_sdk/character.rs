@@ -836,7 +836,7 @@ impl Character {
                 .items
                 .equipable_at_level(self.level(), Slot::Weapon)
                 .into_iter()
-                .filter(|i| self.has_available(&i.code, Slot::Weapon))
+                .filter(|i| self.has_available(&i.code) > 0)
                 .min_by_key(|i| i.skill_cooldown_reduction(Skill::from(resource.skill))),
             None => None,
         }
@@ -928,14 +928,23 @@ impl Character {
         }
     }
 
-    fn has_in_bank_or_inv(&self, code: &str) -> bool {
-        self.bank.has_item(code) > 0 || self.has_in_inventory(code) > 0
+    /// Returns the amount of the given item `code` available in bank and inventory.
+    fn has_in_bank_or_inv(&self, code: &str) -> i32 {
+        self.bank.has_item(code) + self.has_in_inventory(code)
     }
 
-    fn has_available(&self, code: &str, slot: Slot) -> bool {
-        self.has_in_bank_or_inv(code) || self.equiped_in(slot).is_some_and(|e| e.code == code)
+    /// Returns the amount of the given item `code` available in bank, inventory and equipment.
+    fn has_available(&self, code: &str) -> i32 {
+        self.has_in_bank_or_inv(code) + {
+            if self.has_equiped(code) {
+                1
+            } else {
+                0
+            }
+        }
     }
 
+    /// Checks if the given item `code` is equiped.
     fn has_equiped(&self, code: &str) -> bool {
         Slot::iter().any(|s| self.equiped_in(s).is_some_and(|e| e.code == code))
     }
@@ -945,7 +954,7 @@ impl Character {
         self.items
             .equipable_at_level(self.level(), Slot::Weapon)
             .into_iter()
-            .filter(|i| self.has_available(&i.code, Slot::Weapon))
+            .filter(|i| self.has_available(&i.code) > 0)
             .collect_vec()
     }
 
@@ -962,7 +971,15 @@ impl Character {
             .items
             .equipable_at_level(self.level(), slot)
             .into_iter()
-            .filter(|i| self.has_available(&i.code, slot))
+            .filter(|i| {
+                self.has_available(&i.code) > {
+                    if slot.is_ring_2() {
+                        1
+                    } else {
+                        0
+                    }
+                }
+            })
             .collect_vec();
         let mut upgrade = available.iter().max_by_key(|i| {
             OrderedFloat(self.armor_attack_damage_against_with_weapon(i, monster, weapon))

@@ -11,7 +11,7 @@ use log::debug;
 use std::str::FromStr;
 use std::{sync::Arc, vec::Vec};
 use strum::IntoEnumIterator;
-use strum_macros::{AsRefStr, Display, EnumIter, EnumString};
+use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
 
 pub struct Items {
     pub data: Vec<ItemSchema>,
@@ -444,7 +444,7 @@ impl ItemSchemaExt for ItemSchema {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, AsRefStr, EnumString, EnumIter)]
+#[derive(Debug, Copy, Clone, PartialEq, AsRefStr, EnumString, EnumIter, EnumIs)]
 #[strum(serialize_all = "snake_case")]
 pub enum Slot {
     Weapon,
