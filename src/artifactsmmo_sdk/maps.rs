@@ -10,7 +10,7 @@ impl Maps {
     pub fn new(config: &Config) -> Maps {
         let api = MapsApi::new(&config.base_url, &config.token);
         Maps {
-            data: api.all(None, None).unwrap().clone(),
+            data: api.all(None, None).expect("maps to be retrieved from API."),
         }
     }
 

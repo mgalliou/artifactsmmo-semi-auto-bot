@@ -9,7 +9,9 @@ impl Monsters {
     pub fn new(config: &Config) -> Monsters {
         let api = MonstersApi::new(&config.base_url, &config.token);
         Monsters {
-            data: api.all(None, None, None).unwrap().clone(),
+            data: api
+                .all(None, None, None)
+                .expect("monsters to be retrieved from API."),
         }
     }
 

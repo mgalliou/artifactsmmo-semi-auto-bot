@@ -9,7 +9,9 @@ impl Resources {
     pub fn new(config: &Config) -> Resources {
         let api = ResourcesApi::new(&config.base_url, &config.token);
         Resources {
-            data: api.all(None, None, None, None).unwrap().clone(),
+            data: api
+                .all(None, None, None, None)
+                .expect("resources to be retrieved from API."),
         }
     }
 

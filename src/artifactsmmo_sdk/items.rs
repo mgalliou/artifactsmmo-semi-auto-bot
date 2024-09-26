@@ -24,7 +24,9 @@ impl Items {
     pub fn new(config: &Config, resources: Arc<Resources>, monsters: Arc<Monsters>) -> Items {
         let api = ItemsApi::new(&config.base_url, &config.token);
         Items {
-            data: api.all(None, None, None, None, None, None).unwrap().clone(),
+            data: api
+                .all(None, None, None, None, None, None)
+                .expect("items to be retrieved from API."),
             api,
             resources,
             monsters,
