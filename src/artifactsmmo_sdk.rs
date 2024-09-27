@@ -80,7 +80,6 @@ pub(crate) trait ActionError {
     fn status_code(&self) -> Option<StatusCode>;
     fn api_error(&self) -> Option<ApiErrorSchema>;
 }
-
 pub fn compute_damage(attack_damage: i32, damage_increase: i32, target_resistance: i32) -> f32 {
     attack_damage as f32
         * (1.0 + damage_increase as f32 / 100.0)

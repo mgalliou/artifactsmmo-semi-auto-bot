@@ -211,37 +211,40 @@ impl Character {
             })
             .cloned();
         if let Some(request) = request {
-            request.read().iter().any(|r| {
+            if let Ok(ref r) = request.read() {
                 self.fullfill_request(r);
                 if self.request_is_fullfilled(r) {
-                    self.billboard.remove_request(r)
+                    self.billboard.remove_request(r);
                 }
-                true
-            });
+            };
+            request.write().iter_mut().for_each(|r| r.worked = false);
+            true
+        } else {
+            false
         }
-        false
     }
 
     fn can_fullfill_request(&self, request: &Request) -> bool {
         self.items.source_of(&request.item).iter().any(|s| match s {
             ItemSource::Resource(r) => self.can_gather(r),
-            //ItemSource::Monster(m) => {
-            //    self.can_kill_with(m, &self.best_available_equipment_against(m))
-            //}
+            ItemSource::Monster(m) => {
+                self.can_kill_with(m, &self.best_available_equipment_against(m))
+            }
             ItemSource::Craft => self.can_craft(&request.item),
             ItemSource::Task => false,
-            _ => false,
         })
     }
 
     fn fullfill_request(&self, request: &Request) {
-        self.items.source_of(&request.item).iter().find(|s| match s {
-            ItemSource::Resource(r) => self.gather_resource(r, None),
-            //ItemSource::Monster(m) => self.kill_monster(m, None),
-            ItemSource::Craft => self.craft_from_bank(&request.item, request.quantity) > 0,
-            ItemSource::Task => false,
-            _ => false,
-        });
+        self.items
+            .source_of(&request.item)
+            .iter()
+            .find(|s| match s {
+                ItemSource::Resource(r) => self.gather_resource(r, None),
+                ItemSource::Monster(m) => self.kill_monster(m, None),
+                ItemSource::Craft => self.craft_from_bank(&request.item, request.quantity) > 0,
+                ItemSource::Task => false,
+            });
         if self.has_in_inventory(&request.item) >= request.quantity {
             self.deposit_all();
         }
