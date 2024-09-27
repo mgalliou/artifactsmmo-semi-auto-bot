@@ -1,6 +1,7 @@
 use super::{
     api::{characters::CharactersApi, my_character::MyCharacterApi},
     bank::Bank,
+    billboard::{Billboard, Request},
     char_config::CharConfig,
     compute_damage,
     config::Config,
@@ -46,6 +47,7 @@ pub struct Character {
     items: Arc<Items>,
     events: Arc<Events>,
     bank: Arc<Bank>,
+    billboard: Arc<Billboard>,
     pub conf: Arc<RwLock<CharConfig>>,
     pub data: Arc<RwLock<CharacterSchema>>,
 }
@@ -70,6 +72,7 @@ impl Character {
             monsters: game.monsters.clone(),
             items: game.items.clone(),
             events: game.events.clone(),
+            billboard: game.billboard.clone(),
             bank,
             data,
         }
@@ -92,18 +95,21 @@ impl Character {
             }
             self.events.refresh();
             self.process_inventory();
+            if self.handle_billboard() {
+                continue;
+            }
+            if self.conf().do_events && self.handle_events() {
+                continue;
+            }
+            if let Some(craft) = self.conf().target_craft {
+                if self.can_craft(&craft) && self.craft_max_from_bank(&craft) > 0 {
+                    continue;
+                }
+            }
             if let Some(skill) = self.target_skill_to_level() {
                 if self.levelup_by_crafting(skill) {
                     continue;
                 }
-            }
-            if let Some(craft) = self.conf().target_craft {
-                if self.craft_max_from_bank(&craft) > 0 {
-                    continue;
-                }
-            }
-            if self.conf().do_events && self.handle_events() {
-                continue;
             }
             if self.conf().do_tasks && self.handle_task() {
                 continue;
@@ -188,6 +194,43 @@ impl Character {
             self.deposit_all_of_type(Type::Resource);
         }
         crafted_once
+    }
+
+    fn handle_billboard(&self) -> bool {
+        let request = self
+            .billboard
+            .queue
+            .read()
+            .unwrap()
+            .iter()
+            .filter(|r| !r.read().unwrap().worked)
+            .find(|r| {
+                if self.can_fullfill_request(&r.read().unwrap()) {
+                    r.write().iter_mut().for_each(|r| r.worked = true);
+                    info!("{}: picking up request: {:?}.", self.name, r);
+                    true
+                } else {
+                    false
+                }
+            })
+            .cloned();
+        if let Some(request) = request {
+            request.read().iter().any(|r| {
+                if self.craft_from_bank(&r.item, r.quantity) > 0 {
+                    if self.bank.has_item(&r.item) >= r.quantity {
+                        self.billboard.remove_request(r)
+                    }
+                    true
+                } else {
+                    false
+                }
+            });
+        }
+        false
+    }
+
+    fn can_fullfill_request(&self, request: &Request) -> bool {
+        self.can_craft(&request.item) && self.bank.has_mats_for(&request.item) >= request.quantity
     }
 
     fn handle_events(&self) -> bool {
@@ -443,6 +486,7 @@ impl Character {
     /// the given quantity is crafted.
     pub fn craft_items(&self, code: &str, quantity: i32) -> i32 {
         if !self.can_craft(code) {
+            error!("{}: can't  craft 'code'x{}", code, quantity);
             return 0;
         }
         let mut crafted = 0;
@@ -939,18 +983,14 @@ impl Character {
 
     /// Returns the amount of the given item `code` available in bank, inventory and equipment.
     fn has_available(&self, code: &str) -> i32 {
-        self.has_in_bank_or_inv(code) + {
-            if self.has_equiped(code) {
-                1
-            } else {
-                0
-            }
-        }
+        self.has_in_bank_or_inv(code) + self.has_equiped(code) as i32
     }
 
     /// Checks if the given item `code` is equiped.
-    fn has_equiped(&self, code: &str) -> bool {
-        Slot::iter().any(|s| self.equiped_in(s).is_some_and(|e| e.code == code))
+    fn has_equiped(&self, code: &str) -> usize {
+        Slot::iter()
+            .filter(|s| self.equiped_in(*s).is_some_and(|e| e.code == code))
+            .count()
     }
 
     /// Returns all the weapons available and equipable by the `Character`

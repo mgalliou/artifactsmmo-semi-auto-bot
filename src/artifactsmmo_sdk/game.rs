@@ -10,8 +10,7 @@ use chrono::{DateTime, TimeDelta, Utc};
 use log::debug;
 
 use super::{
-    config::Config, events::Events, items::Items, maps::Maps, monsters::Monsters,
-    resources::Resources,
+    billboard::Billboard, config::Config, events::Events, items::Items, maps::Maps, monsters::Monsters, resources::Resources
 };
 use std::sync::{Arc, RwLock};
 
@@ -22,11 +21,12 @@ pub struct Game {
     pub monsters: Arc<Monsters>,
     pub items: Arc<Items>,
     pub events: Arc<Events>,
+    pub billboard: Arc<Billboard>,
     pub server_offset: RwLock<TimeDelta>,
 }
 
 impl Game {
-    pub fn new(config: &Config) -> Self {
+    pub fn new(config: &Config, billboard: &Arc<Billboard>) -> Self {
         let mut configuration = Configuration::new();
         configuration.base_path = config.base_url.to_owned();
         configuration.bearer_access_token = Some(config.base_url.to_owned());
@@ -39,6 +39,7 @@ impl Game {
             monsters: monsters.clone(),
             items: Arc::new(Items::new(config, resources.clone(), monsters.clone())),
             events: Arc::new(Events::new(config)),
+            billboard: billboard.clone(),
             server_offset: RwLock::new(TimeDelta::default()),
         };
         game.update_offset();

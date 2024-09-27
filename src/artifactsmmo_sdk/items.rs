@@ -2,7 +2,7 @@ use super::config::Config;
 use super::skill::Skill;
 use super::{api::items::ItemsApi, monsters::Monsters, resources::Resources};
 use super::{compute_damage, ItemSchemaExt, MonsterSchemaExt};
-use artifactsmmo_openapi::models::{equip_schema, unequip_schema, MonsterSchema};
+use artifactsmmo_openapi::models::{equip_schema, unequip_schema, MonsterSchema, ResourceSchema};
 use artifactsmmo_openapi::models::{
     CraftSchema, GeItemSchema, ItemEffectSchema, ItemSchema, SimpleItemSchema,
 };
@@ -321,6 +321,23 @@ impl Items {
             })
             .collect_vec()
     }
+
+    pub fn source_of(&self, code: &str) -> Vec<ItemSource> {
+        let mut sources = self
+            .resources
+            .dropping(code)
+            .into_iter()
+            .map(ItemSource::Resource)
+            .collect_vec();
+        sources.extend(
+            self.monsters
+                .dropping(code)
+                .into_iter()
+                .map(ItemSource::Monster)
+                .collect_vec(),
+        );
+        sources
+    }
 }
 
 impl ItemSchemaExt for ItemSchema {
@@ -593,6 +610,11 @@ pub enum DamageType {
     Earth,
     Fire,
     Water,
+}
+
+pub enum ItemSource<'a> {
+    Resource(&'a ResourceSchema),
+    Monster(&'a MonsterSchema),
 }
 
 #[cfg(test)]

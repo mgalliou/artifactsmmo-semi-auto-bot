@@ -1,5 +1,6 @@
 use artifactsmmo_playground::artifactsmmo_sdk::{
-    account::Account, character::Character, config::Config, game::Game, items::Items, skill::Skill,
+    account::Account, billboard::Billboard, character::Character, config::Config, game::Game,
+    items::Items, skill::Skill,
 };
 use figment::{
     providers::{Format, Toml},
@@ -17,7 +18,8 @@ fn main() -> Result<()> {
         .merge(Toml::file_exact("ArtifactsMMO.toml"))
         .extract()
         .unwrap();
-    let game = Arc::new(Game::new(&config));
+    let billboard = Arc::new(Billboard::new());
+    let game = Arc::new(Game::new(&config, &billboard));
     let account = Account::new(&config, game.clone());
     let handles = account
         .characters
@@ -62,6 +64,7 @@ fn handle_cmd_line(line: String, game: Arc<Game>, account: &Account) {
         match *cmd {
             "items" => handle_items(&args[1..], &game.items),
             "char" => handle_char(&args[1..], account),
+            "billboard" => handle_billboard(&args[1..], &game.billboard),
             _ => println!("error"),
         }
     }
@@ -100,5 +103,14 @@ fn handle_items(args: &[&str], items: &Arc<Items>) {
             ),
             _ => println!("error"),
         };
+    }
+}
+
+fn handle_billboard(args: &[&str], billboard: &Arc<Billboard>) {
+    if let (Some(verb), Some(item), Some(quantity)) = (args.first(), args.get(1), args.get(2)) {
+        match *verb {
+            "request" => billboard.request_item("cli", item, quantity.parse::<i32>().unwrap_or(0)),
+            _ => eprintln!("invalid verb"),
+        }
     }
 }
