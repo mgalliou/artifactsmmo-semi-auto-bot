@@ -336,6 +336,9 @@ impl Items {
                 .map(ItemSource::Monster)
                 .collect_vec(),
         );
+        if self.get(code).is_some_and(|i| i.craft_schema().is_some()) {
+            sources.push(ItemSource::Craft);
+        }
         sources
     }
 }
@@ -615,6 +618,8 @@ pub enum DamageType {
 pub enum ItemSource<'a> {
     Resource(&'a ResourceSchema),
     Monster(&'a MonsterSchema),
+    Craft,
+    Task,
 }
 
 #[cfg(test)]

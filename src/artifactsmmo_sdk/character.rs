@@ -8,7 +8,7 @@ use super::{
     equipment::Equipment,
     events::Events,
     game::Game,
-    items::{DamageType, Items, Slot, Type},
+    items::{DamageType, ItemSource, Items, Slot, Type},
     maps::Maps,
     monsters::Monsters,
     resources::Resources,
@@ -126,11 +126,7 @@ impl Character {
     }
 
     fn handle_wooden_stick(&self) {
-        if self.role() != Role::Fighter
-            && self
-                .equiped_in(Slot::Weapon)
-                .is_some_and(|w| w.code == "wooden_stick")
-        {
+        if self.role() != Role::Fighter && self.has_equiped("wooden_stick") > 0 {
             let _ = self.action_unequip(Slot::Weapon, 1);
             let _ = self.action_deposit("wooden_stick", 1);
         };
@@ -203,9 +199,9 @@ impl Character {
             .read()
             .unwrap()
             .iter()
-            .filter(|r| !r.read().unwrap().worked)
+            .filter(|r| !r.try_read().is_ok_and(|r| r.worked))
             .find(|r| {
-                if self.can_fullfill_request(&r.read().unwrap()) {
+                if r.try_read().is_ok_and(|r| self.can_fullfill_request(&r)) {
                     r.write().iter_mut().for_each(|r| r.worked = true);
                     info!("{}: picking up request: {:?}.", self.name, r);
                     true
@@ -216,21 +212,43 @@ impl Character {
             .cloned();
         if let Some(request) = request {
             request.read().iter().any(|r| {
-                if self.craft_from_bank(&r.item, r.quantity) > 0 {
-                    if self.bank.has_item(&r.item) >= r.quantity {
-                        self.billboard.remove_request(r)
-                    }
-                    true
-                } else {
-                    false
+                self.fullfill_request(r);
+                if self.request_is_fullfilled(r) {
+                    self.billboard.remove_request(r)
                 }
+                true
             });
         }
         false
     }
 
     fn can_fullfill_request(&self, request: &Request) -> bool {
-        self.can_craft(&request.item) && self.bank.has_mats_for(&request.item) >= request.quantity
+        self.items.source_of(&request.item).iter().any(|s| match s {
+            ItemSource::Resource(r) => self.can_gather(r),
+            //ItemSource::Monster(m) => {
+            //    self.can_kill_with(m, &self.best_available_equipment_against(m))
+            //}
+            ItemSource::Craft => self.can_craft(&request.item),
+            ItemSource::Task => false,
+            _ => false,
+        })
+    }
+
+    fn fullfill_request(&self, request: &Request) {
+        self.items.source_of(&request.item).iter().find(|s| match s {
+            ItemSource::Resource(r) => self.gather_resource(r, None),
+            //ItemSource::Monster(m) => self.kill_monster(m, None),
+            ItemSource::Craft => self.craft_from_bank(&request.item, request.quantity) > 0,
+            ItemSource::Task => false,
+            _ => false,
+        });
+        if self.has_in_inventory(&request.item) >= request.quantity {
+            self.deposit_all();
+        }
+    }
+
+    fn request_is_fullfilled(&self, request: &Request) -> bool {
+        self.bank.has_item(&request.item) >= request.quantity
     }
 
     fn handle_events(&self) -> bool {

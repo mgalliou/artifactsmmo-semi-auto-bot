@@ -1,6 +1,5 @@
-use std::sync::{Arc, RwLock};
-
 use log::info;
+use std::sync::{Arc, RwLock};
 
 #[derive(Default)]
 pub struct Billboard {
@@ -31,10 +30,15 @@ impl Billboard {
         }
     }
 
-    pub fn has_similar_request(&self, request: &Request) -> bool {
-        self.queue.read().unwrap().iter().any(|r| {
-            r.read().unwrap().author == request.author && r.read().unwrap().item == request.author
-        })
+    pub fn has_similar_request(&self, other: &Request) -> bool {
+        match self.queue.read() {
+            Ok(queue) => {
+                return queue
+                    .iter()
+                    .any(|r| r.read().is_ok_and(|r| r.is_similar(other)));
+            }
+            _ => false,
+        }
     }
 }
 
@@ -54,5 +58,9 @@ impl Request {
             quantity,
             worked: false,
         }
+    }
+
+    fn is_similar(&self, other: &Request) -> bool {
+        self.author == other.author && self.item == other.item
     }
 }

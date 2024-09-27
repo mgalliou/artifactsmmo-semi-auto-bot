@@ -13,7 +13,7 @@ use rustyline::{error::ReadlineError, DefaultEditor};
 use std::{str::FromStr, sync::Arc};
 
 fn main() -> Result<()> {
-    let _ = simple_logging::log_to_file("artifactsmmo.log", LevelFilter::Debug);
+    let _ = simple_logging::log_to_file("artifactsmmo.log", LevelFilter::Info);
     let config: Config = Figment::new()
         .merge(Toml::file_exact("ArtifactsMMO.toml"))
         .extract()
