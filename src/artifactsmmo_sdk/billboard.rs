@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use log::info;
 use std::sync::{Arc, RwLock};
 
@@ -11,6 +12,10 @@ impl Billboard {
         Billboard {
             queue: RwLock::new(vec![]),
         }
+    }
+
+    pub fn requests(&self) -> Vec<Arc<RwLock<Request>>> {
+        self.queue.read().unwrap().iter().cloned().collect_vec()
     }
 
     pub fn request_item(&self, author: &str, item: &str, quantity: i32) {
@@ -61,6 +66,6 @@ impl Request {
     }
 
     fn is_similar(&self, other: &Request) -> bool {
-        self.author == other.author && self.item == other.item
+        self.item == other.item
     }
 }

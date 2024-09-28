@@ -17,7 +17,7 @@ use super::{
 };
 use artifactsmmo_openapi::models::{
     CharacterSchema, InventorySlot, ItemSchema, MapContentSchema, MapSchema, MonsterSchema,
-    ResourceSchema,
+    ResourceSchema, SimpleItemSchema,
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
@@ -195,24 +195,27 @@ impl Character {
     fn handle_billboard(&self) -> bool {
         let request = self
             .billboard
-            .queue
-            .read()
-            .unwrap()
+            .requests()
             .iter()
-            .filter(|r| !r.try_read().is_ok_and(|r| r.worked))
+            .filter(|r| r.try_read().is_ok_and(|r| !r.worked))
             .find(|r| {
                 if r.try_read().is_ok_and(|r| self.can_fullfill_request(&r)) {
                     r.write().iter_mut().for_each(|r| r.worked = true);
                     info!("{}: picking up request: {:?}.", self.name, r);
                     true
                 } else {
+                    debug!("{}: unable to fullfill request", self.name);
                     false
                 }
             })
             .cloned();
         if let Some(request) = request {
             if let Ok(ref r) = request.read() {
-                self.fullfill_request(r);
+                if self.has_in_inventory(&r.item) >= r.quantity {
+                    self.deposit_all();
+                } else {
+                    self.fullfill_request(r);
+                }
                 if self.request_is_fullfilled(r) {
                     self.billboard.remove_request(r);
                 }
@@ -230,9 +233,35 @@ impl Character {
             ItemSource::Monster(m) => {
                 self.can_kill_with(m, &self.best_available_equipment_against(m))
             }
-            ItemSource::Craft => self.can_craft(&request.item),
+            ItemSource::Craft => {
+                if self.can_craft(&request.item) {
+                    if self.bank.has_mats_for(&request.item) >= request.quantity {
+                        return true;
+                    } else {
+                        self.missing_mats_for(&request.item, request.quantity)
+                            .iter()
+                            .for_each(|m| {
+                                self.billboard.request_item(
+                                    &self.name,
+                                    &m.code,
+                                    m.quantity,
+                                )
+                            });
+                    }
+                }
+                false
+            }
             ItemSource::Task => false,
         })
+    }
+
+    pub fn missing_mats_for(&self, code: &str, quantity: i32) -> Vec<SimpleItemSchema> {
+        self.items
+            .mats(code)
+            .into_iter()
+            .filter(|m| self.bank.has_item(&m.code) < m.quantity * quantity)
+            .update(|m| m.quantity = m.quantity * quantity - self.bank.has_item(&m.code))
+            .collect_vec()
     }
 
     fn fullfill_request(&self, request: &Request) {
@@ -245,9 +274,6 @@ impl Character {
                 ItemSource::Craft => self.craft_from_bank(&request.item, request.quantity) > 0,
                 ItemSource::Task => false,
             });
-        if self.has_in_inventory(&request.item) >= request.quantity {
-            self.deposit_all();
-        }
     }
 
     fn request_is_fullfilled(&self, request: &Request) -> bool {
