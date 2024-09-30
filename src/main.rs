@@ -1,5 +1,6 @@
 use artifactsmmo_playground::artifactsmmo_sdk::{
-    account::Account, billboard::OrderBoard, character::Character, config::Config, game::Game,
+    account::Account, orderboard::OrderBoard, character::Character, config::Config, game::Game,
+
     items::Items, skill::Skill,
 };
 use figment::{

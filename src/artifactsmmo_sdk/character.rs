@@ -1,10 +1,24 @@
 use super::{
-    api::{characters::CharactersApi, my_character::MyCharacterApi}, bank::Bank, char_config::CharConfig, compute_damage, config::Config, equipment::Equipment, events::Events, game::Game, items::{DamageType, ItemSource, Items, Slot, Type}, maps::Maps, monsters::Monsters, orderboard::{Order, OrderBoard}, resources::Resources, skill::Skill, ActiveEventSchemaExt, ItemSchemaExt, MonsterSchemaExt
+    api::{characters::CharactersApi, my_character::MyCharacterApi},
+    bank::Bank,
+    char_config::CharConfig,
+    compute_damage,
+    config::Config,
+    equipment::Equipment,
+    events::Events,
+    game::Game,
+    items::{DamageType, ItemSource, Items, Slot, Type},
+    maps::Maps,
+    monsters::Monsters,
+    orderboard::{Order, OrderBoard},
+    resources::Resources,
+    skill::Skill,
+    ActiveEventSchemaExt, ItemSchemaExt, MonsterSchemaExt,
 };
-use actions::{CraftError, FightError};
+use actions::{FightError, SkillError};
 use artifactsmmo_openapi::models::{
     CharacterSchema, FightSchema, InventorySlot, ItemSchema, MapContentSchema, MapSchema,
-    MonsterSchema, ResourceSchema,
+    MonsterSchema, ResourceSchema, SkillDataSchema,
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
@@ -193,7 +207,10 @@ impl Character {
         let progress = self.progress_order(&order);
         if progress > 0 {
             order.add_to_progress(progress);
-            info!("{} progressed by {} on order: {}.", self.name, progress, order);
+            info!(
+                "{} progressed by {} on order: {}.",
+                self.name, progress, order
+            );
             if self.order_is_fullfilled(&order) {
                 self.orderboard.remove_order(&order);
             }
@@ -210,14 +227,15 @@ impl Character {
             .source_of(&order.item)
             .iter()
             .find_map(|s| match s {
-                ItemSource::Resource(r) => {
-                    // TODO get drop schema
-                    if self.gather_resource(r, None) {
-                        Some(1)
-                    } else {
-                        None
-                    }
-                }
+                ItemSource::Resource(r) => self.gather_resource(r, None).iter().find_map(|s| {
+                    s.details.items.iter().find_map(|i| {
+                        if i.code == order.item {
+                            Some(i.quantity)
+                        } else {
+                            None
+                        }
+                    })
+                }),
                 ItemSource::Monster(m) => self.kill_monster(m, None).iter().find_map(|s| {
                     s.drops.iter().find_map(|i| {
                         if i.code == order.item {
@@ -232,7 +250,7 @@ impl Character {
                     match self.craft_from_bank(&order.item, quantity) {
                         Ok(i) => Some(i),
                         Err(e) => {
-                            if let CraftError::InsuffisientMaterials = e {
+                            if let SkillError::InsuffisientMaterials = e {
                                 self.bank
                                     .missing_mats_for(&order.item, order.quantity)
                                     .iter()
@@ -297,7 +315,7 @@ impl Character {
     fn handle_resource_event(&self) -> bool {
         for event in self.events.of_type("resource") {
             if let Some(resource) = self.resources.get(event.content_code()) {
-                return self.gather_resource(resource, Some(&event.map));
+                return self.gather_resource(resource, Some(&event.map)).is_ok();
             }
         }
         false
@@ -377,7 +395,7 @@ impl Character {
     fn find_and_gather(&self) -> bool {
         if let Some(item) = self.conf().target_item {
             if let Some(resource) = self.resources.dropping(&item).first() {
-                if self.gather_resource(resource, None) {
+                if self.gather_resource(resource, None).is_ok() {
                     return true;
                 }
             }
@@ -387,7 +405,7 @@ impl Character {
                 .resources
                 .highest_providing_exp(self.skill_level(skill), skill)
             {
-                if self.gather_resource(resource, None) {
+                if self.gather_resource(resource, None).is_ok() {
                     return true;
                 }
             }
@@ -422,9 +440,13 @@ impl Character {
     /// Checks if the character is able to gather the given `resource`. if it
     /// can, equips the best available appropriate tool, then move the `Character`
     /// to the given map or the closest containing the `resource` and gather it.  
-    fn gather_resource(&self, resource: &ResourceSchema, map: Option<&MapSchema>) -> bool {
+    fn gather_resource(
+        &self,
+        resource: &ResourceSchema,
+        map: Option<&MapSchema>,
+    ) -> Result<SkillDataSchema, SkillError> {
         if !self.can_gather(resource) {
-            return false;
+            return Err(SkillError::InsuffisientSkillLevel);
         }
         if let Some(tool) = self.best_available_tool_for_resource(&resource.code) {
             self.equip_item_from_bank_or_inventory(Slot::Weapon, tool)
@@ -434,7 +456,10 @@ impl Character {
         } else if let Some(map) = self.closest_map_with_content_code(&resource.code) {
             self.action_move(map.x, map.y);
         }
-        self.action_gather()
+        match self.action_gather() {
+            Ok(f) => Ok(f),
+            Err(e) => Err(SkillError::ApiError(e.api_error().unwrap())),
+        }
     }
 
     /// Checks if the `Character` could kill the given `monster` with the given
@@ -545,7 +570,7 @@ impl Character {
 
     /// Crafts the maximum amount of given item `code` that can be crafted in one go with the
     /// materials available in bank, then deposit the crafted items.
-    pub fn craft_max_from_bank(&self, code: &str) -> Result<i32, CraftError> {
+    pub fn craft_max_from_bank(&self, code: &str) -> Result<i32, SkillError> {
         let max = self.max_craftable_items(code);
         self.craft_from_bank(code, max)
     }
@@ -553,15 +578,15 @@ impl Character {
     /// Crafts the given `quantity` of the given item `code` if the required
     /// materials to craft them in one go are available in bank and deposit the crafted
     /// items into the bank.
-    pub fn craft_from_bank(&self, code: &str, quantity: i32) -> Result<i32, CraftError> {
+    pub fn craft_from_bank(&self, code: &str, quantity: i32) -> Result<i32, SkillError> {
         if !self.can_craft(code) {
-            return Err(CraftError::InsuffisientSkillLevel);
+            return Err(SkillError::InsuffisientSkillLevel);
         }
         if quantity <= 0 {
-            return Err(CraftError::InvalidQuantity);
+            return Err(SkillError::InvalidQuantity);
         }
         if self.max_craftable_items(code) < quantity {
-            return Err(CraftError::InsuffisientMaterials);
+            return Err(SkillError::InsuffisientMaterials);
         }
         info!(
             "{}: going to craft '{}'x{} from bank.",

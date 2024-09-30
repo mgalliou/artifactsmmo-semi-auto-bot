@@ -5,11 +5,7 @@ use crate::artifactsmmo_sdk::{
 use artifactsmmo_openapi::{
     apis::Error,
     models::{
-        cooldown_schema::Reason, fight_schema, BankItemTransactionResponseSchema,
-        CharacterFightResponseSchema, CharacterMovementResponseSchema, CharacterSchema, DropSchema,
-        EquipmentResponseSchema, FightSchema, MapContentSchema, RecyclingResponseSchema,
-        SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema,
-        TaskTradeResponseSchema, TasksRewardResponseSchema,
+        cooldown_schema::Reason, fight_schema, BankItemTransactionResponseSchema, CharacterFightResponseSchema, CharacterMovementResponseSchema, CharacterSchema, DropSchema, EquipmentResponseSchema, FightSchema, MapContentSchema, RecyclingResponseSchema, SkillDataSchema, SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema, TaskTradeResponseSchema, TasksRewardResponseSchema
     },
 };
 use log::{error, info};
@@ -101,7 +97,6 @@ impl Character {
                 self.update_data(res.character());
                 if let CharacterResponseSchema::BankItemTransaction(ref schema) = res {
                     self.bank.update_content(&schema.data.bank)
-                    
                 };
                 Ok(res)
             }
@@ -126,8 +121,14 @@ impl Character {
         }
     }
 
-    pub fn action_gather(&self) -> bool {
-        self.perform_action(Action::Gather).is_ok()
+    pub fn action_gather(&self) -> Result<SkillDataSchema, Box<dyn ApiRequestError>> {
+        match self.perform_action(Action::Gather) {
+            Ok(res) => match res {
+                CharacterResponseSchema::Skill(s) => Ok(*s.data),
+                _ => unreachable!(),
+            },
+            Err(e) => Err(e),
+        }
     }
 
     pub fn action_withdraw(&self, code: &str, quantity: i32) -> bool {
@@ -536,7 +537,7 @@ impl<'a> Display for DropSchemas<'a> {
     }
 }
 
-pub enum CraftError {
+pub enum SkillError {
     InsuffisientSkillLevel,
     InsuffisientMaterials,
     InvalidQuantity,
