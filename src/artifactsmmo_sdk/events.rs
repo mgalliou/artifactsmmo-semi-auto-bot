@@ -26,9 +26,9 @@ impl Events {
         let now = Utc::now();
         if Utc::now() - *self.last_refresh.read().unwrap() > Duration::seconds(30) {
             if let Ok(mut events) = self.events.write() {
+                self.last_refresh.write().unwrap().clone_from(&now);
                 if let Ok(new) = self.api.all() {
                     *events = new;
-                    self.last_refresh.write().unwrap().clone_from(&now);
                     info!("events refreshed");
                 }
             }

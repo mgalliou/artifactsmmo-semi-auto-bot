@@ -96,10 +96,10 @@ impl Character {
             }
             self.events.refresh();
             self.process_inventory();
-            if self.handle_orderboard() {
+            if self.conf().do_events && self.handle_events() {
                 continue;
             }
-            if self.conf().do_events && self.handle_events() {
+            if self.handle_orderboard() {
                 continue;
             }
             if let Some(craft) = self.conf().target_craft {
