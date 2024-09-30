@@ -1,5 +1,5 @@
 use artifactsmmo_playground::artifactsmmo_sdk::{
-    account::Account, billboard::Billboard, character::Character, config::Config, game::Game,
+    account::Account, billboard::OrderBoard, character::Character, config::Config, game::Game,
     items::Items, skill::Skill,
 };
 use figment::{
@@ -18,7 +18,7 @@ fn main() -> Result<()> {
         .merge(Toml::file_exact("ArtifactsMMO.toml"))
         .extract()
         .unwrap();
-    let billboard = Arc::new(Billboard::new());
+    let billboard = Arc::new(OrderBoard::new());
     let game = Arc::new(Game::new(&config, &billboard));
     let account = Account::new(&config, game.clone());
     let handles = account
@@ -106,10 +106,10 @@ fn handle_items(args: &[&str], items: &Arc<Items>) {
     }
 }
 
-fn handle_billboard(args: &[&str], billboard: &Arc<Billboard>) {
+fn handle_billboard(args: &[&str], billboard: &Arc<OrderBoard>) {
     if let (Some(verb), Some(item), Some(quantity)) = (args.first(), args.get(1), args.get(2)) {
         match *verb {
-            "request" => billboard.request_item("cli", item, quantity.parse::<i32>().unwrap_or(0)),
+            "request" => billboard.order_item("cli", item, quantity.parse::<i32>().unwrap_or(0)),
             _ => eprintln!("invalid verb"),
         }
     }

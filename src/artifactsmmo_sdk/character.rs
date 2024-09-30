@@ -1,7 +1,7 @@
 use super::{
     api::{characters::CharactersApi, my_character::MyCharacterApi},
     bank::Bank,
-    billboard::{Billboard, Request},
+    billboard::{Order, OrderBoard},
     char_config::CharConfig,
     compute_damage,
     config::Config,
@@ -15,6 +15,7 @@ use super::{
     skill::Skill,
     ActiveEventSchemaExt, ItemSchemaExt, MonsterSchemaExt,
 };
+use actions::CraftError;
 use artifactsmmo_openapi::models::{
     CharacterSchema, InventorySlot, ItemSchema, MapContentSchema, MapSchema, MonsterSchema,
     ResourceSchema,
@@ -47,7 +48,7 @@ pub struct Character {
     items: Arc<Items>,
     events: Arc<Events>,
     bank: Arc<Bank>,
-    billboard: Arc<Billboard>,
+    orderboard: Arc<OrderBoard>,
     pub conf: Arc<RwLock<CharConfig>>,
     pub data: Arc<RwLock<CharacterSchema>>,
 }
@@ -72,7 +73,7 @@ impl Character {
             monsters: game.monsters.clone(),
             items: game.items.clone(),
             events: game.events.clone(),
-            billboard: game.billboard.clone(),
+            orderboard: game.billboard.clone(),
             bank,
             data,
         }
@@ -95,14 +96,14 @@ impl Character {
             }
             self.events.refresh();
             self.process_inventory();
-            if self.handle_billboard() {
+            if self.handle_orderboard() {
                 continue;
             }
             if self.conf().do_events && self.handle_events() {
                 continue;
             }
             if let Some(craft) = self.conf().target_craft {
-                if self.craft_max_from_bank(&craft) > 0 {
+                if self.craft_max_from_bank(&craft).is_ok() {
                     continue;
                 }
             }
@@ -147,11 +148,11 @@ impl Character {
     /// its configuration and the items available in bank.
     fn target_skill_to_level(&self) -> Option<Skill> {
         let mut skills = vec![];
-        if self.conf().weaponcraft {
-            skills.push(Skill::Weaponcrafting);
-        }
         if self.conf().gearcraft {
             skills.push(Skill::Gearcrafting);
+        }
+        if self.conf().weaponcraft {
+            skills.push(Skill::Weaponcrafting);
         }
         if self.conf().jewelcraft {
             skills.push(Skill::Jewelrycrafting);
@@ -192,51 +193,56 @@ impl Character {
         crafted_once
     }
 
-    fn handle_billboard(&self) -> bool {
-        self.billboard
-            .requests()
+    fn handle_orderboard(&self) -> bool {
+        self.orderboard
+            .orders()
             .iter()
             .filter(|&r| r.try_read().is_ok_and(|r| !r.worked))
             .cloned()
-            .any(|r| self.handle_request(r))
+            .any(|r| self.handle_order(r))
     }
 
-    fn handle_request(&self, r: Arc<RwLock<Request>>) -> bool {
+    fn handle_order(&self, r: Arc<RwLock<Order>>) -> bool {
         let mut ret = false;
         r.write().iter_mut().for_each(|r| r.worked = true);
         if self.has_in_inventory(&r.read().unwrap().item) >= r.read().unwrap().quantity {
             self.deposit_all();
         } else {
-            ret = self.fullfill_request(&r.read().unwrap());
+            ret = self.fullfill_order(&r.read().unwrap());
         }
-        if self.request_is_fullfilled(&r.read().unwrap()) {
-            self.billboard.remove_request(&r.read().unwrap());
+        if self.order_is_fullfilled(&r.read().unwrap()) {
+            self.orderboard.remove_order(&r.read().unwrap());
         }
         r.write().iter_mut().for_each(|r| r.worked = false);
         ret
     }
 
-    fn fullfill_request(&self, request: &Request) -> bool {
-        self.items.source_of(&request.item).iter().any(|s| match s {
+    fn fullfill_order(&self, order: &Order) -> bool {
+        self.items.source_of(&order.item).iter().any(|s| match s {
             ItemSource::Resource(r) => self.gather_resource(r, None),
             ItemSource::Monster(m) => self.kill_monster(m, None),
             ItemSource::Craft => {
-                if self.craft_from_bank(&request.item, request.quantity) > 0 {
-                    true
-                } else {
-                    self.bank
-                        .missing_mats_for(&request.item, request.quantity)
-                        .iter()
-                        .for_each(|m| self.billboard.request_item(&self.name, &m.code, m.quantity));
-                    false
+                match self.craft_from_bank(&order.item, order.quantity) {
+                    Ok(_) => true,
+                    Err(e) => {
+                        if let CraftError::InsuffisientMaterials = e {
+                            self.bank
+                                .missing_mats_for(&order.item, order.quantity)
+                                .iter()
+                                .for_each(|m| {
+                                    self.orderboard.order_item(&self.name, &m.code, m.quantity)
+                                })
+                        }
+                        false
+                    }
                 }
             }
             ItemSource::Task => false,
         })
     }
 
-    fn request_is_fullfilled(&self, request: &Request) -> bool {
-        self.bank.has_item(&request.item) >= request.quantity
+    fn order_is_fullfilled(&self, order: &Order) -> bool {
+        self.bank.has_item(&order.item) >= order.quantity
     }
 
     fn handle_events(&self) -> bool {
@@ -312,10 +318,12 @@ impl Character {
             };
             return self.action_task_trade(item, self.has_in_inventory(&self.task()));
         } else if self.can_craft(item) && craftable > 0 {
-            return self.craft_from_bank(
-                item,
-                min(self.max_craftable_items(item), self.task_missing()),
-            ) > 0;
+            return self
+                .craft_from_bank(
+                    item,
+                    min(self.max_craftable_items(item), self.task_missing()),
+                )
+                .is_ok_and(|n| n > 0);
         } else {
             error!(
                 "{}: missing item in bank to complete task: '{}' {}/{}",
@@ -505,10 +513,12 @@ impl Character {
         info!("{}: is going to craft '{}'x{}", self.name, code, quantity);
         while crafted < quantity && craftable > 0 {
             self.deposit_all();
-            crafted += self.craft_from_bank(
-                code,
-                min(self.max_current_craftable_items(code), quantity - crafted),
-            );
+            crafted += self
+                .craft_from_bank(
+                    code,
+                    min(self.max_current_craftable_items(code), quantity - crafted),
+                )
+                .unwrap_or(0);
             craftable = self.bank.has_mats_for(code);
             info!("{}: crafted {}/{} '{}", self.name, crafted, quantity, code)
         }
@@ -520,7 +530,7 @@ impl Character {
 
     /// Crafts the maximum amount of given item `code` that can be crafted in one go with the
     /// materials available in bank, then deposit the crafted items.
-    pub fn craft_max_from_bank(&self, code: &str) -> i32 {
+    pub fn craft_max_from_bank(&self, code: &str) -> Result<i32, CraftError> {
         let max = self.max_craftable_items(code);
         self.craft_from_bank(code, max)
     }
@@ -528,20 +538,12 @@ impl Character {
     /// Crafts the given `quantity` of the given item `code` if the required
     /// materials to craft them in one go are available in bank and deposit the crafted
     /// items into the bank.
-    pub fn craft_from_bank(&self, code: &str, quantity: i32) -> i32 {
+    pub fn craft_from_bank(&self, code: &str, quantity: i32) -> Result<i32, CraftError> {
         if !self.can_craft(code) {
-            error!(
-                "{}: doesn't have the required skill level to craft '{}'.",
-                self.name, code
-            );
-            return 0;
+            return Err(CraftError::InsuffisientSkillLevel);
         }
         if self.max_craftable_items(code) < quantity {
-            error!(
-                "{}: not enough materials in bank to craft '{}'x{}.",
-                self.name, code, quantity
-            );
-            return 0;
+            return Err(CraftError::InsuffisientMaterials);
         }
         info!(
             "{}: going to craft '{}'x{} from bank.",
@@ -549,11 +551,9 @@ impl Character {
         );
         self.deposit_all();
         self.withdraw_mats_for(code, quantity);
-        if self.action_craft(code, quantity) {
-            self.action_deposit(code, quantity);
-            return quantity;
-        };
-        0
+        self.action_craft(code, quantity);
+        self.action_deposit(code, quantity);
+        return Ok(quantity);
     }
 
     /// Deposits all the items to the bank.

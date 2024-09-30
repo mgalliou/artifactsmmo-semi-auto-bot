@@ -3,40 +3,40 @@ use log::info;
 use std::sync::{Arc, RwLock};
 
 #[derive(Default)]
-pub struct Billboard {
-    pub queue: RwLock<Vec<Arc<RwLock<Request>>>>,
+pub struct OrderBoard {
+    pub orders: RwLock<Vec<Arc<RwLock<Order>>>>,
 }
 
-impl Billboard {
+impl OrderBoard {
     pub fn new() -> Self {
-        Billboard {
-            queue: RwLock::new(vec![]),
+        OrderBoard {
+            orders: RwLock::new(vec![]),
         }
     }
 
-    pub fn requests(&self) -> Vec<Arc<RwLock<Request>>> {
-        self.queue.read().unwrap().iter().cloned().collect_vec()
+    pub fn orders(&self) -> Vec<Arc<RwLock<Order>>> {
+        self.orders.read().unwrap().iter().cloned().collect_vec()
     }
 
-    pub fn request_item(&self, author: &str, item: &str, quantity: i32) {
-        let request = Request::new(author, item, quantity);
-        if !self.has_similar_request(&request) {
-            if let Ok(mut r) = self.queue.write() {
+    pub fn order_item(&self, author: &str, item: &str, quantity: i32) {
+        let request = Order::new(author, item, quantity);
+        if !self.has_similar_order(&request) {
+            if let Ok(mut r) = self.orders.write() {
                 info!("request added to queue {:?}.", request);
                 r.push(Arc::new(RwLock::new(request)))
             }
         }
     }
 
-    pub fn remove_request(&self, request: &Request) {
-        if let Ok(mut queue) = self.queue.write() {
-            queue.retain(|r| *r.read().unwrap() != *request);
-            info!("request removed from queue {:?}", request)
+    pub fn remove_order(&self, order: &Order) {
+        if let Ok(mut queue) = self.orders.write() {
+            queue.retain(|r| *r.read().unwrap() != *order);
+            info!("request removed from queue {:?}", order)
         }
     }
 
-    pub fn has_similar_request(&self, other: &Request) -> bool {
-        match self.queue.read() {
+    pub fn has_similar_order(&self, other: &Order) -> bool {
+        match self.orders.read() {
             Ok(queue) => {
                 return queue
                     .iter()
@@ -48,16 +48,16 @@ impl Billboard {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Request {
+pub struct Order {
     pub author: String,
     pub item: String,
     pub quantity: i32,
     pub worked: bool,
 }
 
-impl Request {
+impl Order {
     pub fn new(author: &str, item: &str, quantity: i32) -> Self {
-        Request {
+        Order {
             author: author.to_owned(),
             item: item.to_owned(),
             quantity,
@@ -65,7 +65,7 @@ impl Request {
         }
     }
 
-    fn is_similar(&self, other: &Request) -> bool {
+    fn is_similar(&self, other: &Order) -> bool {
         self.item == other.item
     }
 }

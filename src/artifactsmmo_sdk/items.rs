@@ -146,6 +146,20 @@ impl Items {
             .map_or(0, |i| i.level)
     }
 
+    /// Takes an item `code` and returns the average sell prices of the metarials
+    /// received when the item is recycled.
+    pub fn recycle_average_price(&self, code: &str) -> i32 {
+        self.mats(code)
+            .iter()
+            .map(|mat| {
+                self.ge_info(&mat.code)
+                    .map_or(0, |i| i.sell_price.unwrap_or(0) * mat.quantity)
+            })
+            .sum::<i32>()
+            / self.mats_quantity_for(code)
+            / 5
+    }
+
     /// Takes an item `code` and returns its base mats buy price at the Grand
     /// Exchange.
     pub fn base_mats_buy_price(&self, code: &str) -> i32 {
@@ -225,8 +239,8 @@ impl Items {
     pub fn best_for_leveling(&self, level: i32, skill: Skill) -> Option<&ItemSchema> {
         match skill {
             Skill::Gearcrafting => {
-                if level > 30 {
-                    None
+                if level >= 30 {
+                    self.get("gold_platelegs")
                 } else if level > 20 {
                     self.get("skeleton_helmet")
                 } else if level > 15 {

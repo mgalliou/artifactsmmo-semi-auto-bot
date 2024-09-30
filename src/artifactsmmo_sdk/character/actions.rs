@@ -1,6 +1,6 @@
 use super::Character;
 use crate::artifactsmmo_sdk::{
-    items::Slot, ActionError, ApiErrorSchema, MapSchemaExt, ResponseSchema,
+    items::Slot, ApiRequestError, ApiErrorSchema, MapSchemaExt, ResponseSchema,
 };
 use artifactsmmo_openapi::{
     apis::Error,
@@ -18,9 +18,9 @@ use std::fmt::Display;
 use strum_macros::EnumIs;
 
 impl Character {
-    pub(crate) fn perform_action(&self, action: Action) -> Result<(), Box<dyn ActionError>> {
+    pub(crate) fn perform_action(&self, action: Action) -> Result<(), Box<dyn ApiRequestError>> {
         self.wait_for_cooldown();
-        let res: Result<Box<dyn ResponseSchema>, Box<dyn ActionError>> = match action {
+        let res: Result<Box<dyn ResponseSchema>, Box<dyn ApiRequestError>> = match action {
             Action::Move { x, y } => self
                 .my_api
                 .move_to(&self.name, x, y)
@@ -208,8 +208,8 @@ impl Character {
     fn handle_action_error(
         &self,
         action: Action,
-        e: Box<dyn ActionError>,
-    ) -> Result<(), Box<dyn ActionError>> {
+        e: Box<dyn ApiRequestError>,
+    ) -> Result<(), Box<dyn ApiRequestError>> {
         if e.status_code()
             .is_some_and(|s| s.eq(&StatusCode::from_u16(499).unwrap()))
         {
@@ -272,7 +272,7 @@ pub enum Action<'a> {
     },
 }
 
-impl<T> ActionError for Error<T> {
+impl<T> ApiRequestError for Error<T> {
     fn status_code(&self) -> Option<StatusCode> {
         if let Error::ResponseError(e) = self {
             return Some(e.status);
@@ -294,7 +294,7 @@ impl<T> ActionError for Error<T> {
     }
 }
 
-impl<T: 'static> From<Error<T>> for Box<dyn ActionError> {
+impl<T: 'static> From<Error<T>> for Box<dyn ApiRequestError> {
     fn from(value: Error<T>) -> Self {
         Box::new(value)
     }
@@ -482,4 +482,10 @@ impl<'a> Display for DropSchemas<'a> {
         }
         write!(f, "{}", items)
     }
+}
+
+pub enum CraftError {
+    InsuffisientSkillLevel,
+    InsuffisientMaterials,
+    ApiError(ApiErrorSchema)
 }

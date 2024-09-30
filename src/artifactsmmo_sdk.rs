@@ -76,7 +76,7 @@ pub struct ApiError {
     message: String,
 }
 
-pub(crate) trait ActionError {
+pub(crate) trait ApiRequestError {
     fn status_code(&self) -> Option<StatusCode>;
     fn api_error(&self) -> Option<ApiErrorSchema>;
 }
