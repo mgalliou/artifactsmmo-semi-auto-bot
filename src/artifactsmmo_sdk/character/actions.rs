@@ -1,15 +1,15 @@
 use super::Character;
 use crate::artifactsmmo_sdk::{
-    items::Slot, ApiRequestError, ApiErrorSchema, MapSchemaExt, ResponseSchema,
+    items::Slot, ApiErrorSchema, ApiRequestError, MapSchemaExt, ResponseSchema,
 };
 use artifactsmmo_openapi::{
     apis::Error,
     models::{
         cooldown_schema::Reason, fight_schema, BankItemTransactionResponseSchema,
         CharacterFightResponseSchema, CharacterMovementResponseSchema, CharacterSchema, DropSchema,
-        EquipmentResponseSchema, MapContentSchema, RecyclingResponseSchema, SkillResponseSchema,
-        TaskCancelledResponseSchema, TaskResponseSchema, TaskTradeResponseSchema,
-        TasksRewardResponseSchema,
+        EquipmentResponseSchema, FightSchema, MapContentSchema, RecyclingResponseSchema,
+        SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema,
+        TaskTradeResponseSchema, TasksRewardResponseSchema,
     },
 };
 use log::{error, info};
@@ -18,43 +18,46 @@ use std::fmt::Display;
 use strum_macros::EnumIs;
 
 impl Character {
-    pub(crate) fn perform_action(&self, action: Action) -> Result<(), Box<dyn ApiRequestError>> {
+    pub fn perform_action(
+        &self,
+        action: Action,
+    ) -> Result<CharacterResponseSchema, Box<dyn ApiRequestError>> {
         self.wait_for_cooldown();
-        let res: Result<Box<dyn ResponseSchema>, Box<dyn ApiRequestError>> = match action {
+        let res: Result<CharacterResponseSchema, Box<dyn ApiRequestError>> = match action {
             Action::Move { x, y } => self
                 .my_api
                 .move_to(&self.name, x, y)
-                .map(|r| r.into())
+                .map(CharacterResponseSchema::Movement)
                 .map_err(|e| e.into()),
             Action::Fight => self
                 .my_api
                 .fight(&self.name)
-                .map(|r| r.into())
+                .map(CharacterResponseSchema::Fight)
                 .map_err(|e| e.into()),
             Action::Gather => self
                 .my_api
                 .gather(&self.name)
-                .map(|r| r.into())
+                .map(CharacterResponseSchema::Skill)
                 .map_err(|e| e.into()),
             Action::Craft { code, quantity } => self
                 .my_api
                 .craft(&self.name, code, quantity)
-                .map(|r| r.into())
+                .map(CharacterResponseSchema::Skill)
                 .map_err(|e| e.into()),
             Action::Withdraw { code, quantity } => self
                 .my_api
                 .withdraw(&self.name, code, quantity)
-                .map(|r| r.into())
+                .map(CharacterResponseSchema::BankItemTransaction)
                 .map_err(|e| e.into()),
             Action::Deposit { code, quantity } => self
                 .my_api
                 .deposit(&self.name, code, quantity)
-                .map(|r| r.into())
+                .map(CharacterResponseSchema::BankItemTransaction)
                 .map_err(|e| e.into()),
             Action::Recycle { code, quantity } => self
                 .my_api
                 .recycle(&self.name, code, quantity)
-                .map(|r| r.into())
+                .map(CharacterResponseSchema::Recycle)
                 .map_err(|e| e.into()),
             Action::Equip {
                 code,
@@ -63,49 +66,44 @@ impl Character {
             } => self
                 .my_api
                 .equip(&self.name, code, slot.to_equip_schema(), Some(quantity))
-                .map(|r| r.into())
+                .map(CharacterResponseSchema::Equip)
                 .map_err(|e| e.into()),
             Action::Unequip { slot, quantity } => {
                 self.my_api
                     .unequip(&self.name, slot.to_unequip_schema(), Some(quantity))
             }
-            .map(|r| r.into())
+            .map(CharacterResponseSchema::Unquip)
             .map_err(|e| e.into()),
             Action::AcceptTask => self
                 .my_api
                 .accept_task(&self.name)
-                .map(|r| r.into())
+                .map(CharacterResponseSchema::Task)
                 .map_err(|e| e.into()),
             Action::CompleteTask => self
                 .my_api
                 .complete_task(&self.name)
-                .map(|r| r.into())
+                .map(CharacterResponseSchema::CompleteTask)
                 .map_err(|e| e.into()),
             Action::CancelTask => self
                 .my_api
                 .cancel_task(&self.name)
-                .map(|r| r.into())
+                .map(CharacterResponseSchema::TaskCancel)
                 .map_err(|e| e.into()),
             Action::TaskTrade { code, quantity } => self
                 .my_api
                 .task_trade(&self.name, code, quantity)
-                .map(|r| r.into())
+                .map(CharacterResponseSchema::TaskTrade)
                 .map_err(|e| e.into()),
         };
         match res {
-            Ok(ref res) => {
+            Ok(res) => {
                 info!("{}", res.pretty());
                 self.update_data(res.character());
-                if action.is_withdraw() || action.is_deposit() {
-                    self.bank.update_content(
-                        &res.as_any()
-                            .downcast_ref::<BankItemTransactionResponseSchema>()
-                            .unwrap()
-                            .data
-                            .bank,
-                    )
-                }
-                Ok(())
+                if let CharacterResponseSchema::BankItemTransaction(ref schema) = res {
+                    self.bank.update_content(&schema.data.bank)
+                    
+                };
+                Ok(res)
             }
             Err(e) => self.handle_action_error(action, e),
         }
@@ -118,8 +116,14 @@ impl Character {
         self.perform_action(Action::Move { x, y }).is_ok()
     }
 
-    pub fn action_fight(&self) -> bool {
-        self.perform_action(Action::Fight).is_ok()
+    pub fn action_fight(&self) -> Result<FightSchema, Box<dyn ApiRequestError>> {
+        match self.perform_action(Action::Fight) {
+            Ok(res) => match res {
+                CharacterResponseSchema::Fight(s) => Ok(*s.data.fight),
+                _ => unreachable!(),
+            },
+            Err(e) => Err(e),
+        }
     }
 
     pub fn action_gather(&self) -> bool {
@@ -209,7 +213,7 @@ impl Character {
         &self,
         action: Action,
         e: Box<dyn ApiRequestError>,
-    ) -> Result<(), Box<dyn ApiRequestError>> {
+    ) -> Result<CharacterResponseSchema, Box<dyn ApiRequestError>> {
         if e.status_code()
             .is_some_and(|s| s.eq(&StatusCode::from_u16(499).unwrap()))
         {
@@ -297,6 +301,54 @@ impl<T> ApiRequestError for Error<T> {
 impl<T: 'static> From<Error<T>> for Box<dyn ApiRequestError> {
     fn from(value: Error<T>) -> Self {
         Box::new(value)
+    }
+}
+
+pub enum CharacterResponseSchema {
+    Movement(CharacterMovementResponseSchema),
+    Fight(CharacterFightResponseSchema),
+    Skill(SkillResponseSchema),
+    Recycle(RecyclingResponseSchema),
+    BankItemTransaction(BankItemTransactionResponseSchema),
+    Task(TaskResponseSchema),
+    TaskCancel(TaskCancelledResponseSchema),
+    TaskTrade(TaskTradeResponseSchema),
+    Equip(EquipmentResponseSchema),
+    Unquip(EquipmentResponseSchema),
+    CompleteTask(TasksRewardResponseSchema),
+}
+
+impl CharacterResponseSchema {
+    fn character(&self) -> &CharacterSchema {
+        match self {
+            CharacterResponseSchema::Movement(s) => s.character(),
+            CharacterResponseSchema::Fight(s) => s.character(),
+            CharacterResponseSchema::Skill(s) => s.character(),
+            CharacterResponseSchema::Recycle(s) => s.character(),
+            CharacterResponseSchema::BankItemTransaction(s) => s.character(),
+            CharacterResponseSchema::Task(s) => s.character(),
+            CharacterResponseSchema::TaskCancel(s) => s.character(),
+            CharacterResponseSchema::TaskTrade(s) => s.character(),
+            CharacterResponseSchema::Equip(s) => s.character(),
+            CharacterResponseSchema::Unquip(s) => s.character(),
+            CharacterResponseSchema::CompleteTask(s) => s.character(),
+        }
+    }
+
+    fn pretty(&self) -> String {
+        match self {
+            CharacterResponseSchema::Movement(s) => s.pretty(),
+            CharacterResponseSchema::Fight(s) => s.pretty(),
+            CharacterResponseSchema::Skill(s) => s.pretty(),
+            CharacterResponseSchema::Recycle(s) => s.pretty(),
+            CharacterResponseSchema::BankItemTransaction(s) => s.pretty(),
+            CharacterResponseSchema::Task(s) => s.pretty(),
+            CharacterResponseSchema::TaskCancel(s) => s.pretty(),
+            CharacterResponseSchema::TaskTrade(s) => s.pretty(),
+            CharacterResponseSchema::Equip(s) => s.pretty(),
+            CharacterResponseSchema::Unquip(s) => s.pretty(),
+            CharacterResponseSchema::CompleteTask(s) => s.pretty(),
+        }
     }
 }
 
@@ -487,5 +539,11 @@ impl<'a> Display for DropSchemas<'a> {
 pub enum CraftError {
     InsuffisientSkillLevel,
     InsuffisientMaterials,
-    ApiError(ApiErrorSchema)
+    InvalidQuantity,
+    ApiError(ApiErrorSchema),
+}
+
+pub enum FightError {
+    NoEquipmentToKill,
+    ApiError(ApiErrorSchema),
 }

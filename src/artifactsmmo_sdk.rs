@@ -60,7 +60,7 @@ trait ActiveEventSchemaExt {
     fn content_code(&self) -> &String;
 }
 
-trait ResponseSchema: AsAny {
+pub trait ResponseSchema: AsAny {
     fn character(&self) -> &CharacterSchema;
     fn pretty(&self) -> String;
 }
@@ -76,7 +76,7 @@ pub struct ApiError {
     message: String,
 }
 
-pub(crate) trait ApiRequestError {
+pub trait ApiRequestError {
     fn status_code(&self) -> Option<StatusCode>;
     fn api_error(&self) -> Option<ApiErrorSchema>;
 }

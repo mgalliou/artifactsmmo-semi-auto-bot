@@ -15,10 +15,10 @@ use super::{
     skill::Skill,
     ActiveEventSchemaExt, ItemSchemaExt, MonsterSchemaExt,
 };
-use actions::CraftError;
+use actions::{CraftError, FightError};
 use artifactsmmo_openapi::models::{
-    CharacterSchema, InventorySlot, ItemSchema, MapContentSchema, MapSchema, MonsterSchema,
-    ResourceSchema,
+    CharacterSchema, FightSchema, InventorySlot, ItemSchema, MapContentSchema, MapSchema,
+    MonsterSchema, ResourceSchema,
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
@@ -197,52 +197,74 @@ impl Character {
         self.orderboard
             .orders()
             .iter()
-            .filter(|&r| r.try_read().is_ok_and(|r| !r.worked))
+            .filter(|&r| !r.worked() || !r.complete())
             .cloned()
             .any(|r| self.handle_order(r))
     }
 
-    fn handle_order(&self, r: Arc<RwLock<Order>>) -> bool {
-        let mut ret = false;
-        r.write().iter_mut().for_each(|r| r.worked = true);
-        if self.has_in_inventory(&r.read().unwrap().item) >= r.read().unwrap().quantity {
-            self.deposit_all();
-        } else {
-            ret = self.fullfill_order(&r.read().unwrap());
+    fn handle_order(&self, order: Arc<Order>) -> bool {
+        order.worked.write().iter_mut().for_each(|w| **w = true);
+        let progress = self.progress_order(&order);
+        if progress > 0 {
+            order.add_to_progress(progress);
+            info!("{} progressed by {} on order: {}.", self.name, progress, order);
+            if self.order_is_fullfilled(&order) {
+                self.orderboard.remove_order(&order);
+            }
+            if self.has_in_inventory(&order.item) >= order.quantity - order.progress() {
+                self.deposit_all();
+            }
         }
-        if self.order_is_fullfilled(&r.read().unwrap()) {
-            self.orderboard.remove_order(&r.read().unwrap());
-        }
-        r.write().iter_mut().for_each(|r| r.worked = false);
-        ret
+        order.worked.write().iter_mut().for_each(|w| **w = false);
+        progress > 0
     }
 
-    fn fullfill_order(&self, order: &Order) -> bool {
-        self.items.source_of(&order.item).iter().any(|s| match s {
-            ItemSource::Resource(r) => self.gather_resource(r, None),
-            ItemSource::Monster(m) => self.kill_monster(m, None),
-            ItemSource::Craft => {
-                match self.craft_from_bank(&order.item, order.quantity) {
-                    Ok(_) => true,
-                    Err(e) => {
-                        if let CraftError::InsuffisientMaterials = e {
-                            self.bank
-                                .missing_mats_for(&order.item, order.quantity)
-                                .iter()
-                                .for_each(|m| {
-                                    self.orderboard.order_item(&self.name, &m.code, m.quantity)
-                                })
-                        }
-                        false
+    fn progress_order(&self, order: &Order) -> i32 {
+        self.items
+            .source_of(&order.item)
+            .iter()
+            .find_map(|s| match s {
+                ItemSource::Resource(r) => {
+                    // TODO get drop schema
+                    if self.gather_resource(r, None) {
+                        Some(1)
+                    } else {
+                        None
                     }
                 }
-            }
-            ItemSource::Task => false,
-        })
+                ItemSource::Monster(m) => self.kill_monster(m, None).iter().find_map(|s| {
+                    s.drops.iter().find_map(|i| {
+                        if i.code == order.item {
+                            Some(i.quantity)
+                        } else {
+                            None
+                        }
+                    })
+                }),
+                ItemSource::Craft => {
+                    let quantity = min(self.max_craftable_items(&order.item), order.quantity);
+                    match self.craft_from_bank(&order.item, quantity) {
+                        Ok(i) => Some(i),
+                        Err(e) => {
+                            if let CraftError::InsuffisientMaterials = e {
+                                self.bank
+                                    .missing_mats_for(&order.item, order.quantity)
+                                    .iter()
+                                    .for_each(|m| {
+                                        self.orderboard.order_item(&self.name, &m.code, m.quantity)
+                                    })
+                            }
+                            None
+                        }
+                    }
+                }
+                ItemSource::Task => None,
+            })
+            .unwrap_or(0)
     }
 
     fn order_is_fullfilled(&self, order: &Order) -> bool {
-        self.bank.has_item(&order.item) >= order.quantity
+        order.progress() >= order.quantity
     }
 
     fn handle_events(&self) -> bool {
@@ -276,7 +298,7 @@ impl Character {
             }
         }
         if let Some(monster) = self.monsters.get(&self.task()) {
-            if self.kill_monster(monster, None) {
+            if self.kill_monster(monster, None).is_ok() {
                 return true;
             }
         }
@@ -299,7 +321,7 @@ impl Character {
         self.events.of_type("monster").iter().any(|e| {
             self.monsters
                 .get(e.content_code())
-                .is_some_and(|m| self.kill_monster(m, Some(&e.map)))
+                .is_some_and(|m| self.kill_monster(m, Some(&e.map)).is_ok())
         })
     }
 
@@ -352,14 +374,14 @@ impl Character {
     fn find_and_kill(&self) -> bool {
         if let Some(monster_code) = &self.conf().fight_target {
             if let Some(monster) = self.monsters.get(monster_code) {
-                if self.kill_monster(monster, None) {
+                if self.kill_monster(monster, None).is_ok() {
                     return true;
                 }
             }
         }
         // TODO: find highest killable
         if let Some(monster) = self.monsters.highest_providing_exp(self.level()) {
-            if self.kill_monster(monster, None) {
+            if self.kill_monster(monster, None).is_ok() {
                 return true;
             }
         }
@@ -390,10 +412,14 @@ impl Character {
     /// Checks if an equipment making the `Character` able to kill the given
     /// `monster` is available, equip it, then move the `Character` to the given
     /// map or the closest containing the `monster` and fight it.
-    fn kill_monster(&self, monster: &MonsterSchema, map: Option<&MapSchema>) -> bool {
+    fn kill_monster(
+        &self,
+        monster: &MonsterSchema,
+        map: Option<&MapSchema>,
+    ) -> Result<FightSchema, FightError> {
         let equipment = self.best_available_equipment_against(monster);
         if !self.can_kill_with(monster, &equipment) {
-            return false;
+            return Err(FightError::NoEquipmentToKill);
         }
         self.equip_equipment(&equipment);
         if let Some(map) = map {
@@ -401,7 +427,10 @@ impl Character {
         } else if let Some(map) = self.closest_map_with_content_code(&monster.code) {
             self.action_move(map.x, map.y);
         }
-        self.action_fight()
+        match self.action_fight() {
+            Ok(f) => Ok(f),
+            Err(e) => Err(FightError::ApiError(e.api_error().unwrap())),
+        }
     }
 
     /// Checks if the character is able to gather the given `resource`. if it
@@ -542,6 +571,9 @@ impl Character {
         if !self.can_craft(code) {
             return Err(CraftError::InsuffisientSkillLevel);
         }
+        if quantity <= 0 {
+            return Err(CraftError::InvalidQuantity);
+        }
         if self.max_craftable_items(code) < quantity {
             return Err(CraftError::InsuffisientMaterials);
         }
@@ -553,7 +585,7 @@ impl Character {
         self.withdraw_mats_for(code, quantity);
         self.action_craft(code, quantity);
         self.action_deposit(code, quantity);
-        return Ok(quantity);
+        Ok(quantity)
     }
 
     /// Deposits all the items to the bank.

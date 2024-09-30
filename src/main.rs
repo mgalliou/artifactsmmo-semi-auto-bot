@@ -76,7 +76,7 @@ fn handle_char(args: &[&str], account: &Account) {
             Some(char) => match *verb {
                 "idle" => char.toggle_idle(),
                 "fight" => {
-                    char.action_fight();
+                    let _ = char.action_fight();
                 }
                 "craft" => match (args.get(2), args.get(3)) {
                     (Some(code), Some(quantity)) => {
