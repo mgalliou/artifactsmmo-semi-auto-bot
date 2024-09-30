@@ -1,7 +1,6 @@
+use itertools::Itertools;
 use std::sync::{Arc, RwLock};
-
 use artifactsmmo_openapi::models::{BankSchema, SimpleItemSchema};
-
 use super::{api::bank::BankApi, config::Config, items::Items};
 
 pub struct Bank {
@@ -37,6 +36,15 @@ impl Bank {
             .map(|mat| self.has_item(&mat.code) / mat.quantity)
             .min()
             .unwrap_or(0)
+    }
+
+    pub fn missing_mats_for(&self, code: &str, quantity: i32) -> Vec<SimpleItemSchema> {
+        self.items
+            .mats(code)
+            .into_iter()
+            .filter(|m| self.has_item(&m.code) < m.quantity * quantity)
+            .update(|m| m.quantity = m.quantity * quantity - self.has_item(&m.code))
+            .collect_vec()
     }
 
     pub fn update_content(&self, content: &Vec<SimpleItemSchema>) {

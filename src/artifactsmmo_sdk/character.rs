@@ -17,7 +17,7 @@ use super::{
 };
 use artifactsmmo_openapi::models::{
     CharacterSchema, InventorySlot, ItemSchema, MapContentSchema, MapSchema, MonsterSchema,
-    ResourceSchema, SimpleItemSchema,
+    ResourceSchema,
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
@@ -102,7 +102,7 @@ impl Character {
                 continue;
             }
             if let Some(craft) = self.conf().target_craft {
-                if self.can_craft(&craft) && self.craft_max_from_bank(&craft) > 0 {
+                if self.craft_max_from_bank(&craft) > 0 {
                     continue;
                 }
             }
@@ -193,87 +193,46 @@ impl Character {
     }
 
     fn handle_billboard(&self) -> bool {
-        let request = self
-            .billboard
+        self.billboard
             .requests()
             .iter()
-            .filter(|r| r.try_read().is_ok_and(|r| !r.worked))
-            .find(|r| {
-                if r.try_read().is_ok_and(|r| self.can_fullfill_request(&r)) {
-                    r.write().iter_mut().for_each(|r| r.worked = true);
-                    info!("{}: picking up request: {:?}.", self.name, r);
-                    true
-                } else {
-                    debug!("{}: unable to fullfill request", self.name);
-                    false
-                }
-            })
-            .cloned();
-        if let Some(request) = request {
-            if let Ok(ref r) = request.read() {
-                if self.has_in_inventory(&r.item) >= r.quantity {
-                    self.deposit_all();
-                } else {
-                    self.fullfill_request(r);
-                }
-                if self.request_is_fullfilled(r) {
-                    self.billboard.remove_request(r);
-                }
-            };
-            request.write().iter_mut().for_each(|r| r.worked = false);
-            true
-        } else {
-            false
-        }
+            .filter(|&r| r.try_read().is_ok_and(|r| !r.worked))
+            .cloned()
+            .any(|r| self.handle_request(r))
     }
 
-    fn can_fullfill_request(&self, request: &Request) -> bool {
+    fn handle_request(&self, r: Arc<RwLock<Request>>) -> bool {
+        let mut ret = false;
+        r.write().iter_mut().for_each(|r| r.worked = true);
+        if self.has_in_inventory(&r.read().unwrap().item) >= r.read().unwrap().quantity {
+            self.deposit_all();
+        } else {
+            ret = self.fullfill_request(&r.read().unwrap());
+        }
+        if self.request_is_fullfilled(&r.read().unwrap()) {
+            self.billboard.remove_request(&r.read().unwrap());
+        }
+        r.write().iter_mut().for_each(|r| r.worked = false);
+        ret
+    }
+
+    fn fullfill_request(&self, request: &Request) -> bool {
         self.items.source_of(&request.item).iter().any(|s| match s {
-            ItemSource::Resource(r) => self.can_gather(r),
-            ItemSource::Monster(m) => {
-                self.can_kill_with(m, &self.best_available_equipment_against(m))
-            }
+            ItemSource::Resource(r) => self.gather_resource(r, None),
+            ItemSource::Monster(m) => self.kill_monster(m, None),
             ItemSource::Craft => {
-                if self.can_craft(&request.item) {
-                    if self.bank.has_mats_for(&request.item) >= request.quantity {
-                        return true;
-                    } else {
-                        self.missing_mats_for(&request.item, request.quantity)
-                            .iter()
-                            .for_each(|m| {
-                                self.billboard.request_item(
-                                    &self.name,
-                                    &m.code,
-                                    m.quantity,
-                                )
-                            });
-                    }
+                if self.craft_from_bank(&request.item, request.quantity) > 0 {
+                    true
+                } else {
+                    self.bank
+                        .missing_mats_for(&request.item, request.quantity)
+                        .iter()
+                        .for_each(|m| self.billboard.request_item(&self.name, &m.code, m.quantity));
+                    false
                 }
-                false
             }
             ItemSource::Task => false,
         })
-    }
-
-    pub fn missing_mats_for(&self, code: &str, quantity: i32) -> Vec<SimpleItemSchema> {
-        self.items
-            .mats(code)
-            .into_iter()
-            .filter(|m| self.bank.has_item(&m.code) < m.quantity * quantity)
-            .update(|m| m.quantity = m.quantity * quantity - self.bank.has_item(&m.code))
-            .collect_vec()
-    }
-
-    fn fullfill_request(&self, request: &Request) {
-        self.items
-            .source_of(&request.item)
-            .iter()
-            .find(|s| match s {
-                ItemSource::Resource(r) => self.gather_resource(r, None),
-                ItemSource::Monster(m) => self.kill_monster(m, None),
-                ItemSource::Craft => self.craft_from_bank(&request.item, request.quantity) > 0,
-                ItemSource::Task => false,
-            });
     }
 
     fn request_is_fullfilled(&self, request: &Request) -> bool {
@@ -469,10 +428,12 @@ impl Character {
         turns_to_kill <= turns_to_be_killed
     }
 
+    // Checks that the `Character` has the required skill level to gather the given `resource`
     fn can_gather(&self, resource: &ResourceSchema) -> bool {
         self.skill_level(resource.skill.into()) >= resource.level
     }
 
+    // Checks that the `Character` has the required skill level to craft the given item `code`
     fn can_craft(&self, code: &str) -> bool {
         if let Some(item) = self.items.get(code) {
             if let Some(skill) = item.skill_to_craft() {
@@ -533,7 +494,10 @@ impl Character {
     /// the given quantity is crafted.
     pub fn craft_items(&self, code: &str, quantity: i32) -> i32 {
         if !self.can_craft(code) {
-            error!("{}: can't  craft 'code'x{}", code, quantity);
+            error!(
+                "{}: doesn't have the required skill level to craft '{}'.",
+                self.name, code
+            );
             return 0;
         }
         let mut crafted = 0;
@@ -558,13 +522,6 @@ impl Character {
     /// materials available in bank, then deposit the crafted items.
     pub fn craft_max_from_bank(&self, code: &str) -> i32 {
         let max = self.max_craftable_items(code);
-        if max <= 0 {
-            error!(
-                "{}: not enough materials in bank to craft any '{}'.",
-                self.name, code
-            );
-            return 0;
-        }
         self.craft_from_bank(code, max)
     }
 
@@ -572,6 +529,13 @@ impl Character {
     /// materials to craft them in one go are available in bank and deposit the crafted
     /// items into the bank.
     pub fn craft_from_bank(&self, code: &str, quantity: i32) -> i32 {
+        if !self.can_craft(code) {
+            error!(
+                "{}: doesn't have the required skill level to craft '{}'.",
+                self.name, code
+            );
+            return 0;
+        }
         if self.max_craftable_items(code) < quantity {
             error!(
                 "{}: not enough materials in bank to craft '{}'x{}.",
