@@ -11,7 +11,7 @@ use skill::Skill;
 pub mod account;
 pub mod api;
 pub mod bank;
-pub mod billboard;
+pub mod orderboard;
 pub mod char_config;
 pub mod character;
 pub mod config;

@@ -10,7 +10,7 @@ use chrono::{DateTime, TimeDelta, Utc};
 use log::debug;
 
 use super::{
-    billboard::OrderBoard, config::Config, events::Events, items::Items, maps::Maps, monsters::Monsters, resources::Resources
+    orderboard::OrderBoard, config::Config, events::Events, items::Items, maps::Maps, monsters::Monsters, resources::Resources
 };
 use std::sync::{Arc, RwLock};
 
