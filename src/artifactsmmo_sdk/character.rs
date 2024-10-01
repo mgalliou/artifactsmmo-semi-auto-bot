@@ -95,10 +95,10 @@ impl Character {
             }
             self.events.refresh();
             self.process_inventory();
-            if self.levelup_skills() {
+            if self.conf().do_events && self.handle_events() {
                 continue;
             }
-            if self.conf().do_events && self.handle_events() {
+            if self.levelup_skills() {
                 continue;
             }
             if self.handle_orderboard() {
