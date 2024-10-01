@@ -1,11 +1,15 @@
 use super::Character;
 use crate::artifactsmmo_sdk::{
-    items::Slot, ApiErrorSchema, ApiRequestError, MapSchemaExt, ResponseSchema,
+    items::Slot, ApiErrorSchema, ApiRequestError, FightSchemaExt, MapSchemaExt, ResponseSchema, SkillSchemaExt
 };
 use artifactsmmo_openapi::{
     apis::Error,
     models::{
-        cooldown_schema::Reason, fight_schema, BankItemTransactionResponseSchema, CharacterFightResponseSchema, CharacterMovementResponseSchema, CharacterSchema, DropSchema, EquipmentResponseSchema, FightSchema, MapContentSchema, RecyclingResponseSchema, SkillDataSchema, SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema, TaskTradeResponseSchema, TasksRewardResponseSchema
+        cooldown_schema::Reason, fight_schema, BankItemTransactionResponseSchema,
+        CharacterFightResponseSchema, CharacterMovementResponseSchema, CharacterSchema, DropSchema,
+        EquipmentResponseSchema, FightSchema, MapContentSchema, RecyclingResponseSchema,
+        SkillDataSchema, SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema,
+        TaskTradeResponseSchema, TasksRewardResponseSchema,
     },
 };
 use log::{error, info};
@@ -277,6 +281,12 @@ pub enum Action<'a> {
     },
 }
 
+pub enum PostCraftAction {
+    Deposit,
+    Recycle,
+    None
+}
+
 impl<T> ApiRequestError for Error<T> {
     fn status_code(&self) -> Option<StatusCode> {
         if let Error::ResponseError(e) = self {
@@ -534,6 +544,25 @@ impl<'a> Display for DropSchemas<'a> {
             items.push_str(&format!("'{}'x{}", item.code, item.quantity));
         }
         write!(f, "{}", items)
+    }
+}
+
+impl FightSchemaExt for FightSchema {
+    fn amount_of(&self, code: &str) -> i32 {
+        self.drops
+            .iter()
+            .find(|i| i.code == code)
+            .map_or(0, |i| i.quantity)
+    }
+}
+
+impl SkillSchemaExt for SkillDataSchema {
+    fn amount_of(&self, code: &str) -> i32 {
+        self.details
+            .items
+            .iter()
+            .find(|i| i.code == code)
+            .map_or(0, |i| i.quantity)
     }
 }
 

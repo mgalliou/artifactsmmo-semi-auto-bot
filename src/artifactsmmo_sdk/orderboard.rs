@@ -1,6 +1,9 @@
 use itertools::Itertools;
 use log::info;
-use std::{fmt::Display, sync::{Arc, RwLock}};
+use std::{
+    fmt::Display,
+    sync::{Arc, RwLock},
+};
 
 #[derive(Default)]
 pub struct OrderBoard {
@@ -18,6 +21,7 @@ impl OrderBoard {
         self.orders.read().unwrap().iter().cloned().collect_vec()
     }
 
+    // TODO: when order with same item already exist, increase existing order quantity
     pub fn order_item(&self, author: &str, item: &str, quantity: i32) {
         let request = Order::new(author, item, quantity);
         if !self.has_similar_order(&request) {
@@ -30,8 +34,10 @@ impl OrderBoard {
 
     pub fn remove_order(&self, order: &Order) {
         if let Ok(mut queue) = self.orders.write() {
-            queue.retain(|r| !r.is_similar(order));
-            info!("order removed from queue: {}.", order)
+            if queue.iter().any(|r| r.is_similar(order)) {
+                queue.retain(|r| !r.is_similar(order));
+                info!("order removed from queue: {}.", order)
+            }
         }
     }
 
@@ -51,7 +57,11 @@ pub struct Order {
     pub item: String,
     pub quantity: i32,
     pub worked: RwLock<bool>,
+    // Number of item droped or crafted by any character
+    // TODO: should be tracked from `Account.in_inventories()`
     pub progress: RwLock<i32>,
+    // Number of item deposited into the bank
+    pub deposited: RwLock<i32>,
 }
 
 impl Order {
@@ -62,6 +72,7 @@ impl Order {
             quantity,
             worked: RwLock::new(false),
             progress: RwLock::new(0),
+            deposited: RwLock::new(0),
         }
     }
 
@@ -77,6 +88,10 @@ impl Order {
         self.progress() >= self.quantity
     }
 
+    pub fn turned_in(&self) -> bool {
+        self.deposited() >= self.quantity
+    }
+
     pub fn progress(&self) -> i32 {
         if let Ok(progress) = self.progress.read() {
             return *progress;
@@ -84,9 +99,26 @@ impl Order {
         0
     }
 
-    pub fn add_to_progress(&self, n: i32) {
+    pub fn deposited(&self) -> i32 {
+        if let Ok(deposited) = self.deposited.read() {
+            return *deposited;
+        }
+        0
+    }
+
+    pub fn missing(&self) -> i32 {
+        self.progress() - self.quantity
+    }
+
+    pub fn inc_progress(&self, n: i32) {
         if let Ok(mut progress) = self.progress.write() {
             *progress += n;
+        }
+    }
+
+    pub fn inc_deposited(&self, n: i32) {
+        if let Ok(mut deposited) = self.deposited.write() {
+            *deposited += n;
         }
     }
 }

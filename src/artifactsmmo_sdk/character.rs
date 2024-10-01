@@ -13,9 +13,9 @@ use super::{
     orderboard::{Order, OrderBoard},
     resources::Resources,
     skill::Skill,
-    ActiveEventSchemaExt, ItemSchemaExt, MonsterSchemaExt,
+    ActiveEventSchemaExt, FightSchemaExt, ItemSchemaExt, MonsterSchemaExt, SkillSchemaExt,
 };
-use actions::{FightError, SkillError};
+use actions::{FightError, PostCraftAction, SkillError};
 use artifactsmmo_openapi::models::{
     CharacterSchema, FightSchema, InventorySlot, ItemSchema, MapContentSchema, MapSchema,
     MonsterSchema, ResourceSchema, SkillDataSchema,
@@ -105,7 +105,10 @@ impl Character {
                 continue;
             }
             if let Some(craft) = self.conf().target_craft {
-                if self.craft_max_from_bank(&craft).is_ok() {
+                if self
+                    .craft_max_from_bank(&craft, PostCraftAction::Deposit)
+                    .is_ok()
+                {
                     continue;
                 }
             }
@@ -171,9 +174,13 @@ impl Character {
             })
             .is_some_and(|i| {
                 info!("{} trying to craft to level {}", self.name, i.code);
-                match self.craft_from_bank(&i.code, self.max_craftable_items(&i.code)) {
+                match self.craft_from_bank(
+                    &i.code,
+                    self.max_craftable_items(&i.code),
+                    PostCraftAction::Recycle,
+                ) {
                     Ok(_) => {
-                        self.action_recycle(&i.code, self.max_craftable_items(&i.code));
+                        self.deposit_all();
                         true
                     }
                     Err(e) => {
@@ -223,30 +230,31 @@ impl Character {
         self.orderboard
             .orders()
             .iter()
-            .filter(|&r| !r.worked() || !r.complete())
             .cloned()
             .any(|r| self.handle_order(r))
     }
 
     fn handle_order(&self, order: Arc<Order>) -> bool {
-        let mut ret = false;
-        order.worked.write().iter_mut().for_each(|w| **w = true);
-        if let Some(progress) = self.progress_order(&order) {
-            ret = true;
-            order.add_to_progress(progress);
+        if order.complete() && !order.turned_in() {
+            let n = self.has_in_inventory(&order.item);
+            if n >= order.missing() {
+                self.deposit_all();
+                order.inc_deposited(n);
+            }
+            if order.turned_in() {
+                self.orderboard.remove_order(&order);
+            }
+            true
+        } else if let Some(progress) = self.progress_order(&order) {
+            order.inc_progress(progress);
             info!(
                 "{} progressed by {} on order: {}.",
                 self.name, progress, order
             );
-            if self.has_in_inventory(&order.item) >= order.quantity - order.progress() {
-                self.deposit_all();
-            }
-            if order.complete() {
-                self.orderboard.remove_order(&order);
-            }
+            true
+        } else {
+            false
         }
-        order.worked.write().iter_mut().for_each(|w| **w = false);
-        ret
     }
 
     fn progress_order(&self, order: &Order) -> Option<i32> {
@@ -254,26 +262,21 @@ impl Character {
             .source_of(&order.item)
             .iter()
             .find_map(|s| match s {
-                ItemSource::Resource(r) => self.gather_resource(r, None).ok().map(|gather| {
-                    gather.details
-                        .items
-                        .iter()
-                        .find(|i| i.code == order.item)
-                        .map_or(0, |i| i.quantity)
-                }),
-                ItemSource::Monster(m) => self.kill_monster(m, None).ok().map(|fight| {
-                    fight
-                        .drops
-                        .iter()
-                        .find(|i| i.code == order.item)
-                        .map_or(0, |i| i.quantity)
-                }),
+                ItemSource::Resource(r) => self
+                    .gather_resource(r, None)
+                    .ok()
+                    .map(|gather| gather.amount_of(&order.item)),
+                ItemSource::Monster(m) => self
+                    .kill_monster(m, None)
+                    .ok()
+                    .map(|fight| fight.amount_of(&order.item)),
                 ItemSource::Craft => {
                     let quantity = min(
                         self.max_craftable_items_from_bank(&order.item),
                         order.quantity,
                     );
-                    match self.craft_from_bank(&order.item, quantity) {
+                    // TODO: lock number of item being crafted
+                    match self.craft_from_bank(&order.item, quantity, PostCraftAction::None) {
                         Ok(i) => Some(i),
                         Err(e) => {
                             if let SkillError::InsuffisientMaterials = e {
@@ -372,6 +375,7 @@ impl Character {
                         self.max_craftable_items_from_bank(item),
                         self.task_missing(),
                     ),
+                    PostCraftAction::Deposit,
                 )
                 .is_ok_and(|n| n > 0);
         } else {
@@ -581,6 +585,7 @@ impl Character {
                 .craft_from_bank(
                     code,
                     min(self.max_current_craftable_items(code), quantity - crafted),
+                    PostCraftAction::Deposit,
                 )
                 .unwrap_or(0);
             craftable = self.bank.has_mats_for(code);
@@ -594,15 +599,24 @@ impl Character {
 
     /// Crafts the maximum amount of given item `code` that can be crafted in one go with the
     /// materials available in bank, then deposit the crafted items.
-    pub fn craft_max_from_bank(&self, code: &str) -> Result<i32, SkillError> {
+    pub fn craft_max_from_bank(
+        &self,
+        code: &str,
+        post_action: PostCraftAction,
+    ) -> Result<i32, SkillError> {
         let max = self.max_craftable_items_from_bank(code);
-        self.craft_from_bank(code, max)
+        self.craft_from_bank(code, max, post_action)
     }
 
     /// Crafts the given `quantity` of the given item `code` if the required
     /// materials to craft them in one go are available in bank and deposit the crafted
     /// items into the bank.
-    pub fn craft_from_bank(&self, code: &str, quantity: i32) -> Result<i32, SkillError> {
+    pub fn craft_from_bank(
+        &self,
+        code: &str,
+        quantity: i32,
+        post_action: PostCraftAction,
+    ) -> Result<i32, SkillError> {
         if !self.can_craft(code) {
             return Err(SkillError::InsuffisientSkillLevel);
         }
@@ -619,7 +633,11 @@ impl Character {
         self.deposit_all();
         self.withdraw_mats_for(code, quantity);
         self.action_craft(code, quantity);
-        self.action_deposit(code, quantity);
+        match post_action {
+            PostCraftAction::Deposit => self.action_deposit(code, quantity),
+            PostCraftAction::Recycle => self.action_recycle(code, quantity),
+            PostCraftAction::None => false,
+        };
         Ok(quantity)
     }
 
