@@ -255,14 +255,12 @@ impl Character {
             .source_of(&order.item)
             .iter()
             .find_map(|s| match s {
-                ItemSource::Resource(r) => self.gather_resource(r, None).iter().find_map(|s| {
-                    s.details.items.iter().find_map(|i| {
-                        if i.code == order.item {
-                            Some(i.quantity)
-                        } else {
-                            None
-                        }
-                    })
+                ItemSource::Resource(r) => self.gather_resource(r, None).ok().map(|gather| {
+                    gather.details
+                        .items
+                        .iter()
+                        .find(|i| i.code == order.item)
+                        .map_or(0, |i| i.quantity)
                 }),
                 ItemSource::Monster(m) => self.kill_monster(m, None).ok().map(|fight| {
                     fight
