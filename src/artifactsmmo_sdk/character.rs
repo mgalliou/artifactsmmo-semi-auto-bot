@@ -798,7 +798,7 @@ impl Character {
     }
 
     /// Returns the amount of the given item `code` in the `Character` inventory.
-    fn has_in_inventory(&self, code: &str) -> i32 {
+    pub fn has_in_inventory(&self, code: &str) -> i32 {
         self.data.read().map_or(0, |d| {
             d.inventory
                 .iter()

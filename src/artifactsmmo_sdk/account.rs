@@ -70,6 +70,14 @@ impl Account {
     pub fn get_character_by_name(&self, name: &str) -> Option<Arc<Character>> {
         self.characters.iter().find(|c| c.name == name).cloned()
     }
+
+    pub fn in_inventories(&self, code: &str) -> i32 {
+        self.characters
+            .iter()
+            .cloned()
+            .map(|c| c.has_in_inventory(code))
+            .sum()
+    }
 }
 
 fn init_char_conf(confs: &[CharConfig]) -> Vec<Arc<RwLock<CharConfig>>> {
