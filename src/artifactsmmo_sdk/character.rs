@@ -211,11 +211,11 @@ impl Character {
                 "{} progressed by {} on order: {}.",
                 self.name, progress, order
             );
-            if self.order_is_fullfilled(&order) {
-                self.orderboard.remove_order(&order);
-            }
             if self.has_in_inventory(&order.item) >= order.quantity - order.progress() {
                 self.deposit_all();
+            }
+            if order.complete() {
+                self.orderboard.remove_order(&order);
             }
         }
         order.worked.write().iter_mut().for_each(|w| **w = false);
@@ -265,10 +265,6 @@ impl Character {
                 ItemSource::Task => None,
             })
             .unwrap_or(0)
-    }
-
-    fn order_is_fullfilled(&self, order: &Order) -> bool {
-        order.progress() >= order.quantity
     }
 
     fn handle_events(&self) -> bool {
