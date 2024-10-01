@@ -54,7 +54,6 @@ pub struct Character {
 }
 
 impl Character {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         config: &Config,
         game: &Arc<Game>,
@@ -450,10 +449,6 @@ impl Character {
         if !self.can_kill_with(monster, &equipment) {
             return Err(FightError::NoEquipmentToKill);
         }
-        info!(
-            "{} is going to switch equipment to kill '{}'.",
-            self.name, monster.name
-        );
         self.equip_equipment(&equipment);
         if let Some(map) = map {
             self.action_move(map.x, map.y);

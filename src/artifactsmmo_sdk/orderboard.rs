@@ -74,7 +74,7 @@ impl Order {
     }
 
     pub fn complete(&self) -> bool {
-        self.progress() > self.quantity
+        self.progress() >= self.quantity
     }
 
     pub fn progress(&self) -> i32 {
