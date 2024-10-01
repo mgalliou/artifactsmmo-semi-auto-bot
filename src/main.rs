@@ -21,26 +21,26 @@ fn main() -> Result<()> {
         .unwrap();
     let billboard = Arc::new(OrderBoard::new());
     let game = Arc::new(Game::new(&config, &billboard));
-    let account = Account::new(&config, game.clone());
+    let account = Account::new(&config, &game);
     let handles = account
         .characters
         .iter()
         .map(|c| Character::run(c.clone()).unwrap())
         .collect_vec();
-    run_cli(game.clone(), &account)?;
+    run_cli(&game, &account)?;
     handles.into_iter().for_each(|h| {
         h.join().unwrap();
     });
     Ok(())
 }
 
-fn run_cli(game: Arc<Game>, account: &Account) -> Result<()> {
+fn run_cli(game: &Arc<Game>, account: &Account) -> Result<()> {
     let mut rl = DefaultEditor::new()?;
     loop {
         let readline = rl.readline(">> ");
         match readline {
             Ok(line) => {
-                handle_cmd_line(line, game.clone(), account);
+                handle_cmd_line(line, game, account);
             }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");
@@ -59,7 +59,7 @@ fn run_cli(game: Arc<Game>, account: &Account) -> Result<()> {
     Ok(())
 }
 
-fn handle_cmd_line(line: String, game: Arc<Game>, account: &Account) {
+fn handle_cmd_line(line: String, game: &Arc<Game>, account: &Account) {
     let args = line.split_whitespace().collect_vec();
     if let Some(cmd) = args.first() {
         match *cmd {

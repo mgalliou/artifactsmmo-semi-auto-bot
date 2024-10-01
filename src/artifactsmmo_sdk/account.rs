@@ -24,12 +24,12 @@ pub struct Account {
 }
 
 impl Account {
-    pub fn new(config: &Config, game: Arc<Game>) -> Account {
+    pub fn new(config: &Config, game: &Arc<Game>) -> Account {
         let mut configuration = Configuration::new();
         configuration.base_path = config.base_url.to_owned();
         configuration.bearer_access_token = Some(config.base_url.to_owned());
         let my_characters_api = MyCharacterApi::new(&config.base_url, &config.token);
-        let bank = Arc::new(Bank::new(config, game.items.clone()));
+        let bank = Arc::new(Bank::new(config, &game.items));
         let chars_conf = init_char_conf(&config.characters);
         let chars_schema = init_chars_schema(config);
         let characters = chars_conf
@@ -38,10 +38,10 @@ impl Account {
             .map(|(conf, schema)| {
                 Arc::new(Character::new(
                     config,
-                    game.clone(),
-                    bank.clone(),
-                    conf.clone(),
-                    schema.clone(),
+                    game,
+                    &bank,
+                    &conf,
+                    schema,
                 ))
             })
             .collect_vec();

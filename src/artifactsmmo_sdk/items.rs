@@ -21,15 +21,15 @@ pub struct Items {
 }
 
 impl Items {
-    pub fn new(config: &Config, resources: Arc<Resources>, monsters: Arc<Monsters>) -> Items {
+    pub fn new(config: &Config, resources: &Arc<Resources>, monsters: &Arc<Monsters>) -> Items {
         let api = ItemsApi::new(&config.base_url, &config.token);
         Items {
             data: api
                 .all(None, None, None, None, None, None)
                 .expect("items to be retrieved from API."),
             api,
-            resources,
-            monsters,
+            resources: resources.clone(),
+            monsters: monsters.clone()
         }
     }
 
@@ -657,7 +657,7 @@ mod tests {
             .unwrap();
         let resources = Arc::new(Resources::new(&config));
         let monsters = Arc::new(Monsters::new(&config));
-        let items = Arc::new(Items::new(&config, resources.clone(), monsters.clone()));
+        let items = Arc::new(Items::new(&config, &resources, &monsters));
 
         assert_eq!(
             items
@@ -683,7 +683,7 @@ mod tests {
             .unwrap();
         let resources = Arc::new(Resources::new(&config));
         let monsters = Arc::new(Monsters::new(&config));
-        let items = Arc::new(Items::new(&config, resources.clone(), monsters.clone()));
+        let items = Arc::new(Items::new(&config, &resources, &monsters));
 
         assert_eq!(
             items

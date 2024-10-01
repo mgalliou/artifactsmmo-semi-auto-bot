@@ -37,7 +37,7 @@ impl Game {
             maps: Arc::new(Maps::new(config)),
             resources: resources.clone(),
             monsters: monsters.clone(),
-            items: Arc::new(Items::new(config, resources.clone(), monsters.clone())),
+            items: Arc::new(Items::new(config, &resources, &monsters)),
             events: Arc::new(Events::new(config)),
             billboard: billboard.clone(),
             server_offset: RwLock::new(TimeDelta::default()),

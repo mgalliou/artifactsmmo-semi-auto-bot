@@ -57,14 +57,14 @@ impl Character {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         config: &Config,
-        game: Arc<Game>,
-        bank: Arc<Bank>,
-        conf: Arc<RwLock<CharConfig>>,
-        data: Arc<RwLock<CharacterSchema>>,
+        game: &Arc<Game>,
+        bank: &Arc<Bank>,
+        conf: &Arc<RwLock<CharConfig>>,
+        data: &Arc<RwLock<CharacterSchema>>,
     ) -> Character {
         Character {
             name: data.read().map(|d| d.name.to_owned()).unwrap(),
-            conf,
+            conf: conf.clone(),
             my_api: MyCharacterApi::new(&config.base_url, &config.token),
             api: CharactersApi::new(&config.base_url, &config.token),
             game: game.clone(),
@@ -74,8 +74,8 @@ impl Character {
             items: game.items.clone(),
             events: game.events.clone(),
             orderboard: game.billboard.clone(),
-            bank,
-            data,
+            bank: bank.clone(),
+            data: data.clone(),
         }
     }
 
