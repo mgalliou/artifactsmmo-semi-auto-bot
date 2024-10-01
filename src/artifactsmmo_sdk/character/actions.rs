@@ -537,6 +537,7 @@ impl<'a> Display for DropSchemas<'a> {
     }
 }
 
+#[derive(Debug)]
 pub enum SkillError {
     InsuffisientSkillLevel,
     InsuffisientMaterials,
@@ -544,6 +545,7 @@ pub enum SkillError {
     ApiError(ApiErrorSchema),
 }
 
+#[derive(Debug)]
 pub enum FightError {
     NoEquipmentToKill,
     ApiError(ApiErrorSchema),

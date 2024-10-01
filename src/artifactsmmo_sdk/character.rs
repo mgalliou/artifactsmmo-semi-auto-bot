@@ -96,6 +96,9 @@ impl Character {
             }
             self.events.refresh();
             self.process_inventory();
+            if self.levelup_skills() {
+                continue;
+            }
             if self.conf().do_events && self.handle_events() {
                 continue;
             }
@@ -104,11 +107,6 @@ impl Character {
             }
             if let Some(craft) = self.conf().target_craft {
                 if self.craft_max_from_bank(&craft).is_ok() {
-                    continue;
-                }
-            }
-            if let Some(skill) = self.target_skill_to_level() {
-                if self.levelup_by_crafting(skill) {
                     continue;
                 }
             }
@@ -146,7 +144,7 @@ impl Character {
 
     /// Returns the next skill that should leveled by the Character, based on
     /// its configuration and the items available in bank.
-    fn target_skill_to_level(&self) -> Option<Skill> {
+    fn levelup_skills(&self) -> bool {
         let mut skills = vec![];
         if self.conf().gearcraft {
             skills.push(Skill::Gearcrafting);
@@ -161,11 +159,37 @@ impl Character {
             skills.push(Skill::Cooking);
         }
         skills.sort_by_key(|s| self.skill_level(*s));
-        skills.into_iter().find(|&skill| {
-            self.items
-                .best_for_leveling(self.skill_level(skill), skill)
-                .is_some_and(|i| self.bank.has_mats_for(&i.code) > 0)
-        })
+        skills.into_iter().any(|skill| self.level_skill(skill))
+    }
+
+    fn level_skill(&self, skill: Skill) -> bool {
+        self.items
+            .best_for_leveling(self.skill_level(skill), skill)
+            .iter()
+            .min_by_key(|i| {
+                self.bank
+                    .missing_mats_quantity(&i.code, self.max_craftable_items(&i.code))
+            })
+            .is_some_and(|i| {
+                info!("{} trying to craft to level {}", self.name, i.code);
+                match self.craft_from_bank(&i.code, self.max_craftable_items(&i.code)) {
+                    Ok(_) => {
+                        self.action_recycle(&i.code, self.max_craftable_items(&i.code));
+                        true
+                    }
+                    Err(e) => {
+                        if let SkillError::InsuffisientMaterials = e {
+                            self.bank
+                                .missing_mats_for(&i.code, self.max_craftable_items(&i.code))
+                                .iter()
+                                .for_each(|m| {
+                                    self.orderboard.order_item(&self.name, &m.code, m.quantity)
+                                })
+                        }
+                        false
+                    }
+                }
+            })
     }
 
     /// Finds the best item  to level the given `skill` and crafts the
@@ -175,7 +199,10 @@ impl Character {
     //TODO: handle item already in inventory
     fn levelup_by_crafting(&self, skill: Skill) -> bool {
         let mut crafted_once = false;
-        if let Some(best) = self.items.best_for_leveling(self.skill_level(skill), skill) {
+        if let Some(best) = self
+            .items
+            .best_for_leveling_hc(self.skill_level(skill), skill)
+        {
             info!("{}: leveling {:#?} by crafting.", self.name, skill);
             self.deposit_all();
             self.withdraw_max_mats_for(&best.code);
@@ -203,9 +230,10 @@ impl Character {
     }
 
     fn handle_order(&self, order: Arc<Order>) -> bool {
+        let mut ret = false;
         order.worked.write().iter_mut().for_each(|w| **w = true);
-        let progress = self.progress_order(&order);
-        if progress > 0 {
+        if let Some(progress) = self.progress_order(&order) {
+            ret = true;
             order.add_to_progress(progress);
             info!(
                 "{} progressed by {} on order: {}.",
@@ -219,10 +247,10 @@ impl Character {
             }
         }
         order.worked.write().iter_mut().for_each(|w| **w = false);
-        progress > 0
+        ret
     }
 
-    fn progress_order(&self, order: &Order) -> i32 {
+    fn progress_order(&self, order: &Order) -> Option<i32> {
         self.items
             .source_of(&order.item)
             .iter()
@@ -236,17 +264,18 @@ impl Character {
                         }
                     })
                 }),
-                ItemSource::Monster(m) => self.kill_monster(m, None).iter().find_map(|s| {
-                    s.drops.iter().find_map(|i| {
-                        if i.code == order.item {
-                            Some(i.quantity)
-                        } else {
-                            None
-                        }
-                    })
+                ItemSource::Monster(m) => self.kill_monster(m, None).ok().map(|fight| {
+                    fight
+                        .drops
+                        .iter()
+                        .find(|i| i.code == order.item)
+                        .map_or(0, |i| i.quantity)
                 }),
                 ItemSource::Craft => {
-                    let quantity = min(self.max_craftable_items(&order.item), order.quantity);
+                    let quantity = min(
+                        self.max_craftable_items_from_bank(&order.item),
+                        order.quantity,
+                    );
                     match self.craft_from_bank(&order.item, quantity) {
                         Ok(i) => Some(i),
                         Err(e) => {
@@ -264,7 +293,6 @@ impl Character {
                 }
                 ItemSource::Task => None,
             })
-            .unwrap_or(0)
     }
 
     fn handle_events(&self) -> bool {
@@ -343,7 +371,10 @@ impl Character {
             return self
                 .craft_from_bank(
                     item,
-                    min(self.max_craftable_items(item), self.task_missing()),
+                    min(
+                        self.max_craftable_items_from_bank(item),
+                        self.task_missing(),
+                    ),
                 )
                 .is_ok_and(|n| n > 0);
         } else {
@@ -421,6 +452,10 @@ impl Character {
         if !self.can_kill_with(monster, &equipment) {
             return Err(FightError::NoEquipmentToKill);
         }
+        info!(
+            "{} is going to switch equipment to kill '{}'.",
+            self.name, monster.name
+        );
         self.equip_equipment(&equipment);
         if let Some(map) = map {
             self.action_move(map.x, map.y);
@@ -567,7 +602,7 @@ impl Character {
     /// Crafts the maximum amount of given item `code` that can be crafted in one go with the
     /// materials available in bank, then deposit the crafted items.
     pub fn craft_max_from_bank(&self, code: &str) -> Result<i32, SkillError> {
-        let max = self.max_craftable_items(code);
+        let max = self.max_craftable_items_from_bank(code);
         self.craft_from_bank(code, max)
     }
 
@@ -581,7 +616,7 @@ impl Character {
         if quantity <= 0 {
             return Err(SkillError::InvalidQuantity);
         }
-        if self.max_craftable_items(code) < quantity {
+        if self.max_craftable_items_from_bank(code) < quantity {
             return Err(SkillError::InsuffisientMaterials);
         }
         info!(
@@ -661,9 +696,15 @@ impl Character {
         max
     }
 
-    /// Calculates the maximum number of items that can be crafted in one go based on available
-    /// inventory free space and bank materials.
+    /// Calculates the maximum number of items that can be crafted in one go based on
+    /// inventory max items
     fn max_craftable_items(&self, code: &str) -> i32 {
+        self.inventory_max_items() / self.items.mats_quantity_for(code)
+    }
+
+    /// Calculates the maximum number of items that can be crafted in one go based on available
+    /// inventory max items and bank materials.
+    fn max_craftable_items_from_bank(&self, code: &str) -> i32 {
         min(
             self.bank.has_mats_for(code),
             self.inventory_max_items() / self.items.mats_quantity_for(code),

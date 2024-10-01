@@ -236,7 +236,7 @@ impl Items {
 
     /// Takes a `level` and a `skill` and returns the best items to level the
     /// skill based on its meterials drop rate, and value on the Grand Exchange.
-    pub fn best_for_leveling(&self, level: i32, skill: Skill) -> Option<&ItemSchema> {
+    pub fn best_for_leveling_hc(&self, level: i32, skill: Skill) -> Option<&ItemSchema> {
         match skill {
             Skill::Gearcrafting => {
                 if level >= 30 {
@@ -278,16 +278,15 @@ impl Items {
             Skill::Cooking => None,
             Skill::Fishing => None,
         }
-        //self.providing_exp(level, skill)
-        //    .into_iter()
-        //    .filter(|i| !i.is_crafted_with("jasper_crystal") || i.is_crafted_with("magical_cure"))
-        //    .min_set_by_key(|i| self.mats_mob_average_lvl(&i.code))
-        //    .into_iter()
-        //    .min_set_by_key(|i| (self.base_mats_drop_rate(&i.code) * 100.0) as i32)
-        //    .into_iter()
-        //    .min_set_by_key(|i| self.base_mats_buy_price(&i.code))
-        //    .into_iter()
-        //    .max_by_key(|i| i.level)
+    }
+
+    pub fn best_for_leveling(&self, level: i32, skill: Skill) -> Vec<&ItemSchema> {
+        self.providing_exp(level, skill)
+            .into_iter()
+            .filter(|i| !i.is_crafted_with("jasper_crystal") && !i.is_crafted_with("magical_cure"))
+            .max_set_by_key(|i| i.level)
+            .into_iter()
+            .collect_vec()
     }
 
     /// Takes a `level` and a `skill` and returns the items providing experince
