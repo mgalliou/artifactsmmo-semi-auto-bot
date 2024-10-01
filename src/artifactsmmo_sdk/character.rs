@@ -461,7 +461,9 @@ impl Character {
         }
         match self.action_fight() {
             Ok(f) => Ok(f),
-            Err(e) => Err(FightError::ApiError(e.api_error().unwrap())),
+            Err(e) => Err(e
+                .api_error()
+                .map_or(FightError::UnkownError, FightError::ApiError)),
         }
     }
 
@@ -486,7 +488,9 @@ impl Character {
         }
         match self.action_gather() {
             Ok(f) => Ok(f),
-            Err(e) => Err(SkillError::ApiError(e.api_error().unwrap())),
+            Err(e) => Err(e
+                .api_error()
+                .map_or(SkillError::UnkownError, SkillError::ApiError)),
         }
     }
 

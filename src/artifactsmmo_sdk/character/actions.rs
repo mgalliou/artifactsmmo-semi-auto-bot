@@ -572,10 +572,12 @@ pub enum SkillError {
     InsuffisientMaterials,
     InvalidQuantity,
     ApiError(ApiErrorSchema),
+    UnkownError
 }
 
 #[derive(Debug)]
 pub enum FightError {
     NoEquipmentToKill,
     ApiError(ApiErrorSchema),
+    UnkownError
 }
