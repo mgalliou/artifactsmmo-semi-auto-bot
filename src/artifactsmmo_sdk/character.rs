@@ -98,7 +98,7 @@ impl Character {
             if self.conf().do_events && self.handle_events() {
                 continue;
             }
-            if self.levelup_skills() {
+            if self.level_skills_up() {
                 continue;
             }
             if self.handle_orderboard() {
@@ -146,7 +146,7 @@ impl Character {
 
     /// Returns the next skill that should leveled by the Character, based on
     /// its configuration and the items available in bank.
-    fn levelup_skills(&self) -> bool {
+    fn level_skills_up(&self) -> bool {
         let mut skills = vec![];
         if self.conf().gearcraft {
             skills.push(Skill::Gearcrafting);
@@ -161,10 +161,12 @@ impl Character {
             skills.push(Skill::Cooking);
         }
         skills.sort_by_key(|s| self.skill_level(*s));
-        skills.into_iter().any(|skill| self.level_skill(skill))
+        let ret = skills.into_iter().any(|skill| self.level_skill_up(skill));
+        info!("{}: tryied to levelup a skill: {}", self.name, ret);
+        ret
     }
 
-    fn level_skill(&self, skill: Skill) -> bool {
+    fn level_skill_up(&self, skill: Skill) -> bool {
         self.items
             .best_for_leveling(self.skill_level(skill), skill)
             .iter()
@@ -180,10 +182,12 @@ impl Character {
                     PostCraftAction::Recycle,
                 ) {
                     Ok(_) => {
+                        info!("{} crafted {} to level up.", self.name, i.code);
                         self.deposit_all();
                         true
                     }
                     Err(e) => {
+                        error!("{} failed to levelup skill: {:?}", self.name, e);
                         if let SkillError::InsuffisientMaterials = e {
                             self.bank
                                 .missing_mats_for(&i.code, self.max_craftable_items(&i.code))
@@ -235,16 +239,19 @@ impl Character {
     }
 
     fn handle_order(&self, order: Arc<Order>) -> bool {
+        // TODO: streamline conditions
         if order.complete() && !order.turned_in() {
             let n = self.has_in_inventory(&order.item);
-            if n >= order.missing() {
+            if n > 0 && n >= order.missing() {
                 self.deposit_all();
                 order.inc_deposited(n);
+                if order.turned_in() {
+                    self.orderboard.remove_order(&order);
+                }
+                true
+            } else {
+                false
             }
-            if order.turned_in() {
-                self.orderboard.remove_order(&order);
-            }
-            true
         } else if let Some(progress) = self.progress_order(&order) {
             order.inc_progress(progress);
             info!(
