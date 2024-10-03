@@ -304,20 +304,11 @@ impl Character {
     }
 
     fn handle_events(&self) -> bool {
-        if self.role() == Role::Fighter {
-            if self.handle_monster_event() {
-                return true;
-            }
-            if self.handle_resource_event() {
-                return true;
-            }
-        } else {
-            if self.handle_resource_event() {
-                return true;
-            }
-            if self.handle_monster_event() {
-                return true;
-            }
+        if self.handle_resource_event() {
+            return true;
+        }
+        if self.handle_monster_event() {
+            return true;
         }
         false
     }
