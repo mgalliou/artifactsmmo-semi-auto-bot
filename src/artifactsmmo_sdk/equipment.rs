@@ -1,5 +1,5 @@
 use super::{
-    compute_damage,
+    average_dmg,
     items::{DamageType, Slot},
     ItemSchemaExt, MonsterSchemaExt,
 };
@@ -29,7 +29,7 @@ impl<'a> Equipment<'a> {
         DamageType::iter()
             .map(|t| {
                 self.weapon.map_or(0.0, |w| {
-                    compute_damage(
+                    average_dmg(
                         w.attack_damage(t),
                         self.damage_increase(t),
                         monster.resistance(t),
@@ -41,7 +41,7 @@ impl<'a> Equipment<'a> {
 
     pub fn attack_damage_from(&self, monster: &MonsterSchema) -> f32 {
         DamageType::iter()
-            .map(|t| compute_damage(monster.attack_damage(t), 0, self.resistance(t)))
+            .map(|t| average_dmg(monster.attack_damage(t), 0, self.resistance(t)))
             .sum()
     }
 

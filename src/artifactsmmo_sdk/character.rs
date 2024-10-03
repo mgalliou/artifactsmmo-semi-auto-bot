@@ -2,7 +2,7 @@ use super::{
     api::{characters::CharactersApi, my_character::MyCharacterApi},
     bank::Bank,
     char_config::CharConfig,
-    compute_damage,
+    average_dmg,
     config::Config,
     equipment::Equipment,
     events::Events,
@@ -1161,7 +1161,7 @@ impl Character {
 
     fn attack_damage_from(&self, monster: &MonsterSchema) -> f32 {
         DamageType::iter()
-            .map(|t| compute_damage(monster.attack_damage(t), 0, self.resistance(t)))
+            .map(|t| average_dmg(monster.attack_damage(t), 0, self.resistance(t)))
             .sum()
     }
 
@@ -1173,7 +1173,7 @@ impl Character {
     ) -> f32 {
         DamageType::iter()
             .map(|t| {
-                compute_damage(
+                average_dmg(
                     weapon.attack_damage(t),
                     armor.damage_increase(t),
                     monster.resistance(t),

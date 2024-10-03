@@ -1,7 +1,7 @@
 use super::config::Config;
 use super::skill::Skill;
 use super::{api::items::ItemsApi, monsters::Monsters, resources::Resources};
-use super::{compute_damage, ItemSchemaExt, MonsterSchemaExt};
+use super::{average_dmg, ItemSchemaExt, MonsterSchemaExt};
 use artifactsmmo_openapi::models::{equip_schema, unequip_schema, MonsterSchema, ResourceSchema};
 use artifactsmmo_openapi::models::{
     CraftSchema, GeItemSchema, ItemEffectSchema, ItemSchema, SimpleItemSchema,
@@ -432,13 +432,13 @@ impl ItemSchemaExt for ItemSchema {
 
     fn attack_damage_against(&self, monster: &MonsterSchema) -> f32 {
         DamageType::iter()
-            .map(|t| compute_damage(self.attack_damage(t), 0, monster.resistance(t)))
+            .map(|t| average_dmg(self.attack_damage(t), 0, monster.resistance(t)))
             .sum()
     }
 
     fn damage_from(&self, monster: &MonsterSchema) -> f32 {
         DamageType::iter()
-            .map(|t| compute_damage(monster.attack_damage(t), 0, self.resistance(t)))
+            .map(|t| average_dmg(monster.attack_damage(t), 0, self.resistance(t)))
             .sum()
     }
 
