@@ -2,7 +2,7 @@ use super::{api::events::EventsApi, config::Config, ActiveEventSchemaExt, MapSch
 use artifactsmmo_openapi::models::ActiveEventSchema;
 use chrono::{DateTime, Duration, Utc};
 use itertools::Itertools;
-use log::info;
+use log::debug;
 use std::sync::RwLock;
 
 pub struct Events {
@@ -24,15 +24,29 @@ impl Events {
 
     pub fn refresh(&self) {
         let now = Utc::now();
-        if Utc::now() - *self.last_refresh.read().unwrap() > Duration::seconds(30) {
+        if Utc::now() - self.last_refresh() > Duration::seconds(30) {
             if let Ok(mut events) = self.events.write() {
-                self.last_refresh.write().unwrap().clone_from(&now);
+                self.update_lash_refresh(now);
                 if let Ok(new) = self.api.all() {
                     *events = new;
-                    info!("events refreshed");
+                    debug!("events refreshed.");
                 }
             }
         }
+    }
+
+    fn update_lash_refresh(&self, now: DateTime<Utc>) {
+        self.last_refresh
+            .write()
+            .expect("`last_refresh` to be writable")
+            .clone_from(&now);
+    }
+
+    pub fn last_refresh(&self) -> DateTime<Utc> {
+        *self
+            .last_refresh
+            .read()
+            .expect("`last_refresh` to be readable")
     }
 
     pub fn of_type(&self, r#type: &str) -> Vec<ActiveEventSchema> {
@@ -50,6 +64,10 @@ impl Events {
 
 impl ActiveEventSchemaExt for ActiveEventSchema {
     fn content_code(&self) -> &String {
-        self.map.content.as_ref().map(|c| &c.code).expect("event to have content")
+        self.map
+            .content
+            .as_ref()
+            .map(|c| &c.code)
+            .expect("event to have content")
     }
 }
