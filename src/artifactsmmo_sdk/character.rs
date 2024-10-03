@@ -965,6 +965,7 @@ impl Character {
     }
 
     fn equip_equipment(&self, equipment: &Equipment) {
+        self.deposit_all();
         Slot::iter().for_each(|s| {
             if let Some(item) = equipment.slot(s) {
                 self.equip_item_from_bank_or_inventory(s, item);
