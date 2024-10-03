@@ -185,7 +185,7 @@ impl MyCharacterApi {
         action_task_cancel_my_name_action_task_cancel_post(&self.configuration, name)
     }
 
-    pub fn task_trade(
+    pub fn trade_task(
         &self,
         name: &str,
         item_code: &str,

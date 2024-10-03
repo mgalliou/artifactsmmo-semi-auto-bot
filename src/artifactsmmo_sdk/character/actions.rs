@@ -69,7 +69,7 @@ impl Character {
                 self.my_api
                     .unequip(&self.name, slot.to_unequip_schema(), Some(quantity))
             }
-            .map(CharacterResponseSchema::Unquip)
+            .map(CharacterResponseSchema::Unequip)
             .map_err(|e| e.into()),
             Action::AcceptTask => self
                 .my_api
@@ -88,7 +88,7 @@ impl Character {
                 .map_err(|e| e.into()),
             Action::TaskTrade { code, quantity } => self
                 .my_api
-                .task_trade(&self.name, code, quantity)
+                .trade_task(&self.name, code, quantity)
                 .map(CharacterResponseSchema::TaskTrade)
                 .map_err(|e| e.into()),
         };
@@ -349,7 +349,7 @@ pub enum CharacterResponseSchema {
     TaskCancel(TaskCancelledResponseSchema),
     TaskTrade(TaskTradeResponseSchema),
     Equip(EquipmentResponseSchema),
-    Unquip(EquipmentResponseSchema),
+    Unequip(EquipmentResponseSchema),
     CompleteTask(TasksRewardResponseSchema),
 }
 
@@ -365,7 +365,7 @@ impl CharacterResponseSchema {
             CharacterResponseSchema::TaskCancel(s) => s.character(),
             CharacterResponseSchema::TaskTrade(s) => s.character(),
             CharacterResponseSchema::Equip(s) => s.character(),
-            CharacterResponseSchema::Unquip(s) => s.character(),
+            CharacterResponseSchema::Unequip(s) => s.character(),
             CharacterResponseSchema::CompleteTask(s) => s.character(),
         }
     }
@@ -381,7 +381,7 @@ impl CharacterResponseSchema {
             CharacterResponseSchema::TaskCancel(s) => s.pretty(),
             CharacterResponseSchema::TaskTrade(s) => s.pretty(),
             CharacterResponseSchema::Equip(s) => s.pretty(),
-            CharacterResponseSchema::Unquip(s) => s.pretty(),
+            CharacterResponseSchema::Unequip(s) => s.pretty(),
             CharacterResponseSchema::CompleteTask(s) => s.pretty(),
         }
     }
