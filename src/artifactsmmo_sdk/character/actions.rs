@@ -328,9 +328,9 @@ pub enum RequestError {
 impl<T> From<Error<T>> for RequestError {
     fn from(value: Error<T>) -> Self {
         match value {
-            Error::Reqwest(error) => RequestError::Reqwest(error),
-            Error::Serde(error) => RequestError::Serde(error),
-            Error::Io(error) => RequestError::Io(error),
+            Error::Reqwest(e) => RequestError::Reqwest(e),
+            Error::Serde(e) => RequestError::Serde(e),
+            Error::Io(e) => RequestError::Io(e),
             Error::ResponseError(res) => match serde_json::from_str(&res.content) {
                 Ok(e) => RequestError::ResponseError(e),
                 Err(e) => RequestError::Serde(e),
