@@ -15,7 +15,7 @@ use super::{
     skill::Skill,
     ActiveEventSchemaExt, FightSchemaExt, ItemSchemaExt, MonsterSchemaExt, SkillSchemaExt,
 };
-use actions::{FightError, PostCraftAction, SkillError};
+use actions::{PostCraftAction, RequestError};
 use artifactsmmo_openapi::models::{
     CharacterSchema, FightSchema, InventorySlot, ItemSchema, MapContentSchema, MapSchema,
     MonsterSchema, ResourceSchema, SkillDataSchema,
@@ -140,7 +140,7 @@ impl Character {
             if self.conf().process_gathered {
                 self.process_raw_mats();
             }
-            self.deposit_all()
+            self.deposit_all();
         }
     }
 
@@ -191,7 +191,7 @@ impl Character {
                     }
                     Err(e) => {
                         error!("{} failed to levelup skill: {:?}", self.name, e);
-                        if let SkillError::InsuffisientMaterials = e {
+                        if let CharacterError::InsuffisientMaterials = e {
                             self.bank
                                 .missing_mats_for(&i.code, self.max_craftable_items(&i.code))
                                 .iter()
@@ -289,7 +289,7 @@ impl Character {
                     match self.craft_from_bank(&order.item, quantity, PostCraftAction::None) {
                         Ok(i) => Some(i),
                         Err(e) => {
-                            if let SkillError::InsuffisientMaterials = e {
+                            if let CharacterError::InsuffisientMaterials = e {
                                 self.bank
                                     .missing_mats_for(&order.item, order.quantity)
                                     .iter()
@@ -363,7 +363,9 @@ impl Character {
         if in_bank >= missing {
             self.deposit_all();
             let _ = self.action_withdraw(item, max(missing, self.inventory_free_space()));
-            return self.action_task_trade(item, self.has_in_inventory(&self.task()));
+            return self
+                .action_task_trade(item, self.has_in_inventory(&self.task()))
+                .is_ok();
         } else if self.can_craft(item) && craftable > 0 {
             return self
                 .craft_from_bank(
@@ -445,21 +447,18 @@ impl Character {
         &self,
         monster: &MonsterSchema,
         map: Option<&MapSchema>,
-    ) -> Result<FightSchema, FightError> {
+    ) -> Result<FightSchema, CharacterError> {
         let equipment = self.best_available_equipment_against(monster);
         if !self.can_kill_with(monster, &equipment) {
-            return Err(FightError::NoEquipmentToKill);
+            return Err(CharacterError::NoEquipmentToKill);
         }
         self.equip_equipment(&equipment);
         if let Some(map) = map {
-            self.action_move(map.x, map.y);
+            self.action_move(map.x, map.y)?;
         } else if let Some(map) = self.closest_map_with_content_code(&monster.code) {
-            self.action_move(map.x, map.y);
+            self.action_move(map.x, map.y)?;
         }
-        match self.action_fight() {
-            Ok(f) => Ok(f),
-            Err(e) => Err(FightError::RequestError(e)),
-        }
+        Ok(self.action_fight()?)
     }
 
     /// Checks if the character is able to gather the given `resource`. if it
@@ -469,22 +468,19 @@ impl Character {
         &self,
         resource: &ResourceSchema,
         map: Option<&MapSchema>,
-    ) -> Result<SkillDataSchema, SkillError> {
+    ) -> Result<SkillDataSchema, CharacterError> {
         if !self.can_gather(resource) {
-            return Err(SkillError::InsuffisientSkillLevel);
+            return Err(CharacterError::InsuffisientSkillLevel);
         }
         if let Some(tool) = self.best_available_tool_for_resource(&resource.code) {
             self.equip_item_from_bank_or_inventory(Slot::Weapon, tool)
         }
         if let Some(map) = map {
-            self.action_move(map.x, map.y);
+            self.action_move(map.x, map.y)?;
         } else if let Some(map) = self.closest_map_with_content_code(&resource.code) {
-            self.action_move(map.x, map.y);
+            self.action_move(map.x, map.y)?;
         }
-        match self.action_gather() {
-            Ok(f) => Ok(f),
-            Err(e) => Err(SkillError::RequestError(e)),
-        }
+        Ok(self.action_gather()?)
     }
 
     /// Checks if the `Character` could kill the given `monster` with the given
@@ -600,7 +596,7 @@ impl Character {
         &self,
         code: &str,
         post_action: PostCraftAction,
-    ) -> Result<i32, SkillError> {
+    ) -> Result<i32, CharacterError> {
         let max = self.max_craftable_items_from_bank(code);
         self.craft_from_bank(code, max, post_action)
     }
@@ -613,15 +609,15 @@ impl Character {
         code: &str,
         quantity: i32,
         post_action: PostCraftAction,
-    ) -> Result<i32, SkillError> {
+    ) -> Result<i32, CharacterError> {
         if !self.can_craft(code) {
-            return Err(SkillError::InsuffisientSkillLevel);
+            return Err(CharacterError::InsuffisientSkillLevel);
         }
         if quantity <= 0 {
-            return Err(SkillError::InvalidQuantity);
+            return Err(CharacterError::InvalidQuantity);
         }
         if self.max_craftable_items_from_bank(code) < quantity {
-            return Err(SkillError::InsuffisientMaterials);
+            return Err(CharacterError::InsuffisientMaterials);
         }
         info!(
             "{}: going to craft '{}'x{} from bank.",
@@ -629,7 +625,7 @@ impl Character {
         );
         self.deposit_all();
         self.withdraw_mats_for(code, quantity);
-        self.action_craft(code, quantity);
+        self.action_craft(code, quantity)?;
         //TODO: return errors
         match post_action {
             PostCraftAction::Deposit => {
@@ -644,6 +640,7 @@ impl Character {
     }
 
     /// Deposits all the items to the bank.
+    /// TODO: add returns type with Result breakdown
     fn deposit_all(&self) {
         if self.inventory_total() <= 0 {
             return;
@@ -742,7 +739,7 @@ impl Character {
                 "{}: going to craft all '{}' with materials available in inventory.",
                 self.name, code
             );
-            self.action_craft(code, n);
+            let _ = self.action_craft(code, n);
             n
         } else {
             error!(
@@ -759,7 +756,7 @@ impl Character {
         let n = self.has_in_inventory(code);
         if n > 0 {
             info!("{}: recycling all '{}'.", self.name, code);
-            self.action_recycle(code, n);
+            let _ = self.action_recycle(code, n);
         }
         n
     }
@@ -878,25 +875,37 @@ impl Character {
             .collect_vec()
     }
 
-    fn move_to_closest_map_of_type(&self, r#type: &str) {
+    fn move_to_closest_map_of_type(&self, r#type: &str) -> Result<MapSchema, CharacterError> {
         if let Some(map) = self.closest_map_of_type(r#type) {
             let (x, y) = (map.x, map.y);
-            self.action_move(x, y);
-        };
+            Ok(self.action_move(x, y)?)
+        } else {
+            Err(CharacterError::FailedToMove)
+        }
     }
 
-    fn move_to_closest_map_with_content_code(&self, code: &str) {
+    fn move_to_closest_map_with_content_code(
+        &self,
+        code: &str,
+    ) -> Result<MapSchema, CharacterError> {
         if let Some(map) = self.closest_map_with_content_code(code) {
             let (x, y) = (map.x, map.y);
-            self.action_move(x, y);
-        };
+            Ok(self.action_move(x, y)?)
+        } else {
+            Err(CharacterError::FailedToMove)
+        }
     }
 
-    fn move_to_closest_map_with_content_schema(&self, schema: &MapContentSchema) {
+    fn move_to_closest_map_with_content_schema(
+        &self,
+        schema: &MapContentSchema,
+    ) -> Result<MapSchema, CharacterError> {
         if let Some(map) = self.closest_map_with_content_schema(schema) {
             let (x, y) = (map.x, map.y);
-            self.action_move(x, y);
-        };
+            Ok(self.action_move(x, y)?)
+        } else {
+            Err(CharacterError::FailedToMove)
+        }
     }
 
     /// Returns the closest map from the `Character` containing the given
@@ -941,6 +950,11 @@ impl Character {
         (x, y)
     }
 
+    fn map(&self) -> &MapSchema {
+        let (x, y) = self.position();
+        self.maps.get(x, y).unwrap()
+    }
+
     /// Moves the `Character` to the crafting station corresponding to the skill
     /// required to craft the given item `code`.
     fn move_to_craft(&self, code: &str) -> bool {
@@ -949,7 +963,7 @@ impl Character {
             .skill_to_craft(code)
             .and_then(|s| self.maps.to_craft(s))
         {
-            self.action_move(dest.x, dest.y);
+            let _ = self.action_move(dest.x, dest.y);
         }
         false
     }
@@ -1279,5 +1293,23 @@ impl Role {
             Role::Fisher => Some(Skill::Fishing),
             Role::Weaponcrafter => Some(Skill::Weaponcrafting),
         }
+    }
+}
+
+#[derive(Debug)]
+pub enum CharacterError {
+    InsuffisientSkillLevel,
+    InsuffisientMaterials,
+    InvalidQuantity,
+    NoEquipmentToKill,
+    MapNotFound,
+    FailedToMove,
+    NothingToDeposit,
+    RequestError(RequestError),
+}
+
+impl From<RequestError> for CharacterError {
+    fn from(value: RequestError) -> Self {
+        CharacterError::RequestError(value)
     }
 }

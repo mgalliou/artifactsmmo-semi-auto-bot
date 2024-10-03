@@ -14,6 +14,10 @@ impl Maps {
         }
     }
 
+    pub fn get(&self, x: i32, y: i32) -> Option<&MapSchema> {
+        self.data.iter().find(|m| m.x == x && m.y == y)
+    }
+
     pub fn closest_from_amoung(x: i32, y: i32, maps: Vec<&MapSchema>) -> Option<&MapSchema> {
         maps.into_iter()
             .min_by_key(|m| i32::abs(m.x - x) + i32::abs(m.y - y))

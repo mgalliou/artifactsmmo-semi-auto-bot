@@ -8,9 +8,10 @@ use artifactsmmo_openapi::{
     models::{
         cooldown_schema::Reason, fight_schema, BankItemTransactionResponseSchema,
         CharacterFightResponseSchema, CharacterMovementResponseSchema, CharacterSchema, DropSchema,
-        EquipmentResponseSchema, FightSchema, MapContentSchema, RecyclingResponseSchema,
+        EquipmentResponseSchema, FightSchema, MapContentSchema, MapSchema, RecyclingResponseSchema,
         SimpleItemSchema, SkillDataSchema, SkillResponseSchema, TaskCancelledResponseSchema,
-        TaskResponseSchema, TaskTradeResponseSchema, TasksRewardResponseSchema,
+        TaskResponseSchema, TaskSchema, TaskTradeResponseSchema, TaskTradeSchema,
+        TasksRewardResponseSchema, TasksRewardSchema,
     },
 };
 use log::{error, info};
@@ -102,31 +103,37 @@ impl Character {
         }
     }
 
-    pub fn action_move(&self, x: i32, y: i32) -> bool {
+    pub fn action_move(&self, x: i32, y: i32) -> Result<MapSchema, RequestError> {
         if self.position() == (x, y) {
-            return true;
+            return Ok(self.map().clone());
         }
-        self.perform_action(Action::Move { x, y }).is_ok()
+        self.perform_action(Action::Move { x, y }).map(|r| {
+            if let CharacterResponseSchema::Movement(s) = r {
+                *s.data.destination
+            } else {
+                unreachable!()
+            }
+        })
     }
 
     pub fn action_fight(&self) -> Result<FightSchema, RequestError> {
-        match self.perform_action(Action::Fight) {
-            Ok(res) => match res {
-                CharacterResponseSchema::Fight(s) => Ok(*s.data.fight),
-                _ => unreachable!(),
-            },
-            Err(e) => Err(e),
-        }
+        self.perform_action(Action::Fight).map(|r| {
+            if let CharacterResponseSchema::Fight(s) = r {
+                *s.data.fight
+            } else {
+                unreachable!()
+            }
+        })
     }
 
     pub fn action_gather(&self) -> Result<SkillDataSchema, RequestError> {
-        match self.perform_action(Action::Gather) {
-            Ok(res) => match res {
-                CharacterResponseSchema::Skill(s) => Ok(*s.data),
-                _ => unreachable!(),
-            },
-            Err(e) => Err(e),
-        }
+        self.perform_action(Action::Gather).map(|r| {
+            if let CharacterResponseSchema::Skill(s) = r {
+                *s.data
+            } else {
+                unreachable!()
+            }
+        })
     }
 
     pub fn action_withdraw(
@@ -140,18 +147,16 @@ impl Character {
             .content
             .write()
             .expect("bank_content to be writable");
-        match self.perform_action(Action::Withdraw { code, quantity }) {
-            Ok(res) => {
-                if let CharacterResponseSchema::BankItemTransaction(r) = res {
-                    *bank_content = r.data.bank
-                }
-                Ok(SimpleItemSchema {
+        self.perform_action(Action::Withdraw { code, quantity })
+            .map(|r| {
+                if let CharacterResponseSchema::BankItemTransaction(s) = r {
+                    *bank_content = s.data.bank
+                };
+                SimpleItemSchema {
                     code: code.to_owned(),
                     quantity,
-                })
-            }
-            Err(e) => Err(e),
-        }
+                }
+            })
     }
 
     pub fn action_deposit(
@@ -165,33 +170,31 @@ impl Character {
             .content
             .write()
             .expect("bank_content to be writable");
-        match self.perform_action(Action::Deposit { code, quantity }) {
-            Ok(res) => {
-                if let CharacterResponseSchema::BankItemTransaction(r) = res {
-                    *bank_content = r.data.bank
-                }
-                Ok(SimpleItemSchema {
+        self.perform_action(Action::Deposit { code, quantity })
+            .map(|r| {
+                if let CharacterResponseSchema::BankItemTransaction(s) = r {
+                    *bank_content = s.data.bank
+                };
+                SimpleItemSchema {
                     code: code.to_owned(),
                     quantity,
-                })
-            }
-            Err(e) => Err(e),
-        }
+                }
+            })
     }
 
-    pub fn action_craft(&self, code: &str, quantity: i32) -> bool {
+    pub fn action_craft(&self, code: &str, quantity: i32) -> Result<(), RequestError> {
         self.move_to_craft(code);
         self.perform_action(Action::Craft { code, quantity })
-            .is_ok()
+            .map(|_| ())
     }
 
-    pub fn action_recycle(&self, code: &str, quantity: i32) -> bool {
+    pub fn action_recycle(&self, code: &str, quantity: i32) -> Result<(), RequestError> {
         self.move_to_craft(code);
         self.perform_action(Action::Recycle { code, quantity })
-            .is_ok()
+            .map(|_| ())
     }
 
-    pub fn action_equip(&self, code: &str, slot: Slot, quantity: i32) -> bool {
+    pub fn action_equip(&self, code: &str, slot: Slot, quantity: i32) -> Result<(), RequestError> {
         if self.equiped_in(slot).is_some() {
             let quantity = match slot {
                 Slot::Consumable1 => self.data.read().unwrap().consumable1_slot_quantity,
@@ -205,45 +208,67 @@ impl Character {
             slot,
             quantity,
         })
-        .is_ok()
+        .map(|_| ())
     }
 
-    pub fn action_unequip(&self, slot: Slot, quantity: i32) -> bool {
+    pub fn action_unequip(&self, slot: Slot, quantity: i32) -> Result<(), RequestError> {
         self.perform_action(Action::Unequip { slot, quantity })
-            .is_ok()
+            .map(|_| ())
     }
 
-    pub fn action_accept_task(&self, r#type: &str) -> bool {
+    pub fn action_accept_task(&self, r#type: &str) -> Result<TaskSchema, RequestError> {
         self.move_to_closest_map_with_content_schema(&MapContentSchema {
             r#type: "tasks_master".to_owned(),
             code: r#type.to_owned(),
         });
-        self.perform_action(Action::AcceptTask).is_ok()
+        self.perform_action(Action::AcceptTask).map(|r| {
+            if let CharacterResponseSchema::Task(s) = r {
+                *s.data.task
+            } else {
+                unreachable!()
+            }
+        })
     }
 
-    pub fn action_complete_task(&self) -> bool {
+    pub fn action_complete_task(&self) -> Result<TasksRewardSchema, RequestError> {
         self.move_to_closest_map_with_content_schema(&MapContentSchema {
             r#type: "tasks_master".to_owned(),
             code: self.task_type().to_owned(),
         });
-        self.perform_action(Action::CompleteTask).is_ok()
+        self.perform_action(Action::CompleteTask).map(|r| {
+            if let CharacterResponseSchema::CompleteTask(s) = r {
+                *s.data.reward
+            } else {
+                unreachable!()
+            }
+        })
     }
 
-    pub fn action_cancel_task(&self) -> bool {
+    pub fn action_cancel_task(&self) -> Result<(), RequestError> {
         self.move_to_closest_map_with_content_schema(&MapContentSchema {
             r#type: "tasks_master".to_owned(),
             code: self.task_type().to_owned(),
         });
-        self.perform_action(Action::CancelTask).is_ok()
+        self.perform_action(Action::CancelTask).map(|_| ())
     }
 
-    pub fn action_task_trade(&self, code: &str, quantity: i32) -> bool {
+    pub fn action_task_trade(
+        &self,
+        code: &str,
+        quantity: i32,
+    ) -> Result<TaskTradeSchema, RequestError> {
         self.move_to_closest_map_with_content_schema(&MapContentSchema {
             r#type: "tasks_master".to_owned(),
             code: "items".to_owned(),
         });
         self.perform_action(Action::TaskTrade { code, quantity })
-            .is_ok()
+            .map(|r| {
+                if let CharacterResponseSchema::TaskTrade(s) = r {
+                    *s.data.trade
+                } else {
+                    unreachable!()
+                }
+            })
     }
 
     fn handle_action_error(
@@ -612,16 +637,3 @@ impl SkillSchemaExt for SkillDataSchema {
     }
 }
 
-#[derive(Debug)]
-pub enum SkillError {
-    InsuffisientSkillLevel,
-    InsuffisientMaterials,
-    InvalidQuantity,
-    RequestError(RequestError),
-}
-
-#[derive(Debug)]
-pub enum FightError {
-    NoEquipmentToKill,
-    RequestError(RequestError),
-}
