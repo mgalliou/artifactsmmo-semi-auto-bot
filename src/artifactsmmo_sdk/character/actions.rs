@@ -100,9 +100,6 @@ impl Character {
             Ok(res) => {
                 info!("{}", res.pretty());
                 self.update_data(res.character());
-                if let CharacterResponseSchema::BankItemTransaction(ref schema) = res {
-                    self.bank.update_content(&schema.data.bank)
-                };
                 Ok(res)
             }
             Err(e) => self.handle_action_error(action, e),
@@ -138,14 +135,38 @@ impl Character {
 
     pub fn action_withdraw(&self, code: &str, quantity: i32) -> bool {
         self.move_to_closest_map_of_type("bank");
-        self.perform_action(Action::Withdraw { code, quantity })
-            .is_ok()
+        let mut bank_content = self
+            .bank
+            .content
+            .write()
+            .expect("bank_content to be writable");
+        match self.perform_action(Action::Withdraw { code, quantity }) {
+            Ok(res) => {
+                if let CharacterResponseSchema::BankItemTransaction(r) = res {
+                    *bank_content = r.data.bank
+                }
+            }
+            Err(_) => return false,
+        };
+        true
     }
 
     pub fn action_deposit(&self, code: &str, quantity: i32) -> bool {
         self.move_to_closest_map_of_type("bank");
-        self.perform_action(Action::Deposit { code, quantity })
-            .is_ok()
+        let mut bank_content = self
+            .bank
+            .content
+            .write()
+            .expect("bank_content to be writable");
+        match self.perform_action(Action::Deposit { code, quantity }) {
+            Ok(res) => {
+                if let CharacterResponseSchema::BankItemTransaction(r) = res {
+                    *bank_content = r.data.bank
+                }
+            }
+            Err(_) => return false,
+        };
+        true
     }
 
     pub fn action_craft(&self, code: &str, quantity: i32) -> bool {
