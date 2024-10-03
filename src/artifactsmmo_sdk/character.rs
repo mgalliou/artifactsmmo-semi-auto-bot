@@ -25,7 +25,7 @@ use itertools::Itertools;
 use log::{debug, error, info, warn};
 use serde::Deserialize;
 use std::{
-    cmp::{min, Ordering},
+    cmp::{max, min, Ordering},
     io,
     option::Option,
     sync::{Arc, RwLock},
@@ -362,11 +362,7 @@ impl Character {
 
         if in_bank >= missing {
             self.deposit_all();
-            if missing > self.inventory_free_space() {
-                self.action_withdraw(item, self.inventory_free_space())
-            } else {
-                self.action_withdraw(item, missing)
-            };
+            let _ = self.action_withdraw(item, max(missing, self.inventory_free_space()));
             return self.action_task_trade(item, self.has_in_inventory(&self.task()));
         } else if self.can_craft(item) && craftable > 0 {
             return self
@@ -462,9 +458,7 @@ impl Character {
         }
         match self.action_fight() {
             Ok(f) => Ok(f),
-            Err(e) => Err(e
-                .api_error()
-                .map_or(FightError::UnkownError, FightError::ApiError)),
+            Err(e) => Err(FightError::RequestError(e)),
         }
     }
 
@@ -489,9 +483,7 @@ impl Character {
         }
         match self.action_gather() {
             Ok(f) => Ok(f),
-            Err(e) => Err(e
-                .api_error()
-                .map_or(SkillError::UnkownError, SkillError::ApiError)),
+            Err(e) => Err(SkillError::RequestError(e)),
         }
     }
 
@@ -641,10 +633,10 @@ impl Character {
         //TODO: return errors
         match post_action {
             PostCraftAction::Deposit => {
-                self.action_deposit(code, quantity);
+                let _ = self.action_deposit(code, quantity);
             }
             PostCraftAction::Recycle => {
-                self.action_recycle(code, quantity);
+                let _ = self.action_recycle(code, quantity);
             }
             PostCraftAction::None => (),
         };

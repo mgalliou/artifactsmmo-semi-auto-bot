@@ -1,6 +1,6 @@
 use super::Character;
 use crate::artifactsmmo_sdk::{
-    items::Slot, ApiErrorSchema, ApiRequestError, FightSchemaExt, MapSchemaExt, ResponseSchema,
+    items::Slot, ApiErrorResponseSchema, FightSchemaExt, MapSchemaExt, ResponseSchema,
     SkillSchemaExt,
 };
 use artifactsmmo_openapi::{
@@ -14,17 +14,13 @@ use artifactsmmo_openapi::{
     },
 };
 use log::{error, info};
-use reqwest::StatusCode;
 use std::{fmt::Display, thread::sleep, time::Duration};
 use strum_macros::EnumIs;
 
 impl Character {
-    pub fn perform_action(
-        &self,
-        action: Action,
-    ) -> Result<CharacterResponseSchema, Box<dyn ApiRequestError>> {
+    pub fn perform_action(&self, action: Action) -> Result<CharacterResponseSchema, RequestError> {
         self.wait_for_cooldown();
-        let res: Result<CharacterResponseSchema, Box<dyn ApiRequestError>> = match action {
+        let res: Result<CharacterResponseSchema, RequestError> = match action {
             Action::Move { x, y } => self
                 .my_api
                 .move_to(&self.name, x, y)
@@ -113,7 +109,7 @@ impl Character {
         self.perform_action(Action::Move { x, y }).is_ok()
     }
 
-    pub fn action_fight(&self) -> Result<FightSchema, Box<dyn ApiRequestError>> {
+    pub fn action_fight(&self) -> Result<FightSchema, RequestError> {
         match self.perform_action(Action::Fight) {
             Ok(res) => match res {
                 CharacterResponseSchema::Fight(s) => Ok(*s.data.fight),
@@ -123,7 +119,7 @@ impl Character {
         }
     }
 
-    pub fn action_gather(&self) -> Result<SkillDataSchema, Box<dyn ApiRequestError>> {
+    pub fn action_gather(&self) -> Result<SkillDataSchema, RequestError> {
         match self.perform_action(Action::Gather) {
             Ok(res) => match res {
                 CharacterResponseSchema::Skill(s) => Ok(*s.data),
@@ -137,7 +133,7 @@ impl Character {
         &self,
         code: &str,
         quantity: i32,
-    ) -> Result<SimpleItemSchema, Box<dyn ApiRequestError>> {
+    ) -> Result<SimpleItemSchema, RequestError> {
         self.move_to_closest_map_of_type("bank");
         let mut bank_content = self
             .bank
@@ -162,7 +158,7 @@ impl Character {
         &self,
         code: &str,
         quantity: i32,
-    ) -> Result<SimpleItemSchema, Box<dyn ApiRequestError>> {
+    ) -> Result<SimpleItemSchema, RequestError> {
         self.move_to_closest_map_of_type("bank");
         let mut bank_content = self
             .bank
@@ -253,31 +249,21 @@ impl Character {
     fn handle_action_error(
         &self,
         action: Action,
-        e: Box<dyn ApiRequestError>,
-    ) -> Result<CharacterResponseSchema, Box<dyn ApiRequestError>> {
-        match e.api_error() {
-            Some(e) => {
-                if e.error.code == 499 {
-                    self.game.update_offset();
-                    return self.perform_action(action);
-                }
-                if e.error.code == 500 || e.error.code == 520 {
-                    error!(
-                        "{}: unknown error ({}), retrying in 10 secondes.",
-                        self.name, e.error.code
-                    );
-                    sleep(Duration::from_secs(10));
-                    return self.perform_action(action);
-                }
-                error!(
-                    "{}: error while performing action '{:?}': {} ({}).",
-                    self.name, action, e.error.message, e.error.code,
-                )
+        e: RequestError,
+    ) -> Result<CharacterResponseSchema, RequestError> {
+        if let RequestError::ResponseError(ref res) = e {
+            if res.error.code == 499 {
+                self.game.update_offset();
+                return self.perform_action(action);
             }
-            None => error!(
-                "{}: unkown error while performing action '{:?}'.",
-                self.name, action,
-            ),
+            if res.error.code == 500 || res.error.code == 520 {
+                error!(
+                    "{}: unknown error ({}), retrying in 10 secondes.",
+                    self.name, res.error.code
+                );
+                sleep(Duration::from_secs(10));
+                return self.perform_action(action);
+            }
         }
         Err(e)
     }
@@ -331,31 +317,25 @@ pub enum PostCraftAction {
     None,
 }
 
-impl<T> ApiRequestError for Error<T> {
-    fn status_code(&self) -> Option<StatusCode> {
-        if let Error::ResponseError(e) = self {
-            return Some(e.status);
-        }
-        None
-    }
-
-    fn api_error(&self) -> Option<ApiErrorSchema> {
-        if let Error::ResponseError(e) = self {
-            match serde_json::from_str(&e.content) {
-                Ok(e) => return Some(e),
-                Err(e) => {
-                    error!("{}", e);
-                    return None;
-                }
-            }
-        }
-        None
-    }
+#[derive(Debug)]
+pub enum RequestError {
+    Reqwest(reqwest::Error),
+    Serde(serde_json::Error),
+    Io(std::io::Error),
+    ResponseError(ApiErrorResponseSchema),
 }
 
-impl<T: 'static> From<Error<T>> for Box<dyn ApiRequestError> {
+impl<T> From<Error<T>> for RequestError {
     fn from(value: Error<T>) -> Self {
-        Box::new(value)
+        match value {
+            Error::Reqwest(error) => RequestError::Reqwest(error),
+            Error::Serde(error) => RequestError::Serde(error),
+            Error::Io(error) => RequestError::Io(error),
+            Error::ResponseError(res) => match serde_json::from_str(&res.content) {
+                Ok(e) => RequestError::ResponseError(e),
+                Err(e) => RequestError::Serde(e),
+            },
+        }
     }
 }
 
@@ -637,13 +617,11 @@ pub enum SkillError {
     InsuffisientSkillLevel,
     InsuffisientMaterials,
     InvalidQuantity,
-    ApiError(ApiErrorSchema),
-    UnkownError,
+    RequestError(RequestError),
 }
 
 #[derive(Debug)]
 pub enum FightError {
     NoEquipmentToKill,
-    ApiError(ApiErrorSchema),
-    UnkownError,
+    RequestError(RequestError),
 }

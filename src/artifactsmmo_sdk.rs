@@ -4,7 +4,6 @@ use artifactsmmo_openapi::models::{
 };
 use as_any::AsAny;
 use items::{DamageType, Type};
-use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use skill::Skill;
 
@@ -74,20 +73,17 @@ trait SkillSchemaExt {
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
-pub struct ApiErrorSchema {
-    error: ApiError,
+pub struct ApiErrorResponseSchema {
+    error: ApiErrorSchema,
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
-pub struct ApiError {
+pub struct ApiErrorSchema {
     code: i32,
     message: String,
 }
 
-pub trait ApiRequestError {
-    fn status_code(&self) -> Option<StatusCode>;
-    fn api_error(&self) -> Option<ApiErrorSchema>;
-}
+pub trait ApiRequestError {}
 
 /// Compute the average damage an attack will do against the given `target_resistance`. Block
 /// chance is considered as a global damage reduction (30 resistence reduce the computed damage by
