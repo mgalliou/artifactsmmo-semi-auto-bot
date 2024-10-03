@@ -1,8 +1,8 @@
 use super::{
     api::{characters::CharactersApi, my_character::MyCharacterApi},
+    average_dmg,
     bank::Bank,
     char_config::CharConfig,
-    average_dmg,
     config::Config,
     equipment::Equipment,
     events::Events,
@@ -161,7 +161,9 @@ impl Character {
             skills.push(Skill::Cooking);
         }
         skills.sort_by_key(|s| self.skill_level(*s));
-        let ret = skills.into_iter().filter(|s| self.skill_level(*s) < 35)
+        let ret = skills
+            .into_iter()
+            .filter(|s| self.skill_level(*s) < 35)
             .any(|skill| self.level_skill_up(skill));
         info!("{}: tryied to levelup a skill: {}", self.name, ret);
         ret
@@ -636,10 +638,15 @@ impl Character {
         self.deposit_all();
         self.withdraw_mats_for(code, quantity);
         self.action_craft(code, quantity);
+        //TODO: return errors
         match post_action {
-            PostCraftAction::Deposit => self.action_deposit(code, quantity),
-            PostCraftAction::Recycle => self.action_recycle(code, quantity),
-            PostCraftAction::None => false,
+            PostCraftAction::Deposit => {
+                self.action_deposit(code, quantity);
+            }
+            PostCraftAction::Recycle => {
+                self.action_recycle(code, quantity);
+            }
+            PostCraftAction::None => (),
         };
         Ok(quantity)
     }
@@ -969,7 +976,7 @@ impl Character {
             return;
         }
         if self.has_in_inventory(&item.code) > 0
-            || (self.bank.has_item(&item.code) > 0 && self.action_withdraw(&item.code, 1))
+            || (self.bank.has_item(&item.code) > 0 && self.action_withdraw(&item.code, 1).is_ok())
         {
             let _ = self.action_equip(&item.code, s, 1);
             if let Some(i) = prev_equiped {

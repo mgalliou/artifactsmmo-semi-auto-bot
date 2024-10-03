@@ -9,8 +9,8 @@ use artifactsmmo_openapi::{
         cooldown_schema::Reason, fight_schema, BankItemTransactionResponseSchema,
         CharacterFightResponseSchema, CharacterMovementResponseSchema, CharacterSchema, DropSchema,
         EquipmentResponseSchema, FightSchema, MapContentSchema, RecyclingResponseSchema,
-        SkillDataSchema, SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema,
-        TaskTradeResponseSchema, TasksRewardResponseSchema,
+        SimpleItemSchema, SkillDataSchema, SkillResponseSchema, TaskCancelledResponseSchema,
+        TaskResponseSchema, TaskTradeResponseSchema, TasksRewardResponseSchema,
     },
 };
 use log::{error, info};
@@ -133,7 +133,11 @@ impl Character {
         }
     }
 
-    pub fn action_withdraw(&self, code: &str, quantity: i32) -> bool {
+    pub fn action_withdraw(
+        &self,
+        code: &str,
+        quantity: i32,
+    ) -> Result<SimpleItemSchema, Box<dyn ApiRequestError>> {
         self.move_to_closest_map_of_type("bank");
         let mut bank_content = self
             .bank
@@ -145,13 +149,20 @@ impl Character {
                 if let CharacterResponseSchema::BankItemTransaction(r) = res {
                     *bank_content = r.data.bank
                 }
+                Ok(SimpleItemSchema {
+                    code: code.to_owned(),
+                    quantity,
+                })
             }
-            Err(_) => return false,
-        };
-        true
+            Err(e) => Err(e),
+        }
     }
 
-    pub fn action_deposit(&self, code: &str, quantity: i32) -> bool {
+    pub fn action_deposit(
+        &self,
+        code: &str,
+        quantity: i32,
+    ) -> Result<SimpleItemSchema, Box<dyn ApiRequestError>> {
         self.move_to_closest_map_of_type("bank");
         let mut bank_content = self
             .bank
@@ -163,10 +174,13 @@ impl Character {
                 if let CharacterResponseSchema::BankItemTransaction(r) = res {
                     *bank_content = r.data.bank
                 }
+                Ok(SimpleItemSchema {
+                    code: code.to_owned(),
+                    quantity,
+                })
             }
-            Err(_) => return false,
-        };
-        true
+            Err(e) => Err(e),
+        }
     }
 
     pub fn action_craft(&self, code: &str, quantity: i32) -> bool {
