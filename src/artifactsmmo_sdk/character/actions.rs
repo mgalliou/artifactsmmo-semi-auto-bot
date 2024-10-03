@@ -1,6 +1,7 @@
 use super::Character;
 use crate::artifactsmmo_sdk::{
-    items::Slot, ApiErrorSchema, ApiRequestError, FightSchemaExt, MapSchemaExt, ResponseSchema, SkillSchemaExt
+    items::Slot, ApiErrorSchema, ApiRequestError, FightSchemaExt, MapSchemaExt, ResponseSchema,
+    SkillSchemaExt,
 };
 use artifactsmmo_openapi::{
     apis::Error,
@@ -284,7 +285,7 @@ pub enum Action<'a> {
 pub enum PostCraftAction {
     Deposit,
     Recycle,
-    None
+    None,
 }
 
 impl<T> ApiRequestError for Error<T> {
@@ -366,9 +367,10 @@ impl CharacterResponseSchema {
 impl ResponseSchema for CharacterMovementResponseSchema {
     fn pretty(&self) -> String {
         format!(
-            "{}: moved to {}.",
+            "{}: moved to {}. {}s",
             self.data.character.name,
-            self.data.destination.pretty()
+            self.data.destination.pretty(),
+            self.data.cooldown.remaining_seconds
         )
     }
 
@@ -381,16 +383,19 @@ impl ResponseSchema for CharacterFightResponseSchema {
     fn pretty(&self) -> String {
         match self.data.fight.result {
             fight_schema::Result::Win => format!(
-                "{} won a fight after {} turns ({}xp, {}g, [{}]).",
+                "{} won a fight after {} turns ({}xp, {}g, [{}]). {}s",
                 self.data.character.name,
                 self.data.fight.turns,
                 self.data.fight.xp,
                 self.data.fight.gold,
-                DropSchemas(&self.data.fight.drops)
+                DropSchemas(&self.data.fight.drops),
+                self.data.cooldown.remaining_seconds
             ),
             fight_schema::Result::Lose => format!(
-                "{} lost a fight after {} turns.",
-                self.data.character.name, self.data.fight.turns
+                "{} lost a fight after {} turns. {}s",
+                self.data.character.name,
+                self.data.fight.turns,
+                self.data.cooldown.remaining_seconds
             ),
         }
     }
@@ -408,10 +413,11 @@ impl ResponseSchema for SkillResponseSchema {
             "gathered"
         };
         format!(
-            "{}: {reason} [{}] ({}xp).",
+            "{}: {reason} [{}] ({}xp). {}s",
             self.data.character.name,
             DropSchemas(&self.data.details.items),
             self.data.details.xp,
+            self.data.cooldown.remaining_seconds
         )
     }
 
@@ -424,13 +430,13 @@ impl ResponseSchema for BankItemTransactionResponseSchema {
     fn pretty(&self) -> String {
         if self.data.cooldown.reason == Reason::WithdrawBank {
             format!(
-                "{}: withdrawed '{}' from the bank.",
-                self.data.character.name, self.data.item.code
+                "{}: withdrawed '{}' from the bank. {}s",
+                self.data.character.name, self.data.item.code, self.data.cooldown.remaining_seconds
             )
         } else {
             format!(
-                "{}: deposited '{}' to the bank.",
-                self.data.character.name, self.data.item.code
+                "{}: deposited '{}' to the bank. {}s",
+                self.data.character.name, self.data.item.code, self.data.cooldown.remaining_seconds
             )
         }
     }
@@ -443,9 +449,10 @@ impl ResponseSchema for BankItemTransactionResponseSchema {
 impl ResponseSchema for RecyclingResponseSchema {
     fn pretty(&self) -> String {
         format!(
-            "{}: recycled and received {}.",
+            "{}: recycled and received {}. {}s",
             self.data.character.name,
-            DropSchemas(&self.data.details.items)
+            DropSchemas(&self.data.details.items,),
+            self.data.cooldown.remaining_seconds
         )
     }
 
@@ -458,13 +465,19 @@ impl ResponseSchema for EquipmentResponseSchema {
     fn pretty(&self) -> String {
         if self.data.cooldown.reason == Reason::Equip {
             format!(
-                "{}: equiped '{}' in the '{:?}' slot",
-                &self.data.character.name, &self.data.item.code, &self.data.slot
+                "{}: equiped '{}' in the '{:?}' slot. {}s",
+                &self.data.character.name,
+                &self.data.item.code,
+                &self.data.slot,
+                self.data.cooldown.remaining_seconds
             )
         } else {
             format!(
-                "{}: unequiped '{}' from the '{:?}' slot",
-                &self.data.character.name, &self.data.item.code, &self.data.slot
+                "{}: unequiped '{}' from the '{:?}' slot. {}s",
+                &self.data.character.name,
+                &self.data.item.code,
+                &self.data.slot,
+                self.data.cooldown.remaining_seconds
             )
         }
     }
@@ -477,11 +490,12 @@ impl ResponseSchema for EquipmentResponseSchema {
 impl ResponseSchema for TaskResponseSchema {
     fn pretty(&self) -> String {
         format!(
-            "{}: accepted new [{:?}] task: '{}'x{}.",
+            "{}: accepted new [{:?}] task: '{}'x{}. {}s",
             self.data.character.name,
             self.data.task.r#type,
             self.data.task.code,
             self.data.task.total,
+            self.data.cooldown.remaining_seconds
         )
     }
 
@@ -493,8 +507,11 @@ impl ResponseSchema for TaskResponseSchema {
 impl ResponseSchema for TasksRewardResponseSchema {
     fn pretty(&self) -> String {
         format!(
-            "{}: completed task and was rewarded with '{}'x{}.",
-            self.data.character.name, self.data.reward.code, self.data.reward.quantity
+            "{}: completed task and was rewarded with '{}'x{}. {}s",
+            self.data.character.name,
+            self.data.reward.code,
+            self.data.reward.quantity,
+            self.data.cooldown.remaining_seconds
         )
     }
 
@@ -505,7 +522,10 @@ impl ResponseSchema for TasksRewardResponseSchema {
 
 impl ResponseSchema for TaskCancelledResponseSchema {
     fn pretty(&self) -> String {
-        format!("{}: cancelled current task.", self.data.character.name,)
+        format!(
+            "{}: cancelled current task. {}s",
+            self.data.character.name, self.data.cooldown.remaining_seconds
+        )
     }
 
     fn character(&self) -> &CharacterSchema {
@@ -516,8 +536,11 @@ impl ResponseSchema for TaskCancelledResponseSchema {
 impl ResponseSchema for TaskTradeResponseSchema {
     fn pretty(&self) -> String {
         format!(
-            "{}: traded '{}'x{} with the taskmaster.",
-            self.data.character.name, self.data.trade.code, self.data.trade.quantity
+            "{}: traded '{}'x{} with the taskmaster. {}s",
+            self.data.character.name,
+            self.data.trade.code,
+            self.data.trade.quantity,
+            self.data.cooldown.remaining_seconds
         )
     }
 
@@ -572,12 +595,12 @@ pub enum SkillError {
     InsuffisientMaterials,
     InvalidQuantity,
     ApiError(ApiErrorSchema),
-    UnkownError
+    UnkownError,
 }
 
 #[derive(Debug)]
 pub enum FightError {
     NoEquipmentToKill,
     ApiError(ApiErrorSchema),
-    UnkownError
+    UnkownError,
 }

@@ -779,7 +779,7 @@ impl Character {
         if s.is_zero() {
             return;
         }
-        info!(
+        debug!(
             "{}: cooling down for {}.{} secondes.",
             self.name,
             s.as_secs(),
