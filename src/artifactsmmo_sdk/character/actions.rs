@@ -15,7 +15,7 @@ use artifactsmmo_openapi::{
 };
 use log::{error, info};
 use reqwest::StatusCode;
-use std::fmt::Display;
+use std::{fmt::Display, thread::sleep, time::Duration};
 use strum_macros::EnumIs;
 
 impl Character {
@@ -220,17 +220,25 @@ impl Character {
         action: Action,
         e: Box<dyn ApiRequestError>,
     ) -> Result<CharacterResponseSchema, Box<dyn ApiRequestError>> {
-        if e.status_code()
-            .is_some_and(|s| s.eq(&StatusCode::from_u16(499).unwrap()))
-        {
-            self.game.update_offset();
-            return self.perform_action(action);
-        };
         match e.api_error() {
-            Some(e) => error!(
-                "{}: error while performing action '{:?}': {} ({}).",
-                self.name, action, e.error.message, e.error.code,
-            ),
+            Some(e) => {
+                if e.error.code == 499 {
+                    self.game.update_offset();
+                    return self.perform_action(action);
+                }
+                if e.error.code == 500 || e.error.code == 520 {
+                    error!(
+                        "{}: unknown error ({}), retrying in 10 secondes.",
+                        self.name, e.error.code
+                    );
+                    sleep(Duration::from_secs(10));
+                    return self.perform_action(action);
+                }
+                error!(
+                    "{}: error while performing action '{:?}': {} ({}).",
+                    self.name, action, e.error.message, e.error.code,
+                )
+            }
             None => error!(
                 "{}: unkown error while performing action '{:?}'.",
                 self.name, action,
