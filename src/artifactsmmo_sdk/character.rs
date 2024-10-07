@@ -163,7 +163,7 @@ impl Character {
         skills.sort_by_key(|s| self.skill_level(*s));
         let ret = skills
             .into_iter()
-            .filter(|s| self.skill_level(*s) < 35)
+            .filter(|s| self.skill_level(*s) < 40)
             .any(|skill| self.level_skill_up(skill));
         info!("{}: tryied to levelup a skill: {}", self.name, ret);
         ret
