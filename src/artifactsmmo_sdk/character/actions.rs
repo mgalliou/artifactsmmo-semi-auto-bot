@@ -175,6 +175,7 @@ impl Character {
                 if let CharacterResponseSchema::BankItemTransaction(s) = r {
                     *bank_content = s.data.bank
                 };
+                self.orderboard.notify_deposit(code, quantity);
                 SimpleItemSchema {
                     code: code.to_owned(),
                     quantity,
@@ -636,4 +637,3 @@ impl SkillSchemaExt for SkillDataSchema {
             .map_or(0, |i| i.quantity)
     }
 }
-

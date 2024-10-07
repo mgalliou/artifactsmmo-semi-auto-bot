@@ -49,6 +49,12 @@ impl OrderBoard {
             _ => false,
         }
     }
+
+    pub fn notify_deposit(&self, code: &str, quantity: i32) {
+        if let Some(order) = self.orders().iter().find(|o| o.item == code) {
+            order.inc_deposited(quantity);
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -57,9 +63,6 @@ pub struct Order {
     pub item: String,
     pub quantity: i32,
     pub worked: RwLock<bool>,
-    // Number of item droped or crafted by any character
-    // TODO: should be tracked from `Account.in_inventories()`
-    pub progress: RwLock<i32>,
     // Number of item deposited into the bank
     pub deposited: RwLock<i32>,
 }
@@ -71,7 +74,6 @@ impl Order {
             item: item.to_owned(),
             quantity,
             worked: RwLock::new(false),
-            progress: RwLock::new(0),
             deposited: RwLock::new(0),
         }
     }
@@ -82,10 +84,6 @@ impl Order {
 
     pub fn worked(&self) -> bool {
         self.worked.read().is_ok_and(|w| *w)
-    }
-
-    pub fn complete(&self) -> bool {
-        self.progress() >= self.quantity
     }
 
     pub fn turned_in(&self) -> bool {
@@ -101,12 +99,6 @@ impl Order {
 
     pub fn missing(&self) -> i32 {
         self.quantity - self.deposited()
-    }
-
-    pub fn inc_progress(&self, n: i32) {
-        if let Ok(mut progress) = self.progress.write() {
-            *progress += n;
-        }
     }
 
     pub fn inc_deposited(&self, n: i32) {

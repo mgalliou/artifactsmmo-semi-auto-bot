@@ -245,10 +245,8 @@ impl Character {
     fn handle_order(&self, order: Arc<Order>) -> bool {
         // TODO: streamline conditions
         if self.account.in_inventories(&order.item) >= order.missing() && !order.turned_in() {
-            let n = self.has_in_inventory(&order.item);
-            if n > 0 {
+            if self.has_in_inventory(&order.item) > 0 {
                 self.deposit_all();
-                order.inc_deposited(n);
                 if order.turned_in() {
                     self.orderboard.remove_order(&order);
                 }
@@ -257,11 +255,12 @@ impl Character {
         } else if let Some(progress) = self.progress_order(&order) {
             if progress > 0 {
                 info!(
-                    "{} progressed by {} on order: {}. total: {}.",
+                    "{} progressed by {} on order: {}, in inventories: {}, deposited: {}",
                     self.name,
                     progress,
                     order,
-                    self.account.in_inventories(&order.item)
+                    self.account.in_inventories(&order.item),
+                    order.deposited(),
                 );
             }
             return true;
