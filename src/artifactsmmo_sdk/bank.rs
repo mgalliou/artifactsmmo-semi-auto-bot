@@ -7,6 +7,7 @@ pub struct Bank {
     items: Arc<Items>,
     pub details: RwLock<BankSchema>,
     pub content: RwLock<Vec<SimpleItemSchema>>,
+    pub reservations: RwLock<Vec<Reservation>>,
 }
 
 impl Bank {
@@ -16,6 +17,7 @@ impl Bank {
             items: items.clone(),
             details: RwLock::new(*api.details().unwrap().data),
             content: RwLock::new(api.items(None).unwrap()),
+            reservations: RwLock::new(vec![]),
         }
     }
 
@@ -59,4 +61,20 @@ impl Bank {
             c.clone_from(content)
         }
     }
+
+    pub fn reserv(&self, item: &str, quantity: i32, owner: &str) {
+        if let Ok(mut reservations) = self.reservations.write() {
+            reservations.push(Reservation {
+                item: item.to_owned(),
+                quantity,
+                owner: owner.to_owned(),
+            });
+        }
+    }
+}
+
+pub struct Reservation {
+    item: String,
+    quantity: i32,
+    owner: String,
 }
