@@ -92,13 +92,6 @@ impl Order {
         self.deposited() >= self.quantity
     }
 
-    pub fn progress(&self) -> i32 {
-        if let Ok(progress) = self.progress.read() {
-            return *progress;
-        }
-        0
-    }
-
     pub fn deposited(&self) -> i32 {
         if let Ok(deposited) = self.deposited.read() {
             return *deposited;
@@ -107,7 +100,7 @@ impl Order {
     }
 
     pub fn missing(&self) -> i32 {
-        self.progress() - self.quantity
+        self.quantity - self.deposited()
     }
 
     pub fn inc_progress(&self, n: i32) {
@@ -125,6 +118,6 @@ impl Order {
 
 impl Display for Order {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} ({}/{})", self.item, self.progress(), self.quantity)
+        write!(f, "{} ({})", self.item, self.quantity)
     }
 }

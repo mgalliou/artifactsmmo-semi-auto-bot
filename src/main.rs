@@ -1,5 +1,5 @@
 use artifactsmmo_playground::artifactsmmo_sdk::{
-    account::Account, orderboard::OrderBoard, character::Character, config::Config, game::Game,
+    account::Account, orderboard::OrderBoard, character::Character, game::Game,
 
     items::Items, skill::Skill,
 };
@@ -15,15 +15,16 @@ use std::{str::FromStr, sync::Arc};
 
 fn main() -> Result<()> {
     let _ = simple_logging::log_to_file("artifactsmmo.log", LevelFilter::Info);
-    let config: Config = Figment::new()
+    let config = Arc::new(Figment::new()
         .merge(Toml::file_exact("ArtifactsMMO.toml"))
         .extract()
-        .unwrap();
+        .unwrap());
     let billboard = Arc::new(OrderBoard::new());
     let game = Arc::new(Game::new(&config, &billboard));
     let account = Account::new(&config, &game);
     let handles = account
         .characters
+        .read().unwrap()
         .iter()
         .map(|c| Character::run(c.clone()).unwrap())
         .collect_vec();

@@ -1,4 +1,5 @@
 use super::{
+    account::Account,
     api::{characters::CharactersApi, my_character::MyCharacterApi},
     average_dmg,
     bank::Bank,
@@ -41,6 +42,7 @@ pub struct Character {
     pub name: String,
     my_api: MyCharacterApi,
     api: CharactersApi,
+    account: Arc<Account>,
     game: Arc<Game>,
     maps: Arc<Maps>,
     resources: Arc<Resources>,
@@ -56,6 +58,7 @@ pub struct Character {
 impl Character {
     pub fn new(
         config: &Config,
+        account: &Arc<Account>,
         game: &Arc<Game>,
         bank: &Arc<Bank>,
         conf: &Arc<RwLock<CharConfig>>,
@@ -66,6 +69,7 @@ impl Character {
             conf: conf.clone(),
             my_api: MyCharacterApi::new(&config.base_url, &config.token),
             api: CharactersApi::new(&config.base_url, &config.token),
+            account: account.clone(),
             game: game.clone(),
             maps: game.maps.clone(),
             resources: game.resources.clone(),
@@ -165,7 +169,6 @@ impl Character {
             .into_iter()
             .filter(|s| self.skill_level(*s) < 40)
             .any(|skill| self.level_skill_up(skill));
-        info!("{}: tryied to levelup a skill: {}", self.name, ret);
         ret
     }
 
@@ -178,7 +181,6 @@ impl Character {
                     .missing_mats_quantity(&i.code, self.max_craftable_items(&i.code))
             })
             .is_some_and(|i| {
-                info!("{} trying to craft to level {}", self.name, i.code);
                 match self.craft_from_bank(
                     &i.code,
                     self.max_craftable_items(&i.code),
@@ -190,7 +192,6 @@ impl Character {
                         true
                     }
                     Err(e) => {
-                        error!("{} failed to levelup skill: {:?}", self.name, e);
                         if let CharacterError::InsuffisientMaterials = e {
                             self.bank
                                 .missing_mats_for(&i.code, self.max_craftable_items(&i.code))
@@ -243,28 +244,29 @@ impl Character {
 
     fn handle_order(&self, order: Arc<Order>) -> bool {
         // TODO: streamline conditions
-        if order.complete() && !order.turned_in() {
+        if self.account.in_inventories(&order.item) >= order.missing() && !order.turned_in() {
             let n = self.has_in_inventory(&order.item);
-            if n > 0 && n >= order.missing() {
+            if n > 0 {
                 self.deposit_all();
                 order.inc_deposited(n);
                 if order.turned_in() {
                     self.orderboard.remove_order(&order);
                 }
-                true
-            } else {
-                false
+                return true;
             }
         } else if let Some(progress) = self.progress_order(&order) {
-            order.inc_progress(progress);
-            info!(
-                "{} progressed by {} on order: {}.",
-                self.name, progress, order
-            );
-            true
-        } else {
-            false
+            if progress > 0 {
+                info!(
+                    "{} progressed by {} on order: {}. total: {}.",
+                    self.name,
+                    progress,
+                    order,
+                    self.account.in_inventories(&order.item)
+                );
+            }
+            return true;
         }
+        false
     }
 
     fn progress_order(&self, order: &Order) -> Option<i32> {

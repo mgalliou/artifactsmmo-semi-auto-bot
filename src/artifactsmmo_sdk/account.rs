@@ -18,38 +18,49 @@ use std::sync::RwLock;
 
 pub struct Account {
     pub configuration: Configuration,
+    pub config: Arc<Config>,
     pub character_api: CharactersApi,
     pub my_characters_api: MyCharacterApi,
-    pub characters: Arc<Vec<Arc<Character>>>,
+    pub bank: Arc<Bank>,
+    pub characters: RwLock<Vec<Arc<Character>>>,
 }
 
 impl Account {
-    pub fn new(config: &Config, game: &Arc<Game>) -> Account {
+    pub fn new(config: &Arc<Config>, game: &Arc<Game>) -> Arc<Account> {
         let mut configuration = Configuration::new();
         configuration.base_path = config.base_url.to_owned();
         configuration.bearer_access_token = Some(config.base_url.to_owned());
         let my_characters_api = MyCharacterApi::new(&config.base_url, &config.token);
-        let bank = Arc::new(Bank::new(config, &game.items));
-        let chars_conf = init_char_conf(&config.characters);
-        let chars_schema = init_chars_schema(config);
-        let characters = chars_conf
-            .into_iter()
-            .zip(chars_schema.iter())
-            .map(|(conf, schema)| {
-                Arc::new(Character::new(
-                    config,
-                    game,
-                    &bank,
-                    &conf,
-                    schema,
-                ))
-            })
-            .collect_vec();
-        Account {
+        let account = Arc::new(Account {
             configuration,
+            config: config.clone(),
             character_api: CharactersApi::new(&config.base_url, &config.token),
             my_characters_api,
-            characters: Arc::new(characters),
+            bank: Arc::new(Bank::new(config, &game.items)),
+            characters: RwLock::new(vec![]),
+        });
+        account.init_characters(&account, game);
+        account
+    }
+
+    pub fn init_characters(&self, account: &Arc<Account>, game: &Arc<Game>) {
+        let chars_conf = init_char_conf(&self.config.characters);
+        let chars_schema = init_chars_schema(&self.config);
+        if let Ok(mut chars) = self.characters.write() {
+            *chars = chars_conf
+                .into_iter()
+                .zip(chars_schema.iter())
+                .map(|(conf, schema)| {
+                    Arc::new(Character::new(
+                        &self.config,
+                        account,
+                        game,
+                        &self.bank,
+                        &conf,
+                        schema,
+                    ))
+                })
+                .collect_vec()
         }
     }
 
@@ -68,11 +79,18 @@ impl Account {
     }
 
     pub fn get_character_by_name(&self, name: &str) -> Option<Arc<Character>> {
-        self.characters.iter().find(|c| c.name == name).cloned()
+        self.characters
+            .read()
+            .unwrap()
+            .iter()
+            .find(|c| c.name == name)
+            .cloned()
     }
 
     pub fn in_inventories(&self, code: &str) -> i32 {
         self.characters
+            .read()
+            .unwrap()
             .iter()
             .cloned()
             .map(|c| c.has_in_inventory(code))
