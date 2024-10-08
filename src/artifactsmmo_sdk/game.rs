@@ -61,7 +61,8 @@ impl Game {
     }
 
     pub fn update_offset(&self) {
-        let server_time = self.server_time().unwrap();
+        // TODO: properly handle failure to retreive server_time
+        let server_time = self.server_time().unwrap_or(Utc::now());
         let now = Utc::now();
         let _ = self
             .server_offset
