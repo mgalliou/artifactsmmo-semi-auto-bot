@@ -142,21 +142,24 @@ impl Character {
         quantity: i32,
     ) -> Result<SimpleItemSchema, RequestError> {
         let _ = self.move_to_closest_map_of_type("bank");
+        self.wait_for_cooldown();
         let mut bank_content = self
             .bank
             .content
             .write()
             .expect("bank_content to be writable");
-        self.perform_action(Action::Withdraw { code, quantity })
+        self.my_api
+            .withdraw(&self.name, code, quantity)
             .map(|r| {
-                if let CharacterResponseSchema::BankItemTransaction(s) = r {
-                    *bank_content = s.data.bank
-                };
+                info!("{}", r.pretty());
+                self.update_data(r.character());
+                *bank_content = r.data.bank;
                 SimpleItemSchema {
                     code: code.to_owned(),
                     quantity,
                 }
             })
+            .map_err(|e| e.into())
     }
 
     pub fn action_deposit(
@@ -165,22 +168,24 @@ impl Character {
         quantity: i32,
     ) -> Result<SimpleItemSchema, RequestError> {
         let _ = self.move_to_closest_map_of_type("bank");
+        self.wait_for_cooldown();
         let mut bank_content = self
             .bank
             .content
             .write()
             .expect("bank_content to be writable");
-        self.perform_action(Action::Deposit { code, quantity })
+        self.my_api
+            .deposit(&self.name, code, quantity)
             .map(|r| {
-                if let CharacterResponseSchema::BankItemTransaction(s) = r {
-                    *bank_content = s.data.bank
-                };
-                self.orderboard.notify_deposit(code, quantity);
+                info!("{}", r.pretty());
+                self.update_data(r.character());
+                *bank_content = r.data.bank;
                 SimpleItemSchema {
                     code: code.to_owned(),
                     quantity,
                 }
             })
+            .map_err(|e| e.into())
     }
 
     pub fn action_craft(&self, code: &str, quantity: i32) -> Result<(), RequestError> {
