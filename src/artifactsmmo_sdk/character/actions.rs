@@ -171,9 +171,12 @@ impl Character {
     ) -> Result<SimpleItemSchema, RequestError> {
         let _ = self.move_to_closest_map_of_type("bank");
         self.perform_action(Action::Deposit { code, quantity })
-            .map(|_| SimpleItemSchema {
-                code: code.to_owned(),
-                quantity,
+            .map(|_| {
+                self.orderboard.notify_deposit(code, quantity);
+                SimpleItemSchema {
+                    code: code.to_owned(),
+                    quantity,
+                }
             })
     }
 

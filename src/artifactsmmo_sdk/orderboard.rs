@@ -63,6 +63,7 @@ pub struct Order {
     pub item: String,
     pub quantity: i32,
     pub worked: RwLock<bool>,
+    pub being_crafted: RwLock<i32>,
     // Number of item deposited into the bank
     pub deposited: RwLock<i32>,
 }
@@ -74,6 +75,7 @@ impl Order {
             item: item.to_owned(),
             quantity,
             worked: RwLock::new(false),
+            being_crafted: RwLock::new(0),
             deposited: RwLock::new(0),
         }
     }
@@ -86,8 +88,13 @@ impl Order {
         self.worked.read().is_ok_and(|w| *w)
     }
 
+
     pub fn turned_in(&self) -> bool {
         self.deposited() >= self.quantity
+    }
+
+    pub fn being_crafted(&self) -> i32 {
+        *self.being_crafted.read().unwrap()
     }
 
     pub fn deposited(&self) -> i32 {
@@ -104,6 +111,18 @@ impl Order {
     pub fn inc_deposited(&self, n: i32) {
         if let Ok(mut deposited) = self.deposited.write() {
             *deposited += n;
+        }
+    }
+
+    pub fn inc_being_crafted(&self, n: i32) {
+        if let Ok(mut being_crafted) = self.being_crafted.write() {
+            *being_crafted += n;
+        }
+    }
+
+    pub fn dec_being_crafted(&self, n: i32) {
+        if let Ok(mut being_crafted) = self.being_crafted.write() {
+            *being_crafted -= n;
         }
     }
 }

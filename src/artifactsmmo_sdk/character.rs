@@ -141,9 +141,6 @@ impl Character {
     /// all the consumables and resources in inventory to the bank.
     fn process_inventory(&self) {
         if self.inventory_is_full() {
-            if self.conf().process_gathered {
-                self.process_raw_mats();
-            }
             self.deposit_all();
         }
     }
@@ -165,7 +162,7 @@ impl Character {
             skills.push(Skill::Cooking);
         }
         skills.sort_by_key(|s| self.skill_level(*s));
-        
+
         skills
             .into_iter()
             .filter(|s| self.skill_level(*s) < 40)
