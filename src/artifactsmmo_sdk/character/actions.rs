@@ -15,12 +15,22 @@ use artifactsmmo_openapi::{
     },
 };
 use log::{error, info};
-use std::{fmt::Display, thread::sleep, time::Duration};
+use std::{fmt::Display, sync::RwLockWriteGuard, thread::sleep, time::Duration};
 use strum_macros::EnumIs;
 
 impl Character {
     pub fn perform_action(&self, action: Action) -> Result<CharacterResponseSchema, RequestError> {
+        let mut bank_content: Option<RwLockWriteGuard<'_, Vec<SimpleItemSchema>>> = None;
+
         self.wait_for_cooldown();
+        if action.is_deposit() || action.is_withdraw() {
+            bank_content = Some(
+                self.bank
+                    .content
+                    .write()
+                    .expect("bank_content to be writable"),
+            );
+        }
         let res: Result<CharacterResponseSchema, RequestError> = match action {
             Action::Move { x, y } => self
                 .my_api
@@ -97,6 +107,11 @@ impl Character {
             Ok(res) => {
                 info!("{}", res.pretty());
                 self.update_data(res.character());
+                if let CharacterResponseSchema::BankItemTransaction(ref s) = res {
+                    if let Some(mut bank_content) = bank_content {
+                        *bank_content = s.data.bank.clone();
+                    }
+                };
                 Ok(res)
             }
             Err(e) => self.handle_action_error(action, e),
@@ -142,24 +157,11 @@ impl Character {
         quantity: i32,
     ) -> Result<SimpleItemSchema, RequestError> {
         let _ = self.move_to_closest_map_of_type("bank");
-        self.wait_for_cooldown();
-        let mut bank_content = self
-            .bank
-            .content
-            .write()
-            .expect("bank_content to be writable");
-        self.my_api
-            .withdraw(&self.name, code, quantity)
-            .map(|r| {
-                info!("{}", r.pretty());
-                self.update_data(r.character());
-                *bank_content = r.data.bank;
-                SimpleItemSchema {
-                    code: code.to_owned(),
-                    quantity,
-                }
+        self.perform_action(Action::Withdraw { code, quantity })
+            .map(|_| SimpleItemSchema {
+                code: code.to_owned(),
+                quantity,
             })
-            .map_err(|e| e.into())
     }
 
     pub fn action_deposit(
@@ -168,24 +170,11 @@ impl Character {
         quantity: i32,
     ) -> Result<SimpleItemSchema, RequestError> {
         let _ = self.move_to_closest_map_of_type("bank");
-        self.wait_for_cooldown();
-        let mut bank_content = self
-            .bank
-            .content
-            .write()
-            .expect("bank_content to be writable");
-        self.my_api
-            .deposit(&self.name, code, quantity)
-            .map(|r| {
-                info!("{}", r.pretty());
-                self.update_data(r.character());
-                *bank_content = r.data.bank;
-                SimpleItemSchema {
-                    code: code.to_owned(),
-                    quantity,
-                }
+        self.perform_action(Action::Deposit { code, quantity })
+            .map(|_| SimpleItemSchema {
+                code: code.to_owned(),
+                quantity,
             })
-            .map_err(|e| e.into())
     }
 
     pub fn action_craft(&self, code: &str, quantity: i32) -> Result<(), RequestError> {
