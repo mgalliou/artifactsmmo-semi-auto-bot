@@ -73,6 +73,7 @@ impl Bank {
     }
 }
 
+#[allow(dead_code)]
 pub struct Reservation {
     item: String,
     quantity: i32,

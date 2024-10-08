@@ -141,7 +141,7 @@ impl Character {
         code: &str,
         quantity: i32,
     ) -> Result<SimpleItemSchema, RequestError> {
-        self.move_to_closest_map_of_type("bank");
+        let _ = self.move_to_closest_map_of_type("bank");
         let mut bank_content = self
             .bank
             .content
@@ -164,7 +164,7 @@ impl Character {
         code: &str,
         quantity: i32,
     ) -> Result<SimpleItemSchema, RequestError> {
-        self.move_to_closest_map_of_type("bank");
+        let _ = self.move_to_closest_map_of_type("bank");
         let mut bank_content = self
             .bank
             .content
@@ -218,7 +218,7 @@ impl Character {
     }
 
     pub fn action_accept_task(&self, r#type: &str) -> Result<TaskSchema, RequestError> {
-        self.move_to_closest_map_with_content_schema(&MapContentSchema {
+        let _ = self.move_to_closest_map_with_content_schema(&MapContentSchema {
             r#type: "tasks_master".to_owned(),
             code: r#type.to_owned(),
         });
@@ -232,7 +232,7 @@ impl Character {
     }
 
     pub fn action_complete_task(&self) -> Result<TasksRewardSchema, RequestError> {
-        self.move_to_closest_map_with_content_schema(&MapContentSchema {
+        let _ = self.move_to_closest_map_with_content_schema(&MapContentSchema {
             r#type: "tasks_master".to_owned(),
             code: self.task_type().to_owned(),
         });
@@ -246,7 +246,7 @@ impl Character {
     }
 
     pub fn action_cancel_task(&self) -> Result<(), RequestError> {
-        self.move_to_closest_map_with_content_schema(&MapContentSchema {
+        let _ = self.move_to_closest_map_with_content_schema(&MapContentSchema {
             r#type: "tasks_master".to_owned(),
             code: self.task_type().to_owned(),
         });
@@ -258,7 +258,7 @@ impl Character {
         code: &str,
         quantity: i32,
     ) -> Result<TaskTradeSchema, RequestError> {
-        self.move_to_closest_map_with_content_schema(&MapContentSchema {
+        let _ = self.move_to_closest_map_with_content_schema(&MapContentSchema {
             r#type: "tasks_master".to_owned(),
             code: "items".to_owned(),
         });

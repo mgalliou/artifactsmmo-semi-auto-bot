@@ -165,11 +165,11 @@ impl Character {
             skills.push(Skill::Cooking);
         }
         skills.sort_by_key(|s| self.skill_level(*s));
-        let ret = skills
+        
+        skills
             .into_iter()
             .filter(|s| self.skill_level(*s) < 40)
-            .any(|skill| self.level_skill_up(skill));
-        ret
+            .any(|skill| self.level_skill_up(skill))
     }
 
     fn level_skill_up(&self, skill: Skill) -> bool {
