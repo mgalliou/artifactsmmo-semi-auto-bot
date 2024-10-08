@@ -278,29 +278,36 @@ impl Character {
                     .kill_monster(m, None)
                     .ok()
                     .map(|fight| fight.amount_of(&order.item)),
-                ItemSource::Craft => {
-                    let quantity = min(
-                        self.max_craftable_items_from_bank(&order.item),
-                        order.quantity,
-                    );
-                    // TODO: lock number of item being crafted
-                    match self.craft_from_bank(&order.item, quantity, PostCraftAction::None) {
-                        Ok(i) => Some(i),
-                        Err(e) => {
-                            if let CharacterError::InsuffisientMaterials = e {
-                                self.bank
-                                    .missing_mats_for(&order.item, order.quantity)
-                                    .iter()
-                                    .for_each(|m| {
-                                        self.orderboard.order_item(&self.name, &m.code, m.quantity)
-                                    })
-                            }
-                            None
-                        }
-                    }
-                }
+                ItemSource::Craft => self.progress_crafting_order(order),
                 ItemSource::Task => None,
             })
+    }
+
+    fn progress_crafting_order(&self, order: &Order) -> Option<i32> {
+        if order.being_crafted() >= order.missing() {
+            None
+        } else {
+            let quantity = min(
+                self.max_craftable_items_from_bank(&order.item),
+                order.missing() - order.being_crafted() - self.account.in_inventories(&order.item),
+            );
+            order.inc_being_crafted(quantity);
+            let ret = self
+                .craft_from_bank(&order.item, quantity, PostCraftAction::None)
+                .map_err(|e| {
+                    if let CharacterError::InsuffisientMaterials = e {
+                        self.bank
+                            .missing_mats_for(&order.item, order.quantity)
+                            .iter()
+                            .for_each(|m| {
+                                self.orderboard.order_item(&self.name, &m.code, m.quantity)
+                            })
+                    }
+                })
+                .ok();
+            order.dec_being_crafted(quantity);
+            ret
+        }
     }
 
     fn handle_events(&self) -> bool {
