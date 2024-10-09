@@ -6,7 +6,7 @@ use super::{
     char_config::CharConfig,
     config::Config,
     equipment::Equipment,
-    equipment_finder::{self, EquipmentFinder},
+    equipment_finder::EquipmentFinder,
     events::Events,
     game::Game,
     items::{DamageType, ItemSource, Items, Slot, Type},
@@ -176,8 +176,11 @@ impl Character {
             .best_for_leveling(self.skill_level(skill), skill)
             .iter()
             .min_by_key(|i| {
-                self.bank
-                    .missing_mats_quantity(&i.code, self.max_craftable_items(&i.code))
+                self.bank.missing_mats_quantity(
+                    &i.code,
+                    self.max_craftable_items(&i.code),
+                    Some(&self.name),
+                )
             })
             .is_some_and(|i| {
                 match self.craft_from_bank(
@@ -193,7 +196,11 @@ impl Character {
                     Err(e) => {
                         if let CharacterError::InsuffisientMaterials = e {
                             self.bank
-                                .missing_mats_for(&i.code, self.max_craftable_items(&i.code))
+                                .missing_mats_for(
+                                    &i.code,
+                                    self.max_craftable_items(&i.code),
+                                    Some(&self.name),
+                                )
                                 .iter()
                                 .for_each(|m| {
                                     self.orderboard.order_item(&self.name, &m.code, m.quantity)
@@ -299,7 +306,7 @@ impl Character {
                 .map_err(|e| {
                     if let CharacterError::InsuffisientMaterials = e {
                         self.bank
-                            .missing_mats_for(&order.item, order.quantity)
+                            .missing_mats_for(&order.item, order.quantity, Some(&self.name))
                             .iter()
                             .for_each(|m| {
                                 self.orderboard.order_item(&self.name, &m.code, m.quantity)
@@ -362,10 +369,10 @@ impl Character {
     }
 
     fn handle_item_task(&self) -> bool {
-        let in_bank = self.bank.has_item(&self.task());
+        let in_bank = self.bank.has_item(&self.task(), Some(&self.name));
         let item = &self.task();
         let missing = self.task_missing();
-        let craftable = self.bank.has_mats_for(item);
+        let craftable = self.bank.has_mats_for(item, Some(&self.name));
 
         if in_bank >= missing {
             self.deposit_all();
@@ -455,11 +462,13 @@ impl Character {
         monster: &MonsterSchema,
         map: Option<&MapSchema>,
     ) -> Result<FightSchema, CharacterError> {
-        let equipment = self
-            .equipment_finder
-            .best_available_against(self, monster);
-        if !self.can_kill_with(monster, &equipment) {
-            return Err(CharacterError::NoEquipmentToKill);
+        let mut equipment: Equipment = Default::default();
+        if let Ok(_) = self.bank.browsed.write() {
+            equipment = self.equipment_finder.best_available_against(self, monster);
+            if !self.can_kill_with(monster, &equipment) {
+                return Err(CharacterError::NoEquipmentToKill);
+            }
+            self.reserv_equipment(equipment);
         }
         self.equip_equipment(&equipment);
         if let Some(map) = map {
@@ -579,7 +588,7 @@ impl Character {
             return 0;
         }
         let mut crafted = 0;
-        let mut craftable = self.bank.has_mats_for(code);
+        let mut craftable = self.bank.has_mats_for(code, Some(&self.name));
         info!("{}: is going to craft '{}'x{}", self.name, code, quantity);
         while crafted < quantity && craftable > 0 {
             self.deposit_all();
@@ -590,10 +599,10 @@ impl Character {
                     PostCraftAction::Deposit,
                 )
                 .unwrap_or(0);
-            craftable = self.bank.has_mats_for(code);
+            craftable = self.bank.has_mats_for(code, Some(&self.name));
             info!("{}: crafted {}/{} '{}", self.name, crafted, quantity, code)
         }
-        if crafted == 0 && self.bank.has_mats_for(code) < quantity {
+        if crafted == 0 && self.bank.has_mats_for(code, Some(&self.name)) < quantity {
             return 0;
         }
         quantity
@@ -692,7 +701,7 @@ impl Character {
     fn withdraw_mats_for(&self, code: &str, quantity: i32) -> bool {
         let mats = self.items.mats(code);
         for mat in &mats {
-            if self.bank.has_item(&mat.code) < mat.quantity * quantity {
+            if self.bank.has_item(&mat.code, Some(&self.name)) < mat.quantity * quantity {
                 warn!("{}: not enough materials in bank to withdraw the materials required to craft '{code}'x{quantity}", self.name);
                 return false;
             }
@@ -725,7 +734,7 @@ impl Character {
     /// inventory max items and bank materials.
     fn max_craftable_items_from_bank(&self, code: &str) -> i32 {
         min(
-            self.bank.has_mats_for(code),
+            self.bank.has_mats_for(code, Some(&self.name)),
             self.inventory_max_items() / self.items.mats_quantity_for(code),
         )
     }
@@ -734,7 +743,7 @@ impl Character {
     /// inventory free space and bank materials.
     fn max_current_craftable_items(&self, code: &str) -> i32 {
         min(
-            self.bank.has_mats_for(code),
+            self.bank.has_mats_for(code, Some(&self.name)),
             self.inventory_free_space() / self.items.mats_quantity_for(code),
         )
     }
@@ -991,7 +1000,8 @@ impl Character {
             return;
         }
         if self.has_in_inventory(&item.code) > 0
-            || (self.bank.has_item(&item.code) > 0 && self.action_withdraw(&item.code, 1).is_ok())
+            || (self.bank.has_item(&item.code, Some(&self.name)) > 0
+                && self.action_withdraw(&item.code, 1).is_ok())
         {
             let _ = self.action_equip(&item.code, s, 1);
             if let Some(i) = prev_equiped {
@@ -1019,7 +1029,7 @@ impl Character {
 
     /// Returns the amount of the given item `code` available in bank and inventory.
     fn has_in_bank_or_inv(&self, code: &str) -> i32 {
-        self.bank.has_item(code) + self.has_in_inventory(code)
+        self.bank.has_item(code, Some(&self.name)) + self.has_in_inventory(code)
     }
 
     /// Returns the amount of the given item `code` available in bank, inventory and equipment.
@@ -1143,6 +1153,22 @@ impl Character {
 
     fn conf(&self) -> CharConfig {
         self.conf.read().unwrap().clone()
+    }
+
+    fn reserv_equipment(&self, equipment: Equipment<'_>) {
+        Slot::iter().for_each(|s| {
+            if let Some(item) = equipment.slot(s) {
+                if (self.equiped_in(s).is_none()
+                    || self
+                        .equiped_in(s)
+                        .is_some_and(|equiped| item.code != equiped.code))
+                    && self.has_in_inventory(&item.code) < 1
+                    && self.bank.has_item(&item.code, Some(&self.name)) > 0
+                {
+                    self.bank.reserv(&item.code, 1, &self.name)
+                }
+            }
+        })
     }
 }
 
