@@ -14,6 +14,7 @@ pub mod char_config;
 pub mod character;
 pub mod config;
 pub mod equipment;
+pub mod equipment_finder;
 pub mod events;
 pub mod game;
 pub mod items;

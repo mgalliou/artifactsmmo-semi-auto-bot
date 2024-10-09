@@ -6,6 +6,7 @@ use super::{
     char_config::CharConfig,
     config::Config,
     equipment::Equipment,
+    equipment_finder::{self, EquipmentFinder},
     events::Events,
     game::Game,
     items::{DamageType, ItemSource, Items, Slot, Type},
@@ -36,7 +37,6 @@ use std::{
 };
 use strum::IntoEnumIterator;
 mod actions;
-use ordered_float::OrderedFloat;
 
 pub struct Character {
     pub name: String,
@@ -51,6 +51,7 @@ pub struct Character {
     events: Arc<Events>,
     bank: Arc<Bank>,
     orderboard: Arc<OrderBoard>,
+    equipment_finder: EquipmentFinder,
     pub conf: Arc<RwLock<CharConfig>>,
     pub data: Arc<RwLock<CharacterSchema>>,
 }
@@ -77,6 +78,7 @@ impl Character {
             items: game.items.clone(),
             events: game.events.clone(),
             orderboard: game.billboard.clone(),
+            equipment_finder: EquipmentFinder::new(&game.items),
             bank: bank.clone(),
             data: data.clone(),
         }
@@ -453,7 +455,9 @@ impl Character {
         monster: &MonsterSchema,
         map: Option<&MapSchema>,
     ) -> Result<FightSchema, CharacterError> {
-        let equipment = self.best_available_equipment_against(monster);
+        let equipment = self
+            .equipment_finder
+            .best_available_against(self, monster);
         if !self.can_kill_with(monster, &equipment) {
             return Err(CharacterError::NoEquipmentToKill);
         }
@@ -518,7 +522,7 @@ impl Character {
     }
 
     /// Returns the current `Equipment` of the `Character`, containing item schemas.
-    fn equipment(&self) -> Equipment {
+    pub fn equipment(&self) -> Equipment {
         self.data
             .read()
             .map_or(Equipment::default(), |d| Equipment {
@@ -1013,99 +1017,13 @@ impl Character {
         }
     }
 
-    fn best_available_equipment_against(&self, monster: &MonsterSchema) -> Equipment {
-        let best_equipment = self
-            .available_equipable_weapons()
-            .iter()
-            .map(|w| self.best_available_equipment_against_with_weapon(monster, w))
-            .max_by_key(|e| OrderedFloat(e.attack_damage_against(monster)));
-        if let Some(best_equipment) = best_equipment {
-            return best_equipment;
-        }
-        self.equipment()
-    }
-
-    fn best_available_equipment_against_with_weapon<'a>(
-        &'a self,
-        monster: &MonsterSchema,
-        weapon: &'a ItemSchema,
-    ) -> Equipment {
-        Equipment {
-            weapon: Some(weapon),
-            shield: self.best_in_slot_available_against_with_weapon(Slot::Shield, monster, weapon),
-            helmet: self.best_in_slot_available_against_with_weapon(Slot::Helmet, monster, weapon),
-            body_armor: self.best_in_slot_available_against_with_weapon(
-                Slot::BodyArmor,
-                monster,
-                weapon,
-            ),
-            leg_armor: self.best_in_slot_available_against_with_weapon(
-                Slot::LegArmor,
-                monster,
-                weapon,
-            ),
-            boots: self.best_in_slot_available_against_with_weapon(Slot::Boots, monster, weapon),
-            ring1: self.best_in_slot_available_against_with_weapon(Slot::Ring1, monster, weapon),
-            ring2: self.best_in_slot_available_against_with_weapon(Slot::Ring2, monster, weapon),
-            amulet: self.best_in_slot_available_against_with_weapon(Slot::Amulet, monster, weapon),
-            artifact1: self.best_in_slot_available_against_with_weapon(
-                Slot::Artifact1,
-                monster,
-                weapon,
-            ),
-            artifact2: self.best_in_slot_available_against_with_weapon(
-                Slot::Artifact2,
-                monster,
-                weapon,
-            ),
-            artifact3: self.best_in_slot_available_against_with_weapon(
-                Slot::Artifact3,
-                monster,
-                weapon,
-            ),
-            consumable1: self.best_in_slot_available_against_with_weapon(
-                Slot::Consumable1,
-                monster,
-                weapon,
-            ),
-            consumable2: self.best_in_slot_available_against_with_weapon(
-                Slot::Consumable2,
-                monster,
-                weapon,
-            ),
-        }
-    }
-
-    /// Returns the best item available for the given `slot` against the given
-    /// `monster`, based on item attack damage, damage increase and `monster`
-    /// resistances.
-    fn best_in_slot_available_against_with_weapon(
-        &self,
-        slot: Slot,
-        monster: &MonsterSchema,
-        weapon: &ItemSchema,
-    ) -> Option<&ItemSchema> {
-        match slot {
-            Slot::Amulet if self.level() >= 5 && self.level() < 10 => self.items.get("life_amulet"),
-            Slot::BodyArmor
-            | Slot::LegArmor
-            | Slot::Helmet
-            | Slot::Ring1
-            | Slot::Ring2
-            | Slot::Amulet
-            | Slot::Boots
-            | Slot::Shield => self.best_available_armor_against_with_weapon(slot, monster, weapon),
-            _ => None,
-        }
-    }
-
     /// Returns the amount of the given item `code` available in bank and inventory.
     fn has_in_bank_or_inv(&self, code: &str) -> i32 {
         self.bank.has_item(code) + self.has_in_inventory(code)
     }
 
     /// Returns the amount of the given item `code` available in bank, inventory and equipment.
-    fn has_available(&self, code: &str) -> i32 {
+    pub fn has_available(&self, code: &str) -> i32 {
         self.has_in_bank_or_inv(code) + self.has_equiped(code) as i32
     }
 
@@ -1117,46 +1035,12 @@ impl Character {
     }
 
     /// Returns all the weapons available and equipable by the `Character`
-    fn available_equipable_weapons(&self) -> Vec<&ItemSchema> {
+    pub fn available_equipable_weapons(&self) -> Vec<&ItemSchema> {
         self.items
             .equipable_at_level(self.level(), Slot::Weapon)
             .into_iter()
             .filter(|i| self.has_available(&i.code) > 0)
             .collect_vec()
-    }
-
-    /// Returns the best upgrade available in bank or inventory for the given
-    /// armor `slot` against the given `monster`, based on the currently equiped
-    /// weapon and the `monster` resitances.
-    fn best_available_armor_against_with_weapon(
-        &self,
-        slot: Slot,
-        monster: &MonsterSchema,
-        weapon: &ItemSchema,
-    ) -> Option<&ItemSchema> {
-        let available = self
-            .items
-            .equipable_at_level(self.level(), slot)
-            .into_iter()
-            .filter(|i| {
-                self.has_available(&i.code) > {
-                    if slot.is_ring_2() {
-                        1
-                    } else {
-                        0
-                    }
-                }
-            })
-            .collect_vec();
-        let mut upgrade = available.iter().max_by_key(|i| {
-            OrderedFloat(self.armor_attack_damage_against_with_weapon(i, monster, weapon))
-        });
-        if upgrade.is_some_and(|i| i.total_damage_increase() <= 0) {
-            upgrade = available
-                .iter()
-                .min_by_key(|i| OrderedFloat(i.damage_from(monster)))
-        }
-        upgrade.copied()
     }
 
     fn resistance(&self, r#type: DamageType) -> i32 {
@@ -1172,23 +1056,6 @@ impl Character {
         DamageType::iter()
             .map(|t| average_dmg(monster.attack_damage(t), 0, self.resistance(t)))
             .sum()
-    }
-
-    fn armor_attack_damage_against_with_weapon(
-        &self,
-        armor: &ItemSchema,
-        monster: &MonsterSchema,
-        weapon: &ItemSchema,
-    ) -> f32 {
-        DamageType::iter()
-            .map(|t| {
-                average_dmg(
-                    weapon.attack_damage(t),
-                    armor.damage_increase(t),
-                    monster.resistance(t),
-                )
-            })
-            .sum::<f32>()
     }
 
     /// Refresh the `Character` schema from API.
@@ -1252,7 +1119,7 @@ impl Character {
     }
 
     /// Returns the level of the `Character`.
-    fn level(&self) -> i32 {
+    pub fn level(&self) -> i32 {
         self.data.read().map_or(1, |d| d.level)
     }
 
