@@ -16,6 +16,7 @@ pub mod config;
 pub mod equipment;
 pub mod equipment_finder;
 pub mod events;
+pub mod fight_simulator;
 pub mod game;
 pub mod items;
 pub mod maps;

@@ -1,6 +1,6 @@
 use super::{
     account::Account,
-    api::{characters::CharactersApi, my_character::MyCharacterApi},
+    api::{characters::CharactersApi, monsters, my_character::MyCharacterApi},
     average_dmg,
     bank::Bank,
     char_config::CharConfig,
@@ -8,6 +8,7 @@ use super::{
     equipment::Equipment,
     equipment_finder::EquipmentFinder,
     events::Events,
+    fight_simulator::FightSimulator,
     game::Game,
     items::{DamageType, ItemSource, Items, Slot, Type},
     maps::Maps,
@@ -19,8 +20,7 @@ use super::{
 };
 use actions::{PostCraftAction, RequestError};
 use artifactsmmo_openapi::models::{
-    CharacterSchema, FightSchema, InventorySlot, ItemSchema, MapContentSchema, MapSchema,
-    MonsterSchema, ResourceSchema, SkillDataSchema,
+    fight_schema, CharacterSchema, FightSchema, InventorySlot, ItemSchema, MapContentSchema, MapSchema, MonsterSchema, ResourceSchema, SkillDataSchema
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
@@ -52,6 +52,7 @@ pub struct Character {
     bank: Arc<Bank>,
     orderboard: Arc<OrderBoard>,
     equipment_finder: EquipmentFinder,
+    fight_simulator: FightSimulator,
     pub conf: Arc<RwLock<CharConfig>>,
     pub data: Arc<RwLock<CharacterSchema>>,
 }
@@ -79,6 +80,7 @@ impl Character {
             events: game.events.clone(),
             orderboard: game.billboard.clone(),
             equipment_finder: EquipmentFinder::new(&game.items),
+            fight_simulator: FightSimulator::new(&game.items, &game.monsters),
             bank: bank.clone(),
             data: data.clone(),
         }
@@ -504,15 +506,10 @@ impl Character {
     /// Checks if the `Character` could kill the given `monster` with the given
     /// `equipment`
     fn can_kill_with(&self, monster: &MonsterSchema, equipment: &Equipment) -> bool {
-        let turns_to_kill = (monster.hp as f32 / equipment.attack_damage_against(monster)).ceil();
-        let turns_to_be_killed = ((self.base_health() + equipment.health_increase()) as f32
-            / equipment.attack_damage_from(monster))
-        .ceil();
-        debug!(
-            "{}: '{}': turn to kill: {}, turns to be killed {}",
-            self.name, monster.code, turns_to_kill, turns_to_be_killed
-        );
-        turns_to_kill <= turns_to_be_killed
+        self.fight_simulator
+            .simulate(self.level(), equipment, monster)
+            .result
+            == fight_schema::Result::Win
     }
 
     // Checks that the `Character` has the required skill level to gather the given `resource`
