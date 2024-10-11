@@ -53,6 +53,9 @@ impl OrderBoard {
     pub fn notify_deposit(&self, code: &str, quantity: i32) {
         if let Some(order) = self.orders().iter().find(|o| o.item == code) {
             order.inc_deposited(quantity);
+            if order.turned_in() {
+                self.remove_order(&order);
+            }
         }
     }
 }
@@ -87,7 +90,6 @@ impl Order {
     pub fn worked(&self) -> bool {
         self.worked.read().is_ok_and(|w| *w)
     }
-
 
     pub fn turned_in(&self) -> bool {
         self.deposited() >= self.quantity

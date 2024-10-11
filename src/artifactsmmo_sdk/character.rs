@@ -255,9 +255,6 @@ impl Character {
         if self.account.in_inventories(&order.item) >= order.missing() && !order.turned_in() {
             if self.has_in_inventory(&order.item) > 0 {
                 self.deposit_all();
-                if order.turned_in() {
-                    self.orderboard.remove_order(&order);
-                }
                 return true;
             }
         } else if let Some(progress) = self.progress_order(&order) {
