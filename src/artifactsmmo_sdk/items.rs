@@ -29,7 +29,7 @@ impl Items {
                 .expect("items to be retrieved from API."),
             api,
             resources: resources.clone(),
-            monsters: monsters.clone()
+            monsters: monsters.clone(),
         }
     }
 
@@ -263,7 +263,9 @@ impl Items {
                 }
             }
             Skill::Jewelrycrafting => {
-                if level > 25 {
+                if level >= 30 {
+                    self.get("gold_ring")
+                } else if level > 25 {
                     self.get("steel_ring")
                 } else if level > 20 {
                     self.get("life_ring")

@@ -20,7 +20,8 @@ use super::{
 };
 use actions::{PostCraftAction, RequestError};
 use artifactsmmo_openapi::models::{
-    fight_schema, CharacterSchema, FightSchema, InventorySlot, ItemSchema, MapContentSchema, MapSchema, MonsterSchema, ResourceSchema, SkillDataSchema
+    fight_schema, CharacterSchema, FightSchema, InventorySlot, ItemSchema, MapContentSchema,
+    MapSchema, MonsterSchema, ResourceSchema, SkillDataSchema,
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
@@ -299,22 +300,20 @@ impl Character {
                 self.max_craftable_items_from_bank(&order.item),
                 order.missing() - order.being_crafted() - self.account.in_inventories(&order.item),
             );
-            order.inc_being_crafted(quantity);
-            let ret = self
-                .craft_from_bank(&order.item, quantity, PostCraftAction::None)
-                .map_err(|e| {
-                    if let CharacterError::InsuffisientMaterials = e {
-                        self.bank
-                            .missing_mats_for(&order.item, order.quantity, Some(&self.name))
-                            .iter()
-                            .for_each(|m| {
-                                self.orderboard.order_item(&self.name, &m.code, m.quantity)
-                            })
-                    }
-                })
-                .ok();
-            order.dec_being_crafted(quantity);
-            ret
+            if quantity > 0 {
+                order.inc_being_crafted(quantity);
+                let ret = self
+                    .craft_from_bank(&order.item, quantity, PostCraftAction::None)
+                    .ok();
+                order.dec_being_crafted(quantity);
+                ret
+            } else {
+                self.bank
+                    .missing_mats_for(&order.item, order.quantity, Some(&self.name))
+                    .iter()
+                    .for_each(|m| self.orderboard.order_item(&self.name, &m.code, m.quantity));
+                None
+            }
         }
     }
 
