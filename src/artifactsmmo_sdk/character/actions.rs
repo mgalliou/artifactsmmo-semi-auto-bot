@@ -114,7 +114,10 @@ impl Character {
                 };
                 Ok(res)
             }
-            Err(e) => self.handle_action_error(action, e),
+            Err(e) => {
+                drop(bank_content);
+                self.handle_action_error(action, e)
+            },
         }
     }
 
@@ -279,6 +282,7 @@ impl Character {
     ) -> Result<CharacterResponseSchema, RequestError> {
         if let RequestError::ResponseError(ref res) = e {
             if res.error.code == 499 {
+                error!("{}: code 499 received, resyncronizing server time", self.name);
                 self.game.update_offset();
                 return self.perform_action(action);
             }
