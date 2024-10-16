@@ -170,7 +170,7 @@ impl Character {
 
         skills
             .into_iter()
-            .filter(|s| self.skill_level(*s) < 40)
+            .filter(|s| self.skill_level(*s) < if *s == Skill::Jewelrycrafting { 35 } else { 40 })
             .any(|skill| self.level_skill_up(skill))
     }
 
