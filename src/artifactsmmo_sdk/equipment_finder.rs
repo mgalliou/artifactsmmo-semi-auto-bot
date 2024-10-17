@@ -1,16 +1,14 @@
 use std::sync::Arc;
 
 use artifactsmmo_openapi::models::{ItemSchema, MonsterSchema};
-use itertools::Itertools;
+use itertools::{Itertools, PeekingNext};
 use ordered_float::OrderedFloat;
-use strum::IntoEnumIterator;
 
 use super::{
-    average_dmg,
     character::Character,
     equipment::Equipment,
-    items::{DamageType, Items, Slot},
-    ItemSchemaExt, MonsterSchemaExt,
+    items::{Items, Slot, Type},
+    ItemSchemaExt,
 };
 
 pub struct EquipmentFinder {
@@ -22,6 +20,159 @@ impl EquipmentFinder {
         Self {
             items: items.clone(),
         }
+    }
+
+    pub fn bests_against<'a>(
+        &'a self,
+        char: &'a Character,
+        monster: &'a MonsterSchema,
+        filter: Filter,
+    ) -> Vec<Equipment<'_>> {
+        self.items
+            .equipable_at_level(char.level(), Type::Weapon)
+            .iter()
+            .filter(|i| match filter {
+                Filter::All => true,
+                Filter::Available => char.has_available(&i.code) > 0,
+                Filter::Craftrable => todo!(),
+                Filter::Farmable => todo!(),
+            })
+            .flat_map(|w| self.best_against_with_weapon(char, monster, filter, w))
+            .collect_vec()
+    }
+
+    fn best_against_with_weapon<'a>(
+        &'a self,
+        char: &Character,
+        monster: &MonsterSchema,
+        filter: Filter,
+        weapon: &'a ItemSchema,
+    ) -> Vec<Equipment> {
+        // TODO: low level equipment with empty slots need to be handled properly,
+        // Maybe with `Option`s.
+        let helmets =
+            self.best_armors_against_with_weapon(char, monster, filter, weapon, Type::Helmet);
+        let shields =
+            self.best_armors_against_with_weapon(char, monster, filter, weapon, Type::Shield);
+        let body_armor =
+            self.best_armors_against_with_weapon(char, monster, filter, weapon, Type::BodyArmor);
+        let leg_armor =
+            self.best_armors_against_with_weapon(char, monster, filter, weapon, Type::LegArmor);
+        let boots =
+            self.best_armors_against_with_weapon(char, monster, filter, weapon, Type::Boots);
+        let rings = self.best_armors_against_with_weapon(char, monster, filter, weapon, Type::Ring);
+        let mut rings2 = rings.clone();
+        if filter == Filter::Available {
+            rings2.retain(|i| char.has_available(&i.code) > 1);
+        }
+        let amulets =
+            self.best_armors_against_with_weapon(char, monster, filter, weapon, Type::Amulet);
+        // TODO: handle artifacts and consumables
+        //let artifacts = self.best_armors_against_with_weapon(char, monster, weapon, Type::Artifact);
+        //let consumables =
+        //    self.best_armors_against_with_weapon(char, monster, weapon, Type::Consumable);
+        [
+            &helmets,
+            &shields,
+            &body_armor,
+            &leg_armor,
+            &boots,
+            &rings,
+            &rings2,
+            &amulets,
+        ]
+        .into_iter()
+        .multi_cartesian_product()
+        .map(|items| {
+            let mut iter = items.into_iter().cloned().peekable();
+            Equipment {
+                weapon: Some(weapon),
+                helmet: iter.peeking_next(|i| i.is_of_type(Type::Helmet)),
+                shield: iter.peeking_next(|i| i.is_of_type(Type::Shield)),
+                body_armor: iter.peeking_next(|i| i.is_of_type(Type::BodyArmor)),
+                leg_armor: iter.peeking_next(|i| i.is_of_type(Type::LegArmor)),
+                boots: iter.peeking_next(|i| i.is_of_type(Type::Boots)),
+                ring1: iter.peeking_next(|i| i.is_of_type(Type::Ring)),
+                ring2: iter.peeking_next(|i| i.is_of_type(Type::Ring)),
+                amulet: iter.peeking_next(|i| i.is_of_type(Type::Amulet)),
+                artifact1: iter.peeking_next(|i| i.is_of_type(Type::Artifact)),
+                artifact2: iter.peeking_next(|i| i.is_of_type(Type::Artifact)),
+                artifact3: iter.peeking_next(|i| i.is_of_type(Type::Artifact)),
+                consumable1: iter.peeking_next(|i| i.is_of_type(Type::Consumable)),
+                consumable2: iter.peeking_next(|i| i.is_of_type(Type::Consumable)),
+            }
+        })
+        .collect_vec()
+    }
+
+    fn best_armors_against_with_weapon(
+        &self,
+        char: &Character,
+        monster: &MonsterSchema,
+        filter: Filter,
+        weapon: &ItemSchema,
+        r#type: Type,
+    ) -> Vec<&ItemSchema> {
+        let mut upgrades: Vec<&ItemSchema> = vec![];
+        let equipables = self
+            .items
+            .equipable_at_level(char.level(), r#type)
+            .into_iter()
+            .filter(|i| match filter {
+                Filter::All => true,
+                Filter::Available => char.has_available(&i.code) > 0,
+                Filter::Craftrable => todo!(),
+                Filter::Farmable => todo!(),
+            })
+            .collect_vec();
+        let damage_increases = equipables
+            .iter()
+            .cloned()
+            .filter(|i| i.damage_increase_against_with(monster, weapon) > 0.0)
+            .collect_vec();
+        let best_for_damage = damage_increases
+            .iter()
+            .cloned()
+            .max_by_key(|i| OrderedFloat(i.damage_increase_against_with(monster, weapon)));
+        if let Some(best_for_damage) = best_for_damage {
+            upgrades.push(best_for_damage);
+        }
+        let best_for_resistance = {
+            if best_for_damage.is_some() {
+                damage_increases
+                    .iter()
+                    .cloned()
+                    .filter(|i| i.damage_reduction_against(monster) > 0.0)
+                    .max_by_key(|i| OrderedFloat(i.damage_from(monster)))
+            } else {
+                equipables
+                    .iter()
+                    .cloned()
+                    .filter(|i| i.damage_reduction_against(monster) > 0.0)
+                    .max_by_key(|i| OrderedFloat(i.damage_from(monster)))
+            }
+        };
+        if let Some(best_for_resistance) = best_for_resistance {
+            upgrades.push(best_for_resistance);
+        }
+        let best_for_health = {
+            if best_for_damage.is_some() {
+                damage_increases
+                    .into_iter()
+                    .filter(|i| i.health() > 0)
+                    .max_by_key(|i| i.health())
+            } else {
+                equipables
+                    .iter()
+                    .cloned()
+                    .filter(|i| i.health() > 0)
+                    .min_by_key(|i| OrderedFloat(i.damage_from(monster)))
+            }
+        };
+        if let Some(best_for_health) = best_for_health {
+            upgrades.push(best_for_health);
+        }
+        upgrades
     }
 
     pub fn best_available_against<'a>(
@@ -167,7 +318,7 @@ impl EquipmentFinder {
     ) -> Option<&ItemSchema> {
         let available = self
             .items
-            .equipable_at_level(char.level(), slot)
+            .equipable_at_level(char.level(), Type::from(slot))
             .into_iter()
             .filter(|i| {
                 char.has_available(&i.code) > {
@@ -179,11 +330,9 @@ impl EquipmentFinder {
                 }
             })
             .collect_vec();
-        let mut upgrade = available.iter().max_by_key(|i| {
-            OrderedFloat(Self::armor_attack_damage_against_with_weapon(
-                i, monster, weapon,
-            ))
-        });
+        let mut upgrade = available
+            .iter()
+            .max_by_key(|i| OrderedFloat(i.damage_increase_against_with(monster, weapon)));
         if upgrade.is_some_and(|i| i.total_damage_increase() <= 0) {
             upgrade = available
                 .iter()
@@ -191,20 +340,12 @@ impl EquipmentFinder {
         }
         upgrade.copied()
     }
+}
 
-    fn armor_attack_damage_against_with_weapon(
-        armor: &ItemSchema,
-        monster: &MonsterSchema,
-        weapon: &ItemSchema,
-    ) -> f32 {
-        DamageType::iter()
-            .map(|t| {
-                average_dmg(
-                    weapon.attack_damage(t),
-                    armor.damage_increase(t),
-                    monster.resistance(t),
-                )
-            })
-            .sum::<f32>()
-    }
+#[derive(Clone, Copy, PartialEq)]
+pub enum Filter {
+    All,
+    Available,
+    Craftrable,
+    Farmable,
 }

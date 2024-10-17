@@ -8,6 +8,7 @@ use artifactsmmo_openapi::models::{
 };
 use itertools::Itertools;
 use log::debug;
+use std::fmt;
 use std::str::FromStr;
 use std::{sync::Arc, vec::Vec};
 use strum::IntoEnumIterator;
@@ -226,11 +227,10 @@ impl Items {
         average
     }
 
-    pub fn equipable_at_level(&self, level: i32, slot: Slot) -> Vec<&ItemSchema> {
+    pub fn equipable_at_level(&self, level: i32, r#type: Type) -> Vec<&ItemSchema> {
         self.data
             .iter()
-            .filter(|i| i.level <= level)
-            .filter(|i| i.r#type == Type::from_slot(slot))
+            .filter(|i| i.r#type == r#type && i.level <= level)
             .collect_vec()
     }
 
@@ -359,6 +359,10 @@ impl Items {
 }
 
 impl ItemSchemaExt for ItemSchema {
+    fn name(&self) -> String {
+        self.name.to_owned()
+    }
+
     fn is_raw_mat(&self) -> bool {
         self.r#type == "resource"
             && matches!(
@@ -477,6 +481,33 @@ impl ItemSchemaExt for ItemSchema {
             .find_map(|e| (e.name == skill.as_ref()).then_some(e.value))
             .unwrap_or(0)
     }
+
+    fn damage_increase_against_with(&self, monster: &MonsterSchema, weapon: &ItemSchema) -> f32 {
+        DamageType::iter()
+            .map(|t| {
+                average_dmg(
+                    weapon.attack_damage(t),
+                    self.damage_increase(t),
+                    monster.resistance(t),
+                )
+            })
+            .sum()
+    }
+
+    fn damage_reduction_against(&self, monster: &MonsterSchema) -> f32 {
+        DamageType::iter()
+            .map(|t| average_dmg(monster.attack_damage(t), 0, 0))
+            .sum::<f32>()
+            - DamageType::iter()
+                .map(|t| average_dmg(monster.attack_damage(t), 0, self.resistance(t)))
+                .sum::<f32>()
+    }
+}
+
+impl fmt::Display for dyn ItemSchemaExt {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.name())
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, AsRefStr, EnumString, EnumIter, EnumIs)]
@@ -576,9 +607,9 @@ pub enum Type {
     Currency,
 }
 
-impl Type {
-    pub fn from_slot(slot: Slot) -> Self {
-        match slot {
+impl From<Slot> for Type {
+    fn from(value: Slot) -> Self {
+        match value {
             Slot::Weapon => Self::Weapon,
             Slot::Shield => Self::Shield,
             Slot::Helmet => Self::Helmet,

@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use super::{
     average_dmg,
     items::{DamageType, Slot},
@@ -81,5 +83,24 @@ impl<'a> Equipment<'a> {
         Slot::iter()
             .map(|s| self.slot(s).map_or(0, |i| i.resistance(t)))
             .sum()
+    }
+}
+
+impl Display for Equipment<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Weapon: {:?}", self.weapon.map(|w| w.name.to_string()))?;
+        writeln!(f, "Shield: {:?}", self.shield.map(|w| w.name.to_string()))?;
+        writeln!(f, "Helmet: {:?}", self.helmet.map(|w| w.name.to_string()))?;
+        writeln!(f, "Body Armor: {:?}", self.body_armor.map(|w| w.name.to_string()))?;
+        writeln!(f, "Leg Armor: {:?}", self.leg_armor.map(|w| w.name.to_string()))?;
+        writeln!(f, "Boots: {:?}", self.boots.map(|w| w.name.to_string()))?;
+        writeln!(f, "Ring 1: {:?}", self.ring1.map(|w| w.name.to_string()))?;
+        writeln!(f, "Ring 2: {:?}", self.ring2.map(|w| w.name.to_string()))?;
+        writeln!(f, "Amulet: {:?}", self.amulet.map(|w| w.name.to_string()))?;
+        writeln!(f, "Artifact 1: {:?}", self.artifact1.map(|w| w.name.to_string()))?;
+        writeln!(f, "Artifact 2: {:?}", self.artifact2.map(|w| w.name.to_string()))?;
+        writeln!(f, "Artifact 3: {:?}", self.artifact3.map(|w| w.name.to_string()))?;
+        writeln!(f, "Consumable 1: {:?}", self.consumable1.map(|w| w.name.to_string()))?;
+        writeln!(f, "Consumable 2: {:?}", self.consumable2.map(|w| w.name.to_string()))
     }
 }

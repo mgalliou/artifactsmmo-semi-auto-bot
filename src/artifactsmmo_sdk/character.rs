@@ -1,12 +1,12 @@
 use super::{
     account::Account,
-    api::{characters::CharactersApi, monsters, my_character::MyCharacterApi},
+    api::{characters::CharactersApi, my_character::MyCharacterApi},
     average_dmg,
     bank::Bank,
     char_config::CharConfig,
     config::Config,
     equipment::Equipment,
-    equipment_finder::EquipmentFinder,
+    equipment_finder::{EquipmentFinder, Filter},
     events::Events,
     fight_simulator::FightSimulator,
     game::Game,
@@ -26,6 +26,7 @@ use artifactsmmo_openapi::models::{
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use log::{debug, error, info, warn};
+use ordered_float::OrderedFloat;
 use serde::Deserialize;
 use std::{
     cmp::{max, min, Ordering},
@@ -462,7 +463,12 @@ impl Character {
     ) -> Result<FightSchema, CharacterError> {
         let mut equipment: Equipment = Default::default();
         if let Ok(_) = self.bank.browsed.write() {
-            equipment = self.equipment_finder.best_available_against(self, monster);
+            equipment = *self
+                .equipment_finder
+                .bests_against(self, monster, Filter::Available)
+                .iter()
+                .max_by_key(|e| OrderedFloat(e.attack_damage_against(monster)))
+                .unwrap();
             if !self.can_kill_with(monster, &equipment) {
                 return Err(CharacterError::NoEquipmentToKill);
             }
@@ -1012,7 +1018,7 @@ impl Character {
         match self.resources.get(code) {
             Some(resource) => self
                 .items
-                .equipable_at_level(self.level(), Slot::Weapon)
+                .equipable_at_level(self.level(), Type::Weapon)
                 .into_iter()
                 .filter(|i| self.has_available(&i.code) > 0)
                 .min_by_key(|i| i.skill_cooldown_reduction(Skill::from(resource.skill))),
@@ -1040,7 +1046,7 @@ impl Character {
     /// Returns all the weapons available and equipable by the `Character`
     pub fn available_equipable_weapons(&self) -> Vec<&ItemSchema> {
         self.items
-            .equipable_at_level(self.level(), Slot::Weapon)
+            .equipable_at_level(self.level(), Type::Weapon)
             .into_iter()
             .filter(|i| self.has_available(&i.code) > 0)
             .collect_vec()

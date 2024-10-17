@@ -1,6 +1,5 @@
 use artifactsmmo_openapi::models::{
-    CharacterSchema, CraftSchema, ItemEffectSchema, MapContentSchema, MonsterSchema,
-    ResourceSchema, SimpleItemSchema,
+    CharacterSchema, CraftSchema, ItemEffectSchema, ItemSchema, MapContentSchema, MonsterSchema, ResourceSchema, SimpleItemSchema
 };
 use as_any::AsAny;
 use items::{DamageType, Type};
@@ -26,6 +25,7 @@ pub mod resources;
 pub mod skill;
 
 trait ItemSchemaExt {
+    fn name(&self) -> String;
     fn is_raw_mat(&self) -> bool;
     fn is_of_type(&self, r#type: Type) -> bool;
     fn is_crafted_with(&self, code: &str) -> bool;
@@ -42,7 +42,9 @@ trait ItemSchemaExt {
     fn resistance(&self, r#type: DamageType) -> i32;
     fn total_resistance(&self) -> i32;
     fn health(&self) -> i32;
-    fn skill_cooldown_reduction(&self, skill: Skill) -> i32;
+    fn skill_cooldown_reduction(&self, skijll: Skill) -> i32;
+    fn damage_increase_against_with(&self, monster: &MonsterSchema, weapon: &ItemSchema) -> f32;
+    fn damage_reduction_against(&self, monster: &MonsterSchema) -> f32;
 }
 
 trait MapSchemaExt {
