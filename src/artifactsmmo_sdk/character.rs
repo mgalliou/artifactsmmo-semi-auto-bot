@@ -21,7 +21,7 @@ use super::{
 use actions::{PostCraftAction, RequestError};
 use artifactsmmo_openapi::models::{
     fight_schema, CharacterSchema, FightSchema, InventorySlot, ItemSchema, MapContentSchema,
-    MapSchema, MonsterSchema, ResourceSchema, SkillDataSchema,
+    MapSchema, MonsterSchema, ResourceSchema, SimpleItemSchema, SkillDataSchema,
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
@@ -44,7 +44,7 @@ pub struct Character {
     pub name: String,
     my_api: MyCharacterApi,
     api: CharactersApi,
-    account: Arc<Account>,
+    pub account: Arc<Account>,
     game: Arc<Game>,
     maps: Arc<Maps>,
     resources: Arc<Resources>,
@@ -461,20 +461,20 @@ impl Character {
         monster: &MonsterSchema,
         map: Option<&MapSchema>,
     ) -> Result<FightSchema, CharacterError> {
-        let mut equipment: Equipment = Default::default();
+        let mut available: Equipment = self.equipment();
         if let Ok(_) = self.bank.browsed.write() {
-            equipment = *self
+            available = *self
                 .equipment_finder
                 .bests_against(self, monster, Filter::Available)
                 .iter()
                 .max_by_key(|e| OrderedFloat(e.attack_damage_against(monster)))
                 .unwrap();
-            if !self.can_kill_with(monster, &equipment) {
+            if !self.can_kill_with(monster, &available) {
                 return Err(CharacterError::NoEquipmentToKill);
             }
-            self.reserv_equipment(equipment);
+            self.reserv_equipment(available);
         }
-        self.equip_equipment(&equipment);
+        self.equip_equipment(&available);
         if let Some(map) = map {
             self.action_move(map.x, map.y)?;
         } else if let Some(map) = self.closest_map_with_content_code(&monster.code) {
@@ -520,7 +520,7 @@ impl Character {
     }
 
     // Checks that the `Character` has the required skill level to craft the given item `code`
-    fn can_craft(&self, code: &str) -> bool {
+    pub fn can_craft(&self, code: &str) -> bool {
         if let Some(item) = self.items.get(code) {
             if let Some(skill) = item.skill_to_craft() {
                 return self.skill_level(skill) >= item.level;
@@ -1152,6 +1152,12 @@ impl Character {
 
     fn conf(&self) -> CharConfig {
         self.conf.read().unwrap().clone()
+    }
+
+    fn request_equipment(&self, equipment: Equipment<'_>) {
+        Into::<Vec<SimpleItemSchema>>::into(equipment)
+            .iter()
+            .for_each(|i| self.orderboard.order_item(&self.name, &i.code, i.quantity))
     }
 
     fn reserv_equipment(&self, equipment: Equipment<'_>) {

@@ -96,6 +96,14 @@ impl Account {
             .map(|c| c.has_in_inventory(code))
             .sum()
     }
+
+    pub fn can_craft(&self, code: &str) -> bool {
+        self.characters
+            .read()
+            .unwrap()
+            .iter()
+            .any(|c| c.can_craft(code))
+    }
 }
 
 fn init_char_conf(confs: &[CharConfig]) -> Vec<Arc<RwLock<CharConfig>>> {

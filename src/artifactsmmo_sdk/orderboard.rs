@@ -54,7 +54,7 @@ impl OrderBoard {
         if let Some(order) = self.orders().iter().find(|o| o.item == code) {
             order.inc_deposited(quantity);
             if order.turned_in() {
-                self.remove_order(&order);
+                self.remove_order(order);
             }
         }
     }

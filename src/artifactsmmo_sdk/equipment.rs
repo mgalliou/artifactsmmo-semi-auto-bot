@@ -1,14 +1,14 @@
-use std::fmt::Display;
-
 use super::{
     average_dmg,
     items::{DamageType, Slot},
     ItemSchemaExt, MonsterSchemaExt,
 };
-use artifactsmmo_openapi::models::{ItemSchema, MonsterSchema};
+use artifactsmmo_openapi::models::{ItemSchema, MonsterSchema, SimpleItemSchema};
+use itertools::Itertools;
+use std::fmt::Display;
 use strum::IntoEnumIterator;
 
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub struct Equipment<'a> {
     pub weapon: Option<&'a ItemSchema>,
     pub shield: Option<&'a ItemSchema>,
@@ -91,16 +91,95 @@ impl Display for Equipment<'_> {
         writeln!(f, "Weapon: {:?}", self.weapon.map(|w| w.name.to_string()))?;
         writeln!(f, "Shield: {:?}", self.shield.map(|w| w.name.to_string()))?;
         writeln!(f, "Helmet: {:?}", self.helmet.map(|w| w.name.to_string()))?;
-        writeln!(f, "Body Armor: {:?}", self.body_armor.map(|w| w.name.to_string()))?;
-        writeln!(f, "Leg Armor: {:?}", self.leg_armor.map(|w| w.name.to_string()))?;
+        writeln!(
+            f,
+            "Body Armor: {:?}",
+            self.body_armor.map(|w| w.name.to_string())
+        )?;
+        writeln!(
+            f,
+            "Leg Armor: {:?}",
+            self.leg_armor.map(|w| w.name.to_string())
+        )?;
         writeln!(f, "Boots: {:?}", self.boots.map(|w| w.name.to_string()))?;
         writeln!(f, "Ring 1: {:?}", self.ring1.map(|w| w.name.to_string()))?;
         writeln!(f, "Ring 2: {:?}", self.ring2.map(|w| w.name.to_string()))?;
         writeln!(f, "Amulet: {:?}", self.amulet.map(|w| w.name.to_string()))?;
-        writeln!(f, "Artifact 1: {:?}", self.artifact1.map(|w| w.name.to_string()))?;
-        writeln!(f, "Artifact 2: {:?}", self.artifact2.map(|w| w.name.to_string()))?;
-        writeln!(f, "Artifact 3: {:?}", self.artifact3.map(|w| w.name.to_string()))?;
-        writeln!(f, "Consumable 1: {:?}", self.consumable1.map(|w| w.name.to_string()))?;
-        writeln!(f, "Consumable 2: {:?}", self.consumable2.map(|w| w.name.to_string()))
+        writeln!(
+            f,
+            "Artifact 1: {:?}",
+            self.artifact1.map(|w| w.name.to_string())
+        )?;
+        writeln!(
+            f,
+            "Artifact 2: {:?}",
+            self.artifact2.map(|w| w.name.to_string())
+        )?;
+        writeln!(
+            f,
+            "Artifact 3: {:?}",
+            self.artifact3.map(|w| w.name.to_string())
+        )?;
+        writeln!(
+            f,
+            "Consumable 1: {:?}",
+            self.consumable1.map(|w| w.name.to_string())
+        )?;
+        writeln!(
+            f,
+            "Consumable 2: {:?}",
+            self.consumable2.map(|w| w.name.to_string())
+        )
+    }
+}
+
+impl From<Equipment<'_>> for Vec<SimpleItemSchema> {
+    fn from(val: Equipment<'_>) -> Self {
+        let mut i = Slot::iter()
+            .filter_map(|s| {
+                if s.is_ring_1() || s.is_ring_2() {
+                    if let Some(item) = val.slot(s) {
+                        return Some(SimpleItemSchema {
+                            code: item.code.to_owned(),
+                            quantity: if s.is_consumable_1() || s.is_consumable_2() {
+                                100
+                            } else {
+                                1
+                            },
+                        });
+                    }
+                }
+                None
+            })
+            .collect_vec();
+        match (val.ring1, val.ring2) {
+            (Some(r1), Some(r2)) => {
+                if r1 == r2 {
+                    i.push(SimpleItemSchema {
+                        code: r1.code.to_owned(),
+                        quantity: 2,
+                    })
+                } else {
+                    i.push(SimpleItemSchema {
+                        code: r1.code.to_owned(),
+                        quantity: 1,
+                    });
+                    i.push(SimpleItemSchema {
+                        code: r2.code.to_owned(),
+                        quantity: 1,
+                    });
+                }
+            }
+            (Some(r), None) => i.push(SimpleItemSchema {
+                code: r.code.to_owned(),
+                quantity: 1,
+            }),
+            (None, Some(r)) => i.push(SimpleItemSchema {
+                code: r.code.to_owned(),
+                quantity: 1,
+            }),
+            (None, None) => (),
+        }
+        i
     }
 }

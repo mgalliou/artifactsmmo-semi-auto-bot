@@ -34,7 +34,7 @@ impl EquipmentFinder {
             .filter(|i| match filter {
                 Filter::All => true,
                 Filter::Available => char.has_available(&i.code) > 0,
-                Filter::Craftrable => todo!(),
+                Filter::Craftable => char.account.can_craft(&i.code),
                 Filter::Farmable => todo!(),
             })
             .flat_map(|w| self.best_against_with_weapon(char, monster, filter, w))
@@ -121,7 +121,7 @@ impl EquipmentFinder {
             .filter(|i| match filter {
                 Filter::All => true,
                 Filter::Available => char.has_available(&i.code) > 0,
-                Filter::Craftrable => todo!(),
+                Filter::Craftable => todo!(),
                 Filter::Farmable => todo!(),
             })
             .collect_vec();
@@ -346,6 +346,6 @@ impl EquipmentFinder {
 pub enum Filter {
     All,
     Available,
-    Craftrable,
+    Craftable,
     Farmable,
 }
