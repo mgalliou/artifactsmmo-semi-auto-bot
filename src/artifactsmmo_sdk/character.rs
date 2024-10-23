@@ -271,6 +271,10 @@ impl Character {
                     self.account.in_inventories(&order.item),
                     order.deposited(),
                 );
+                if order.author == self.name && self.has_in_inventory(&order.item) >= order.quantity
+                {
+                    self.orderboard.remove_order(&order)
+                }
             }
             return true;
         }
