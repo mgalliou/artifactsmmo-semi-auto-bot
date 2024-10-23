@@ -21,7 +21,7 @@ use super::{
 use actions::{PostCraftAction, RequestError};
 use artifactsmmo_openapi::models::{
     fight_schema, CharacterSchema, FightSchema, InventorySlot, ItemSchema, MapContentSchema,
-    MapSchema, MonsterSchema, ResourceSchema, SimpleItemSchema, SkillDataSchema,
+    MapSchema, MonsterSchema, ResourceSchema, SkillDataSchema,
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
@@ -207,7 +207,8 @@ impl Character {
                                 )
                                 .iter()
                                 .for_each(|m| {
-                                    self.orderboard.order_item(&self.name, &m.code, m.quantity)
+                                    self.orderboard
+                                        .order_item(&self.name, &m.code, m.quantity, 1)
                                 })
                         }
                         false
@@ -247,8 +248,10 @@ impl Character {
     fn handle_orderboard(&self) -> bool {
         self.orderboard
             .orders()
-            .iter()
-            .cloned()
+            .into_iter()
+            .max_set_by_key(|o| o.priority)
+            .into_iter()
+            .sorted_by_key(|o| *o.worked_by.read().unwrap())
             .any(|r| self.handle_order(r))
     }
 
@@ -279,14 +282,24 @@ impl Character {
             .source_of(&order.item)
             .iter()
             .find_map(|s| match s {
-                ItemSource::Resource(r) => self
-                    .gather_resource(r, None)
-                    .ok()
-                    .map(|gather| gather.amount_of(&order.item)),
-                ItemSource::Monster(m) => self
-                    .kill_monster(m, None)
-                    .ok()
-                    .map(|fight| fight.amount_of(&order.item)),
+                ItemSource::Resource(r) => {
+                    order.inc_worked_by(1);
+                    let ret = self
+                        .gather_resource(r, None)
+                        .ok()
+                        .map(|gather| gather.amount_of(&order.item));
+                    order.dec_worked_by(1);
+                    ret
+                }
+                ItemSource::Monster(m) => {
+                    order.inc_worked_by(1);
+                    let ret = self
+                        .kill_monster(m, None)
+                        .ok()
+                        .map(|fight| fight.amount_of(&order.item));
+                    order.inc_worked_by(1);
+                    ret
+                }
                 ItemSource::Craft => self.progress_crafting_order(order),
                 ItemSource::Task => None,
             })
@@ -311,7 +324,14 @@ impl Character {
                 self.bank
                     .missing_mats_for(&order.item, order.quantity, Some(&self.name))
                     .iter()
-                    .for_each(|m| self.orderboard.order_item(&self.name, &m.code, m.quantity));
+                    .for_each(|m| {
+                        self.orderboard.order_item(
+                            &self.name,
+                            &m.code,
+                            m.quantity,
+                            order.priority + 1,
+                        )
+                    });
                 None
             }
         }
@@ -468,19 +488,19 @@ impl Character {
                 .iter()
                 .max_by_key(|e| OrderedFloat(e.attack_damage_against(monster)))
                 .unwrap();
-            let best = *self
-                .equipment_finder
-                .bests_against(self, monster, Filter::All)
-                .iter()
-                .max_by_key(|e| OrderedFloat(e.attack_damage_against(monster)))
-                .unwrap();
-            self.request_equipment(best);
             if !self.can_kill_with(monster, &available) {
                 return Err(CharacterError::NoEquipmentToKill);
             }
             self.reserv_equipment(available);
         }
         self.equip_equipment(&available);
+        let best = *self
+            .equipment_finder
+            .bests_against(self, monster, Filter::All)
+            .iter()
+            .max_by_key(|e| OrderedFloat(e.attack_damage_against(monster)))
+            .unwrap();
+        self.request_equipment(best);
         if let Some(map) = map {
             self.action_move(map.x, map.y)?;
         } else if let Some(map) = self.closest_map_with_content_code(&monster.code) {
@@ -1185,7 +1205,7 @@ impl Character {
             && self.has_in_inventory(&item.code) < 1
             && self.bank.has_item(&item.code, Some(&self.name)) < 1
         {
-            self.orderboard.order_item(&self.name, &item.code, 1);
+            self.orderboard.order_item(&self.name, &item.code, 1, 1);
         }
     }
 

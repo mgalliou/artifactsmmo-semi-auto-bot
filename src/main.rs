@@ -111,7 +111,7 @@ fn handle_items(args: &[&str], items: &Arc<Items>) {
 fn handle_billboard(args: &[&str], billboard: &Arc<OrderBoard>) {
     if let (Some(verb), Some(item), Some(quantity)) = (args.first(), args.get(1), args.get(2)) {
         match *verb {
-            "request" => billboard.order_item("cli", item, quantity.parse::<i32>().unwrap_or(0)),
+            "request" => billboard.order_item("cli", item, quantity.parse::<i32>().unwrap_or(0), 1),
             _ => eprintln!("invalid verb"),
         }
     }

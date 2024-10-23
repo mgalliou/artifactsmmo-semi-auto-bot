@@ -23,8 +23,8 @@ impl OrderBoard {
 
     // TODO: when order with same item already exist, increase existing order quantity.
     // This should probably be done with a different method
-    pub fn order_item(&self, author: &str, item: &str, quantity: i32) {
-        let request = Order::new(author, item, quantity);
+    pub fn order_item(&self, author: &str, item: &str, quantity: i32, priority: i32) {
+        let request = Order::new(author, item, quantity, priority);
         if !self.has_similar_order(&request) {
             if let Ok(mut r) = self.orders.write() {
                 info!("order added to queue: {}.", request);
@@ -66,19 +66,21 @@ pub struct Order {
     pub author: String,
     pub item: String,
     pub quantity: i32,
-    pub worked: RwLock<bool>,
+    pub priority: i32,
+    pub worked_by: RwLock<i32>,
     pub being_crafted: RwLock<i32>,
     // Number of item deposited into the bank
     pub deposited: RwLock<i32>,
 }
 
 impl Order {
-    pub fn new(author: &str, item: &str, quantity: i32) -> Self {
+    pub fn new(author: &str, item: &str, quantity: i32, priority: i32) -> Self {
         Order {
             author: author.to_owned(),
             item: item.to_owned(),
             quantity,
-            worked: RwLock::new(false),
+            priority,
+            worked_by: RwLock::new(0),
             being_crafted: RwLock::new(0),
             deposited: RwLock::new(0),
         }
@@ -88,8 +90,8 @@ impl Order {
         self.item == other.item
     }
 
-    pub fn worked(&self) -> bool {
-        self.worked.read().is_ok_and(|w| *w)
+    pub fn worked_by(&self) -> i32 {
+        *self.worked_by.read().unwrap()
     }
 
     pub fn turned_in(&self) -> bool {
@@ -127,6 +129,14 @@ impl Order {
         if let Ok(mut being_crafted) = self.being_crafted.write() {
             *being_crafted -= n;
         }
+    }
+
+    pub fn inc_worked_by(&self, n: i32) {
+        *self.worked_by.write().unwrap() += n
+    }
+
+    pub fn dec_worked_by(&self, n: i32) {
+        *self.worked_by.write().unwrap() -= n
     }
 }
 
