@@ -493,7 +493,6 @@ impl Character {
             }
             self.reserv_equipment(available);
         }
-        self.equip_equipment(&available);
         let best = *self
             .equipment_finder
             .bests_against(self, monster, Filter::All)
@@ -501,6 +500,7 @@ impl Character {
             .max_by_key(|e| OrderedFloat(e.attack_damage_against(monster)))
             .unwrap();
         self.request_equipment(best);
+        self.equip_equipment(&available);
         if let Some(map) = map {
             self.action_move(map.x, map.y)?;
         } else if let Some(map) = self.closest_map_with_content_code(&monster.code) {
