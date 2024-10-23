@@ -4,6 +4,7 @@ use itertools::Itertools;
 use log::info;
 use std::{
     cmp::max,
+    fmt::{self, Display, Formatter},
     sync::{Arc, RwLock},
 };
 
@@ -12,7 +13,7 @@ pub struct Bank {
     pub browsed: RwLock<()>,
     pub details: RwLock<BankSchema>,
     pub content: RwLock<Vec<SimpleItemSchema>>,
-    pub reservations: RwLock<Vec<Reservation>>,
+    pub reservations: RwLock<Vec<Arc<Reservation>>>,
 }
 
 impl Bank {
@@ -98,42 +99,84 @@ impl Bank {
     }
 
     pub fn reserv(&self, item: &str, quantity: i32, owner: &str) {
-        if let Ok(mut reservations) = self.reservations.write() {
-            let res = Reservation {
+        if let Some(res) = self.get_reservation(owner, item) {
+            res.inc_quantity(quantity);
+        } else {
+            let res = Arc::new(Reservation {
                 item: item.to_owned(),
                 quantity: RwLock::new(quantity),
                 owner: owner.to_owned(),
-            };
-            info!("adding reservation to bank: {:?}", res);
-            reservations.push(res);
+            });
+            if let Ok(mut reservations) = self.reservations.write() {
+                reservations.push(res.clone());
+                info!("added reservation to bank: {}", res);
+            }
         }
     }
 
-    pub fn update_reservations(&self, item: &str, quantity: i32, owner: &str) {
-        if let Ok(mut reservations) = self.reservations.write() {
-            let res = reservations
-                .iter()
-                .find(|r| r.item == item && r.owner == owner)
-                .cloned();
-            if let Some(res) = res {
-                if *res.quantity.read().unwrap() <= quantity {
-                    reservations.retain(|r| *r != res.clone());
-                    info!("removed reservation from bank: {:?}", res);
-                } else if let Ok(mut q) = res.quantity.write() {
-                    *q -= quantity;
-                    info!("updated quantity of reservation: {:?}", res);
-                }
+    pub fn decrease_reservation(&self, item: &str, quantity: i32, owner: &str) {
+        if let Some(res) = self.get_reservation(owner, item) {
+            if *res.quantity.read().unwrap() <= quantity {
+                self.remove_reservation(&res)
+            } else {
+                res.dec_quantity(quantity)
             }
         }
+    }
+
+    pub fn increase_reservation(&self, item: &str, quantity: i32, owner: &str) {
+        if let Some(res) = self.get_reservation(owner, item) {
+            res.inc_quantity(quantity)
+        }
+    }
+
+    pub fn remove_reservation(&self, reservation: &Reservation) {
+        if let Ok(mut reservations) = self.reservations.write() {
+            reservations.retain(|r| **r != *reservation);
+            info!("removed reservation from bank: {}", reservation);
+        }
+    }
+
+    pub fn get_reservation(&self, owner: &str, item: &str) -> Option<Arc<Reservation>> {
+        self.reservations
+            .read()
+            .unwrap()
+            .iter()
+            .find(|r| r.item == item && r.owner == owner)
+            .cloned()
     }
 }
 
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct Reservation {
+    owner: String,
     item: String,
     quantity: RwLock<i32>,
-    owner: String,
+}
+
+impl Reservation {
+    pub fn inc_quantity(&self, i: i32) {
+        *self.quantity.write().unwrap() += i;
+        info!("increased quantity of reservation by '{}': [{}]", i, self);
+    }
+
+    pub fn dec_quantity(&self, i: i32) {
+        *self.quantity.write().unwrap() -= i;
+        info!("decreased quantity of reservation by '{}': [{}]", i, self);
+    }
+}
+
+impl Display for Reservation {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}: '{}'x{}",
+            self.owner,
+            self.item,
+            self.quantity.read().unwrap(),
+        )
+    }
 }
 
 impl Clone for Reservation {

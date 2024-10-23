@@ -13,7 +13,7 @@ use std::fmt;
 use std::str::FromStr;
 use std::{sync::Arc, vec::Vec};
 use strum::IntoEnumIterator;
-use strum_macros::{AsRefStr, Display, EnumIter, EnumString};
+use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
 
 pub struct Items {
     pub data: Vec<ItemSchema>,
@@ -511,7 +511,7 @@ impl fmt::Display for dyn ItemSchemaExt {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Display, AsRefStr, EnumIter, EnumString)]
+#[derive(Debug, Copy, Clone, PartialEq, Display, AsRefStr, EnumIter, EnumString, EnumIs)]
 #[strum(serialize_all = "snake_case")]
 pub enum Type {
     Consumable,

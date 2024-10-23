@@ -32,6 +32,7 @@ use std::{
     cmp::{max, min, Ordering},
     io,
     option::Option,
+    str::FromStr,
     sync::{Arc, RwLock},
     thread::{self, sleep, JoinHandle},
     time::Duration,
@@ -491,11 +492,18 @@ impl Character {
         resource: &ResourceSchema,
         map: Option<&MapSchema>,
     ) -> Result<SkillDataSchema, CharacterError> {
+        let mut tool = None;
         if !self.can_gather(resource) {
             return Err(CharacterError::InsuffisientSkillLevel);
         }
-        if let Some(tool) = self.best_available_tool_for_resource(&resource.code) {
-            self.equip_item_from_bank_or_inventory(Slot::Weapon, tool)
+        if let Ok(_) = self.bank.browsed.write() {
+            tool = self.best_available_tool_for_resource(&resource.code);
+            if let Some(tool) = tool {
+                self.reserv_if_needed_and_available(Slot::Weapon, tool);
+            }
+        }
+        if let Some(tool) = tool {
+            self.equip_item_from_bank_or_inventory(Slot::Weapon, tool);
         }
         if let Some(map) = map {
             self.action_move(map.x, map.y)?;
@@ -1163,17 +1171,21 @@ impl Character {
     fn reserv_equipment(&self, equipment: Equipment<'_>) {
         Slot::iter().for_each(|s| {
             if let Some(item) = equipment.slot(s) {
-                if (self.equiped_in(s).is_none()
-                    || self
-                        .equiped_in(s)
-                        .is_some_and(|equiped| item.code != equiped.code))
-                    && self.has_in_inventory(&item.code) < 1
-                    && self.bank.has_item(&item.code, Some(&self.name)) > 0
-                {
-                    self.bank.reserv(&item.code, 1, &self.name)
-                }
+                self.reserv_if_needed_and_available(s, item);
             }
         })
+    }
+
+    fn reserv_if_needed_and_available(&self, s: Slot, item: &ItemSchema) {
+        if (self.equiped_in(s).is_none()
+            || self
+                .equiped_in(s)
+                .is_some_and(|equiped| item.code != equiped.code))
+            && self.has_in_inventory(&item.code) < 1
+            && self.bank.has_item(&item.code, Some(&self.name)) > 0
+        {
+            self.bank.reserv(&item.code, 1, &self.name)
+        }
     }
 }
 
