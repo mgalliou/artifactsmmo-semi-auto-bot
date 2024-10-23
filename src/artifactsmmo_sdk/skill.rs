@@ -1,7 +1,7 @@
 use artifactsmmo_openapi::models::{craft_schema, resource_schema};
-use strum_macros::{AsRefStr, EnumIter, EnumString};
+use strum_macros::{AsRefStr, EnumIs, EnumIter, EnumString};
 
-#[derive(Debug, Clone, Copy, PartialEq, AsRefStr, EnumIter, EnumString)]
+#[derive(Debug, Clone, Copy, PartialEq, AsRefStr, EnumIter, EnumString, EnumIs)]
 #[strum(serialize_all = "snake_case")]
 pub enum Skill {
     Cooking,

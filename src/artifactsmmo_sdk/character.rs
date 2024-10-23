@@ -38,6 +38,7 @@ use std::{
     vec::Vec,
 };
 use strum::IntoEnumIterator;
+use strum_macros::EnumIs;
 mod actions;
 
 pub struct Character {
@@ -560,7 +561,15 @@ impl Character {
     pub fn can_craft(&self, code: &str) -> bool {
         if let Some(item) = self.items.get(code) {
             if let Some(skill) = item.skill_to_craft() {
-                return self.skill_level(skill) >= item.level;
+                if skill.is_jewelrycrafting() && self.conf().jewelcraft
+                    || skill.is_gearcrafting() && self.conf().gearcraft
+                    || skill.is_weaponcrafting() && self.conf().weaponcraft
+                    || skill.is_mining() && self.role().is_miner()
+                    || skill.is_woodcutting() && self.role().is_woodcutter()
+                    || skill.is_cooking() && self.role().is_fisher()
+                {
+                    return self.skill_level(skill) >= item.level;
+                }
             }
         }
         false
