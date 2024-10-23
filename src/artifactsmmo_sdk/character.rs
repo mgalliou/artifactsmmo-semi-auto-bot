@@ -284,7 +284,7 @@ impl Character {
 
     fn progress_order(&self, order: &Order) -> Option<i32> {
         self.items
-            .source_of(&order.item)
+            .sources_of(&order.item)
             .iter()
             .find_map(|s| match s {
                 ItemSource::Resource(r) => {
@@ -1062,11 +1062,15 @@ impl Character {
 
     fn best_available_tool_for_resource(&self, code: &str) -> Option<&ItemSchema> {
         match self.resources.get(code) {
+            //TODO improve filtering
             Some(resource) => self
                 .items
                 .equipable_at_level(self.level(), Type::Weapon)
                 .into_iter()
-                .filter(|i| self.has_available(&i.code) > 0)
+                .filter(|i| {
+                    i.skill_cooldown_reduction(resource.skill.into()) < 0
+                        && self.has_available(&i.code) > 0
+                })
                 .min_by_key(|i| i.skill_cooldown_reduction(Skill::from(resource.skill))),
             None => None,
         }
@@ -1261,7 +1265,7 @@ impl Character {
     }
 }
 
-#[derive(Debug, Default, PartialEq, Copy, Clone, Deserialize)]
+#[derive(Debug, Default, PartialEq, Copy, Clone, Deserialize, EnumIs)]
 pub enum Role {
     #[default]
     Fighter,

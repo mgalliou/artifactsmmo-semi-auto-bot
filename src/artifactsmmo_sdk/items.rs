@@ -338,7 +338,7 @@ impl Items {
             .collect_vec()
     }
 
-    pub fn source_of(&self, code: &str) -> Vec<ItemSource> {
+    pub fn sources_of(&self, code: &str) -> Vec<ItemSource> {
         let mut sources = self
             .resources
             .dropping(code)
@@ -582,6 +582,7 @@ pub enum DamageType {
     Water,
 }
 
+#[derive(EnumIs)]
 pub enum ItemSource<'a> {
     Resource(&'a ResourceSchema),
     Monster(&'a MonsterSchema),
