@@ -89,6 +89,8 @@ fn handle_char(args: &[&str], account: &Account) {
                     }
                     _ => eprint!("missing args"),
                 },
+                "unequip_all" => char.unequip_and_deposit_all(),
+                "deposit_all" => char.deposit_all(),
                 _ => eprintln!("invalid verb"),
             },
             _ => eprintln!("character not found: {}", name),

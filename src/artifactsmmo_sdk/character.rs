@@ -691,7 +691,7 @@ impl Character {
 
     /// Deposits all the items to the bank.
     /// TODO: add returns type with Result breakdown
-    fn deposit_all(&self) {
+    pub fn deposit_all(&self) {
         if self.inventory_total() <= 0 {
             return;
         }
@@ -1229,6 +1229,22 @@ impl Character {
         {
             self.bank.reserv(&item.code, 1, &self.name)
         }
+    }
+
+    pub fn unequip_and_deposit_all(&self) {
+        let _ = self.move_to_closest_map_of_type("bank");
+        //TODO check available space in bank
+        Slot::iter().for_each(|s| {
+            if let Some(item) = self.equiped_in(s) {
+                let quantity = match s {
+                    Slot::Consumable1 => self.data.read().unwrap().consumable1_slot_quantity,
+                    Slot::Consumable2 => self.data.read().unwrap().consumable2_slot_quantity,
+                    _ => 1,
+                };
+                let _ = self.action_unequip(s, quantity);
+                let _ = self.action_deposit(&item.code, quantity);
+            }
+        })
     }
 }
 
