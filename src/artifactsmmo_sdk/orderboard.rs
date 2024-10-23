@@ -21,7 +21,8 @@ impl OrderBoard {
         self.orders.read().unwrap().iter().cloned().collect_vec()
     }
 
-    // TODO: when order with same item already exist, increase existing order quantity
+    // TODO: when order with same item already exist, increase existing order quantity.
+    // This should probably be done with a different method
     pub fn order_item(&self, author: &str, item: &str, quantity: i32) {
         let request = Order::new(author, item, quantity);
         if !self.has_similar_order(&request) {
@@ -131,6 +132,6 @@ impl Order {
 
 impl Display for Order {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} ({})", self.item, self.quantity)
+        write!(f, "{}: '{}'x{})", self.author, self.item, self.quantity)
     }
 }

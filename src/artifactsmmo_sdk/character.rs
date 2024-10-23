@@ -32,7 +32,6 @@ use std::{
     cmp::{max, min, Ordering},
     io,
     option::Option,
-    str::FromStr,
     sync::{Arc, RwLock},
     thread::{self, sleep, JoinHandle},
     time::Duration,
@@ -254,7 +253,6 @@ impl Character {
     }
 
     fn handle_order(&self, order: Arc<Order>) -> bool {
-        // TODO: streamline conditions
         if self.account.in_inventories(&order.item) >= order.missing() && !order.turned_in() {
             if self.has_in_inventory(&order.item) > 0 {
                 self.deposit_all();
@@ -470,6 +468,13 @@ impl Character {
                 .iter()
                 .max_by_key(|e| OrderedFloat(e.attack_damage_against(monster)))
                 .unwrap();
+            let best = *self
+                .equipment_finder
+                .bests_against(self, monster, Filter::All)
+                .iter()
+                .max_by_key(|e| OrderedFloat(e.attack_damage_against(monster)))
+                .unwrap();
+            self.request_equipment(best);
             if !self.can_kill_with(monster, &available) {
                 return Err(CharacterError::NoEquipmentToKill);
             }
@@ -1163,12 +1168,30 @@ impl Character {
     }
 
     fn request_equipment(&self, equipment: Equipment<'_>) {
-        Into::<Vec<SimpleItemSchema>>::into(equipment)
-            .iter()
-            .for_each(|i| self.orderboard.order_item(&self.name, &i.code, i.quantity))
+        //TODO handle rings correctly
+        //TODO handle consumables
+        Slot::iter().for_each(|s| {
+            if let Some(item) = equipment.slot(s) {
+                self.request_if_needed_and_available(s, item);
+            }
+        })
+    }
+
+    fn request_if_needed_and_available(&self, s: Slot, item: &ItemSchema) {
+        if (self.equiped_in(s).is_none()
+            || self
+                .equiped_in(s)
+                .is_some_and(|equiped| item.code != equiped.code))
+            && self.has_in_inventory(&item.code) < 1
+            && self.bank.has_item(&item.code, Some(&self.name)) < 1
+        {
+            self.orderboard.order_item(&self.name, &item.code, 1);
+        }
     }
 
     fn reserv_equipment(&self, equipment: Equipment<'_>) {
+        //TODO handle rings correctly
+        //TODO handle consumables
         Slot::iter().for_each(|s| {
             if let Some(item) = equipment.slot(s) {
                 self.reserv_if_needed_and_available(s, item);

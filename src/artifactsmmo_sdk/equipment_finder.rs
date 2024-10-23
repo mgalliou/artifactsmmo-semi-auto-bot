@@ -32,7 +32,7 @@ impl EquipmentFinder {
             .equipable_at_level(char.level(), Type::Weapon)
             .iter()
             .filter(|i| match filter {
-                Filter::All => true,
+                Filter::All => i.level < 40,
                 Filter::Available => char.has_available(&i.code) > 0,
                 Filter::Craftable => char.account.can_craft(&i.code),
                 Filter::Farmable => todo!(),
@@ -119,7 +119,7 @@ impl EquipmentFinder {
             .equipable_at_level(char.level(), r#type)
             .into_iter()
             .filter(|i| match filter {
-                Filter::All => true,
+                Filter::All => i.level < 40,
                 Filter::Available => char.has_available(&i.code) > 0,
                 Filter::Craftable => todo!(),
                 Filter::Farmable => todo!(),
