@@ -71,38 +71,54 @@ impl EquipmentFinder {
         //let artifacts = self.best_armors_against_with_weapon(char, monster, weapon, Type::Artifact);
         //let consumables =
         //    self.best_armors_against_with_weapon(char, monster, weapon, Type::Consumable);
-        [
-            &helmets,
-            &shields,
-            &body_armor,
-            &leg_armor,
-            &boots,
-            &rings,
-            &rings2,
-            &amulets,
-        ]
-        .into_iter()
-        .multi_cartesian_product()
-        .map(|items| {
-            let mut iter = items.into_iter().cloned().peekable();
-            Equipment {
-                weapon: Some(weapon),
-                helmet: iter.peeking_next(|i| i.is_of_type(Type::Helmet)),
-                shield: iter.peeking_next(|i| i.is_of_type(Type::Shield)),
-                body_armor: iter.peeking_next(|i| i.is_of_type(Type::BodyArmor)),
-                leg_armor: iter.peeking_next(|i| i.is_of_type(Type::LegArmor)),
-                boots: iter.peeking_next(|i| i.is_of_type(Type::Boots)),
-                ring1: iter.peeking_next(|i| i.is_of_type(Type::Ring)),
-                ring2: iter.peeking_next(|i| i.is_of_type(Type::Ring)),
-                amulet: iter.peeking_next(|i| i.is_of_type(Type::Amulet)),
-                artifact1: iter.peeking_next(|i| i.is_of_type(Type::Artifact)),
-                artifact2: iter.peeking_next(|i| i.is_of_type(Type::Artifact)),
-                artifact3: iter.peeking_next(|i| i.is_of_type(Type::Artifact)),
-                consumable1: iter.peeking_next(|i| i.is_of_type(Type::Consumable)),
-                consumable2: iter.peeking_next(|i| i.is_of_type(Type::Consumable)),
-            }
-        })
-        .collect_vec()
+        let mut items = vec![];
+        if !helmets.is_empty() {
+            items.push(helmets);
+        }
+        if !shields.is_empty() {
+            items.push(shields);
+        }
+        if !body_armor.is_empty() {
+            items.push(body_armor);
+        }
+        if !leg_armor.is_empty() {
+            items.push(leg_armor);
+        }
+        if !boots.is_empty() {
+            items.push(boots);
+        }
+        if !rings.is_empty() {
+            items.push(rings);
+        }
+        if !rings2.is_empty() {
+            items.push(rings2);
+        }
+        if !amulets.is_empty() {
+            items.push(amulets);
+        }
+        items
+            .into_iter()
+            .multi_cartesian_product()
+            .map(|items| {
+                let mut iter = items.into_iter().peekable();
+                Equipment {
+                    weapon: Some(weapon),
+                    helmet: iter.peeking_next(|i| i.is_of_type(Type::Helmet)),
+                    shield: iter.peeking_next(|i| i.is_of_type(Type::Shield)),
+                    body_armor: iter.peeking_next(|i| i.is_of_type(Type::BodyArmor)),
+                    leg_armor: iter.peeking_next(|i| i.is_of_type(Type::LegArmor)),
+                    boots: iter.peeking_next(|i| i.is_of_type(Type::Boots)),
+                    ring1: iter.peeking_next(|i| i.is_of_type(Type::Ring)),
+                    ring2: iter.peeking_next(|i| i.is_of_type(Type::Ring)),
+                    amulet: iter.peeking_next(|i| i.is_of_type(Type::Amulet)),
+                    artifact1: iter.peeking_next(|i| i.is_of_type(Type::Artifact)),
+                    artifact2: iter.peeking_next(|i| i.is_of_type(Type::Artifact)),
+                    artifact3: iter.peeking_next(|i| i.is_of_type(Type::Artifact)),
+                    consumable1: iter.peeking_next(|i| i.is_of_type(Type::Consumable)),
+                    consumable2: iter.peeking_next(|i| i.is_of_type(Type::Consumable)),
+                }
+            })
+            .collect_vec()
     }
 
     fn best_armors_against_with_weapon(
