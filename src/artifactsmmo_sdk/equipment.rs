@@ -1,12 +1,11 @@
-use super::{
-    average_dmg,
-    items::{DamageType, Slot},
-    ItemSchemaExt, MonsterSchemaExt,
+use super::{average_dmg, items::DamageType, ItemSchemaExt, MonsterSchemaExt};
+use artifactsmmo_openapi::models::{
+    equip_schema, unequip_schema, ItemSchema, MonsterSchema, SimpleItemSchema,
 };
-use artifactsmmo_openapi::models::{ItemSchema, MonsterSchema, SimpleItemSchema};
 use itertools::Itertools;
 use std::fmt::Display;
 use strum::IntoEnumIterator;
+use strum_macros::{AsRefStr, EnumIs, EnumIter, EnumString};
 
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub struct Equipment<'a> {
@@ -181,5 +180,87 @@ impl From<Equipment<'_>> for Vec<SimpleItemSchema> {
             (None, None) => (),
         }
         i
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, AsRefStr, EnumString, EnumIter, EnumIs)]
+#[strum(serialize_all = "snake_case")]
+pub enum Slot {
+    Weapon,
+    Shield,
+    Helmet,
+    BodyArmor,
+    LegArmor,
+    Boots,
+    Ring1,
+    Ring2,
+    Amulet,
+    Artifact1,
+    Artifact2,
+    Artifact3,
+    Consumable1,
+    Consumable2,
+}
+
+impl From<equip_schema::Slot> for Slot {
+    fn from(value: equip_schema::Slot) -> Self {
+        match value {
+            equip_schema::Slot::Weapon => Self::Weapon,
+            equip_schema::Slot::Shield => Self::Shield,
+            equip_schema::Slot::Helmet => Self::Helmet,
+            equip_schema::Slot::BodyArmor => Self::BodyArmor,
+            equip_schema::Slot::LegArmor => Self::LegArmor,
+            equip_schema::Slot::Boots => Self::Boots,
+            equip_schema::Slot::Ring1 => Self::Ring1,
+            equip_schema::Slot::Ring2 => Self::Ring2,
+            equip_schema::Slot::Amulet => Self::Amulet,
+            equip_schema::Slot::Artifact1 => Self::Artifact1,
+            equip_schema::Slot::Artifact2 => Self::Artifact2,
+            equip_schema::Slot::Artifact3 => Self::Artifact3,
+            equip_schema::Slot::Consumable1 => Self::Consumable1,
+            equip_schema::Slot::Consumable2 => Self::Consumable2,
+        }
+    }
+}
+
+impl From<Slot> for equip_schema::Slot {
+    fn from(value: Slot) -> Self {
+        match value {
+            Slot::Weapon => Self::Weapon,
+            Slot::Shield => Self::Shield,
+            Slot::Helmet => Self::Helmet,
+            Slot::BodyArmor => Self::BodyArmor,
+            Slot::LegArmor => Self::LegArmor,
+            Slot::Boots => Self::Boots,
+            Slot::Ring1 => Self::Ring1,
+            Slot::Ring2 => Self::Ring2,
+            Slot::Amulet => Self::Amulet,
+            Slot::Artifact1 => Self::Artifact1,
+            Slot::Artifact2 => Self::Artifact2,
+            Slot::Artifact3 => Self::Artifact3,
+            Slot::Consumable1 => Self::Consumable1,
+            Slot::Consumable2 => Self::Consumable2,
+        }
+    }
+}
+
+impl From<Slot> for unequip_schema::Slot {
+    fn from(value: Slot) -> Self {
+        match value {
+            Slot::Weapon => Self::Weapon,
+            Slot::Shield => Self::Shield,
+            Slot::Helmet => Self::Helmet,
+            Slot::BodyArmor => Self::BodyArmor,
+            Slot::LegArmor => Self::LegArmor,
+            Slot::Boots => Self::Boots,
+            Slot::Ring1 => Self::Ring1,
+            Slot::Ring2 => Self::Ring2,
+            Slot::Amulet => Self::Amulet,
+            Slot::Artifact1 => Self::Artifact1,
+            Slot::Artifact2 => Self::Artifact2,
+            Slot::Artifact3 => Self::Artifact3,
+            Slot::Consumable1 => Self::Consumable1,
+            Slot::Consumable2 => Self::Consumable2,
+        }
     }
 }

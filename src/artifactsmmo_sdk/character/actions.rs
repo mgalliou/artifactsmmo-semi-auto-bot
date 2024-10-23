@@ -1,7 +1,6 @@
 use super::Character;
 use crate::artifactsmmo_sdk::{
-    items::Slot, ApiErrorResponseSchema, FightSchemaExt, MapSchemaExt, ResponseSchema,
-    SkillSchemaExt,
+    equipment::Slot, ApiErrorResponseSchema, FightSchemaExt, MapSchemaExt, ResponseSchema, SkillSchemaExt
 };
 use artifactsmmo_openapi::{
     apis::Error,
@@ -73,12 +72,12 @@ impl Character {
                 quantity,
             } => self
                 .my_api
-                .equip(&self.name, code, slot.to_equip_schema(), Some(quantity))
+                .equip(&self.name, code, slot.into(), Some(quantity))
                 .map(CharacterResponseSchema::Equip)
                 .map_err(|e| e.into()),
             Action::Unequip { slot, quantity } => {
                 self.my_api
-                    .unequip(&self.name, slot.to_unequip_schema(), Some(quantity))
+                    .unequip(&self.name, slot.into(), Some(quantity))
             }
             .map(CharacterResponseSchema::Unequip)
             .map_err(|e| e.into()),

@@ -6,8 +6,8 @@ use ordered_float::OrderedFloat;
 
 use super::{
     character::Character,
-    equipment::Equipment,
-    items::{Items, Slot, Type},
+    equipment::{Equipment, Slot},
+    items::{Items, Type},
     ItemSchemaExt,
 };
 
