@@ -143,13 +143,13 @@ impl EquipmentFinder {
                     .iter()
                     .cloned()
                     .filter(|i| i.damage_reduction_against(monster) > 0.0)
-                    .max_by_key(|i| OrderedFloat(i.damage_from(monster)))
+                    .min_by_key(|i| OrderedFloat(i.damage_from(monster)))
             } else {
                 equipables
                     .iter()
                     .cloned()
                     .filter(|i| i.damage_reduction_against(monster) > 0.0)
-                    .max_by_key(|i| OrderedFloat(i.damage_from(monster)))
+                    .min_by_key(|i| OrderedFloat(i.damage_from(monster)))
             }
         };
         if let Some(best_for_resistance) = best_for_resistance {
