@@ -484,6 +484,9 @@ impl Character {
         monster: &MonsterSchema,
         map: Option<&MapSchema>,
     ) -> Result<FightSchema, CharacterError> {
+        if !self.skill_enabled(Skill::Combat) {
+            return Err(CharacterError::SkillDisabled)
+        }
         let mut available: Equipment = self.equipment();
         if let Ok(_) = self.bank.browsed.write() {
             available = *self
@@ -492,18 +495,18 @@ impl Character {
                 .iter()
                 .max_by_key(|e| OrderedFloat(e.attack_damage_against(monster)))
                 .unwrap();
+            let best = *self
+                .equipment_finder
+                .bests_against(self, monster, Filter::All)
+                .iter()
+                .max_by_key(|e| OrderedFloat(e.attack_damage_against(monster)))
+                .unwrap();
+            self.request_equipment(best);
             if !self.can_kill_with(monster, &available) {
                 return Err(CharacterError::NoEquipmentToKill);
             }
             self.reserv_equipment(available);
         }
-        let best = *self
-            .equipment_finder
-            .bests_against(self, monster, Filter::All)
-            .iter()
-            .max_by_key(|e| OrderedFloat(e.attack_damage_against(monster)))
-            .unwrap();
-        self.request_equipment(best);
         self.equip_equipment(&available);
         if let Some(map) = map {
             self.action_move(map.x, map.y)?;
@@ -1305,6 +1308,7 @@ pub enum CharacterError {
     FailedToMove,
     NothingToDeposit,
     RequestError(RequestError),
+    SkillDisabled,
 }
 
 impl From<RequestError> for CharacterError {
