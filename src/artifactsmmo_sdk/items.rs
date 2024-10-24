@@ -286,7 +286,7 @@ impl Items {
     pub fn best_for_leveling(&self, level: i32, skill: Skill) -> Vec<&ItemSchema> {
         self.providing_exp(level, skill)
             .into_iter()
-            .filter(|i| !i.is_crafted_with("jasper_crystal") && !i.is_crafted_with("magical_cure"))
+            .filter(|i| i.code != "wooden_staff" && !i.is_crafted_with("jasper_crystal") && !i.is_crafted_with("magical_cure"))
             .max_set_by_key(|i| i.level)
             .into_iter()
             .collect_vec()
