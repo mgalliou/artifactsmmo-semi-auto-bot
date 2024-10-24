@@ -1,16 +1,25 @@
 use artifactsmmo_openapi::models::{craft_schema, resource_schema};
+use serde::Deserialize;
 use strum_macros::{AsRefStr, EnumIs, EnumIter, EnumString};
 
-#[derive(Debug, Clone, Copy, PartialEq, AsRefStr, EnumIter, EnumString, EnumIs)]
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize, AsRefStr, EnumIter, EnumString, EnumIs)]
 #[strum(serialize_all = "snake_case")]
+#[serde(rename_all(deserialize = "snake_case"))]
 pub enum Skill {
-    Cooking,
+    Combat,
+    Mining,
+    Woodcutting,
     Fishing,
+    Weaponcrafting,
     Gearcrafting,
     Jewelrycrafting,
-    Mining,
-    Weaponcrafting,
-    Woodcutting,
+    Cooking,
+}
+
+impl Skill {
+    pub fn is_gathering(&self) -> bool {
+        matches!(self, Skill::Mining | Skill::Woodcutting | Skill::Fishing)
+    }
 }
 
 impl From<craft_schema::Skill> for Skill {

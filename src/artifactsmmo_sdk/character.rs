@@ -109,9 +109,6 @@ impl Character {
             if self.conf().do_events && self.handle_events() {
                 continue;
             }
-            if self.level_skills_up() {
-                continue;
-            }
             if self.handle_orderboard() {
                 continue;
             }
@@ -126,7 +123,7 @@ impl Character {
             if self.conf().do_tasks && self.handle_task() {
                 continue;
             }
-            if self.role() == Role::Fighter && self.find_and_kill() {
+            if self.skill_enabled(Skill::Combat) && self.find_and_kill() {
                 continue;
             }
             if self.is_gatherer() && self.find_and_gather() {
@@ -138,7 +135,7 @@ impl Character {
     }
 
     fn handle_wooden_stick(&self) {
-        if self.role() != Role::Fighter && self.has_equiped("wooden_stick") > 0 {
+        if self.conf().skills.contains(&Skill::Combat) && self.has_equiped("wooden_stick") > 0 {
             let _ = self.action_unequip(Slot::Weapon, 1);
             let _ = self.action_deposit("wooden_stick", 1);
         };
@@ -155,24 +152,16 @@ impl Character {
     /// Returns the next skill that should leveled by the Character, based on
     /// its configuration and the items available in bank.
     fn level_skills_up(&self) -> bool {
-        let mut skills = vec![];
-        if self.conf().gearcraft {
-            skills.push(Skill::Gearcrafting);
-        }
-        if self.conf().weaponcraft {
-            skills.push(Skill::Weaponcrafting);
-        }
-        if self.conf().jewelcraft {
-            skills.push(Skill::Jewelrycrafting);
-        }
-        if self.conf().cook {
-            skills.push(Skill::Cooking);
-        }
-        skills.sort_by_key(|s| self.skill_level(*s));
-
-        skills
+        let mut craft_skills = self
+            .conf()
+            .skills
             .into_iter()
-            .filter(|s| self.skill_level(*s) < if *s == Skill::Jewelrycrafting { 35 } else { 40 })
+            .filter(|s| !s.is_gathering())
+            .collect_vec();
+        craft_skills.sort_by_key(|s| self.skill_level(*s));
+        craft_skills
+            .into_iter()
+            .filter(|s| self.skill_level(*s) < if s.is_jewelrycrafting() { 35 } else { 40 })
             .any(|skill| self.level_skill_up(skill))
     }
 
@@ -313,6 +302,16 @@ impl Character {
     fn progress_crafting_order(&self, order: &Order) -> Option<i32> {
         if order.being_crafted() >= order.missing() {
             None
+        } else if !self.can_craft(&order.item) {
+            if let Some(s) = self.items.skill_to_craft(&order.item) {
+                if self.skill_level(s) < self.items.get(&order.item).unwrap().level
+                    && self.skill_enabled(s)
+                    && self.level_skill_up(s)
+                {
+                    return Some(0);
+                }
+            }
+            None
         } else {
             let quantity = min(
                 self.max_craftable_items_from_bank(&order.item),
@@ -357,7 +356,7 @@ impl Character {
             if self.task_finished() {
                 let _ = self.action_complete_task();
             }
-            if self.role() == Role::Fighter {
+            if self.conf().skills.contains(&Skill::Combat) {
                 let _ = self.action_accept_task("monsters");
             } else {
                 let _ = self.action_accept_task("items");
@@ -440,7 +439,7 @@ impl Character {
 
     /// Find a target and kill it if possible.
     fn find_and_kill(&self) -> bool {
-        if let Some(monster_code) = &self.conf().fight_target {
+        if let Some(monster_code) = &self.conf().target_monster {
             if let Some(monster) = self.monsters.get(monster_code) {
                 if self.kill_monster(monster, None).is_ok() {
                     return true;
@@ -464,10 +463,10 @@ impl Character {
                 }
             }
         }
-        if let Some(skill) = self.role().to_skill() {
+        if let Some(skill) = self.conf().skills.iter().find(|s| s.is_gathering()) {
             if let Some(resource) = self
                 .resources
-                .highest_providing_exp(self.skill_level(skill), skill)
+                .highest_providing_exp(self.skill_level(*skill), *skill)
             {
                 if self.gather_resource(resource, None).is_ok() {
                     return true;
@@ -554,19 +553,27 @@ impl Character {
 
     // Checks that the `Character` has the required skill level to gather the given `resource`
     fn can_gather(&self, resource: &ResourceSchema) -> bool {
-        self.skill_level(resource.skill.into()) >= resource.level
+        let skill: Skill = resource.skill.into();
+        if skill.is_mining() && self.skill_enabled(Skill::Mining)
+            || skill.is_woodcutting() && self.skill_enabled(Skill::Woodcutting)
+            || skill.is_fishing() && self.skill_enabled(Skill::Fishing)
+        {
+            self.skill_level(resource.skill.into()) >= resource.level
+        } else {
+            false
+        }
     }
 
     // Checks that the `Character` has the required skill level to craft the given item `code`
     pub fn can_craft(&self, code: &str) -> bool {
         if let Some(item) = self.items.get(code) {
             if let Some(skill) = item.skill_to_craft() {
-                if skill.is_jewelrycrafting() && self.conf().jewelcraft
-                    || skill.is_gearcrafting() && self.conf().gearcraft
-                    || skill.is_weaponcrafting() && self.conf().weaponcraft
-                    || skill.is_mining() && self.role().is_miner()
-                    || skill.is_woodcutting() && self.role().is_woodcutter()
-                    || skill.is_cooking() && self.role().is_fisher()
+                if skill.is_mining() && self.skill_enabled(Skill::Mining)
+                    || skill.is_woodcutting() && self.skill_enabled(Skill::Woodcutting)
+                    || skill.is_jewelrycrafting() && self.skill_enabled(Skill::Jewelrycrafting)
+                    || skill.is_gearcrafting() && self.skill_enabled(Skill::Gearcrafting)
+                    || skill.is_weaponcrafting() && self.skill_enabled(Skill::Weaponcrafting)
+                    || skill.is_cooking() && self.skill_enabled(Skill::Cooking)
                 {
                     return self.skill_level(skill) >= item.level;
                 }
@@ -1141,12 +1148,8 @@ impl Character {
         }
     }
 
-    fn role(&self) -> Role {
-        self.conf.read().map_or(Role::default(), |d| d.role)
-    }
-
     fn is_gatherer(&self) -> bool {
-        matches!(self.role(), Role::Miner | Role::Woodcutter | Role::Fisher)
+        self.conf().skills.iter().any(|s| s.is_gathering())
     }
 
     fn task(&self) -> String {
@@ -1185,13 +1188,14 @@ impl Character {
     /// Returns the `Character` level in the given `skill`.
     fn skill_level(&self, skill: Skill) -> i32 {
         self.data.read().map_or(1, |d| match skill {
-            Skill::Cooking => d.cooking_level,
+            Skill::Combat => d.level,
+            Skill::Mining => d.mining_level,
+            Skill::Woodcutting => d.woodcutting_level,
             Skill::Fishing => d.fishing_level,
+            Skill::Weaponcrafting => d.weaponcrafting_level,
             Skill::Gearcrafting => d.gearcrafting_level,
             Skill::Jewelrycrafting => d.jewelrycrafting_level,
-            Skill::Mining => d.mining_level,
-            Skill::Weaponcrafting => d.weaponcrafting_level,
-            Skill::Woodcutting => d.woodcutting_level,
+            Skill::Cooking => d.cooking_level,
         })
     }
 
@@ -1262,6 +1266,10 @@ impl Character {
                 let _ = self.action_deposit(&item.code, quantity);
             }
         })
+    }
+
+    fn skill_enabled(&self, s: Skill) -> bool {
+        self.conf().skills.contains(&s)
     }
 }
 

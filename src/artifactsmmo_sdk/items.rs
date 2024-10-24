@@ -280,6 +280,7 @@ impl Items {
             Skill::Woodcutting => None,
             Skill::Cooking => None,
             Skill::Fishing => None,
+            Skill::Combat => None,
         }
     }
 
