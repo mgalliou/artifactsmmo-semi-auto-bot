@@ -5,7 +5,7 @@ use super::{
     bank::Bank,
     char_config::CharConfig,
     config::Config,
-    equipment::{Equipment, Slot},
+    equipment::{self, Equipment, Slot},
     equipment_finder::{EquipmentFinder, Filter},
     events::Events,
     fight_simulator::FightSimulator,
@@ -26,7 +26,6 @@ use artifactsmmo_openapi::models::{
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use log::{debug, error, info, warn};
-use ordered_float::OrderedFloat;
 use serde::Deserialize;
 use std::{
     cmp::{max, min, Ordering},
@@ -484,28 +483,20 @@ impl Character {
         monster: &MonsterSchema,
         map: Option<&MapSchema>,
     ) -> Result<FightSchema, CharacterError> {
-        if !self.skill_enabled(Skill::Combat) {
-            return Err(CharacterError::SkillDisabled)
-        }
         let mut available: Equipment = self.equipment();
-        if let Ok(_) = self.bank.browsed.write() {
-            available = *self
+        if let Ok(_browsed) = self.bank.browsed.write() {
+            // NOTE: Maybe requesting best equipment should be done elsewhere
+            let best = self
                 .equipment_finder
-                .bests_against(self, monster, Filter::Available)
-                .iter()
-                .max_by_key(|e| OrderedFloat(e.attack_damage_against(monster)))
-                .unwrap();
-            let best = *self
-                .equipment_finder
-                .bests_against(self, monster, Filter::All)
-                .iter()
-                .max_by_key(|e| OrderedFloat(e.attack_damage_against(monster)))
-                .unwrap();
+                .best_against(self, monster, Filter::All);
             self.request_equipment(best);
-            if !self.can_kill_with(monster, &available) {
-                return Err(CharacterError::NoEquipmentToKill);
+            match self.can_kill(monster) {
+                Ok(equipment) => {
+                    available = equipment;
+                    self.reserv_equipment(available)
+                }
+                Err(e) => return Err(e),
             }
-            self.reserv_equipment(available);
         }
         self.equip_equipment(&available);
         if let Some(map) = map {
@@ -543,6 +534,22 @@ impl Character {
             self.action_move(map.x, map.y)?;
         }
         Ok(self.action_gather()?)
+    }
+
+    /// Checks if the `Character` is able to kill the given monster and returns
+    /// the best available equipment to do so.
+    fn can_kill<'a>(&'a self, monster: &'a MonsterSchema) -> Result<Equipment<'_>, CharacterError> {
+        if !self.skill_enabled(Skill::Combat) {
+            return Err(CharacterError::SkillDisabled);
+        }
+        let available = self
+            .equipment_finder
+            .best_against(self, monster, Filter::Available);
+        if self.can_kill_with(monster, &available) {
+            Ok(available)
+        } else {
+            Err(CharacterError::EquipmentTooWeak)
+        }
     }
 
     /// Checks if the `Character` could kill the given `monster` with the given
@@ -1309,6 +1316,7 @@ pub enum CharacterError {
     NothingToDeposit,
     RequestError(RequestError),
     SkillDisabled,
+    EquipmentTooWeak,
 }
 
 impl From<RequestError> for CharacterError {

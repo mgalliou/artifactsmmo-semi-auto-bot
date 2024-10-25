@@ -22,6 +22,21 @@ impl EquipmentFinder {
         }
     }
 
+    pub fn best_against<'a>(
+        &'a self,
+        char: &'a Character,
+        monster: &'a MonsterSchema,
+        filter: Filter,
+    ) -> Equipment<'_> {
+        if let Some(equipment) = self.bests_against(char, monster, filter)
+            .into_iter()
+            .max_by_key(|e| OrderedFloat(e.attack_damage_against(monster))) {
+                equipment
+        } else {
+            Default::default()
+        }
+    }
+
     pub fn bests_against<'a>(
         &'a self,
         char: &'a Character,
