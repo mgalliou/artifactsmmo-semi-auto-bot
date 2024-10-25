@@ -485,11 +485,6 @@ impl Character {
     ) -> Result<FightSchema, CharacterError> {
         let mut available: Equipment = self.equipment();
         if let Ok(_browsed) = self.bank.browsed.write() {
-            // NOTE: Maybe requesting best equipment should be done elsewhere
-            let best = self
-                .equipment_finder
-                .best_against(self, monster, Filter::All);
-            self.request_equipment(best);
             match self.can_kill(monster) {
                 Ok(equipment) => {
                     available = equipment;
@@ -542,6 +537,11 @@ impl Character {
         if !self.skill_enabled(Skill::Combat) {
             return Err(CharacterError::SkillDisabled);
         }
+        // NOTE: Maybe requesting best equipment should be done elsewhere
+        let best = self
+            .equipment_finder
+            .best_against(self, monster, Filter::All);
+        self.request_equipment(best);
         let available = self
             .equipment_finder
             .best_against(self, monster, Filter::Available);
