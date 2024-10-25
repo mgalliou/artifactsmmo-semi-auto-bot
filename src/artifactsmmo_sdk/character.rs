@@ -291,7 +291,7 @@ impl Character {
                         .kill_monster(m, None)
                         .ok()
                         .map(|fight| fight.amount_of(&order.item));
-                    order.inc_worked_by(1);
+                    order.dec_worked_by(1);
                     ret
                 }
                 ItemSource::Craft => self.progress_crafting_order(order),
