@@ -519,7 +519,7 @@ impl Character {
         if !self.can_gather(resource) {
             return Err(CharacterError::InsuffisientSkillLevel);
         }
-        if let Ok(_) = self.bank.browsed.write() {
+        if let Ok(_browsed) = self.bank.browsed.write() {
             tool = self.best_available_tool_for_resource(&resource.code);
             if let Some(tool) = tool {
                 self.reserv_if_needed_and_available(Slot::Weapon, tool);
