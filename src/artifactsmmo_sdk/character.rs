@@ -445,11 +445,16 @@ impl Character {
                 }
             }
         }
-        // TODO: find highest killable
-        if let Some(monster) = self.monsters.highest_providing_exp(self.level()) {
-            if self.kill_monster(monster, None).is_ok() {
-                return true;
-            }
+        if let Some(monster) = self
+            .monsters
+            .data
+            .iter()
+            .filter(|m| m.level <= self.level())
+            .max_by_key(|m| if self.can_kill(m).is_ok() { m.level } else { 0 })
+        {
+            info!("{}: found highest killable monster: {}", self.name, monster.code);
+            let _ = self.kill_monster(monster, None);
+            return true
         }
         false
     }
@@ -541,7 +546,11 @@ impl Character {
         let best = self
             .equipment_finder
             .best_against(self, monster, Filter::All);
-        self.request_equipment(best);
+        if !self.can_kill_with(monster, &best) {
+            return Err(CharacterError::TooLowLevel);
+        } else {
+            self.request_equipment(best);
+        }
         let available = self
             .equipment_finder
             .best_against(self, monster, Filter::Available);
@@ -1317,6 +1326,7 @@ pub enum CharacterError {
     RequestError(RequestError),
     SkillDisabled,
     EquipmentTooWeak,
+    TooLowLevel,
 }
 
 impl From<RequestError> for CharacterError {
