@@ -102,7 +102,7 @@ impl Account {
             .read()
             .unwrap()
             .iter()
-            .any(|c| c.can_craft(code))
+            .any(|c| c.can_craft(code).is_ok())
     }
 }
 

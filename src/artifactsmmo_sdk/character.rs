@@ -5,7 +5,7 @@ use super::{
     bank::Bank,
     char_config::CharConfig,
     config::Config,
-    equipment::{self, Equipment, Slot},
+    equipment::{Equipment, Slot},
     equipment_finder::{EquipmentFinder, Filter},
     events::Events,
     fight_simulator::FightSimulator,
@@ -300,43 +300,50 @@ impl Character {
 
     fn progress_crafting_order(&self, order: &Order) -> Option<i32> {
         if order.being_crafted() >= order.missing() {
-            None
-        } else if !self.can_craft(&order.item) {
-            if let Some(s) = self.items.skill_to_craft(&order.item) {
-                if self.skill_level(s) < self.items.get(&order.item).unwrap().level
-                    && self.skill_enabled(s)
-                    && self.level_skill_up(s)
-                {
-                    return Some(0);
+            return None;
+        }
+        match self.can_craft(&order.item) {
+            Ok(()) => {
+                let quantity = min(
+                    self.max_craftable_items_from_bank(&order.item),
+                    order.missing()
+                        - order.being_crafted()
+                        - self.account.in_inventories(&order.item),
+                );
+                if quantity > 0 {
+                    order.inc_being_crafted(quantity);
+                    let ret = self
+                        .craft_from_bank_unchecked(&order.item, quantity, PostCraftAction::None)
+                        .ok();
+                    order.dec_being_crafted(quantity);
+                    return ret;
                 }
-            }
-            None
-        } else {
-            let quantity = min(
-                self.max_craftable_items_from_bank(&order.item),
-                order.missing() - order.being_crafted() - self.account.in_inventories(&order.item),
-            );
-            if quantity > 0 {
-                order.inc_being_crafted(quantity);
-                let ret = self
-                    .craft_from_bank(&order.item, quantity, PostCraftAction::None)
-                    .ok();
-                order.dec_being_crafted(quantity);
-                ret
-            } else {
-                self.bank
-                    .missing_mats_for(&order.item, order.quantity, Some(&self.name))
-                    .iter()
-                    .for_each(|m| {
-                        self.orderboard.order_item(
-                            &self.name,
-                            &m.code,
-                            m.quantity,
-                            order.priority + 1,
-                        )
-                    });
                 None
             }
+            Err(e) => match e {
+                CharacterError::InsuffisientSkillLevel(s, _) => {
+                    if self.level_skill_up(s) {
+                        Some(0)
+                    } else {
+                        None
+                    }
+                }
+                CharacterError::InsuffisientMaterials => {
+                    self.bank
+                        .missing_mats_for(&order.item, order.quantity, Some(&self.name))
+                        .iter()
+                        .for_each(|m| {
+                            self.orderboard.order_item(
+                                &self.name,
+                                &m.code,
+                                m.quantity,
+                                order.priority + 1,
+                            )
+                        });
+                    None
+                }
+                _ => None,
+            },
         }
     }
 
@@ -401,7 +408,7 @@ impl Character {
             return self
                 .action_task_trade(item, self.has_in_inventory(&self.task()))
                 .is_ok();
-        } else if self.can_craft(item) && craftable > 0 {
+        } else if self.can_craft(item).is_ok() && craftable > 0 {
             return self
                 .craft_from_bank(
                     item,
@@ -452,9 +459,12 @@ impl Character {
             .filter(|m| m.level <= self.level())
             .max_by_key(|m| if self.can_kill(m).is_ok() { m.level } else { 0 })
         {
-            info!("{}: found highest killable monster: {}", self.name, monster.code);
+            info!(
+                "{}: found highest killable monster: {}",
+                self.name, monster.code
+            );
             let _ = self.kill_monster(monster, None);
-            return true
+            return true;
         }
         false
     }
@@ -516,9 +526,7 @@ impl Character {
         map: Option<&MapSchema>,
     ) -> Result<SkillDataSchema, CharacterError> {
         let mut tool = None;
-        if !self.can_gather(resource) {
-            return Err(CharacterError::InsuffisientSkillLevel);
-        }
+        self.can_gather(resource)?;
         if let Ok(_browsed) = self.bank.browsed.write() {
             tool = self.best_available_tool_for_resource(&resource.code);
             if let Some(tool) = tool {
@@ -571,34 +579,35 @@ impl Character {
     }
 
     // Checks that the `Character` has the required skill level to gather the given `resource`
-    fn can_gather(&self, resource: &ResourceSchema) -> bool {
+    fn can_gather(&self, resource: &ResourceSchema) -> Result<(), CharacterError> {
         let skill: Skill = resource.skill.into();
-        if skill.is_mining() && self.skill_enabled(Skill::Mining)
-            || skill.is_woodcutting() && self.skill_enabled(Skill::Woodcutting)
-            || skill.is_fishing() && self.skill_enabled(Skill::Fishing)
-        {
-            self.skill_level(resource.skill.into()) >= resource.level
-        } else {
-            false
+        if !self.skill_enabled(skill) {
+            return Err(CharacterError::SkillDisabled);
         }
+        if self.skill_level(skill) < resource.level {
+            return Err(CharacterError::InsuffisientSkillLevel(
+                skill,
+                resource.level,
+            ));
+        }
+        Ok(())
     }
 
     // Checks that the `Character` has the required skill level to craft the given item `code`
-    pub fn can_craft(&self, code: &str) -> bool {
+    pub fn can_craft(&self, code: &str) -> Result<(), CharacterError> {
         if let Some(item) = self.items.get(code) {
             if let Some(skill) = item.skill_to_craft() {
-                if skill.is_mining() && self.skill_enabled(Skill::Mining)
-                    || skill.is_woodcutting() && self.skill_enabled(Skill::Woodcutting)
-                    || skill.is_jewelrycrafting() && self.skill_enabled(Skill::Jewelrycrafting)
-                    || skill.is_gearcrafting() && self.skill_enabled(Skill::Gearcrafting)
-                    || skill.is_weaponcrafting() && self.skill_enabled(Skill::Weaponcrafting)
-                    || skill.is_cooking() && self.skill_enabled(Skill::Cooking)
-                {
-                    return self.skill_level(skill) >= item.level;
+                if !self.skill_enabled(skill) {
+                    return Err(CharacterError::SkillDisabled);
                 }
+                if self.skill_level(skill) < item.level {
+                    return Err(CharacterError::InsuffisientSkillLevel(skill, item.level));
+                }
+                return Ok(());
             }
+            return Err(CharacterError::ItemNotCraftable);
         }
-        false
+        Err(CharacterError::ItemNotFound)
     }
 
     /// Returns the current `Equipment` of the `Character`, containing item schemas.
@@ -651,11 +660,8 @@ impl Character {
     /// Withdraw the materials for, craft, then deposit the item `code` until
     /// the given quantity is crafted.
     pub fn craft_items(&self, code: &str, quantity: i32) -> i32 {
-        if !self.can_craft(code) {
-            error!(
-                "{}: doesn't have the required skill level to craft '{}'.",
-                self.name, code
-            );
+        if let Err(e) = self.can_craft(code) {
+            error!("{}: {:?}", self.name, e);
             return 0;
         }
         let mut crafted = 0;
@@ -699,9 +705,7 @@ impl Character {
         quantity: i32,
         post_action: PostCraftAction,
     ) -> Result<i32, CharacterError> {
-        if !self.can_craft(code) {
-            return Err(CharacterError::InsuffisientSkillLevel);
-        }
+        self.can_craft(code)?;
         if quantity <= 0 {
             return Err(CharacterError::InvalidQuantity);
         }
@@ -712,6 +716,15 @@ impl Character {
             "{}: going to craft '{}'x{} from bank.",
             self.name, code, quantity
         );
+        self.craft_from_bank_unchecked(code, quantity, post_action)
+    }
+
+    pub fn craft_from_bank_unchecked(
+        &self,
+        code: &str,
+        quantity: i32,
+        post_action: PostCraftAction,
+    ) -> Result<i32, CharacterError> {
         self.deposit_all();
         self.withdraw_mats_for(code, quantity);
         self.action_craft(code, quantity)?;
@@ -1316,7 +1329,7 @@ impl Role {
 
 #[derive(Debug)]
 pub enum CharacterError {
-    InsuffisientSkillLevel,
+    InsuffisientSkillLevel(Skill, i32),
     InsuffisientMaterials,
     InvalidQuantity,
     NoEquipmentToKill,
@@ -1327,6 +1340,8 @@ pub enum CharacterError {
     SkillDisabled,
     EquipmentTooWeak,
     TooLowLevel,
+    ItemNotCraftable,
+    ItemNotFound,
 }
 
 impl From<RequestError> for CharacterError {
