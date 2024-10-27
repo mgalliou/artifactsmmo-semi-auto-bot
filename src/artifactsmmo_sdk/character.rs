@@ -23,7 +23,7 @@ use artifactsmmo_openapi::models::{
     fight_schema, CharacterSchema, FightSchema, InventorySlot, ItemSchema, MapContentSchema,
     MapSchema, MonsterSchema, ResourceSchema, SkillDataSchema,
 };
-use chrono::{DateTime, Utc};
+use chrono::{format, DateTime, Utc};
 use itertools::Itertools;
 use log::{debug, error, info, warn};
 use serde::Deserialize;
@@ -196,8 +196,13 @@ impl Character {
                                 )
                                 .iter()
                                 .for_each(|m| {
-                                    self.orderboard
-                                        .order_item(&self.name, &m.code, m.quantity, 1)
+                                    self.orderboard.add(Order::new(
+                                        &self.name,
+                                        &m.code,
+                                        m.quantity,
+                                        1,
+                                        format!("crafting '{}' to level up {}", i.code, skill),
+                                    ))
                                 })
                         }
                         false
@@ -262,7 +267,7 @@ impl Character {
                 );
                 if order.author == self.name && self.has_in_inventory(&order.item) >= order.quantity
                 {
-                    self.orderboard.remove_order(&order)
+                    self.orderboard.remove(&order)
                 }
             }
             return true;
@@ -333,12 +338,13 @@ impl Character {
                         .missing_mats_for(&order.item, order.quantity, Some(&self.name))
                         .iter()
                         .for_each(|m| {
-                            self.orderboard.order_item(
+                            self.orderboard.add(Order::new(
                                 &self.name,
                                 &m.code,
                                 m.quantity,
                                 order.priority + 1,
-                            )
+                                format!("crafting '{}' for order: {}", order.item, order),
+                            ))
                         });
                     None
                 }
@@ -557,7 +563,7 @@ impl Character {
         if !self.can_kill_with(monster, &best) {
             return Err(CharacterError::TooLowLevel);
         } else {
-            self.request_equipment(best);
+            self.order_equipment(best);
         }
         let available = self
             .equipment_finder
@@ -1240,17 +1246,17 @@ impl Character {
         self.conf.read().unwrap().clone()
     }
 
-    fn request_equipment(&self, equipment: Equipment<'_>) {
+    fn order_equipment(&self, equipment: Equipment<'_>) {
         //TODO handle rings correctly
         //TODO handle consumables
         Slot::iter().for_each(|s| {
             if let Some(item) = equipment.slot(s) {
-                self.request_if_needed_and_available(s, item);
+                self.order_if_needed(s, item);
             }
         })
     }
 
-    fn request_if_needed_and_available(&self, s: Slot, item: &ItemSchema) {
+    fn order_if_needed(&self, s: Slot, item: &ItemSchema) {
         if (self.equiped_in(s).is_none()
             || self
                 .equiped_in(s)
@@ -1258,7 +1264,13 @@ impl Character {
             && self.has_in_inventory(&item.code) < 1
             && self.bank.has_item(&item.code, Some(&self.name)) < 1
         {
-            self.orderboard.order_item(&self.name, &item.code, 1, 1);
+            self.orderboard.add(Order::new(
+                &self.name,
+                &item.code,
+                1,
+                1,
+                "equipment".to_owned(),
+            ));
         }
     }
 

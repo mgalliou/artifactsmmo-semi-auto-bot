@@ -1,5 +1,5 @@
 use artifactsmmo_playground::artifactsmmo_sdk::{
-    account::Account, character::Character, game::Game, items::Items, orderboard::OrderBoard,
+    account::Account, character::Character, game::Game, items::Items, orderboard::{Order, OrderBoard},
     skill::Skill,
 };
 use figment::{
@@ -116,9 +116,13 @@ fn handle_orderboard(args: &[&str], orderboard: &Arc<OrderBoard>) {
     match args.first() {
         Some(verb) => match *verb {
             "request" => match (args.get(1), args.get(2)) {
-                (Some(item), Some(quantity)) => {
-                    orderboard.order_item("cli", item, quantity.parse::<i32>().unwrap_or(0), 1)
-                }
+                (Some(item), Some(quantity)) => orderboard.add(Order::new(
+                    "cli",
+                    item,
+                    quantity.parse::<i32>().unwrap_or(0),
+                    1,
+                    "cli".to_owned(),
+                )),
                 _ => eprintln!("missings args"),
             },
             "orders" => {

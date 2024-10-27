@@ -21,19 +21,16 @@ impl OrderBoard {
         self.orders.read().unwrap().iter().cloned().collect_vec()
     }
 
-    // TODO: when order with same item already exist, increase existing order quantity.
-    // This should probably be done with a different method
-    pub fn order_item(&self, author: &str, item: &str, quantity: i32, priority: i32) {
-        let request = Order::new(author, item, quantity, priority);
-        if !self.has_similar_order(&request) {
+    pub fn add(&self, order: Order) {
+        if !self.has_similar(&order) {
             if let Ok(mut r) = self.orders.write() {
-                info!("order added to queue: {}.", request);
-                r.push(Arc::new(request))
+                info!("order added to queue: {}.", order);
+                r.push(Arc::new(order))
             }
         }
     }
 
-    pub fn remove_order(&self, order: &Order) {
+    pub fn remove(&self, order: &Order) {
         if let Ok(mut queue) = self.orders.write() {
             if queue.iter().any(|r| r.is_similar(order)) {
                 queue.retain(|r| !r.is_similar(order));
@@ -42,7 +39,7 @@ impl OrderBoard {
         }
     }
 
-    pub fn has_similar_order(&self, other: &Order) -> bool {
+    pub fn has_similar(&self, other: &Order) -> bool {
         match self.orders.read() {
             Ok(queue) => {
                 return queue.iter().any(|r| r.is_similar(other));
@@ -55,7 +52,7 @@ impl OrderBoard {
         if let Some(order) = self.orders().iter().find(|o| o.item == code) {
             order.inc_deposited(quantity);
             if order.turned_in() {
-                self.remove_order(order);
+                self.remove(order);
             }
         }
     }
@@ -67,6 +64,7 @@ pub struct Order {
     pub item: String,
     pub quantity: i32,
     pub priority: i32,
+    pub reason: String,
     pub worked_by: RwLock<i32>,
     pub being_crafted: RwLock<i32>,
     // Number of item deposited into the bank
@@ -74,12 +72,13 @@ pub struct Order {
 }
 
 impl Order {
-    pub fn new(author: &str, item: &str, quantity: i32, priority: i32) -> Self {
+    pub fn new(author: &str, item: &str, quantity: i32, priority: i32, reason: String) -> Self {
         Order {
             author: author.to_owned(),
             item: item.to_owned(),
             quantity,
             priority,
+            reason: reason.to_owned(),
             worked_by: RwLock::new(0),
             being_crafted: RwLock::new(0),
             deposited: RwLock::new(0),
@@ -144,8 +143,8 @@ impl Display for Order {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{}[{}]: '{}'x{}",
-            self.author, self.priority, self.item, self.quantity
+            "{}[{}]: '{}'x{} for {}",
+            self.author, self.priority, self.item, self.quantity, self.reason
         )
     }
 }
