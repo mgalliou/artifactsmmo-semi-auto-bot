@@ -80,7 +80,7 @@ impl Character {
             monsters: game.monsters.clone(),
             items: game.items.clone(),
             events: game.events.clone(),
-            orderboard: game.billboard.clone(),
+            orderboard: game.orderboard.clone(),
             equipment_finder: EquipmentFinder::new(&game.items),
             fight_simulator: FightSimulator::new(&game.items, &game.monsters),
             bank: bank.clone(),
