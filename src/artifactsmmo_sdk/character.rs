@@ -10,7 +10,7 @@ use super::{
     events::Events,
     fight_simulator::FightSimulator,
     game::Game,
-    items::{DamageType, ItemSource, Items, Quantity, Type},
+    items::{DamageType, ItemSource, Items, Type},
     maps::Maps,
     monsters::Monsters,
     orderboard::{Order, OrderBoard},
@@ -23,7 +23,7 @@ use artifactsmmo_openapi::models::{
     fight_schema, CharacterSchema, FightSchema, InventorySlot, ItemSchema, MapContentSchema,
     MapSchema, MonsterSchema, ResourceSchema, SkillDataSchema,
 };
-use chrono::{format, DateTime, Utc};
+use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use log::{debug, error, info, warn};
 use serde::Deserialize;
@@ -240,13 +240,27 @@ impl Character {
     }
 
     fn handle_orderboard(&self) -> bool {
-        self.orderboard
+        let mut orders = self
+            .orderboard
             .orders()
             .into_iter()
-            .max_set_by_key(|o| o.priority)
-            .into_iter()
-            .sorted_by_key(|o| *o.worked_by.read().unwrap())
-            .any(|r| self.handle_order(r))
+            .filter(|o| self.can_progress(o))
+            .collect_vec();
+        orders.sort_by_key(|o| o.priority);
+        orders.reverse();
+        orders.into_iter().any(|r| self.handle_order(r))
+    }
+
+    fn can_progress(&self, order: &Order) -> bool {
+        self.items.sources_of(&order.item).iter().any(|s| match s {
+            ItemSource::Resource(r) => self.can_gather(r).is_ok(),
+            ItemSource::Monster(m) => self.can_kill(m).is_ok(),
+            ItemSource::Craft => matches!(
+                self.can_craft(&order.item),
+                Ok(()) | Err(CharacterError::InsuffisientSkillLevel(_, _))
+            ),
+            ItemSource::Task => false,
+        })
     }
 
     fn handle_order(&self, order: Arc<Order>) -> bool {
@@ -310,30 +324,34 @@ impl Character {
         match self.can_craft(&order.item) {
             Ok(()) => {
                 let quantity = min(
-                    self.max_craftable_items_from_bank(&order.item),
+                    self.max_craftable_items(&order.item),
                     order.missing()
                         - order.being_crafted()
                         - self.account.in_inventories(&order.item),
                 );
                 if quantity > 0 {
                     order.inc_being_crafted(quantity);
-                    let ret = self
-                        .craft_from_bank_unchecked(&order.item, quantity, PostCraftAction::None);
+                    let ret = self.craft_from_bank_unchecked(
+                        &order.item,
+                        quantity,
+                        PostCraftAction::None,
+                    );
                     order.dec_being_crafted(quantity);
-                    if let Err(CharacterError::InsuffisientMaterials) = ret { self.bank
-                        .missing_mats_for(&order.item, order.quantity, Some(&self.name))
-                        .iter()
-                        .for_each(|m| {
-                            self.orderboard.add(Order::new(
-                                &self.name,
-                                &m.code,
-                                m.quantity,
-                                order.priority + 1,
-                                format!("crafting '{}' for order: {}", order.item, order),
-                            ))
-                        });
+                    if let Err(CharacterError::InsuffisientMaterials) = ret {
+                        self.bank
+                            .missing_mats_for(&order.item, order.quantity, Some(&self.name))
+                            .iter()
+                            .for_each(|m| {
+                                self.orderboard.add(Order::new(
+                                    &self.name,
+                                    &m.code,
+                                    m.quantity,
+                                    order.priority + 1,
+                                    format!("crafting '{}' for order: {}", order.item, order),
+                                ))
+                            });
                     }
-                    return ret.ok();
+                    ret.ok();
                 }
                 None
             }
@@ -510,6 +528,8 @@ impl Character {
                 }
                 Err(e) => return Err(e),
             }
+            self.order_best_equipment_against(monster, Filter::All);
+            self.order_best_equipment_against(monster, Filter::Craftable);
         }
         self.equip_equipment(&available);
         if let Some(map) = map {
@@ -552,15 +572,6 @@ impl Character {
     fn can_kill<'a>(&'a self, monster: &'a MonsterSchema) -> Result<Equipment<'_>, CharacterError> {
         if !self.skill_enabled(Skill::Combat) {
             return Err(CharacterError::SkillDisabled);
-        }
-        // NOTE: Maybe requesting best equipment should be done elsewhere
-        let best = self
-            .equipment_finder
-            .best_against(self, monster, Filter::All);
-        if !self.can_kill_with(monster, &best) {
-            return Err(CharacterError::TooLowLevel);
-        } else {
-            self.order_equipment(best);
         }
         let available = self
             .equipment_finder
@@ -750,7 +761,9 @@ impl Character {
         info!("{}: depositing all items to the bank.", self.name,);
         for slot in self.inventory_copy() {
             if slot.quantity > 0 {
-                let _ = self.action_deposit(&slot.code, slot.quantity);
+                if let Err(e) = self.action_deposit(&slot.code, slot.quantity) {
+                    error!("{}: {:?}", self.name, e)
+                }
             }
         }
     }
@@ -766,7 +779,9 @@ impl Character {
         );
         for slot in self.inventory_copy() {
             if slot.quantity > 0 && self.items.is_of_type(&slot.code, r#type) {
-                let _ = self.action_deposit(&slot.code, slot.quantity);
+                if let Err(e) = self.action_deposit(&slot.code, slot.quantity) {
+                    error!("{}: {:?}", self.name, e)
+                }
             }
         }
     }
@@ -1240,17 +1255,36 @@ impl Character {
         self.conf.read().unwrap().clone()
     }
 
-    fn order_equipment(&self, equipment: Equipment<'_>) {
+    fn order_best_equipment_against(&self, monster: &MonsterSchema, filter: Filter) {
+        let equipment = self.equipment_finder.best_against(self, monster, filter);
+        if self.can_kill_with(monster, &equipment) {
+            let priority = match filter {
+                Filter::All => 1,
+                Filter::Craftable => 2,
+                Filter::Farmable => 3,
+                _ => 0,
+            };
+            if priority > 0 {
+                self.order_equipment(
+                    equipment,
+                    priority,
+                    format!("best {:?} equipment to kill {}", filter, monster.code),
+                );
+            }
+        };
+    }
+
+    fn order_equipment(&self, equipment: Equipment<'_>, priority: i32, reason: String) {
         //TODO handle rings correctly
         //TODO handle consumables
         Slot::iter().for_each(|s| {
             if let Some(item) = equipment.slot(s) {
-                self.order_if_needed(s, item);
+                self.order_if_needed(s, item, priority, reason.clone());
             }
-        })
+        });
     }
 
-    fn order_if_needed(&self, s: Slot, item: &ItemSchema) {
+    fn order_if_needed(&self, s: Slot, item: &ItemSchema, priority: i32, reason: String) -> bool {
         if (self.equiped_in(s).is_none()
             || self
                 .equiped_in(s)
@@ -1258,14 +1292,11 @@ impl Character {
             && self.has_in_inventory(&item.code) < 1
             && self.bank.has_item(&item.code, Some(&self.name)) < 1
         {
-            self.orderboard.add(Order::new(
-                &self.name,
-                &item.code,
-                1,
-                1,
-                "equipment".to_owned(),
-            ));
+            self.orderboard
+                .add(Order::new(&self.name, &item.code, 1, priority, reason));
+            return true;
         }
+        false
     }
 
     fn reserv_equipment(&self, equipment: Equipment<'_>) {

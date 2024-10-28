@@ -152,7 +152,7 @@ impl EquipmentFinder {
             .filter(|i| match filter {
                 Filter::All => i.level < 40,
                 Filter::Available => char.has_available(&i.code) > 0,
-                Filter::Craftable => todo!(),
+                Filter::Craftable => char.account.can_craft(&i.code),
                 Filter::Farmable => todo!(),
             })
             .collect_vec();
@@ -373,7 +373,7 @@ impl EquipmentFinder {
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Filter {
     All,
     Available,
