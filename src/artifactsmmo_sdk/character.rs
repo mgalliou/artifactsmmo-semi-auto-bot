@@ -161,10 +161,10 @@ impl Character {
         craft_skills
             .into_iter()
             .filter(|s| self.skill_level(*s) < if s.is_jewelrycrafting() { 35 } else { 40 })
-            .any(|skill| self.level_skill_up(skill))
+            .any(|skill| self.level_skill_up(skill, 1))
     }
 
-    fn level_skill_up(&self, skill: Skill) -> bool {
+    fn level_skill_up(&self, skill: Skill, priority: i32) -> bool {
         self.items
             .best_for_leveling(self.skill_level(skill), skill)
             .iter()
@@ -200,7 +200,7 @@ impl Character {
                                         &self.name,
                                         &m.code,
                                         m.quantity,
-                                        1,
+                                        priority,
                                         format!("crafting '{}' to level up {}", i.code, skill),
                                     ))
                                 })
@@ -357,7 +357,7 @@ impl Character {
             }
             Err(e) => match e {
                 CharacterError::InsuffisientSkillLevel(s, _) => {
-                    if self.level_skill_up(s) {
+                    if !s.is_gathering() && self.level_skill_up(s, order.priority + 1) {
                         Some(0)
                     } else {
                         None
