@@ -10,7 +10,7 @@ use super::{
     events::Events,
     fight_simulator::FightSimulator,
     game::Game,
-    items::{DamageType, ItemSource, Items, Type},
+    items::{DamageType, ItemSource, Items, Quantity, Type},
     maps::Maps,
     monsters::Monsters,
     orderboard::{Order, OrderBoard},
@@ -318,12 +318,9 @@ impl Character {
                 if quantity > 0 {
                     order.inc_being_crafted(quantity);
                     let ret = self
-                        .craft_from_bank_unchecked(&order.item, quantity, PostCraftAction::None)
-                        .ok();
+                        .craft_from_bank_unchecked(&order.item, quantity, PostCraftAction::None);
                     order.dec_being_crafted(quantity);
-                    return ret;
-                } else {
-                    self.bank
+                    if let Err(CharacterError::InsuffisientMaterials) = ret { self.bank
                         .missing_mats_for(&order.item, order.quantity, Some(&self.name))
                         .iter()
                         .for_each(|m| {
@@ -335,6 +332,8 @@ impl Character {
                                 format!("crafting '{}' for order: {}", order.item, order),
                             ))
                         });
+                    }
+                    return ret.ok();
                 }
                 None
             }
@@ -710,16 +709,6 @@ impl Character {
         post_action: PostCraftAction,
     ) -> Result<i32, CharacterError> {
         self.can_craft(code)?;
-        if quantity <= 0 {
-            return Err(CharacterError::InvalidQuantity);
-        }
-        if self.max_craftable_items_from_bank(code) < quantity {
-            return Err(CharacterError::InsuffisientMaterials);
-        }
-        info!(
-            "{}: going to craft '{}'x{} from bank.",
-            self.name, code, quantity
-        );
         self.craft_from_bank_unchecked(code, quantity, post_action)
     }
 
@@ -729,6 +718,13 @@ impl Character {
         quantity: i32,
         post_action: PostCraftAction,
     ) -> Result<i32, CharacterError> {
+        if self.max_craftable_items_from_bank(code) < quantity {
+            return Err(CharacterError::InsuffisientMaterials);
+        }
+        info!(
+            "{}: going to craft '{}'x{} from bank.",
+            self.name, code, quantity
+        );
         self.deposit_all();
         self.withdraw_mats_for(code, quantity);
         self.action_craft(code, quantity)?;
