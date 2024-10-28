@@ -322,18 +322,7 @@ impl Character {
                         .ok();
                     order.dec_being_crafted(quantity);
                     return ret;
-                }
-                None
-            }
-            Err(e) => match e {
-                CharacterError::InsuffisientSkillLevel(s, _) => {
-                    if self.level_skill_up(s) {
-                        Some(0)
-                    } else {
-                        None
-                    }
-                }
-                CharacterError::InsuffisientMaterials => {
+                } else {
                     self.bank
                         .missing_mats_for(&order.item, order.quantity, Some(&self.name))
                         .iter()
@@ -346,7 +335,16 @@ impl Character {
                                 format!("crafting '{}' for order: {}", order.item, order),
                             ))
                         });
-                    None
+                }
+                None
+            }
+            Err(e) => match e {
+                CharacterError::InsuffisientSkillLevel(s, _) => {
+                    if self.level_skill_up(s) {
+                        Some(0)
+                    } else {
+                        None
+                    }
                 }
                 _ => None,
             },
