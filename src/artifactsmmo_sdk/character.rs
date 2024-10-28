@@ -1,3 +1,5 @@
+use crate::artifactsmmo_sdk::char_config::Goal;
+
 use super::{
     account::Account,
     api::{characters::CharactersApi, my_character::MyCharacterApi},
@@ -119,13 +121,10 @@ impl Character {
                     continue;
                 }
             }
-            if self.conf().do_tasks && self.handle_task() {
-                continue;
-            }
-            if self.skill_enabled(Skill::Combat) && self.find_and_kill() {
-                continue;
-            }
-            if self.is_gatherer() && self.find_and_gather() {
+            if self.conf().goals.iter().any(|g| match g {
+                Goal::LevelSkills => self.find_and_gather(),
+                Goal::LevelUp => self.find_and_kill(),
+            }) {
                 continue;
             }
             info!("{}: no action found, sleeping for 30sec.", self.name);
