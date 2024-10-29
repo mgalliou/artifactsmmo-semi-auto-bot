@@ -1,5 +1,3 @@
-use crate::artifactsmmo_sdk::char_config::Goal;
-
 use super::{
     account::Account,
     api::{characters::CharactersApi, my_character::MyCharacterApi},
@@ -20,6 +18,7 @@ use super::{
     skill::Skill,
     ActiveEventSchemaExt, FightSchemaExt, ItemSchemaExt, MonsterSchemaExt, SkillSchemaExt,
 };
+use crate::artifactsmmo_sdk::char_config::Goal;
 use actions::{PostCraftAction, RequestError};
 use artifactsmmo_openapi::models::{
     fight_schema, CharacterSchema, FightSchema, InventorySlot, ItemSchema, MapContentSchema,
@@ -245,20 +244,40 @@ impl Character {
             .into_iter()
             .filter(|o| self.can_progress(o))
             .collect_vec();
+        let mut skill_up_needed = self
+            .orderboard
+            .orders()
+            .into_iter()
+            .filter(|o| self.need_to_level_up(o))
+            .collect_vec();
         orders.sort_by_key(|o| o.priority);
         orders.reverse();
-        orders.into_iter().any(|r| self.handle_order(r))
+        if orders.into_iter().any(|r| self.handle_order(r)) {
+            return true;
+        }
+        skill_up_needed.sort_by_key(|o| o.priority);
+        skill_up_needed.reverse();
+        skill_up_needed.into_iter().any(|r| self.handle_order(r))
     }
 
     fn can_progress(&self, order: &Order) -> bool {
         self.items.sources_of(&order.item).iter().any(|s| match s {
             ItemSource::Resource(r) => self.can_gather(r).is_ok(),
             ItemSource::Monster(m) => self.can_kill(m).is_ok(),
-            ItemSource::Craft => matches!(
-                self.can_craft(&order.item),
-                Ok(()) | Err(CharacterError::InsuffisientSkillLevel(_, _))
-            ),
+            ItemSource::Craft => self.can_craft(&order.item).is_ok(),
             ItemSource::Task => false,
+        })
+    }
+
+    fn need_to_level_up(&self, order: &Order) -> bool {
+        self.items.sources_of(&order.item).iter().any(|s| match s {
+            ItemSource::Craft => match self.can_craft(&order.item) {
+                Err(CharacterError::InsuffisientSkillLevel(s, _)) => {
+                    !s.is_gathering()
+                }
+                _ => false,
+            },
+            _ => false,
         })
     }
 
