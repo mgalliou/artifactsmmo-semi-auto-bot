@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-futures = "0.3"
 artifactsmmo-openapi = { path = "../artifactsmmo-openapi/", version = "2.2.0" }
 serde_json = "^1.0"
 reqwest = { version = "^0.12", features = ["json", "blocking", "multipart"] }
@@ -18,7 +17,7 @@ serde = "1.0.210"
 simple-logging = "2.0.2"
 rustyline = "14.0.0"
 ordered-float = "4.2.2"
-as-any = "0.3.1"
+downcast-rs = "1.2.1"
 
 [target.x86_64-pc-windows-msvc]
 rustflags = ["-C", "link-arg=-fuse-ld=lld"]

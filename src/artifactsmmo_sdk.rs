@@ -1,7 +1,7 @@
 use artifactsmmo_openapi::models::{
     CharacterSchema, CraftSchema, ItemEffectSchema, ItemSchema, MapContentSchema, MonsterSchema, ResourceSchema, SimpleItemSchema
 };
-use as_any::AsAny;
+use downcast_rs::{impl_downcast, Downcast};
 use items::{DamageType, Type};
 use serde::{Deserialize, Serialize};
 use skill::Skill;
@@ -63,10 +63,11 @@ trait ActiveEventSchemaExt {
     fn content_code(&self) -> &String;
 }
 
-pub trait ResponseSchema: AsAny {
+pub trait ResponseSchema: Downcast {
     fn character(&self) -> &CharacterSchema;
     fn pretty(&self) -> String;
 }
+impl_downcast!(ResponseSchema);
 
 trait FightSchemaExt {
     fn amount_of(&self, code: &str) -> i32;
