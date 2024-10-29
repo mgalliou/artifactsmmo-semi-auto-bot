@@ -242,22 +242,22 @@ impl Items {
             Skill::Gearcrafting => {
                 if level >= 30 {
                     self.get("gold_platelegs")
-                } else if level > 20 {
+                } else if level >= 20 {
                     self.get("skeleton_helmet")
-                } else if level > 15 {
+                } else if level >= 15 {
                     self.get("iron_helmet")
-                } else if level > 5 {
+                } else if level >= 5 {
                     self.get("copper_leg")
                 } else {
                     self.get("copper_helmet")
                 }
             }
             Skill::Weaponcrafting => {
-                if level > 30 {
+                if level >= 30 {
                     None
-                } else if level > 20 {
+                } else if level >= 20 {
                     self.get("skull_staff")
-                } else if level > 11 {
+                } else if level >= 10 {
                     self.get("iron_dagger")
                 } else {
                     self.get("copper_dagger")
@@ -266,11 +266,11 @@ impl Items {
             Skill::Jewelrycrafting => {
                 if level >= 30 {
                     self.get("gold_ring")
-                } else if level > 25 {
+                } else if level >= 25 {
                     self.get("steel_ring")
-                } else if level > 20 {
+                } else if level >= 20 {
                     self.get("life_ring")
-                } else if level > 11 {
+                } else if level >= 10 {
                     self.get("iron_ring")
                 } else {
                     self.get("copper_ring")

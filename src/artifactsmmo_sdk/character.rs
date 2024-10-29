@@ -164,7 +164,7 @@ impl Character {
 
     fn level_skill_up(&self, skill: Skill, priority: i32) -> bool {
         self.items
-            .best_for_leveling(self.skill_level(skill), skill)
+            .best_for_leveling_hc(self.skill_level(skill), skill)
             .iter()
             .min_by_key(|i| {
                 self.bank.missing_mats_quantity(
@@ -238,6 +238,15 @@ impl Character {
     }
 
     fn handle_orderboard(&self) -> bool {
+        let completable = self
+            .orderboard
+            .orders()
+            .into_iter()
+            .filter(|o| self.can_complete(o))
+            .collect_vec();
+        if completable.into_iter().any(|r| self.handle_order(r)) {
+            return true;
+        }
         let mut orders = self
             .orderboard
             .orders()
@@ -264,7 +273,40 @@ impl Character {
         self.items.sources_of(&order.item).iter().any(|s| match s {
             ItemSource::Resource(r) => self.can_gather(r).is_ok(),
             ItemSource::Monster(m) => self.can_kill(m).is_ok(),
-            ItemSource::Craft => self.can_craft(&order.item).is_ok(),
+            ItemSource::Craft => {
+                if self.can_craft(&order.item).is_ok() {
+                    self.bank
+                        .missing_mats_for(&order.item, order.quantity, Some(&self.name))
+                        .iter()
+                        .for_each(|m| {
+                            self.orderboard.add(Order::new(
+                                &self.name,
+                                &m.code,
+                                m.quantity,
+                                order.priority + 1,
+                                format!("crafting '{}' for order: {}", order.item, order),
+                            ))
+                        });
+                    true
+                } else {
+                    false
+                }
+            }
+            ItemSource::Task => false,
+        })
+    }
+
+    fn can_complete(&self, order: &Order) -> bool {
+        self.items.sources_of(&order.item).iter().any(|s| match s {
+            ItemSource::Resource(_) => false,
+            ItemSource::Monster(_) => false,
+            ItemSource::Craft => {
+                self.can_craft(&order.item).is_ok()
+                    && self
+                        .bank
+                        .missing_mats_for(&order.item, order.quantity, Some(&self.name))
+                        .is_empty()
+            }
             ItemSource::Task => false,
         })
     }
@@ -272,9 +314,7 @@ impl Character {
     fn need_to_level_up(&self, order: &Order) -> bool {
         self.items.sources_of(&order.item).iter().any(|s| match s {
             ItemSource::Craft => match self.can_craft(&order.item) {
-                Err(CharacterError::InsuffisientSkillLevel(s, _)) => {
-                    !s.is_gathering()
-                }
+                Err(CharacterError::InsuffisientSkillLevel(s, _)) => !s.is_gathering(),
                 _ => false,
             },
             _ => false,
@@ -297,10 +337,6 @@ impl Character {
                     self.account.in_inventories(&order.item),
                     order.deposited(),
                 );
-                if order.author == self.name && self.has_in_inventory(&order.item) >= order.quantity
-                {
-                    self.orderboard.remove(&order)
-                }
             }
             return true;
         }
@@ -355,20 +391,6 @@ impl Character {
                         PostCraftAction::None,
                     );
                     order.dec_being_crafted(quantity);
-                    if let Err(CharacterError::InsuffisientMaterials) = ret {
-                        self.bank
-                            .missing_mats_for(&order.item, order.quantity, Some(&self.name))
-                            .iter()
-                            .for_each(|m| {
-                                self.orderboard.add(Order::new(
-                                    &self.name,
-                                    &m.code,
-                                    m.quantity,
-                                    order.priority + 1,
-                                    format!("crafting '{}' for order: {}", order.item, order),
-                                ))
-                            });
-                    }
                     ret.ok();
                 }
                 None
@@ -1276,19 +1298,11 @@ impl Character {
     fn order_best_equipment_against(&self, monster: &MonsterSchema, filter: Filter) {
         let equipment = self.equipment_finder.best_against(self, monster, filter);
         if self.can_kill_with(monster, &equipment) {
-            let priority = match filter {
-                Filter::All => 1,
-                Filter::Craftable => 2,
-                Filter::Farmable => 3,
-                _ => 0,
-            };
-            if priority > 0 {
                 self.order_equipment(
                     equipment,
-                    priority,
+                    1,
                     format!("best {:?} equipment to kill {}", filter, monster.code),
                 );
-            }
         };
     }
 
