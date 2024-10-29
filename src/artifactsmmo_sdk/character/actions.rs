@@ -6,12 +6,7 @@ use crate::artifactsmmo_sdk::{
 use artifactsmmo_openapi::{
     apis::Error,
     models::{
-        cooldown_schema::Reason, fight_schema, BankItemTransactionResponseSchema,
-        CharacterFightResponseSchema, CharacterMovementResponseSchema,
-        CharacterSchema, DropSchema, EquipmentResponseSchema, FightSchema, MapContentSchema,
-        MapSchema, RecyclingResponseSchema, SimpleItemSchema, SkillDataSchema, SkillResponseSchema,
-        TaskCancelledResponseSchema, TaskResponseSchema, TaskSchema, TaskTradeResponseSchema,
-        TaskTradeSchema, TasksRewardResponseSchema, TasksRewardSchema,
+        cooldown_schema::Reason, fight_schema, BankItemTransactionResponseSchema, CharacterFightResponseSchema, CharacterMovementResponseSchema, CharacterSchema, DeleteItemResponseSchema, DropSchema, EquipmentResponseSchema, FightSchema, MapContentSchema, MapSchema, RecyclingResponseSchema, SimpleItemSchema, SkillDataSchema, SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema, TaskSchema, TaskTradeResponseSchema, TaskTradeSchema, TasksRewardResponseSchema, TasksRewardSchema
     },
 };
 use log::{error, info};
@@ -50,6 +45,11 @@ impl Character {
             Action::Craft { code, quantity } => self
                 .my_api
                 .craft(&self.name, code, quantity)
+                .map(|r| r.into())
+                .map_err(|e| e.into()),
+            Action::Delete { code, quantity } => self
+                .my_api
+                .delete(&self.name, code, quantity)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
             Action::Withdraw { code, quantity } => self
@@ -188,6 +188,11 @@ impl Character {
             .map(|_| ())
     }
 
+    pub fn action_delete(&self, code: &str, quantity: i32) -> Result<(), RequestError> {
+        self.perform_action(Action::Delete { code, quantity })
+            .map(|_| ())
+    }
+
     pub fn action_recycle(&self, code: &str, quantity: i32) -> Result<(), RequestError> {
         self.move_to_craft(code);
         self.perform_action(Action::Recycle { code, quantity })
@@ -303,6 +308,10 @@ pub enum Action<'a> {
     Fight,
     Gather,
     Craft {
+        code: &'a str,
+        quantity: i32,
+    },
+    Delete {
         code: &'a str,
         quantity: i32,
     },
@@ -467,6 +476,21 @@ impl ResponseSchema for SkillResponseSchema {
             DropSchemas(&self.data.details.items),
             self.data.details.xp,
             self.data.cooldown.remaining_seconds
+        )
+    }
+
+    fn character(&self) -> &CharacterSchema {
+        &self.data.character
+    }
+}
+
+impl ResponseSchema for DeleteItemResponseSchema {
+    fn pretty(&self) -> String {
+        format!(
+            "{}: deleted '{}'x{}",
+            self.data.character.name,
+            self.data.item.code,
+            self.data.item.quantity
         )
     }
 
