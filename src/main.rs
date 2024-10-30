@@ -93,6 +93,7 @@ fn handle_char(args: &[&str], account: &Account) {
                 },
                 "unequip_all" => char.unequip_and_deposit_all(),
                 "deposit_all" => char.deposit_all(),
+                "empty_bank" => char.empty_bank(),
                 _ => eprintln!("invalid verb"),
             },
             _ => eprintln!("character not found: {}", name),

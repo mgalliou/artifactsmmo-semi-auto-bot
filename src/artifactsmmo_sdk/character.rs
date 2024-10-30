@@ -808,6 +808,22 @@ impl Character {
         }
     }
 
+    pub fn empty_bank(&self) {
+        let _ = self.move_to_closest_map_of_type("bank");
+        self.deposit_all();
+        let content = self.bank.content.read().unwrap().clone();
+        content.iter().for_each(|i| {
+            info!("{} deleting {:?}", self.name, i);
+            let mut remain = i.quantity;
+            while remain > 0 {
+                let quantity = min(self.inventory_free_space(), remain);
+                let _ = self.action_withdraw(&i.code, quantity);
+                let _ = self.action_delete(&i.code, quantity);
+                remain -= quantity;
+            }
+        });
+    }
+
     /// Deposits all the items of the given `type` to the bank.
     fn deposit_all_of_type(&self, r#type: Type) {
         if self.inventory_total() <= 0 {
