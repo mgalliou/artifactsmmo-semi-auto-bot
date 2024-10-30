@@ -24,12 +24,11 @@ use artifactsmmo_openapi::models::{
     fight_schema, CharacterSchema, FightSchema, InventorySlot, ItemSchema, MapContentSchema,
     MapSchema, MonsterSchema, ResourceSchema, SkillDataSchema,
 };
-use chrono::{DateTime, Utc};
 use itertools::Itertools;
-use log::{debug, error, info, warn};
+use log::{error, info, warn};
 use serde::Deserialize;
 use std::{
-    cmp::{max, min, Ordering},
+    cmp::{max, min},
     io,
     option::Option,
     sync::{Arc, RwLock},
@@ -209,35 +208,7 @@ impl Character {
             })
     }
 
-    /// Finds the best item  to level the given `skill` and crafts the
-    /// maximum amount that can be crafted in one go with the material
-    /// availables in bank. Items are crafted then recycled until no more items
-    /// can be crafted or until crafting no longer provides XP.
-    //TODO: handle item already in inventory
-    fn levelup_by_crafting(&self, skill: Skill) -> bool {
-        let mut crafted_once = false;
-        if let Some(best) = self
-            .items
-            .best_for_leveling_hc(self.skill_level(skill), skill)
-        {
-            info!("{}: leveling {:#?} by crafting.", self.name, skill);
-            self.deposit_all();
-            self.withdraw_max_mats_for(&best.code);
-            let mut crafted = -1;
-            while self.skill_level(skill) - best.level <= 10 && crafted != 0 {
-                crafted_once = true;
-                // TODO ge prices handling
-                crafted = self.craft_max_from_inventory(&best.code);
-                if crafted > 0 {
-                    let _ = self.action_recycle(&best.code, crafted);
-                }
-            }
-            self.deposit_all_of_type(Type::Resource);
-        }
-        crafted_once
-    }
-
-    /// Browser orderboard for completable orders: first check if some orders
+    /// Browse orderboard for completable orders: first check if some orders
     /// can be turned in, then check for completable orders (enough materials to craft all items
     /// from an order. Then check for orders that can be progressed. Then check for order for which
     /// the skill level required needs to be leveled.
@@ -508,18 +479,6 @@ impl Character {
             )
         }
         false
-    }
-
-    /// Process the raw materials in the Character inventory by converting the
-    /// materials having only one possible receipe.
-    fn process_raw_mats(&self) {
-        self.inventory_raw_mats()
-            .into_iter()
-            .filter_map(|rm| self.items.unique_craft(&rm.code))
-            .filter(|cw| self.has_mats_for(&cw.code) > 0)
-            .for_each(|p| {
-                self.craft_max_from_inventory(&p.code);
-            });
     }
 
     /// Find a target and kill it if possible.
@@ -817,13 +776,13 @@ impl Character {
             return;
         }
         info!("{}: depositing all items to the bank.", self.name,);
-        for slot in self.inventory_copy() {
+        self.inventory_copy().iter().for_each(|slot| {
             if slot.quantity > 0 {
                 if let Err(e) = self.action_deposit(&slot.code, slot.quantity) {
                     error!("{}: {:?}", self.name, e)
                 }
             }
-        }
+        })
     }
 
     pub fn empty_bank(&self) {
@@ -943,50 +902,13 @@ impl Character {
 
     /// Reycle the maximum amount of the item `code` with the items  currently
     /// available in the character inventory and returns the amount recycled.
-    fn recycle_all(&self, code: &str) -> i32 {
+    pub fn recycle_all(&self, code: &str) -> i32 {
         let n = self.has_in_inventory(code);
         if n > 0 {
             info!("{}: recycling all '{}'.", self.name, code);
             let _ = self.action_recycle(code, n);
         }
         n
-    }
-
-    fn wait_for_cooldown(&self) {
-        let s = self.remaining_cooldown();
-        if s.is_zero() {
-            return;
-        }
-        debug!(
-            "{}: cooling down for {}.{} secondes.",
-            self.name,
-            s.as_secs(),
-            s.subsec_millis()
-        );
-        sleep(s);
-    }
-
-    /// Returns the remaining cooldown duration of the `Character`.
-    fn remaining_cooldown(&self) -> Duration {
-        if let Some(exp) = self.cooldown_expiration() {
-            let synced = Utc::now() - *self.game.server_offset.read().unwrap();
-            if synced.cmp(&exp.to_utc()) == Ordering::Less {
-                return (exp.to_utc() - synced).to_std().unwrap();
-            }
-        }
-        Duration::from_secs(0)
-    }
-
-    /// Returns the cooldown expiration timestamp of the `Character`.
-    fn cooldown_expiration(&self) -> Option<DateTime<Utc>> {
-        self.data
-            .read()
-            .map(|d| {
-                d.cooldown_expiration
-                    .as_ref()
-                    .map(|cd| DateTime::parse_from_rfc3339(cd).ok().map(|dt| dt.to_utc()))?
-            })
-            .ok()?
     }
 
     /// Checks if the `Character` inventory is full (all slots are occupied or

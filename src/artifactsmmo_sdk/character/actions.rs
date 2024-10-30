@@ -6,15 +6,21 @@ use crate::artifactsmmo_sdk::{
 use artifactsmmo_openapi::{
     apis::Error,
     models::{
-        cooldown_schema::Reason, fight_schema, BankItemTransactionResponseSchema, CharacterFightResponseSchema, CharacterMovementResponseSchema, CharacterSchema, DeleteItemResponseSchema, DropSchema, EquipmentResponseSchema, FightSchema, MapContentSchema, MapSchema, RecyclingResponseSchema, SimpleItemSchema, SkillDataSchema, SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema, TaskSchema, TaskTradeResponseSchema, TaskTradeSchema, TasksRewardResponseSchema, TasksRewardSchema
+        cooldown_schema::Reason, fight_schema, BankItemTransactionResponseSchema,
+        CharacterFightResponseSchema, CharacterMovementResponseSchema, CharacterSchema,
+        DeleteItemResponseSchema, DropSchema, EquipmentResponseSchema, FightSchema,
+        MapContentSchema, MapSchema, RecyclingResponseSchema, SimpleItemSchema, SkillDataSchema,
+        SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema, TaskSchema,
+        TaskTradeResponseSchema, TaskTradeSchema, TasksRewardResponseSchema, TasksRewardSchema,
     },
 };
-use log::{error, info};
-use std::{fmt::Display, sync::RwLockWriteGuard, thread::sleep, time::Duration};
+use chrono::{DateTime, Utc};
+use log::{debug, error, info};
+use std::{cmp::Ordering, fmt::Display, sync::RwLockWriteGuard, thread::sleep, time::Duration};
 use strum_macros::EnumIs;
 
 impl Character {
-    pub fn perform_action(&self, action: Action) -> Result<Box<dyn ResponseSchema>, RequestError> {
+    fn perform_action(&self, action: Action) -> Result<Box<dyn ResponseSchema>, RequestError> {
         let mut bank_content: Option<RwLockWriteGuard<'_, Vec<SimpleItemSchema>>> = None;
 
         self.wait_for_cooldown();
@@ -173,12 +179,11 @@ impl Character {
     ) -> Result<SimpleItemSchema, RequestError> {
         let _ = self.move_to_closest_map_of_type("bank");
         self.perform_action(Action::Deposit { code, quantity })
-            .map(|_| {
-                SimpleItemSchema {
-                    code: code.to_owned(),
-                    quantity,
-                }
+            .map(|_| SimpleItemSchema {
+                code: code.to_owned(),
+                quantity,
             })
+
     }
 
     pub fn action_craft(&self, code: &str, quantity: i32) -> Result<(), RequestError> {
@@ -295,6 +300,43 @@ impl Character {
             }
         }
         Err(e)
+    }
+
+    fn wait_for_cooldown(&self) {
+        let s = self.remaining_cooldown();
+        if s.is_zero() {
+            return;
+        }
+        debug!(
+            "{}: cooling down for {}.{} secondes.",
+            self.name,
+            s.as_secs(),
+            s.subsec_millis()
+        );
+        sleep(s);
+    }
+
+    /// Returns the remaining cooldown duration of the `Character`.
+    fn remaining_cooldown(&self) -> Duration {
+        if let Some(exp) = self.cooldown_expiration() {
+            let synced = Utc::now() - *self.game.server_offset.read().unwrap();
+            if synced.cmp(&exp.to_utc()) == Ordering::Less {
+                return (exp.to_utc() - synced).to_std().unwrap();
+            }
+        }
+        Duration::from_secs(0)
+    }
+
+    /// Returns the cooldown expiration timestamp of the `Character`.
+    fn cooldown_expiration(&self) -> Option<DateTime<Utc>> {
+        self.data
+            .read()
+            .map(|d| {
+                d.cooldown_expiration
+                    .as_ref()
+                    .map(|cd| DateTime::parse_from_rfc3339(cd).ok().map(|dt| dt.to_utc()))?
+            })
+            .ok()?
     }
 }
 
@@ -487,9 +529,7 @@ impl ResponseSchema for DeleteItemResponseSchema {
     fn pretty(&self) -> String {
         format!(
             "{}: deleted '{}'x{}",
-            self.data.character.name,
-            self.data.item.code,
-            self.data.item.quantity
+            self.data.character.name, self.data.item.code, self.data.item.quantity
         )
     }
 
