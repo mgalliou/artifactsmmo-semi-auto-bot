@@ -237,28 +237,27 @@ impl Character {
         crafted_once
     }
 
+    /// Browser orderboard for completable orders: first check if some orders
+    /// can be turned in, then check for completable orders (enough materials to craft all items
+    /// from an order. Then check for orders that can be progressed. Then check for order for which
+    /// the skill level required needs to be leveled.
     fn handle_orderboard(&self) -> bool {
-        let completable = self
+        if self
             .orderboard
             .orders()
             .into_iter()
-            .filter(|o| self.can_complete(o))
-            .collect_vec();
+            .any(|o| self.turn_in_order(o))
+        {
+            return true;
+        }
+        let completable = self.orderboard.orders_filtered(|o| self.can_complete(o));
         if completable.into_iter().any(|r| self.handle_order(r)) {
             return true;
         }
-        let mut orders = self
-            .orderboard
-            .orders()
-            .into_iter()
-            .filter(|o| self.can_progress(o))
-            .collect_vec();
+        let mut orders = self.orderboard.orders_filtered(|o| self.can_progress(o));
         let mut skill_up_needed = self
             .orderboard
-            .orders()
-            .into_iter()
-            .filter(|o| self.need_to_level_up(o))
-            .collect_vec();
+            .orders_filtered(|o| self.need_to_level_up(o));
         orders.sort_by_key(|o| o.priority);
         orders.reverse();
         if orders.into_iter().any(|r| self.handle_order(r)) {
@@ -322,29 +321,16 @@ impl Character {
     }
 
     fn handle_order(&self, order: Arc<Order>) -> bool {
-        if self.account.in_inventories(&order.item) >= order.missing() && !order.turned_in() {
-            if self.has_in_inventory(&order.item) > 0 {
-                self.deposit_all();
-                return true;
-            }
-        } else if let Some(progress) = self.progress_order(&order) {
-            if progress > 0 {
-                info!(
-                    "{} progressed by {} on order: {}, in inventories: {}, deposited: {}",
-                    self.name,
-                    progress,
-                    order,
-                    self.account.in_inventories(&order.item),
-                    order.deposited(),
-                );
-            }
+        if self.progress_order(&order).is_some() {
+            self.turn_in_order(order);
             return true;
         }
         false
     }
 
     fn progress_order(&self, order: &Order) -> Option<i32> {
-        self.items
+        let ret = self
+            .items
             .sources_of(&order.item)
             .iter()
             .find_map(|s| match s {
@@ -368,7 +354,39 @@ impl Character {
                 }
                 ItemSource::Craft => self.progress_crafting_order(order),
                 ItemSource::Task => None,
-            })
+            });
+        if let Some(progress) = ret {
+            if progress > 0 {
+                info!(
+                    "{} progressed by {} on order: {}, in inventories: {}, deposited: {}",
+                    self.name,
+                    progress,
+                    order,
+                    self.account.in_inventories(&order.item),
+                    order.deposited(),
+                );
+            }
+        }
+        ret
+    }
+
+    /// Deposit items requiered by the given `order` if needed.
+    /// Returns true if items has be deposited.
+    fn turn_in_order(&self, order: Arc<Order>) -> bool {
+        if self.account.in_inventories(&order.item) >= order.missing()
+            || self.inventory_is_full() && !order.turned_in()
+        {
+            let q = self.has_in_inventory(&order.item);
+            if q > 0 {
+                self.deposit_all();
+                order.inc_deposited(q);
+                if order.turned_in() {
+                    self.orderboard.remove(&order);
+                }
+                return true;
+            }
+        }
+        false
     }
 
     fn progress_crafting_order(&self, order: &Order) -> Option<i32> {
@@ -1314,11 +1332,11 @@ impl Character {
     fn order_best_equipment_against(&self, monster: &MonsterSchema, filter: Filter) {
         let equipment = self.equipment_finder.best_against(self, monster, filter);
         if self.can_kill_with(monster, &equipment) {
-                self.order_equipment(
-                    equipment,
-                    1,
-                    format!("best {:?} equipment to kill {}", filter, monster.code),
-                );
+            self.order_equipment(
+                equipment,
+                1,
+                format!("best {:?} equipment to kill {}", filter, monster.code),
+            );
         };
     }
 

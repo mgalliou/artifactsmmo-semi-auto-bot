@@ -21,6 +21,16 @@ impl OrderBoard {
         self.orders.read().unwrap().iter().cloned().collect_vec()
     }
 
+    pub fn orders_filtered<F>(&self, f: F) -> Vec<Arc<Order>>
+    where
+        F: FnMut(&Arc<Order>) -> bool,
+    {
+        self.orders()
+            .into_iter()
+            .filter(f)
+            .collect_vec()
+    }
+
     pub fn add(&self, order: Order) {
         if !self.has_similar(&order) {
             if let Ok(mut r) = self.orders.write() {

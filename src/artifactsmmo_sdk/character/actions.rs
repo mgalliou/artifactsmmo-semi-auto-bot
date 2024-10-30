@@ -174,7 +174,6 @@ impl Character {
         let _ = self.move_to_closest_map_of_type("bank");
         self.perform_action(Action::Deposit { code, quantity })
             .map(|_| {
-                self.orderboard.notify_deposit(code, quantity);
                 SimpleItemSchema {
                     code: code.to_owned(),
                     quantity,
