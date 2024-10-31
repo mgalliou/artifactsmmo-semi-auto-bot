@@ -141,7 +141,7 @@ impl Character {
     fn handle_wooden_stick(&self) {
         if self.conf().skills.contains(&Skill::Combat) && self.has_equiped("wooden_stick") > 0 {
             let _ = self.action_unequip(Slot::Weapon, 1);
-            let _ = self.action_deposit("wooden_stick", 1);
+            let _ = self.action_deposit("wooden_stick", 1, None);
         };
     }
 
@@ -343,7 +343,7 @@ impl Character {
 
     fn deposit_order(&self, order: &Order) -> bool {
         let q = self.has_in_inventory(&order.item);
-        if q > 0 && self.action_deposit(&order.item, q).is_ok() {
+        if q > 0 && self.action_deposit(&order.item, q, order.owner.clone()).is_ok() {
             order.inc_deposited(q);
             if order.turned_in() {
                 self.orderboard.remove(order);
@@ -741,7 +741,7 @@ impl Character {
         //TODO: return errors
         match post_action {
             PostCraftAction::Deposit => {
-                let _ = self.action_deposit(code, quantity);
+                let _ = self.action_deposit(code, quantity, None);
             }
             PostCraftAction::Recycle => {
                 let _ = self.action_recycle(code, quantity);
@@ -764,7 +764,7 @@ impl Character {
         });
         self.inventory_copy().iter().for_each(|slot| {
             if slot.quantity > 0 {
-                if let Err(e) = self.action_deposit(&slot.code, slot.quantity) {
+                if let Err(e) = self.action_deposit(&slot.code, slot.quantity, None) {
                     error!("{}: {:?}", self.name, e)
                 }
             }
@@ -798,7 +798,7 @@ impl Character {
         );
         for slot in self.inventory_copy() {
             if slot.quantity > 0 && self.items.is_of_type(&slot.code, r#type) {
-                if let Err(e) = self.action_deposit(&slot.code, slot.quantity) {
+                if let Err(e) = self.action_deposit(&slot.code, slot.quantity, None) {
                     error!("{}: {:?}", self.name, e)
                 }
             }
@@ -809,7 +809,7 @@ impl Character {
     fn deposit_all_of(&self, code: &str) {
         let amount = self.has_in_inventory(code);
         if amount > 0 {
-            let _ = self.action_deposit(code, amount);
+            let _ = self.action_deposit(code, amount, None);
         }
     }
 
@@ -1086,7 +1086,7 @@ impl Character {
         {
             let _ = self.action_equip(&item.code, s, 1);
             if let Some(i) = prev_equiped {
-                let _ = self.action_deposit(&i.code, 1);
+                let _ = self.action_deposit(&i.code, 1, None);
             }
         } else {
             error!(
@@ -1311,7 +1311,7 @@ impl Character {
                     _ => 1,
                 };
                 let _ = self.action_unequip(s, quantity);
-                let _ = self.action_deposit(&item.code, quantity);
+                let _ = self.action_deposit(&item.code, quantity, None);
             }
         })
     }

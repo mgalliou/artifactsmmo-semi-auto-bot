@@ -176,14 +176,17 @@ impl Character {
         &self,
         code: &str,
         quantity: i32,
+        owner: Option<String>,
     ) -> Result<SimpleItemSchema, RequestError> {
         let _ = self.move_to_closest_map_of_type("bank");
+        if let Some(owner) = owner {
+            self.bank.reserv(code, quantity, &owner);
+        }
         self.perform_action(Action::Deposit { code, quantity })
             .map(|_| SimpleItemSchema {
                 code: code.to_owned(),
                 quantity,
             })
-
     }
 
     pub fn action_craft(&self, code: &str, quantity: i32) -> Result<(), RequestError> {
