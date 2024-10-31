@@ -75,6 +75,7 @@ pub struct Order {
     pub quantity: i32,
     pub priority: i32,
     pub reason: String,
+    pub missing_mats_ordered: RwLock<bool>,
     pub worked_by: RwLock<i32>,
     pub being_crafted: RwLock<i32>,
     // Number of item deposited into the bank
@@ -92,6 +93,7 @@ impl Order {
             worked_by: RwLock::new(0),
             being_crafted: RwLock::new(0),
             deposited: RwLock::new(0),
+            missing_mats_ordered: RwLock::new(false),
         }
     }
 

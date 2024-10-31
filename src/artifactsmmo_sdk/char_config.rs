@@ -20,10 +20,12 @@ pub struct CharConfig {
     pub do_tasks: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Deserialize, Display, AsRefStr, EnumIter, EnumString, EnumIs)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Deserialize, Display, AsRefStr, EnumIter, EnumString, EnumIs,
+)]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all(deserialize = "snake_case"))]
 pub enum Goal {
-    LevelSkills,
-    LevelUp,
+    ReachLevel { level: i32 },
+    ReachSkillLevel { skill: Skill, level: i32 },
 }

@@ -2,10 +2,11 @@ use artifactsmmo_openapi::models::{craft_schema, resource_schema};
 use serde::Deserialize;
 use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
 
-#[derive(Debug, Clone, Copy, PartialEq, Deserialize, Display, AsRefStr, EnumIter, EnumString, EnumIs)]
+#[derive(Debug, Clone, Copy, PartialEq, Default, Deserialize, Display, AsRefStr, EnumIter, EnumString, EnumIs)]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all(deserialize = "snake_case"))]
 pub enum Skill {
+    #[default]
     Combat,
     Mining,
     Woodcutting,
