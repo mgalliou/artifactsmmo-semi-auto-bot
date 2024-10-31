@@ -105,6 +105,7 @@ impl Character {
             }
             self.events.refresh();
             self.process_inventory();
+            self.refresh_task();
             if self.conf().do_events && self.handle_events() {
                 continue;
             }
@@ -393,6 +394,17 @@ impl Character {
             return true;
         }
         false
+    }
+
+    fn refresh_task(&self) {
+        if self.task().is_empty() || self.task_finished() {
+            if self.task_finished() {
+                let _ = self.action_complete_task();
+            }
+            if self.conf().skills.contains(&Skill::Combat) {
+                let _ = self.action_accept_task("monsters");
+            }
+        }
     }
 
     fn handle_resource_event(&self) -> bool {
