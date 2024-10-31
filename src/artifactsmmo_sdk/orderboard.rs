@@ -25,16 +25,13 @@ impl OrderBoard {
     where
         F: FnMut(&Arc<Order>) -> bool,
     {
-        self.orders()
-            .into_iter()
-            .filter(f)
-            .collect_vec()
+        self.orders().into_iter().filter(f).collect_vec()
     }
 
     pub fn add(&self, order: Order) {
         if !self.has_similar(&order) {
             if let Ok(mut r) = self.orders.write() {
-                info!("order added to queue: {}.", order);
+                info!("orderboard: added: {}.", order);
                 r.push(Arc::new(order))
             }
         }
@@ -44,7 +41,7 @@ impl OrderBoard {
         if let Ok(mut queue) = self.orders.write() {
             if queue.iter().any(|r| r.is_similar(order)) {
                 queue.retain(|r| !r.is_similar(order));
-                info!("order removed from queue: {}.", order)
+                info!("orderboard: removed: {}.", order)
             }
         }
     }
@@ -70,7 +67,7 @@ impl OrderBoard {
 
 #[derive(Debug)]
 pub struct Order {
-    pub author: String,
+    pub owner: Option<String>,
     pub item: String,
     pub quantity: i32,
     pub priority: i32,
@@ -83,9 +80,9 @@ pub struct Order {
 }
 
 impl Order {
-    pub fn new(author: &str, item: &str, quantity: i32, priority: i32, reason: String) -> Self {
+    pub fn new(owner: Option<&str>, item: &str, quantity: i32, priority: i32, reason: String) -> Self {
         Order {
-            author: author.to_owned(),
+            owner: owner.map(|o| o.to_owned()),
             item: item.to_owned(),
             quantity,
             priority,
@@ -99,6 +96,8 @@ impl Order {
 
     fn is_similar(&self, other: &Order) -> bool {
         self.item == other.item
+        && self.owner == other.owner
+        && self.reason == other.reason
     }
 
     pub fn worked_by(&self) -> i32 {
@@ -155,8 +154,13 @@ impl Display for Order {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{}[{}]: '{}'x{} for {}",
-            self.author, self.priority, self.item, self.quantity, self.reason
+            "[{}] '{}'({}/{}), owner: {:?}, reason: {}",
+            self.priority,
+            self.item,
+            self.deposited(),
+            self.quantity,
+            self.owner,
+            self.reason,
         )
     }
 }

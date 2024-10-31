@@ -1,6 +1,8 @@
+use std::fmt::Display;
+
 use super::skill::Skill;
 use serde::Deserialize;
-use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
+use strum_macros::{AsRefStr, EnumIs, EnumIter, EnumString};
 
 #[derive(Debug, Default, Clone, Deserialize)]
 pub struct CharConfig {

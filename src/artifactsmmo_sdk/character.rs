@@ -189,11 +189,11 @@ impl Character {
                                 .iter()
                                 .for_each(|m| {
                                     self.orderboard.add(Order::new(
-                                        &self.name,
+                                        Some(&self.name),
                                         &m.code,
                                         m.quantity,
                                         1,
-                                        format!("crafting '{}' to level up {}", i.code, skill),
+                                        format!("'{}' (leveling '{}')", i.code, skill),
                                     ))
                                 })
                         }
@@ -235,8 +235,11 @@ impl Character {
             ItemSource::Monster(m) => self.can_kill(m).is_ok(),
             ItemSource::Craft => {
                 if self.can_craft(&order.item).is_ok() {
-                    if !(*order.missing_mats_ordered.read().unwrap()) {
-                        self.order_missing_mats(order);
+                    if let Ok(mut m) = order.missing_mats_ordered.write() {
+                        if !(*m) {
+                            *m = true;
+                            self.order_missing_mats(order);
+                        }
                     }
                     true
                 } else {
@@ -253,13 +256,12 @@ impl Character {
             .iter()
             .for_each(|m| {
                 self.orderboard.add(Order::new(
-                    &self.name,
+                    None,
                     &m.code,
                     m.quantity,
                     order.priority,
                     format!("crafting '{}' for order: {}", order.item, order),
                 ));
-                *order.missing_mats_ordered.write().unwrap() = true
             });
     }
 
@@ -334,15 +336,19 @@ impl Character {
         if self.account.in_inventories(&order.item) >= order.missing()
             || self.inventory_is_full() && !order.turned_in()
         {
-            let q = self.has_in_inventory(&order.item);
-            if q > 0 {
-                self.deposit_all();
-                order.inc_deposited(q);
-                if order.turned_in() {
-                    self.orderboard.remove(&order);
-                }
-                return true;
+            return self.deposit_order(&order);
+        }
+        false
+    }
+
+    fn deposit_order(&self, order: &Order) -> bool {
+        let q = self.has_in_inventory(&order.item);
+        if q > 0 && self.action_deposit(&order.item, q).is_ok() {
+            order.inc_deposited(q);
+            if order.turned_in() {
+                self.orderboard.remove(order);
             }
+            return true;
         }
         false
     }
@@ -355,10 +361,13 @@ impl Character {
             );
             if quantity > 0 {
                 order.inc_being_crafted(quantity);
-                let ret =
+                let crafted =
                     self.craft_from_bank_unchecked(&order.item, quantity, PostCraftAction::None);
+                if crafted.as_ref().is_ok_and(|crafted| *crafted > 0) {
+                    self.deposit_order(order);
+                }
                 order.dec_being_crafted(quantity);
-                return ret.ok();
+                return crafted.ok();
             }
         }
         None
@@ -375,16 +384,7 @@ impl Character {
     }
 
     fn handle_task(&self) -> bool {
-        if self.task().is_empty() || self.task_finished() {
-            if self.task_finished() {
-                let _ = self.action_complete_task();
-            }
-            if self.conf().skills.contains(&Skill::Combat) {
-                let _ = self.action_accept_task("monsters");
-            } else {
-                let _ = self.action_accept_task("items");
-            }
-        }
+        self.refresh_task();
         if let Some(monster) = self.monsters.get(&self.task()) {
             if self.kill_monster(monster, None).is_ok() {
                 return true;
@@ -751,13 +751,17 @@ impl Character {
         Ok(quantity)
     }
 
-    /// Deposits all the items to the bank.
+    /// Deposits all the items in the character inventory into the bank.
+    /// Items needed by orders are turned in first.
     /// TODO: add returns type with Result breakdown
     pub fn deposit_all(&self) {
         if self.inventory_total() <= 0 {
             return;
         }
         info!("{}: depositing all items to the bank.", self.name,);
+        self.orderboard.orders().iter().for_each(|o| {
+            self.deposit_order(o);
+        });
         self.inventory_copy().iter().for_each(|slot| {
             if slot.quantity > 0 {
                 if let Err(e) = self.action_deposit(&slot.code, slot.quantity) {
@@ -1239,7 +1243,7 @@ impl Character {
             self.order_equipment(
                 equipment,
                 1,
-                format!("best {:?} equipment to kill {}", filter, monster.code),
+                format!("equipment({:?})", filter),
             );
         };
     }
@@ -1262,8 +1266,13 @@ impl Character {
             && self.has_in_inventory(&item.code) < 1
             && self.bank.has_item(&item.code, Some(&self.name)) < 1
         {
-            self.orderboard
-                .add(Order::new(&self.name, &item.code, 1, priority, reason));
+            self.orderboard.add(Order::new(
+                Some(&self.name),
+                &item.code,
+                1,
+                priority,
+                reason,
+            ));
             return true;
         }
         false

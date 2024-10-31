@@ -247,7 +247,7 @@ impl Items {
                 } else if level >= 15 {
                     self.get("iron_helmet")
                 } else if level >= 5 {
-                    self.get("copper_leg")
+                    self.get("copper_legs_armor")
                 } else {
                     self.get("copper_helmet")
                 }
