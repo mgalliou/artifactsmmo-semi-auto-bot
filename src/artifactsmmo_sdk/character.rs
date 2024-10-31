@@ -122,7 +122,12 @@ impl Character {
             if self.conf().goals.iter().any(|g| match g {
                 Goal::ReachLevel { level } => self.level() < *level && self.find_and_kill(),
                 Goal::ReachSkillLevel { skill, level } => {
-                    self.skill_level(*skill) < *level && self.level_skill_up(*skill)
+                    if self.skill_level(*skill) < *level {
+                        self.level_skill_up(*skill);
+                        true
+                    } else {
+                        false
+                    }
                 }
             }) {
                 continue;
