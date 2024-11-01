@@ -1,6 +1,7 @@
 use super::config::Config;
 use super::equipment::Slot;
 use super::skill::Skill;
+use super::tasks::Tasks;
 use super::{api::items::ItemsApi, monsters::Monsters, resources::Resources};
 use super::{average_dmg, ItemSchemaExt, MonsterSchemaExt};
 use artifactsmmo_openapi::models::{
@@ -20,10 +21,16 @@ pub struct Items {
     pub api: ItemsApi,
     resources: Arc<Resources>,
     monsters: Arc<Monsters>,
+    tasks: Arc<Tasks>,
 }
 
 impl Items {
-    pub fn new(config: &Config, resources: &Arc<Resources>, monsters: &Arc<Monsters>) -> Items {
+    pub fn new(
+        config: &Config,
+        resources: &Arc<Resources>,
+        monsters: &Arc<Monsters>,
+        tasks: &Arc<Tasks>,
+    ) -> Items {
         let api = ItemsApi::new(&config.base_url, &config.token);
         Items {
             data: api
@@ -32,6 +39,7 @@ impl Items {
             api,
             resources: resources.clone(),
             monsters: monsters.clone(),
+            tasks: tasks.clone(),
         }
     }
 
@@ -362,6 +370,13 @@ impl Items {
         if self.get(code).is_some_and(|i| i.craft_schema().is_some()) {
             sources.push(ItemSource::Craft);
         }
+        if self.tasks.rewards.iter().any(|r| r.code == code) {
+            sources.push(ItemSource::TaskReward
+                );
+        }
+        if code == "tasks_coin" {
+            sources.push(ItemSource::Task);
+        }
         sources
     }
 }
@@ -595,13 +610,13 @@ pub enum ItemSource<'a> {
     Monster(&'a MonsterSchema),
     Craft,
     TaskReward,
-    TaskTrade
+    Task,
 }
 
 #[cfg(test)]
 mod tests {
     use crate::artifactsmmo_sdk::{
-        config::Config, monsters::Monsters, resources::Resources, ItemSchemaExt,
+        config::Config, monsters::Monsters, resources::Resources, tasks::Tasks, ItemSchemaExt,
     };
     use figment::{
         providers::{Format, Toml},
@@ -620,7 +635,8 @@ mod tests {
             .unwrap();
         let resources = Arc::new(Resources::new(&config));
         let monsters = Arc::new(Monsters::new(&config));
-        let items = Arc::new(Items::new(&config, &resources, &monsters));
+        let tasks = Arc::new(Tasks::new(&config));
+        let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
 
         assert_eq!(
             items
@@ -646,7 +662,8 @@ mod tests {
             .unwrap();
         let resources = Arc::new(Resources::new(&config));
         let monsters = Arc::new(Monsters::new(&config));
-        let items = Arc::new(Items::new(&config, &resources, &monsters));
+        let tasks = Arc::new(Tasks::new(&config));
+        let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
 
         assert_eq!(
             items

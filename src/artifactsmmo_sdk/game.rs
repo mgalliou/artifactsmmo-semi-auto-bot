@@ -10,7 +10,7 @@ use chrono::{DateTime, TimeDelta, Utc};
 use log::debug;
 
 use super::{
-    orderboard::OrderBoard, config::Config, events::Events, items::Items, maps::Maps, monsters::Monsters, resources::Resources
+    config::Config, events::Events, items::Items, maps::Maps, monsters::Monsters, orderboard::OrderBoard, resources::Resources, tasks::Tasks
 };
 use std::sync::{Arc, RwLock};
 
@@ -32,12 +32,13 @@ impl Game {
         configuration.bearer_access_token = Some(config.base_url.to_owned());
         let monsters = Arc::new(Monsters::new(config));
         let resources = Arc::new(Resources::new(config));
+        let tasks = Arc::new(Tasks::new(config));
         let game = Game {
             configuration,
             maps: Arc::new(Maps::new(config)),
             resources: resources.clone(),
             monsters: monsters.clone(),
-            items: Arc::new(Items::new(config, &resources, &monsters)),
+            items: Arc::new(Items::new(config, &resources, &monsters, &tasks)),
             events: Arc::new(Events::new(config)),
             orderboard: orderboard.clone(),
             server_offset: RwLock::new(TimeDelta::default()),

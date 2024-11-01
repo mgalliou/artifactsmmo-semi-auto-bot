@@ -22,7 +22,7 @@ use crate::artifactsmmo_sdk::char_config::Goal;
 use actions::{PostCraftAction, RequestError};
 use artifactsmmo_openapi::models::{
     fight_schema, CharacterSchema, FightSchema, InventorySlot, ItemSchema, MapContentSchema,
-    MapSchema, MonsterSchema, ResourceSchema, SkillDataSchema,
+    MapSchema, MonsterSchema, ResourceSchema, SkillDataSchema, TasksRewardSchema,
 };
 use itertools::Itertools;
 use log::{error, info, warn};
@@ -104,7 +104,6 @@ impl Character {
                 continue;
             }
             self.events.refresh();
-            self.refresh_task();
             if self.conf().do_events && self.handle_events() {
                 continue;
             }
@@ -246,7 +245,8 @@ impl Character {
                     false
                 }
             }
-            _ => false,
+            ItemSource::TaskReward => true,
+            ItemSource::Task => true,
         })
     }
 
@@ -276,7 +276,8 @@ impl Character {
                         .missing_mats_for(&order.item, order.quantity, Some(&self.name))
                         .is_empty()
             }
-            _ => false,
+            ItemSource::TaskReward => self.bank.has_item("tasks_coin", Some(&self.name)) >= 6,
+            ItemSource::Task => false,
         })
     }
 
@@ -313,7 +314,8 @@ impl Character {
                     ret
                 }
                 ItemSource::Craft => self.progress_crafting_order(order),
-                _ => None,
+                ItemSource::TaskReward => self.progress_task_reward_order(order),
+                ItemSource::Task => self.progress_task_order(),
             });
         if let Some(progress) = ret {
             if progress > 0 {
@@ -327,6 +329,56 @@ impl Character {
             }
         }
         ret
+    }
+
+    fn progress_task_reward_order(&self, order: &Order) -> Option<i32> {
+        if order.worked_by() > 0 {
+            return None;
+        }
+        order.inc_worked_by(1);
+        let ret = match self.exchange_task() {
+            Ok(r) => Some(if r.code == order.item { r.quantity } else { 0 }),
+            Err(e) => {
+                if let CharacterError::NotEnoughCoin = e {
+                    let q = 6 - self.bank.has_item("tasks_coin", Some(&self.name));
+                    self.orderboard
+                        .add(Order::new(None, "tasks_coin", q, 1, format!("{}", order)));
+                }
+                None
+            }
+        };
+        order.dec_worked_by(1);
+        ret
+    }
+
+    fn progress_task_order(&self) -> Option<i32> {
+        match self.complete_task() {
+            Ok(r) => Some(r),
+            Err(e) => {
+                if let CharacterError::NoTask = e {
+                    let _ = self.action_accept_task("items");
+                    Some(0)
+                } else if let CharacterError::TaskNotFinished = e {
+                    if self.progress_task() {
+                        Some(0)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    fn exchange_task(&self) -> Result<TasksRewardSchema, CharacterError> {
+        if self.bank.has_item("tasks_coin", Some(&self.name)) < 6 {
+            return Err(CharacterError::NotEnoughCoin);
+        }
+        self.bank.reserv("tasks_coin", 6, &self.name);
+        self.deposit_all();
+        self.action_withdraw("tasks_coin", 6)?;
+        self.action_task_exchange().map_err(|e| e.into())
     }
 
     /// Deposit items requiered by the given `order` if needed.
@@ -386,28 +438,52 @@ impl Character {
         false
     }
 
-    fn handle_task(&self) -> bool {
-        self.refresh_task();
+    fn progress_task(&self) -> bool {
         if let Some(monster) = self.monsters.get(&self.task()) {
             if self.kill_monster(monster, None).is_ok() {
                 return true;
             }
         }
-        if self.handle_item_task() {
+        if self.progress_item_task() {
             return true;
         }
         false
     }
 
-    fn refresh_task(&self) {
-        if self.task().is_empty() || self.task_finished() {
-            if self.task_finished() {
-                let _ = self.action_complete_task();
-            }
-            if self.conf().skills.contains(&Skill::Combat) {
-                let _ = self.action_accept_task("monsters");
-            }
+    fn progress_item_task(&self) -> bool {
+        let item = &self.task();
+        let in_bank = self.bank.has_item(&self.task(), Some(&self.name));
+        let missing = self.task_missing();
+
+        if in_bank >= missing {
+            let q = max(missing, self.inventory_free_space());
+            self.bank.reserv(item, q, &self.name);
+            self.deposit_all();
+            let _ = self.action_withdraw(item, q);
+            self.action_task_trade(item, self.has_in_inventory(&self.task()))
+                .is_ok()
+        } else {
+            self.orderboard.add(Order::new(
+                Some(&self.name),
+                &self.task(),
+                missing,
+                1,
+                "task".to_string(),
+            ));
+            false
         }
+    }
+
+    fn complete_task(&self) -> Result<i32, CharacterError> {
+        if self.task().is_empty() {
+            return Err(CharacterError::NoTask);
+        }
+        if !self.task_finished() {
+            return Err(CharacterError::TaskNotFinished);
+        }
+        self.action_complete_task()
+            .map(|r| r.quantity)
+            .map_err(|e| e.into())
     }
 
     fn handle_resource_event(&self) -> bool {
@@ -425,41 +501,6 @@ impl Character {
                 .get(e.content_code())
                 .is_some_and(|m| self.kill_monster(m, Some(&e.map)).is_ok())
         })
-    }
-
-    fn handle_item_task(&self) -> bool {
-        let in_bank = self.bank.has_item(&self.task(), Some(&self.name));
-        let item = &self.task();
-        let missing = self.task_missing();
-        let craftable = self.bank.has_mats_for(item, Some(&self.name));
-
-        if in_bank >= missing {
-            self.deposit_all();
-            let _ = self.action_withdraw(item, max(missing, self.inventory_free_space()));
-            return self
-                .action_task_trade(item, self.has_in_inventory(&self.task()))
-                .is_ok();
-        } else if self.can_craft(item).is_ok() && craftable > 0 {
-            return self
-                .craft_from_bank(
-                    item,
-                    min(
-                        self.max_craftable_items_from_bank(item),
-                        self.task_missing(),
-                    ),
-                    PostCraftAction::Deposit,
-                )
-                .is_ok_and(|n| n > 0);
-        } else {
-            error!(
-                "{}: missing item in bank to complete task: '{}' {}/{}",
-                self.name,
-                self.task(),
-                self.task_progress(),
-                self.task_total()
-            )
-        }
-        false
     }
 
     /// Find a target and kill it if possible.
@@ -553,13 +594,21 @@ impl Character {
         let mut tool = None;
         self.can_gather(resource)?;
         if let Ok(_browsed) = self.bank.browsed.write() {
-            tool = self.best_available_tool_for_resource(&resource.code);
+            tool = self.best_tool_for_resource(&resource.code);
             if let Some(tool) = tool {
-                self.reserv_if_needed_and_available(Slot::Weapon, tool);
+                if self.has_available(&tool.code) > 0 {
+                    self.reserv_if_needed_and_available(Slot::Weapon, tool);
+                    self.equip_item_from_bank_or_inventory(Slot::Weapon, tool);
+                } else {
+                    self.orderboard.add(Order::new(
+                        Some(&self.name),
+                        &tool.code,
+                        1,
+                        1,
+                        "gathering".to_string(),
+                    ));
+                }
             }
-        }
-        if let Some(tool) = tool {
-            self.equip_item_from_bank_or_inventory(Slot::Weapon, tool);
         }
         if let Some(map) = map {
             self.action_move(map.x, map.y)?;
@@ -1099,17 +1148,14 @@ impl Character {
         }
     }
 
-    fn best_available_tool_for_resource(&self, code: &str) -> Option<&ItemSchema> {
+    fn best_tool_for_resource(&self, code: &str) -> Option<&ItemSchema> {
         match self.resources.get(code) {
             //TODO improve filtering
             Some(resource) => self
                 .items
                 .equipable_at_level(self.level(), Type::Weapon)
                 .into_iter()
-                .filter(|i| {
-                    i.skill_cooldown_reduction(resource.skill.into()) < 0
-                        && self.has_available(&i.code) > 0
-                })
+                .filter(|i| i.skill_cooldown_reduction(resource.skill.into()) < 0)
                 .min_by_key(|i| i.skill_cooldown_reduction(Skill::from(resource.skill))),
             None => None,
         }
@@ -1357,6 +1403,9 @@ pub enum CharacterError {
     TooLowLevel,
     ItemNotCraftable,
     ItemNotFound,
+    NoTask,
+    TaskNotFinished,
+    NotEnoughCoin,
 }
 
 impl From<RequestError> for CharacterError {

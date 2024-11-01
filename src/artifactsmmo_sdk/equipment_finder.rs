@@ -28,10 +28,12 @@ impl EquipmentFinder {
         monster: &'a MonsterSchema,
         filter: Filter,
     ) -> Equipment<'_> {
-        if let Some(equipment) = self.bests_against(char, monster, filter)
+        if let Some(equipment) = self
+            .bests_against(char, monster, filter)
             .into_iter()
-            .max_by_key(|e| OrderedFloat(e.attack_damage_against(monster))) {
-                equipment
+            .max_by_key(|e| OrderedFloat(e.attack_damage_against(monster)))
+        {
+            equipment
         } else {
             Default::default()
         }
@@ -46,7 +48,9 @@ impl EquipmentFinder {
         self.items
             .equipable_at_level(char.level(), Type::Weapon)
             .iter()
-            .filter(|i| match filter {
+            .filter(|i| 
+                !i.is_crafted_with("jasper_crystal")
+                && match filter {
                 Filter::All => i.level < 40,
                 Filter::Available => char.has_available(&i.code) > 0,
                 Filter::Craftable => char.account.can_craft(&i.code),
@@ -149,11 +153,14 @@ impl EquipmentFinder {
             .items
             .equipable_at_level(char.level(), r#type)
             .into_iter()
-            .filter(|i| match filter {
-                Filter::All => i.level < 40,
-                Filter::Available => char.has_available(&i.code) > 0,
-                Filter::Craftable => char.account.can_craft(&i.code),
-                Filter::Farmable => todo!(),
+            .filter(|i| {
+                !i.is_crafted_with("jasper_crystal")
+                    && match filter {
+                        Filter::All => i.level < 40,
+                        Filter::Available => char.has_available(&i.code) > 0,
+                        Filter::Craftable => char.account.can_craft(&i.code),
+                        Filter::Farmable => todo!(),
+                    }
             })
             .collect_vec();
         let damage_increases = equipables

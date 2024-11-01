@@ -107,6 +107,11 @@ impl Character {
                 .trade_task(&self.name, code, quantity)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
+            Action::TaskExchange => self
+                .my_api
+                .task_exchange(&self.name)
+                .map(|r| r.into())
+                .map_err(|e| e.into()),
         };
         match res {
             Ok(res) => {
@@ -269,7 +274,7 @@ impl Character {
     ) -> Result<TaskTradeSchema, RequestError> {
         let _ = self.move_to_closest_map_with_content_schema(&MapContentSchema {
             r#type: "tasks_master".to_owned(),
-            code: "items".to_owned(),
+            code: self.task_type().to_owned(),
         });
         self.perform_action(Action::TaskTrade { code, quantity })
             .and_then(|r| {
@@ -277,6 +282,19 @@ impl Character {
                     .map_err(|_| RequestError::DowncastError)
             })
             .map(|s| *s.data.trade)
+    }
+
+    pub fn action_task_exchange(&self) -> Result<TasksRewardSchema, RequestError> {
+        let _ = self.move_to_closest_map_with_content_schema(&MapContentSchema {
+            r#type: "tasks_master".to_owned(),
+            code: self.task_type().to_owned(),
+        });
+        self.perform_action(Action::TaskExchange)
+            .and_then(|r| {
+                r.downcast::<TasksRewardResponseSchema>()
+                    .map_err(|_| RequestError::DowncastError)
+            })
+            .map(|s| *s.data.reward)
     }
 
     fn handle_action_error(
@@ -387,6 +405,7 @@ pub enum Action<'a> {
         code: &'a str,
         quantity: i32,
     },
+    TaskExchange,
 }
 
 pub enum PostCraftAction {

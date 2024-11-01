@@ -23,6 +23,7 @@ pub mod monsters;
 pub mod orderboard;
 pub mod resources;
 pub mod skill;
+pub mod tasks;
 
 trait ItemSchemaExt {
     fn name(&self) -> String;
