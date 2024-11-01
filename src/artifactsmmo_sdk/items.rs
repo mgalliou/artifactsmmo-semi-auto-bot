@@ -244,12 +244,12 @@ impl Items {
                     self.get("gold_platelegs")
                 } else if level >= 20 {
                     self.get("skeleton_helmet")
-                } else if level >= 15 {
-                    self.get("iron_helmet")
+                } else if level >= 10 {
+                    self.get("iron_helm")
                 } else if level >= 5 {
                     self.get("copper_legs_armor")
                 } else {
-                    self.get("copper_helmet")
+                    self.get("wooden_shield")
                 }
             }
             Skill::Weaponcrafting => {
