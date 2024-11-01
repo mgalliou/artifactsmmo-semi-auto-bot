@@ -104,11 +104,11 @@ impl Character {
                 continue;
             }
             self.events.refresh();
-            self.process_inventory();
             self.refresh_task();
             if self.conf().do_events && self.handle_events() {
                 continue;
             }
+            self.process_inventory();
             if self.handle_orderboard() {
                 continue;
             }
@@ -318,12 +318,11 @@ impl Character {
         if let Some(progress) = ret {
             if progress > 0 {
                 info!(
-                    "{} progressed by {} on order: {}, in inventories: {}, deposited: {}",
+                    "{}: progressed by {} on order: {}, in inventories: {}",
                     self.name,
                     progress,
                     order,
                     self.account.in_inventories(&order.item),
-                    order.deposited(),
                 );
             }
         }
@@ -333,8 +332,8 @@ impl Character {
     /// Deposit items requiered by the given `order` if needed.
     /// Returns true if items has be deposited.
     fn turn_in_order(&self, order: Arc<Order>) -> bool {
-        if self.account.in_inventories(&order.item) >= order.missing()
-            || self.inventory_is_full() && !order.turned_in()
+        if (!order.turned_in() && self.account.in_inventories(&order.item) >= order.missing())
+            || self.inventory_is_full()
         {
             return self.deposit_order(&order);
         }
@@ -343,7 +342,11 @@ impl Character {
 
     fn deposit_order(&self, order: &Order) -> bool {
         let q = self.has_in_inventory(&order.item);
-        if q > 0 && self.action_deposit(&order.item, q, order.owner.clone()).is_ok() {
+        if q > 0
+            && self
+                .action_deposit(&order.item, q, order.owner.clone())
+                .is_ok()
+        {
             order.inc_deposited(q);
             if order.turned_in() {
                 self.orderboard.remove(order);
@@ -758,7 +761,7 @@ impl Character {
         if self.inventory_total() <= 0 {
             return;
         }
-        info!("{}: depositing all items to the bank.", self.name,);
+        info!("{}: going to deposit all items to the bank.", self.name,);
         self.orderboard.orders().iter().for_each(|o| {
             self.deposit_order(o);
         });
@@ -1240,11 +1243,7 @@ impl Character {
     fn order_best_equipment_against(&self, monster: &MonsterSchema, filter: Filter) {
         let equipment = self.equipment_finder.best_against(self, monster, filter);
         if self.can_kill_with(monster, &equipment) {
-            self.order_equipment(
-                equipment,
-                1,
-                format!("equipment({:?})", filter),
-            );
+            self.order_equipment(equipment, 1, format!("equipment({:?})", filter));
         };
     }
 
