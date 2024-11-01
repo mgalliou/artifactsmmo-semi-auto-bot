@@ -594,7 +594,8 @@ pub enum ItemSource<'a> {
     Resource(&'a ResourceSchema),
     Monster(&'a MonsterSchema),
     Craft,
-    Task,
+    TaskReward,
+    TaskTrade
 }
 
 #[cfg(test)]

@@ -246,7 +246,7 @@ impl Character {
                     false
                 }
             }
-            ItemSource::Task => false,
+            _ => false,
         })
     }
 
@@ -276,7 +276,7 @@ impl Character {
                         .missing_mats_for(&order.item, order.quantity, Some(&self.name))
                         .is_empty()
             }
-            ItemSource::Task => false,
+            _ => false,
         })
     }
 
@@ -313,7 +313,7 @@ impl Character {
                     ret
                 }
                 ItemSource::Craft => self.progress_crafting_order(order),
-                ItemSource::Task => None,
+                _ => None,
             });
         if let Some(progress) = ret {
             if progress > 0 {
