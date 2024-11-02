@@ -456,17 +456,18 @@ impl Character {
         let missing = self.task_missing();
 
         if in_bank >= missing {
-            let q = max(missing, self.inventory_free_space());
+            let q = min(missing, self.inventory_max_items());
             self.bank.reserv(item, q, &self.name);
             self.deposit_all();
-            let _ = self.action_withdraw(item, q);
-            self.action_task_trade(item, self.has_in_inventory(&self.task()))
-                .is_ok()
+            if let Err(e) = self.action_withdraw(item, q) {
+                error!("{}: error while withdrawing {:?}", self.name, e)
+            };
+            self.action_task_trade(item, q).is_ok()
         } else {
             self.orderboard.add(Order::new(
                 Some(&self.name),
                 &self.task(),
-                missing,
+                missing - self.bank.has_item(item, Some(&self.name)),
                 1,
                 "task".to_string(),
             ));
