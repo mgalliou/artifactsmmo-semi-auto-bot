@@ -599,7 +599,6 @@ impl Character {
             if let Some(tool) = tool {
                 if self.has_available(&tool.code) > 0 {
                     self.reserv_if_needed_and_available(Slot::Weapon, tool);
-                    self.equip_item_from_bank_or_inventory(Slot::Weapon, tool);
                 } else {
                     self.orderboard.add(Order::new(
                         Some(&self.name),
@@ -609,6 +608,11 @@ impl Character {
                         "gathering".to_string(),
                     ));
                 }
+            }
+        }
+        if let Some(tool) = tool {
+            if self.has_available(&tool.code) > 0 {
+                self.equip_item_from_bank_or_inventory(Slot::Weapon, tool);
             }
         }
         if let Some(map) = map {
