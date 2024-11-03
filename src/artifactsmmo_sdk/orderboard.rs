@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use log::info;
+use log::{debug, info};
 use std::{
     fmt::Display,
     sync::{Arc, RwLock},
@@ -40,7 +40,7 @@ impl OrderBoard {
     pub fn update(&self, order: Order) {
         if let Some(o) = self.orders().iter().find(|o| o.is_similar(&order)) {
             *o.quantity.write().unwrap() = order.quantity();
-            info!("orderboard: updated: {}.", order)
+            debug!("orderboard: updated: {}.", order)
         } else {
             self.add(order)
         }
