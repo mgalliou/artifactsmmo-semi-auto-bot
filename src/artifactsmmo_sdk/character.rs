@@ -292,6 +292,9 @@ impl Character {
             .iter()
             .find_map(|s| match s {
                 ItemSource::Resource(r) => {
+                    if order.worked_by() >= order.missing() - self.account.in_inventories(&order.item) {
+                        return None;
+                    }
                     order.inc_worked_by(1);
                     let ret = self
                         .gather_resource(r, None)
@@ -301,6 +304,9 @@ impl Character {
                     ret
                 }
                 ItemSource::Monster(m) => {
+                    if order.worked_by() >= order.missing() - self.account.in_inventories(&order.item) {
+                        return None;
+                    }
                     order.inc_worked_by(1);
                     let ret = self
                         .kill_monster(m, None)
