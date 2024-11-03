@@ -243,8 +243,7 @@ impl Items {
             .collect_vec()
     }
 
-    /// Takes a `level` and a `skill` and returns the best items to level the
-    /// skill based on its meterials drop rate, and value on the Grand Exchange.
+    /// Returns the best items to level the given `skill` at the given `level.
     pub fn best_for_leveling_hc(&self, level: i32, skill: Skill) -> Option<&ItemSchema> {
         match skill {
             Skill::Gearcrafting => {
@@ -371,8 +370,7 @@ impl Items {
             sources.push(ItemSource::Craft);
         }
         if self.tasks.rewards.iter().any(|r| r.code == code) {
-            sources.push(ItemSource::TaskReward
-                );
+            sources.push(ItemSource::TaskReward);
         }
         if code == "tasks_coin" {
             sources.push(ItemSource::Task);
