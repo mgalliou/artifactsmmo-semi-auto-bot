@@ -184,13 +184,15 @@ impl Character {
         owner: Option<String>,
     ) -> Result<SimpleItemSchema, RequestError> {
         let _ = self.move_to_closest_map_of_type("bank");
-        if let Some(owner) = owner {
-            self.bank.reserv(code, quantity, &owner);
-        }
         self.perform_action(Action::Deposit { code, quantity })
-            .map(|_| SimpleItemSchema {
-                code: code.to_owned(),
-                quantity,
+            .map(|_| {
+                if let Some(owner) = owner {
+                    let _ = self.bank.reserv(code, quantity, &owner);
+                }
+                SimpleItemSchema {
+                    code: code.to_owned(),
+                    quantity,
+                }
             })
     }
 

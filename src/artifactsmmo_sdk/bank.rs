@@ -28,6 +28,8 @@ impl Bank {
         }
     }
 
+    /// Returns the amount of the given item `code` available to the given `owner`.
+    /// If no owner is given returns the total amount present in the bank.
     pub fn has_item(&self, code: &str, owner: Option<&str>) -> i32 {
         self.content.read().map_or(0, |c| {
             c.iter()
@@ -41,6 +43,20 @@ impl Bank {
                 })
                 .unwrap_or(0)
         })
+    }
+
+    /// Returns the total reservation quantity of the given `item`
+    pub fn quantity_reserved(&self, item: &str) -> i32 {
+        self.reservations()
+            .iter()
+            .filter_map(|r| {
+                if r.item == item {
+                    Some(r.quantity())
+                } else {
+                    None
+                }
+            })
+            .sum()
     }
 
     /// Returns the quantity the given `owner` can withdraw from the bank.
@@ -98,10 +114,19 @@ impl Bank {
         }
     }
 
-    pub fn reserv(&self, item: &str, quantity: i32, owner: &str) {
+    /// Request the `quantity` of the given `item` to be reserved to the player.
+    /// If the reservation already exist increase the `quantity` of the reservation
+    // NOTE: should fail if the item are not available
+    pub fn reserv(&self, item: &str, quantity: i32, owner: &str) -> Result<(), BankError> {
         if let Some(res) = self.get_reservation(owner, item) {
+            if quantity > self.quantity_not_reserved(item) {
+                return Err(BankError::ItemUnavailable);
+            }
             res.inc_quantity(quantity);
         } else {
+            if quantity > self.has_item(item, Some(owner)) {
+                return Err(BankError::ItemUnavailable);
+            }
             let res = Arc::new(Reservation {
                 item: item.to_owned(),
                 quantity: RwLock::new(quantity),
@@ -112,11 +137,16 @@ impl Bank {
                 info!("added reservation to bank: {}", res);
             }
         }
+        Ok(())
+    }
+
+    fn quantity_not_reserved(&self, item: &str) -> i32 {
+        self.has_item(item, None) - self.quantity_reserved(item)
     }
 
     pub fn decrease_reservation(&self, item: &str, quantity: i32, owner: &str) {
         if let Some(res) = self.get_reservation(owner, item) {
-            if *res.quantity.read().unwrap() <= quantity {
+            if quantity >= *res.quantity.read().unwrap() {
                 self.remove_reservation(&res)
             } else {
                 res.dec_quantity(quantity)
@@ -156,6 +186,10 @@ impl Bank {
     }
 }
 
+pub enum BankError {
+    ItemUnavailable,
+}
+
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct Reservation {
@@ -173,6 +207,10 @@ impl Reservation {
     pub fn dec_quantity(&self, i: i32) {
         *self.quantity.write().unwrap() -= i;
         info!("decreased quantity of reservation by '{}': [{}]", i, self);
+    }
+
+    pub fn quantity(&self) -> i32 {
+        *self.quantity.read().unwrap()
     }
 }
 

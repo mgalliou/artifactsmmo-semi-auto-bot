@@ -28,7 +28,7 @@ use itertools::Itertools;
 use log::{error, info, warn};
 use serde::Deserialize;
 use std::{
-    cmp::{max, min},
+    cmp::min,
     io,
     option::Option,
     sync::{Arc, RwLock},
@@ -292,7 +292,9 @@ impl Character {
             .iter()
             .find_map(|s| match s {
                 ItemSource::Resource(r) => {
-                    if order.worked_by() >= order.missing() - self.account.in_inventories(&order.item) {
+                    if order.worked_by()
+                        >= order.missing() - self.account.in_inventories(&order.item)
+                    {
                         return None;
                     }
                     order.inc_worked_by(1);
@@ -304,7 +306,9 @@ impl Character {
                     ret
                 }
                 ItemSource::Monster(m) => {
-                    if order.worked_by() >= order.missing() - self.account.in_inventories(&order.item) {
+                    if order.worked_by()
+                        >= order.missing() - self.account.in_inventories(&order.item)
+                    {
                         return None;
                     }
                     order.inc_worked_by(1);
@@ -374,10 +378,9 @@ impl Character {
     }
 
     fn exchange_task(&self) -> Result<TasksRewardSchema, CharacterError> {
-        if self.bank.has_item("tasks_coin", Some(&self.name)) < 6 {
+        if self.bank.reserv("tasks_coin", 6, &self.name).is_err() {
             return Err(CharacterError::NotEnoughCoin);
         }
-        self.bank.reserv("tasks_coin", 6, &self.name);
         self.deposit_all();
         self.action_withdraw("tasks_coin", 6)?;
         self.action_task_exchange().map_err(|e| e.into())
@@ -458,10 +461,11 @@ impl Character {
 
         if in_bank >= missing {
             let q = min(missing, self.inventory_max_items());
-            self.bank.reserv(item, q, &self.name);
+            let _ = self.bank.reserv(item, q, &self.name);
             self.deposit_all();
             if let Err(e) = self.action_withdraw(item, q) {
-                error!("{}: error while withdrawing {:?}", self.name, e)
+                error!("{}: error while withdrawing {:?}", self.name, e);
+                self.bank.decrease_reservation(item, q, &self.name);
             };
             self.action_task_trade(item, q).is_ok()
         } else {
@@ -1345,9 +1349,8 @@ impl Character {
                 .equiped_in(s)
                 .is_some_and(|equiped| item.code != equiped.code))
             && self.has_in_inventory(&item.code) < 1
-            && self.bank.has_item(&item.code, Some(&self.name)) > 0
         {
-            self.bank.reserv(&item.code, 1, &self.name)
+            let _ = self.bank.reserv(&item.code, 1, &self.name);
         }
     }
 
