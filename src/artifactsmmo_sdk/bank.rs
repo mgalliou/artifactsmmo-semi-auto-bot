@@ -137,6 +137,15 @@ impl Bank {
         }
     }
 
+    pub fn reservations(&self) -> Vec<Arc<Reservation>> {
+        self.reservations
+            .read()
+            .unwrap()
+            .iter()
+            .cloned()
+            .collect_vec()
+    }
+
     pub fn get_reservation(&self, owner: &str, item: &str) -> Option<Arc<Reservation>> {
         self.reservations
             .read()

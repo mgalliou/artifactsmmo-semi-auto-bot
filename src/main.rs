@@ -1,5 +1,10 @@
 use artifactsmmo_playground::artifactsmmo_sdk::{
-    account::Account, character::Character, game::Game, items::Items, orderboard::{Order, OrderBoard},
+    account::Account,
+    bank::Bank,
+    character::Character,
+    game::Game,
+    items::Items,
+    orderboard::{Order, OrderBoard},
     skill::Skill,
 };
 use figment::{
@@ -69,8 +74,22 @@ fn handle_cmd_line(line: String, game: &Arc<Game>, account: &Account) {
             "items" => handle_items(&args[1..], &game.items),
             "char" => handle_char(&args[1..], account),
             "orderboard" => handle_orderboard(&args[1..], &game.orderboard),
+            "bank" => handle_bank(&args[1..], &account.bank),
             _ => println!("error"),
         }
+    }
+}
+
+fn handle_bank(args: &[&str], bank: &Bank) {
+    match args.first() {
+        Some(verb) => match *verb {
+            "res" => {
+                println!("reservations:");
+                bank.reservations().iter().for_each(|r| println!("{}", r));
+            }
+            _ => println!("invalid verb"),
+        },
+        None => eprint!("missing verb"),
     }
 }
 
