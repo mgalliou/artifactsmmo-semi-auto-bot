@@ -37,6 +37,15 @@ impl OrderBoard {
         }
     }
 
+    pub fn update(&self, order: Order) {
+        if let Some(o) = self.orders().iter().find(|o| o.is_similar(&order)) {
+            *o.quantity.write().unwrap() = order.quantity();
+            info!("orderboard: updated: {}.", order)
+        } else {
+            self.add(order)
+        }
+    }
+
     pub fn remove(&self, order: &Order) {
         if let Ok(mut queue) = self.orders.write() {
             if queue.iter().any(|r| r.is_similar(order)) {
@@ -69,7 +78,7 @@ impl OrderBoard {
 pub struct Order {
     pub owner: Option<String>,
     pub item: String,
-    pub quantity: i32,
+    pub quantity: RwLock<i32>,
     pub priority: i32,
     pub reason: String,
     pub worked_by: RwLock<i32>,
@@ -79,11 +88,17 @@ pub struct Order {
 }
 
 impl Order {
-    pub fn new(owner: Option<&str>, item: &str, quantity: i32, priority: i32, reason: String) -> Self {
+    pub fn new(
+        owner: Option<&str>,
+        item: &str,
+        quantity: i32,
+        priority: i32,
+        reason: String,
+    ) -> Self {
         Order {
             owner: owner.map(|o| o.to_owned()),
             item: item.to_owned(),
-            quantity,
+            quantity: RwLock::new(quantity),
             priority,
             reason: reason.to_owned(),
             worked_by: RwLock::new(0),
@@ -93,9 +108,7 @@ impl Order {
     }
 
     fn is_similar(&self, other: &Order) -> bool {
-        self.item == other.item
-        && self.owner == other.owner
-        && self.reason == other.reason
+        self.item == other.item && self.owner == other.owner && self.reason == other.reason
     }
 
     pub fn worked_by(&self) -> i32 {
@@ -103,7 +116,7 @@ impl Order {
     }
 
     pub fn turned_in(&self) -> bool {
-        self.deposited() >= self.quantity
+        self.deposited() >= self.quantity()
     }
 
     pub fn being_crafted(&self) -> i32 {
@@ -117,8 +130,12 @@ impl Order {
         0
     }
 
+    pub fn quantity(&self) -> i32 {
+        *self.quantity.read().unwrap()
+    }
+
     pub fn missing(&self) -> i32 {
-        self.quantity - self.deposited()
+        self.quantity() - self.deposited()
     }
 
     pub fn inc_deposited(&self, n: i32) {
@@ -156,7 +173,7 @@ impl Display for Order {
             self.priority,
             self.item,
             self.deposited(),
-            self.quantity,
+            self.quantity(),
             self.owner,
             self.reason,
         )

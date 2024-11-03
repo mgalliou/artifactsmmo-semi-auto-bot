@@ -187,7 +187,7 @@ impl Character {
                                 )
                                 .iter()
                                 .for_each(|m| {
-                                    self.orderboard.add(Order::new(
+                                    self.orderboard.update(Order::new(
                                         Some(&self.name),
                                         &m.code,
                                         m.quantity,
@@ -246,10 +246,10 @@ impl Character {
 
     fn order_missing_mats(&self, order: &Order) {
         self.bank
-            .missing_mats_for(&order.item, order.quantity, Some(&self.name))
+            .missing_mats_for(&order.item, order.missing(), Some(&self.name))
             .iter()
             .for_each(|m| {
-                self.orderboard.add(Order::new(
+                self.orderboard.update(Order::new(
                     None,
                     &m.code,
                     m.quantity,
@@ -267,7 +267,7 @@ impl Character {
                 self.can_craft(&order.item).is_ok()
                     && self
                         .bank
-                        .missing_mats_for(&order.item, order.quantity, Some(&self.name))
+                        .missing_mats_for(&order.item, order.quantity(), Some(&self.name))
                         .is_empty()
             }
             ItemSource::TaskReward => self.bank.has_item("tasks_coin", Some(&self.name)) >= 6,
