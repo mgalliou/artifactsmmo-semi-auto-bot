@@ -232,20 +232,14 @@ impl Character {
         self.items.sources_of(&order.item).iter().any(|s| match s {
             ItemSource::Resource(r) => self.can_gather(r).is_ok(),
             ItemSource::Monster(m) => self.can_kill(m).is_ok(),
-            ItemSource::Craft => {
-                if self.can_craft(&order.item).is_ok() {
-                    if let Ok(mut m) = order.missing_mats_ordered.write() {
-                        if !(*m) {
-                            *m = true;
-                            self.order_missing_mats(order);
-                        }
-                    }
-                    true
-                } else {
-                    false
-                }
-            }
-            ItemSource::TaskReward => true,
+            ItemSource::Craft => self.can_craft(&order.item).is_ok_and(|_| {
+                if order.being_crafted() <= 0 {
+                    // NOTE: Maybe ordering missing mats should be done elsewhere
+                    self.order_missing_mats(order);
+                };
+                true
+            }),
+            ItemSource::TaskReward => order.worked_by() <= 0,
             ItemSource::Task => true,
         })
     }
@@ -277,7 +271,9 @@ impl Character {
                         .is_empty()
             }
             ItemSource::TaskReward => self.bank.has_item("tasks_coin", Some(&self.name)) >= 6,
-            ItemSource::Task => false,
+            ItemSource::Task => {
+                self.bank.has_item(&self.task(), Some(&self.name)) >= self.task_missing()
+            }
         })
     }
 
@@ -416,8 +412,7 @@ impl Character {
             );
             if quantity > 0 {
                 order.inc_being_crafted(quantity);
-                let crafted =
-                    self.craft_from_bank_unchecked(&order.item, quantity, PostCraftAction::None);
+                let crafted = self.craft_from_bank(&order.item, quantity, PostCraftAction::None);
                 if crafted.as_ref().is_ok_and(|crafted| *crafted > 0) {
                     self.deposit_order(order);
                 }
