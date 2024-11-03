@@ -344,7 +344,7 @@ impl Character {
                 if let CharacterError::NotEnoughCoin = e {
                     let q = 6 - self.bank.has_item("tasks_coin", Some(&self.name));
                     self.orderboard
-                        .add(Order::new(None, "tasks_coin", q, 1, format!("{}", order)));
+                        .add(Order::new(None, "tasks_coin", q, 1, order.to_string()))
                 }
                 None
             }
