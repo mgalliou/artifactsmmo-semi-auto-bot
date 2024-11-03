@@ -291,34 +291,14 @@ impl Character {
             .sources_of(&order.item)
             .iter()
             .find_map(|s| match s {
-                ItemSource::Resource(r) => {
-                    if order.worked_by()
-                        >= order.missing() - self.account.in_inventories(&order.item)
-                    {
-                        return None;
-                    }
-                    order.inc_worked_by(1);
-                    let ret = self
-                        .gather_resource(r, None)
-                        .ok()
-                        .map(|gather| gather.amount_of(&order.item));
-                    order.dec_worked_by(1);
-                    ret
-                }
-                ItemSource::Monster(m) => {
-                    if order.worked_by()
-                        >= order.missing() - self.account.in_inventories(&order.item)
-                    {
-                        return None;
-                    }
-                    order.inc_worked_by(1);
-                    let ret = self
-                        .kill_monster(m, None)
-                        .ok()
-                        .map(|fight| fight.amount_of(&order.item));
-                    order.dec_worked_by(1);
-                    ret
-                }
+                ItemSource::Resource(r) => self
+                    .gather_resource(r, None)
+                    .ok()
+                    .map(|gather| gather.amount_of(&order.item)),
+                ItemSource::Monster(m) => self
+                    .kill_monster(m, None)
+                    .ok()
+                    .map(|fight| fight.amount_of(&order.item)),
                 ItemSource::Craft => self.progress_crafting_order(order),
                 ItemSource::TaskReward => self.progress_task_reward_order(order),
                 ItemSource::Task => self.progress_task_order(),
@@ -414,7 +394,9 @@ impl Character {
     }
 
     fn progress_crafting_order(&self, order: &Order) -> Option<i32> {
-        if order.being_crafted() < order.missing() && self.can_craft(&order.item).is_ok() {
+        if self.can_craft(&order.item).is_ok()
+            && order.being_crafted() < order.missing() - self.account.in_inventories(&order.item)
+        {
             let quantity = min(
                 self.max_craftable_items(&order.item),
                 order.missing() - order.being_crafted() - self.account.in_inventories(&order.item),
