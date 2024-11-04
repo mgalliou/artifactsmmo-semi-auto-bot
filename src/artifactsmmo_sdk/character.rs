@@ -381,7 +381,7 @@ impl Character {
         let q = self.has_in_inventory(&order.item);
         if q > 0
             && self
-                .action_deposit(&order.item, q, order.owner.clone())
+                .action_deposit(&order.item, min(q, order.missing()), order.owner.clone())
                 .is_ok()
         {
             order.inc_deposited(q);
@@ -404,9 +404,6 @@ impl Character {
             if quantity > 0 {
                 order.inc_being_crafted(quantity);
                 let crafted = self.craft_from_bank(&order.item, quantity, PostCraftAction::None);
-                if crafted.as_ref().is_ok_and(|crafted| *crafted > 0) {
-                    self.deposit_order(order);
-                }
                 order.dec_being_crafted(quantity);
                 return crafted.ok();
             }
