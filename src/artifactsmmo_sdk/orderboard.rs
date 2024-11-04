@@ -56,12 +56,7 @@ impl OrderBoard {
     }
 
     pub fn has_similar(&self, other: &Order) -> bool {
-        match self.orders.read() {
-            Ok(queue) => {
-                return queue.iter().any(|r| r.is_similar(other));
-            }
-            _ => false,
-        }
+        self.orders().iter().any(|o| o.is_similar(other))
     }
 
     pub fn notify_deposit(&self, code: &str, quantity: i32) {

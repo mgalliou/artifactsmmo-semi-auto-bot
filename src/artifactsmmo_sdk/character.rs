@@ -21,7 +21,8 @@ use super::{
 use crate::artifactsmmo_sdk::char_config::Goal;
 use actions::{PostCraftAction, RequestError};
 use artifactsmmo_openapi::models::{
-    fight_schema, CharacterSchema, FightSchema, InventorySlot, ItemSchema, MapContentSchema, MapSchema, MonsterSchema, ResourceSchema, SimpleItemSchema, SkillDataSchema, TasksRewardSchema
+    fight_schema, CharacterSchema, FightSchema, InventorySlot, ItemSchema, MapContentSchema,
+    MapSchema, MonsterSchema, ResourceSchema, SimpleItemSchema, SkillDataSchema, TasksRewardSchema,
 };
 use itertools::Itertools;
 use log::{error, info, warn};
@@ -224,7 +225,7 @@ impl Character {
                     // NOTE: Maybe ordering missing mats should be done elsewhere
                     self.order_missing_mats(
                         &order.item,
-                        order.missing(),
+                        order.missing() - self.account.in_inventories(&order.item),
                         order.priority,
                         format!("crafting '{}' for order: {}", order.item, order),
                     );
@@ -503,7 +504,10 @@ impl Character {
                 "{}: found highest killable monster: {}",
                 self.name, monster.code
             );
-            let _ = self.kill_monster(monster, None);
+            if let Err(e) = self.kill_monster(monster, None) {
+                error!("{:?}", e);
+                return false;
+            }
             return true;
         }
         false
@@ -1287,7 +1291,13 @@ impl Character {
         });
     }
 
-    fn order_if_needed(&self, slot: Slot, item: &ItemSchema, priority: i32, reason: String) -> bool {
+    fn order_if_needed(
+        &self,
+        slot: Slot,
+        item: &ItemSchema,
+        priority: i32,
+        reason: String,
+    ) -> bool {
         if (self.equiped_in(slot).is_none()
             || self
                 .equiped_in(slot)
@@ -1300,7 +1310,7 @@ impl Character {
                 &item.code,
                 1,
                 priority,
-                format!("{} ({:?})", reason, slot)
+                format!("{} ({:?})", reason, slot),
             ));
             return true;
         }
