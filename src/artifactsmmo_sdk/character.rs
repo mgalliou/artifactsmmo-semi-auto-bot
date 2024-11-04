@@ -21,8 +21,7 @@ use super::{
 use crate::artifactsmmo_sdk::char_config::Goal;
 use actions::{PostCraftAction, RequestError};
 use artifactsmmo_openapi::models::{
-    fight_schema, CharacterSchema, FightSchema, InventorySlot, ItemSchema, MapContentSchema,
-    MapSchema, MonsterSchema, ResourceSchema, SkillDataSchema, TasksRewardSchema,
+    fight_schema, CharacterSchema, FightSchema, InventorySlot, ItemSchema, MapContentSchema, MapSchema, MonsterSchema, ResourceSchema, SimpleItemSchema, SkillDataSchema, TasksRewardSchema
 };
 use itertools::Itertools;
 use log::{error, info, warn};
@@ -108,9 +107,6 @@ impl Character {
                 continue;
             }
             self.process_inventory();
-            if self.handle_orderboard() {
-                continue;
-            }
             if let Some(craft) = self.conf().target_craft {
                 if self
                     .craft_max_from_bank(&craft, PostCraftAction::Deposit)
@@ -120,6 +116,7 @@ impl Character {
                 }
             }
             if self.conf().goals.iter().any(|g| match g {
+                Goal::Orders => self.handle_orderboard(),
                 Goal::ReachLevel { level } => self.level() < *level && self.find_and_kill(),
                 Goal::ReachSkillLevel { skill, level } => {
                     if self.skill_level(*skill) < *level {
@@ -1290,10 +1287,10 @@ impl Character {
         });
     }
 
-    fn order_if_needed(&self, s: Slot, item: &ItemSchema, priority: i32, reason: String) -> bool {
-        if (self.equiped_in(s).is_none()
+    fn order_if_needed(&self, slot: Slot, item: &ItemSchema, priority: i32, reason: String) -> bool {
+        if (self.equiped_in(slot).is_none()
             || self
-                .equiped_in(s)
+                .equiped_in(slot)
                 .is_some_and(|equiped| item.code != equiped.code))
             && self.has_in_inventory(&item.code) < 1
             && self.bank.has_item(&item.code, Some(&self.name)) < 1
@@ -1303,7 +1300,7 @@ impl Character {
                 &item.code,
                 1,
                 priority,
-                reason,
+                format!("{} ({:?})", reason, slot)
             ));
             return true;
         }

@@ -26,6 +26,7 @@ pub struct CharConfig {
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all(deserialize = "snake_case"))]
 pub enum Goal {
+    Orders,
     ReachLevel { level: i32 },
     ReachSkillLevel { skill: Skill, level: i32 },
 }
@@ -33,6 +34,9 @@ pub enum Goal {
 impl Display for Goal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Goal::Orders => {
+                write!(f, "progress orders")
+            }
             Goal::ReachLevel { level } => write!(f, "reach_level: {}", level),
             Goal::ReachSkillLevel { skill, level } => {
                 write!(f, "reach_skill_level: {},{}", skill, level)
