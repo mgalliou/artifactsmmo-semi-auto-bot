@@ -172,29 +172,19 @@ impl Character {
                     self.max_craftable_items(&i.code),
                     PostCraftAction::Recycle,
                 ) {
-                    Ok(_) => {
-                        info!("{} crafted {} to level up.", self.name, i.code);
+                    Ok(n) => {
+                        info!("{} crafted '{}'x{} to level up.", self.name, i.code, n);
                         self.deposit_all();
                         true
                     }
                     Err(e) => {
                         if let CharacterError::InsuffisientMaterials = e {
-                            self.bank
-                                .missing_mats_for(
-                                    &i.code,
-                                    self.max_craftable_items(&i.code),
-                                    Some(&self.name),
-                                )
-                                .iter()
-                                .for_each(|m| {
-                                    self.orderboard.update(Order::new(
-                                        Some(&self.name),
-                                        &m.code,
-                                        m.quantity,
-                                        1,
-                                        format!("'{}' (leveling '{}')", i.code, skill),
-                                    ))
-                                })
+                            self.order_missing_mats(
+                                &i.code,
+                                self.max_craftable_items(&i.code),
+                                1,
+                                format!("'{}' (leveling '{}')", i.code, skill),
+                            )
                         }
                         false
                     }
@@ -235,7 +225,12 @@ impl Character {
             ItemSource::Craft => self.can_craft(&order.item).is_ok_and(|_| {
                 if order.being_crafted() <= 0 {
                     // NOTE: Maybe ordering missing mats should be done elsewhere
-                    self.order_missing_mats(order);
+                    self.order_missing_mats(
+                        &order.item,
+                        order.missing(),
+                        order.priority,
+                        format!("crafting '{}' for order: {}", order.item, order),
+                    );
                 };
                 true
             }),
@@ -244,17 +239,20 @@ impl Character {
         })
     }
 
-    fn order_missing_mats(&self, order: &Order) {
+    /// Creates orders based on the missing (not available in bank) materials requiered to craft
+    /// the `quantity` of the given `item`. Orders are created with the given `priority` and
+    /// `reason`.
+    fn order_missing_mats(&self, item: &str, quantity: i32, priority: i32, reason: String) {
         self.bank
-            .missing_mats_for(&order.item, order.missing(), Some(&self.name))
+            .missing_mats_for(item, quantity, Some(&self.name))
             .iter()
             .for_each(|m| {
                 self.orderboard.update(Order::new(
                     None,
                     &m.code,
                     m.quantity,
-                    order.priority,
-                    format!("crafting '{}' for order: {}", order.item, order),
+                    priority,
+                    reason.clone(),
                 ));
             });
     }
