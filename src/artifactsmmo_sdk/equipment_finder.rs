@@ -48,14 +48,7 @@ impl EquipmentFinder {
         self.items
             .equipable_at_level(char.level(), Type::Weapon)
             .iter()
-            .filter(|i| 
-                !i.is_crafted_with("jasper_crystal")
-                && match filter {
-                Filter::All => i.level < 40,
-                Filter::Available => char.has_available(&i.code) > 0,
-                Filter::Craftable => char.account.can_craft(&i.code),
-                Filter::Farmable => todo!(),
-            })
+            .filter(|i| Self::is_eligible(i, filter, char))
             .flat_map(|w| self.best_against_with_weapon(char, monster, filter, w))
             .collect_vec()
     }
@@ -153,15 +146,7 @@ impl EquipmentFinder {
             .items
             .equipable_at_level(char.level(), r#type)
             .into_iter()
-            .filter(|i| {
-                !i.is_crafted_with("jasper_crystal")
-                    && match filter {
-                        Filter::All => i.level < 40,
-                        Filter::Available => char.has_available(&i.code) > 0,
-                        Filter::Craftable => char.account.can_craft(&i.code),
-                        Filter::Farmable => todo!(),
-                    }
-            })
+            .filter(|i| Self::is_eligible(i, filter, char))
             .collect_vec();
         let damage_increases = equipables
             .iter()
@@ -377,6 +362,16 @@ impl EquipmentFinder {
                 .min_by_key(|i| OrderedFloat(i.damage_from(monster)))
         }
         upgrade.copied()
+    }
+
+    fn is_eligible(i: &ItemSchema, filter: Filter, char: &Character) -> bool {
+        !i.is_crafted_with("jasper_crystal")
+            && match filter {
+                Filter::All => i.level < 40,
+                Filter::Available => char.has_available(&i.code) > 0,
+                Filter::Craftable => char.account.can_craft(&i.code),
+                Filter::Farmable => todo!(),
+            }
     }
 }
 
