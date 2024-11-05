@@ -3,14 +3,15 @@ use super::equipment::Slot;
 use super::skill::Skill;
 use super::tasks::Tasks;
 use super::{api::items::ItemsApi, monsters::Monsters, resources::Resources};
-use super::{average_dmg, ItemSchemaExt, MonsterSchemaExt};
+use super::{average_dmg, persist_data, retreive_data, ItemSchemaExt, MonsterSchemaExt};
 use artifactsmmo_openapi::models::{
     CraftSchema, GeItemSchema, ItemEffectSchema, ItemSchema, SimpleItemSchema,
 };
 use artifactsmmo_openapi::models::{MonsterSchema, ResourceSchema};
 use itertools::Itertools;
-use log::debug;
+use log::{debug, error};
 use std::fmt;
+use std::path::Path;
 use std::str::FromStr;
 use std::{sync::Arc, vec::Vec};
 use strum::IntoEnumIterator;
@@ -32,10 +33,20 @@ impl Items {
         tasks: &Arc<Tasks>,
     ) -> Items {
         let api = ItemsApi::new(&config.base_url, &config.token);
-        Items {
-            data: api
+        let path = Path::new(".cache/items.json");
+        let data = if let Ok(data) = retreive_data::<Vec<ItemSchema>>(path) {
+            data
+        } else {
+            let data = api
                 .all(None, None, None, None, None, None)
-                .expect("items to be retrieved from API."),
+                .expect("items to be retrieved from API.");
+            if let Err(e) = persist_data(&data, path) {
+                error!("failed to persist items data: {}", e);
+            }
+            data
+        };
+        Items {
+            data,
             api,
             resources: resources.clone(),
             monsters: monsters.clone(),

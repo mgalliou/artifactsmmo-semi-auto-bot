@@ -22,7 +22,7 @@ use crate::artifactsmmo_sdk::char_config::Goal;
 use actions::{PostCraftAction, RequestError};
 use artifactsmmo_openapi::models::{
     fight_schema, CharacterSchema, FightSchema, InventorySlot, ItemSchema, MapContentSchema,
-    MapSchema, MonsterSchema, ResourceSchema, SimpleItemSchema, SkillDataSchema, TasksRewardSchema,
+    MapSchema, MonsterSchema, ResourceSchema, SkillDataSchema, TasksRewardSchema,
 };
 use itertools::Itertools;
 use log::{error, info, warn};
@@ -486,6 +486,9 @@ impl Character {
 
     /// Find a target and kill it if possible.
     fn find_and_kill(&self) -> bool {
+        if !self.skill_enabled(Skill::Combat) {
+            return false;
+        }
         if let Some(monster_code) = &self.conf().target_monster {
             if let Some(monster) = self.monsters.get(monster_code) {
                 if self.kill_monster(monster, None).is_ok() {

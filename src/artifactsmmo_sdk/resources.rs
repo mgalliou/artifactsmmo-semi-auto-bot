@@ -1,5 +1,7 @@
-use super::{api::resources::ResourcesApi, config::Config, skill::Skill};
+use super::{api::resources::ResourcesApi, config::Config, persist_data, skill::Skill};
 use artifactsmmo_openapi::models::ResourceSchema;
+use log::error;
+use std::{fs::read_to_string, path::Path};
 
 pub struct Resources {
     pub data: Vec<ResourceSchema>,
@@ -8,11 +10,20 @@ pub struct Resources {
 impl Resources {
     pub fn new(config: &Config) -> Resources {
         let api = ResourcesApi::new(&config.base_url, &config.token);
-        Resources {
-            data: api
+        let path = Path::new(".cache/resources.json");
+        let data = if path.exists() {
+            let content = read_to_string(path).unwrap();
+            serde_json::from_str(&content).unwrap()
+        } else {
+            let data = api
                 .all(None, None, None, None)
-                .expect("resources to be retrieved from API."),
-        }
+                .expect("items to be retrieved from API.");
+            if let Err(e) = persist_data(&data, path) {
+                error!("failed to persist ressources data: {}", e);
+            }
+            data
+        };
+        Resources { data }
     }
 
     pub fn get(&self, code: &str) -> Option<&ResourceSchema> {

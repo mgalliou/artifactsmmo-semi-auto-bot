@@ -1,10 +1,13 @@
 use artifactsmmo_openapi::models::{
-    CharacterSchema, CraftSchema, ItemEffectSchema, ItemSchema, MapContentSchema, MonsterSchema, ResourceSchema, SimpleItemSchema
+    CharacterSchema, CraftSchema, ItemEffectSchema, ItemSchema, MapContentSchema, MonsterSchema,
+    ResourceSchema, SimpleItemSchema,
 };
 use downcast_rs::{impl_downcast, Downcast};
+use fs_extra::file::{read_to_string, write_all};
 use items::{DamageType, Type};
 use serde::{Deserialize, Serialize};
 use skill::Skill;
+use std::path::Path;
 
 pub mod account;
 pub mod api;
@@ -99,4 +102,17 @@ pub fn average_dmg(attack_damage: i32, damage_increase: i32, target_resistance: 
         * (1.0 + damage_increase as f32 / 100.0)
         * (1.0 - target_resistance as f32 / 100.0)
         * (1.0 + (target_resistance as f32 / 10.0 / 100.0))
+}
+
+pub fn retreive_data<T: for<'a> Deserialize<'a>>(
+    path: &Path,
+) -> Result<T, Box<dyn std::error::Error>> {
+    Ok(serde_json::from_str(&read_to_string(path)?)?)
+}
+
+pub fn persist_data<T: Serialize>(
+    data: &Vec<T>,
+    path: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    Ok(write_all(path, &serde_json::to_string_pretty(&data)?)?)
 }

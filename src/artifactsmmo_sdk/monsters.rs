@@ -1,5 +1,10 @@
-use super::{api::monsters::MonstersApi, config::Config, items::DamageType, MonsterSchemaExt};
+use super::{
+    api::monsters::MonstersApi, config::Config, items::DamageType, persist_data, retreive_data,
+    MonsterSchemaExt,
+};
 use artifactsmmo_openapi::models::MonsterSchema;
+use log::error;
+use std::path::Path;
 
 pub struct Monsters {
     pub data: Vec<MonsterSchema>,
@@ -8,13 +13,20 @@ pub struct Monsters {
 impl Monsters {
     pub fn new(config: &Config) -> Monsters {
         let api = MonstersApi::new(&config.base_url, &config.token);
-        Monsters {
-            data: api
+        let path = Path::new(".cache/monsters.json");
+        let data = if let Ok(data) = retreive_data::<Vec<MonsterSchema>>(path) {
+            data
+        } else {
+            let data = api
                 .all(None, None, None)
-                .expect("monsters to be retrieved from API."),
-        }
+                .expect("items to be retrieved from API.");
+            if let Err(e) = persist_data(&data, path) {
+                error!("failed to persist monsters data: {}", e);
+            }
+            data
+        };
+        Monsters { data }
     }
-
     pub fn get(&self, code: &str) -> Option<&MonsterSchema> {
         self.data.iter().find(|m| m.code == code)
     }
