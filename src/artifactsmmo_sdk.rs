@@ -98,10 +98,13 @@ pub trait ApiRequestError {}
 /// chance is considered as a global damage reduction (30 resistence reduce the computed damage by
 /// 3%).
 pub fn average_dmg(attack_damage: i32, damage_increase: i32, target_resistance: i32) -> f32 {
-    attack_damage as f32
+    let mut dmg = attack_damage as f32
         * (1.0 + damage_increase as f32 / 100.0)
-        * (1.0 - target_resistance as f32 / 100.0)
-        * (1.0 + (target_resistance as f32 / 10.0 / 100.0))
+        * (1.0 - target_resistance as f32 / 100.0);
+    if target_resistance > 0 {
+        dmg *= 1.0 - (target_resistance as f32 / 10.0 / 100.0)
+    };
+    dmg
 }
 
 pub fn retreive_data<T: for<'a> Deserialize<'a>>(
