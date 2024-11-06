@@ -52,12 +52,10 @@ impl Events {
     pub fn of_type(&self, r#type: &str) -> Vec<ActiveEventSchema> {
         self.events
             .read()
+            .unwrap()
             .iter()
-            .flat_map(|e| {
-                e.iter()
-                    .filter(|e| e.map.content().is_some_and(|c| c.r#type == r#type))
-                    .cloned()
-            })
+            .filter(|e| e.map.content().is_some_and(|c| c.r#type == r#type))
+            .cloned()
             .collect_vec()
     }
 }

@@ -69,7 +69,7 @@ impl Character {
         data: &Arc<RwLock<CharacterSchema>>,
     ) -> Character {
         Character {
-            name: data.read().map(|d| d.name.to_owned()).unwrap(),
+            name: data.read().unwrap().name.to_owned(),
             conf: conf.clone(),
             my_api: MyCharacterApi::new(&config.base_url, &config.token),
             api: CharactersApi::new(&config.base_url, &config.token),
@@ -248,8 +248,13 @@ impl Character {
             .missing_mats_for(item, quantity, Some(&self.name))
             .iter()
             .for_each(|m| {
-                self.orderboard
-                    .add(Order::new(None, &m.code, m.quantity, priority, purpose.clone()));
+                self.orderboard.add(Order::new(
+                    None,
+                    &m.code,
+                    m.quantity,
+                    priority,
+                    purpose.clone(),
+                ));
             });
     }
 
@@ -321,8 +326,13 @@ impl Character {
             Err(e) => {
                 if let CharacterError::NotEnoughCoin = e {
                     let q = 6 - self.bank.has_item("tasks_coin", Some(&self.name));
-                    self.orderboard
-                        .add(Order::new(None, "tasks_coin", q, 1, order.purpose.to_owned()))
+                    self.orderboard.add(Order::new(
+                        None,
+                        "tasks_coin",
+                        q,
+                        1,
+                        order.purpose.to_owned(),
+                    ))
                 }
                 None
             }
@@ -447,7 +457,9 @@ impl Character {
                 &self.task(),
                 missing - self.bank.has_item(item, Some(&self.name)),
                 1,
-                Purpose::Task { char: self.name.to_owned() },
+                Purpose::Task {
+                    char: self.name.to_owned(),
+                },
             ));
             false
         }
@@ -670,7 +682,8 @@ impl Character {
 
     /// Returns the current `Equipment` of the `Character`, containing item schemas.
     pub fn equipment(&self) -> Gear {
-        self.data.read().map_or(Gear::default(), |d| Gear {
+        let d = self.data.read().unwrap();
+        Gear {
             weapon: self.items.get(&d.weapon_slot),
             shield: self.items.get(&d.shield_slot),
             helmet: self.items.get(&d.helmet_slot),
@@ -685,7 +698,7 @@ impl Character {
             artifact3: self.items.get(&d.artifact3_slot),
             consumable1: self.items.get(&d.consumable1_slot),
             consumable2: self.items.get(&d.consumable2_slot),
-        })
+        }
     }
 
     /// Returns the item equiped in the `given` slot.
@@ -944,32 +957,43 @@ impl Character {
     /// `inventory_max_items` is reached).
     fn inventory_is_full(&self) -> bool {
         self.inventory_total() >= self.inventory_max_items()
-            || self.data.read().map_or(false, |d| {
-                d.inventory.iter().flatten().all(|s| s.quantity > 0)
-            })
+            || self
+                .data
+                .read()
+                .unwrap()
+                .inventory
+                .iter()
+                .flatten()
+                .all(|s| s.quantity > 0)
     }
 
     /// Returns the amount of the given item `code` in the `Character` inventory.
     pub fn has_in_inventory(&self, code: &str) -> i32 {
-        self.data.read().map_or(0, |d| {
-            d.inventory
-                .iter()
-                .flatten()
-                .find(|i| i.code == code)
-                .map_or(0, |i| i.quantity)
-        })
+        self.data
+            .read()
+            .unwrap()
+            .inventory
+            .iter()
+            .flatten()
+            .find(|i| i.code == code)
+            .map_or(0, |i| i.quantity)
     }
 
     /// Returns the amount of item in the `Character` inventory.
     fn inventory_total(&self) -> i32 {
-        self.data.read().map_or(0, |d| {
-            d.inventory.iter().flatten().map(|i| i.quantity).sum()
-        })
+        self.data
+            .read()
+            .unwrap()
+            .inventory
+            .iter()
+            .flatten()
+            .map(|i| i.quantity)
+            .sum()
     }
 
     /// Returns the maximum number of item the inventory can contain.
     fn inventory_max_items(&self) -> i32 {
-        self.data.read().map_or(0, |d| d.inventory_max_items)
+        self.data.read().unwrap().inventory_max_items
     }
 
     /// Returns the free spaces in the `Character` inventory.
@@ -993,9 +1017,11 @@ impl Character {
     fn inventory_copy(&self) -> Vec<InventorySlot> {
         self.data
             .read()
-            .map(|d| d.inventory.iter().flatten().cloned().collect_vec())
-            .into_iter()
+            .unwrap()
+            .inventory
+            .iter()
             .flatten()
+            .cloned()
             .collect_vec()
     }
 
@@ -1004,16 +1030,12 @@ impl Character {
     fn inventory_raw_mats(&self) -> Vec<&ItemSchema> {
         self.data
             .read()
-            .map(|d| {
-                d.inventory
-                    .iter()
-                    .flatten()
-                    .filter_map(|slot| self.items.get(&slot.code))
-                    .filter(|i| i.is_raw_mat())
-                    .collect_vec()
-            })
-            .into_iter()
+            .unwrap()
+            .inventory
+            .iter()
             .flatten()
+            .filter_map(|slot| self.items.get(&slot.code))
+            .filter(|i| i.is_raw_mat())
             .collect_vec()
     }
 
@@ -1088,7 +1110,8 @@ impl Character {
 
     /// Returns the `Character` position (coordinates).
     fn position(&self) -> (i32, i32) {
-        let (x, y) = self.data.read().map_or((0, 0), |d| (d.x, d.y));
+        let d = self.data.read().unwrap();
+        let (x, y) = (d.x, d.y);
         (x, y)
     }
 
@@ -1179,12 +1202,13 @@ impl Character {
     }
 
     fn resistance(&self, r#type: DamageType) -> i32 {
-        self.data.read().map_or(0, |d| match r#type {
+        let d = self.data.read().unwrap();
+        match r#type {
             DamageType::Air => d.res_air,
             DamageType::Earth => d.res_earth,
             DamageType::Fire => d.res_fire,
             DamageType::Water => d.res_water,
-        })
+        }
     }
 
     fn attack_damage_from(&self, monster: &MonsterSchema) -> f32 {
@@ -1222,23 +1246,19 @@ impl Character {
     }
 
     fn task(&self) -> String {
-        self.data
-            .read()
-            .map_or("".to_string(), |d| d.task.to_owned())
+        self.data.read().unwrap().task.to_owned()
     }
 
     fn task_type(&self) -> String {
-        self.data
-            .read()
-            .map_or("".to_string(), |d| d.task_type.to_owned())
+        self.data.read().unwrap().task_type.to_owned()
     }
 
     fn task_progress(&self) -> i32 {
-        self.data.read().map_or(0, |d| d.task_progress)
+        self.data.read().unwrap().task_progress
     }
 
     fn task_total(&self) -> i32 {
-        self.data.read().map_or(0, |d| d.task_total)
+        self.data.read().unwrap().task_total
     }
 
     fn task_missing(&self) -> i32 {
@@ -1251,12 +1271,13 @@ impl Character {
 
     /// Returns the level of the `Character`.
     pub fn level(&self) -> i32 {
-        self.data.read().map_or(1, |d| d.level)
+        self.data.read().unwrap().level
     }
 
     /// Returns the `Character` level in the given `skill`.
     fn skill_level(&self, skill: Skill) -> i32 {
-        self.data.read().map_or(1, |d| match skill {
+        let d = self.data.read().unwrap();
+        match skill {
             Skill::Combat => d.level,
             Skill::Mining => d.mining_level,
             Skill::Woodcutting => d.woodcutting_level,
@@ -1265,7 +1286,7 @@ impl Character {
             Skill::Gearcrafting => d.gearcrafting_level,
             Skill::Jewelrycrafting => d.jewelrycrafting_level,
             Skill::Cooking => d.cooking_level,
-        })
+        }
     }
 
     /// Returns the base health of the `Character` without its equipment.

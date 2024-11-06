@@ -31,18 +31,19 @@ impl Bank {
     /// Returns the amount of the given item `code` available to the given `owner`.
     /// If no owner is given returns the total amount present in the bank.
     pub fn has_item(&self, code: &str, owner: Option<&str>) -> i32 {
-        self.content.read().map_or(0, |c| {
-            c.iter()
-                .find(|i| i.code == code)
-                .map(|i| {
-                    if let Some(owner) = owner {
-                        self.quantity_allowed(code, owner)
-                    } else {
-                        i.quantity
-                    }
-                })
-                .unwrap_or(0)
-        })
+        self.content
+            .read()
+            .unwrap()
+            .iter()
+            .find(|i| i.code == code)
+            .map(|i| {
+                if let Some(owner) = owner {
+                    self.quantity_allowed(code, owner)
+                } else {
+                    i.quantity
+                }
+            })
+            .unwrap_or(0)
     }
 
     /// Returns the total reservation quantity of the given `item`
@@ -69,15 +70,18 @@ impl Bank {
 
     /// Returns the quantity the given `owner` can't withdraw from the bank.
     pub fn quantity_not_allowed(&self, code: &str, owner: &str) -> i32 {
-        self.reservations.read().map_or(0, |r| {
-            r.iter()
-                .filter(|r| r.owner != owner && r.item == code)
-                .map(|r| *r.quantity.read().unwrap())
-                .sum()
-        })
+        self.reservations
+            .read()
+            .unwrap()
+            .iter()
+            .filter(|r| r.owner != owner && r.item == code)
+            .map(|r| *r.quantity.read().unwrap())
+            .sum()
     }
 
     /// return the number of time the item `code` can be crafted with the mats available in bank
+    //  NOTE: this should maybe return a Option to indicate that the item is not craftable and
+    //  return None in this case
     pub fn has_mats_for(&self, code: &str, owner: Option<&str>) -> i32 {
         self.items
             .mats(code)

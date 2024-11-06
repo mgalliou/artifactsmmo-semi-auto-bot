@@ -358,12 +358,10 @@ impl Character {
     fn cooldown_expiration(&self) -> Option<DateTime<Utc>> {
         self.data
             .read()
-            .map(|d| {
-                d.cooldown_expiration
-                    .as_ref()
-                    .map(|cd| DateTime::parse_from_rfc3339(cd).ok().map(|dt| dt.to_utc()))?
-            })
-            .ok()?
+            .unwrap()
+            .cooldown_expiration
+            .as_ref()
+            .map(|cd| DateTime::parse_from_rfc3339(cd).ok().map(|dt| dt.to_utc()))?
     }
 }
 

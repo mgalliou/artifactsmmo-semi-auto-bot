@@ -125,10 +125,7 @@ impl Order {
     }
 
     pub fn deposited(&self) -> i32 {
-        if let Ok(deposited) = self.deposited.read() {
-            return *deposited;
-        }
-        0
+        *self.deposited.read().unwrap()
     }
 
     pub fn quantity(&self) -> i32 {
