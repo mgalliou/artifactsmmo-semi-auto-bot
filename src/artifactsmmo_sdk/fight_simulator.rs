@@ -1,4 +1,4 @@
-use super::{equipment::Equipment, items::Items, monsters::Monsters};
+use super::{gear::Gear, items::Items, monsters::Monsters};
 use artifactsmmo_openapi::models::{fight_schema::Result, MonsterSchema};
 use std::sync::Arc;
 
@@ -15,7 +15,7 @@ impl FightSimulator {
         }
     }
 
-    pub fn simulate(&self, level: i32, equipment: &Equipment, monster: &MonsterSchema) -> Fight {
+    pub fn simulate(&self, level: i32, equipment: &Gear, monster: &MonsterSchema) -> Fight {
         let mut hp = 115 + 5 * level + equipment.health_increase();
         let mut monster_hp = monster.hp;
         let mut turns = 1;

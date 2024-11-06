@@ -5,10 +5,10 @@ use artifactsmmo_openapi::models::{
 use itertools::Itertools;
 use std::fmt::Display;
 use strum::IntoEnumIterator;
-use strum_macros::{AsRefStr, EnumIs, EnumIter, EnumString};
+use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
 
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
-pub struct Equipment<'a> {
+pub struct Gear<'a> {
     pub weapon: Option<&'a ItemSchema>,
     pub shield: Option<&'a ItemSchema>,
     pub helmet: Option<&'a ItemSchema>,
@@ -25,7 +25,7 @@ pub struct Equipment<'a> {
     pub consumable2: Option<&'a ItemSchema>,
 }
 
-impl<'a> Equipment<'a> {
+impl<'a> Gear<'a> {
     pub fn attack_damage_against(&self, monster: &MonsterSchema) -> f32 {
         DamageType::iter()
             .map(|t| {
@@ -85,7 +85,7 @@ impl<'a> Equipment<'a> {
     }
 }
 
-impl Display for Equipment<'_> {
+impl Display for Gear<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "Weapon: {:?}", self.weapon.map(|w| w.name.to_string()))?;
         writeln!(f, "Shield: {:?}", self.shield.map(|w| w.name.to_string()))?;
@@ -132,8 +132,8 @@ impl Display for Equipment<'_> {
     }
 }
 
-impl From<Equipment<'_>> for Vec<SimpleItemSchema> {
-    fn from(val: Equipment<'_>) -> Self {
+impl From<Gear<'_>> for Vec<SimpleItemSchema> {
+    fn from(val: Gear<'_>) -> Self {
         let mut i = Slot::iter()
             .filter_map(|s| {
                 if s.is_ring_1() || s.is_ring_2() {
@@ -183,7 +183,7 @@ impl From<Equipment<'_>> for Vec<SimpleItemSchema> {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, AsRefStr, EnumString, EnumIter, EnumIs)]
+#[derive(Debug, Copy, Clone, PartialEq, Display, AsRefStr, EnumString, EnumIter, EnumIs)]
 #[strum(serialize_all = "snake_case")]
 pub enum Slot {
     Weapon,

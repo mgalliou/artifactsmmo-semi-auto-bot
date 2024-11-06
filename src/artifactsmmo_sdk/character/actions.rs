@@ -1,6 +1,6 @@
 use super::Character;
 use crate::artifactsmmo_sdk::{
-    equipment::Slot, ApiErrorResponseSchema, FightSchemaExt, MapSchemaExt, ResponseSchema,
+    gear::Slot, ApiErrorResponseSchema, FightSchemaExt, MapSchemaExt, ResponseSchema,
     SkillSchemaExt,
 };
 use artifactsmmo_openapi::{
@@ -17,7 +17,7 @@ use artifactsmmo_openapi::{
 use chrono::{DateTime, Utc};
 use log::{debug, error, info};
 use std::{cmp::Ordering, fmt::Display, sync::RwLockWriteGuard, thread::sleep, time::Duration};
-use strum_macros::EnumIs;
+use strum_macros::{Display, EnumIs};
 
 impl Character {
     fn perform_action(&self, action: Action) -> Result<Box<dyn ResponseSchema>, RequestError> {
@@ -322,6 +322,10 @@ impl Character {
                 return self.perform_action(action);
             }
         }
+        error!(
+            "{}: request error during action {action}: {:?}",
+            self.name, e
+        );
         Err(e)
     }
 
@@ -363,7 +367,7 @@ impl Character {
     }
 }
 
-#[derive(Debug, EnumIs)]
+#[derive(Debug, EnumIs, Display)]
 pub enum Action<'a> {
     Move {
         x: i32,

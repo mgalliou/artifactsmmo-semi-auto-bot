@@ -4,7 +4,7 @@ use artifactsmmo_playground::artifactsmmo_sdk::{
     character::Character,
     game::Game,
     items::Items,
-    orderboard::{Order, OrderBoard},
+    orderboard::{Order, OrderBoard, Purpose},
     skill::Skill,
 };
 use figment::{
@@ -141,7 +141,7 @@ fn handle_orderboard(args: &[&str], orderboard: &Arc<OrderBoard>) {
                     item,
                     quantity.parse::<i32>().unwrap_or(0),
                     1,
-                    "cli".to_owned(),
+                    Purpose::Cli,
                 )),
                 _ => eprintln!("missings args"),
             },

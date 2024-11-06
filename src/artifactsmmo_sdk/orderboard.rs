@@ -1,9 +1,11 @@
 use itertools::Itertools;
 use log::{debug, info};
 use std::{
-    fmt::Display,
+    fmt::{write, Display},
     sync::{Arc, RwLock},
 };
+
+use super::{gear::Slot, skill::Skill};
 
 #[derive(Default)]
 pub struct OrderBoard {
@@ -26,6 +28,10 @@ impl OrderBoard {
         F: FnMut(&Arc<Order>) -> bool,
     {
         self.orders().into_iter().filter(f).collect_vec()
+    }
+
+    pub fn orders_by_priority(&self) -> Vec<Arc<Order>> {
+        todo!()
     }
 
     pub fn add(&self, order: Order) {
@@ -75,7 +81,7 @@ pub struct Order {
     pub item: String,
     pub quantity: RwLock<i32>,
     pub priority: i32,
-    pub reason: String,
+    pub purpose: Purpose,
     pub worked_by: RwLock<i32>,
     pub being_crafted: RwLock<i32>,
     // Number of item deposited into the bank
@@ -88,14 +94,14 @@ impl Order {
         item: &str,
         quantity: i32,
         priority: i32,
-        reason: String,
+        purpose: Purpose,
     ) -> Self {
         Order {
             owner: owner.map(|o| o.to_owned()),
             item: item.to_owned(),
             quantity: RwLock::new(quantity),
             priority,
-            reason: reason.to_owned(),
+            purpose,
             worked_by: RwLock::new(0),
             being_crafted: RwLock::new(0),
             deposited: RwLock::new(0),
@@ -103,7 +109,7 @@ impl Order {
     }
 
     fn is_similar(&self, other: &Order) -> bool {
-        self.item == other.item && self.owner == other.owner && self.reason == other.reason
+        self.item == other.item && self.owner == other.owner && self.purpose == other.purpose
     }
 
     pub fn worked_by(&self) -> i32 {
@@ -164,13 +170,52 @@ impl Display for Order {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "[{}] '{}'({}/{}), owner: {:?}, reason: {}",
-            self.priority,
+            "{}: '{}'({}/{}), purpose: {}",
+            if let Some(owner) = &self.owner {
+                owner
+            } else {
+                "all"
+            },
             self.item,
             self.deposited(),
             self.quantity(),
-            self.owner,
-            self.reason,
+            self.purpose,
+        )
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Purpose {
+    Cli,
+    Leveling {
+        char: String,
+        skill: Skill,
+    },
+    Gear {
+        char: String,
+        slot: Slot,
+        item_code: String,
+    },
+    Task {
+        char: String,
+    },
+}
+
+impl Display for Purpose {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Purpose::Cli => "command line".to_owned(),
+                Purpose::Leveling { char, skill } => format!("leveling {char}'s {skill}"),
+                Purpose::Gear {
+                    char,
+                    slot,
+                    item_code,
+                } => format!("crafting {char}'s '{item_code}' ({slot})"),
+                Purpose::Task { char } => format!("{char}'s  task"),
+            }
         )
     }
 }

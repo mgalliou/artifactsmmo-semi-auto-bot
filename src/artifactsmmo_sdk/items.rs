@@ -1,5 +1,5 @@
 use super::config::Config;
-use super::equipment::Slot;
+use super::gear::Slot;
 use super::skill::Skill;
 use super::tasks::Tasks;
 use super::{api::items::ItemsApi, monsters::Monsters, resources::Resources};

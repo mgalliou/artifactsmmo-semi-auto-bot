@@ -5,15 +5,15 @@ use super::{
     bank::Bank,
     char_config::CharConfig,
     config::Config,
-    equipment::{Equipment, Slot},
-    equipment_finder::{EquipmentFinder, Filter},
     events::Events,
     fight_simulator::FightSimulator,
     game::Game,
+    gear::{Gear, Slot},
+    gear_finder::{Filter, GearFinder},
     items::{DamageType, ItemSource, Items, Type},
     maps::Maps,
     monsters::Monsters,
-    orderboard::{Order, OrderBoard},
+    orderboard::{Order, OrderBoard, Purpose},
     resources::Resources,
     skill::Skill,
     ActiveEventSchemaExt, FightSchemaExt, ItemSchemaExt, MonsterSchemaExt, SkillSchemaExt,
@@ -53,7 +53,7 @@ pub struct Character {
     events: Arc<Events>,
     bank: Arc<Bank>,
     orderboard: Arc<OrderBoard>,
-    equipment_finder: EquipmentFinder,
+    equipment_finder: GearFinder,
     fight_simulator: FightSimulator,
     pub conf: Arc<RwLock<CharConfig>>,
     pub data: Arc<RwLock<CharacterSchema>>,
@@ -81,7 +81,7 @@ impl Character {
             items: game.items.clone(),
             events: game.events.clone(),
             orderboard: game.orderboard.clone(),
-            equipment_finder: EquipmentFinder::new(&game.items),
+            equipment_finder: GearFinder::new(&game.items),
             fight_simulator: FightSimulator::new(&game.items, &game.monsters),
             bank: bank.clone(),
             data: data.clone(),
@@ -181,7 +181,10 @@ impl Character {
                                 &i.code,
                                 self.max_craftable_items(&i.code),
                                 1,
-                                format!("'{}' (leveling '{}')", i.code, skill),
+                                Purpose::Leveling {
+                                    char: self.name.to_owned(),
+                                    skill,
+                                },
                             )
                         }
                         false
@@ -227,7 +230,7 @@ impl Character {
                         &order.item,
                         order.missing() - self.account.in_inventories(&order.item),
                         order.priority,
-                        format!("crafting '{}' for order: {}", order.item, order),
+                        order.purpose.clone(),
                     );
                 };
                 true
@@ -240,18 +243,13 @@ impl Character {
     /// Creates orders based on the missing (not available in bank) materials requiered to craft
     /// the `quantity` of the given `item`. Orders are created with the given `priority` and
     /// `reason`.
-    fn order_missing_mats(&self, item: &str, quantity: i32, priority: i32, reason: String) {
+    fn order_missing_mats(&self, item: &str, quantity: i32, priority: i32, purpose: Purpose) {
         self.bank
             .missing_mats_for(item, quantity, Some(&self.name))
             .iter()
             .for_each(|m| {
-                self.orderboard.update(Order::new(
-                    None,
-                    &m.code,
-                    m.quantity,
-                    priority,
-                    reason.clone(),
-                ));
+                self.orderboard
+                    .add(Order::new(None, &m.code, m.quantity, priority, purpose.clone()));
             });
     }
 
@@ -324,7 +322,7 @@ impl Character {
                 if let CharacterError::NotEnoughCoin = e {
                     let q = 6 - self.bank.has_item("tasks_coin", Some(&self.name));
                     self.orderboard
-                        .add(Order::new(None, "tasks_coin", q, 1, order.to_string()))
+                        .add(Order::new(None, "tasks_coin", q, 1, order.purpose.to_owned()))
                 }
                 None
             }
@@ -449,7 +447,7 @@ impl Character {
                 &self.task(),
                 missing - self.bank.has_item(item, Some(&self.name)),
                 1,
-                "task".to_string(),
+                Purpose::Task { char: self.name.to_owned() },
             ));
             false
         }
@@ -550,7 +548,7 @@ impl Character {
         monster: &MonsterSchema,
         map: Option<&MapSchema>,
     ) -> Result<FightSchema, CharacterError> {
-        let mut available: Equipment = self.equipment();
+        let mut available: Gear = self.equipment();
         if let Ok(_browsed) = self.bank.browsed.write() {
             match self.can_kill(monster) {
                 Ok(equipment) => {
@@ -591,7 +589,11 @@ impl Character {
                         &tool.code,
                         1,
                         1,
-                        "gathering".to_string(),
+                        Purpose::Gear {
+                            char: self.name.to_owned(),
+                            slot: Slot::Weapon,
+                            item_code: tool.code.to_owned(),
+                        },
                     ));
                 }
             }
@@ -611,7 +613,7 @@ impl Character {
 
     /// Checks if the `Character` is able to kill the given monster and returns
     /// the best available equipment to do so.
-    fn can_kill<'a>(&'a self, monster: &'a MonsterSchema) -> Result<Equipment<'_>, CharacterError> {
+    fn can_kill<'a>(&'a self, monster: &'a MonsterSchema) -> Result<Gear<'_>, CharacterError> {
         if !self.skill_enabled(Skill::Combat) {
             return Err(CharacterError::SkillDisabled);
         }
@@ -627,7 +629,7 @@ impl Character {
 
     /// Checks if the `Character` could kill the given `monster` with the given
     /// `equipment`
-    fn can_kill_with(&self, monster: &MonsterSchema, equipment: &Equipment) -> bool {
+    fn can_kill_with(&self, monster: &MonsterSchema, equipment: &Gear) -> bool {
         self.fight_simulator
             .simulate(self.level(), equipment, monster)
             .result
@@ -667,25 +669,23 @@ impl Character {
     }
 
     /// Returns the current `Equipment` of the `Character`, containing item schemas.
-    pub fn equipment(&self) -> Equipment {
-        self.data
-            .read()
-            .map_or(Equipment::default(), |d| Equipment {
-                weapon: self.items.get(&d.weapon_slot),
-                shield: self.items.get(&d.shield_slot),
-                helmet: self.items.get(&d.helmet_slot),
-                body_armor: self.items.get(&d.boots_slot),
-                leg_armor: self.items.get(&d.leg_armor_slot),
-                boots: self.items.get(&d.boots_slot),
-                ring1: self.items.get(&d.ring1_slot),
-                ring2: self.items.get(&d.ring2_slot),
-                amulet: self.items.get(&d.amulet_slot),
-                artifact1: self.items.get(&d.artifact1_slot),
-                artifact2: self.items.get(&d.artifact2_slot),
-                artifact3: self.items.get(&d.artifact3_slot),
-                consumable1: self.items.get(&d.consumable1_slot),
-                consumable2: self.items.get(&d.consumable2_slot),
-            })
+    pub fn equipment(&self) -> Gear {
+        self.data.read().map_or(Gear::default(), |d| Gear {
+            weapon: self.items.get(&d.weapon_slot),
+            shield: self.items.get(&d.shield_slot),
+            helmet: self.items.get(&d.helmet_slot),
+            body_armor: self.items.get(&d.boots_slot),
+            leg_armor: self.items.get(&d.leg_armor_slot),
+            boots: self.items.get(&d.boots_slot),
+            ring1: self.items.get(&d.ring1_slot),
+            ring2: self.items.get(&d.ring2_slot),
+            amulet: self.items.get(&d.amulet_slot),
+            artifact1: self.items.get(&d.artifact1_slot),
+            artifact2: self.items.get(&d.artifact2_slot),
+            artifact3: self.items.get(&d.artifact3_slot),
+            consumable1: self.items.get(&d.consumable1_slot),
+            consumable2: self.items.get(&d.consumable2_slot),
+        })
     }
 
     /// Returns the item equiped in the `given` slot.
@@ -1110,7 +1110,7 @@ impl Character {
         false
     }
 
-    fn equip_equipment(&self, equipment: &Equipment) {
+    fn equip_equipment(&self, equipment: &Gear) {
         Slot::iter().for_each(|s| {
             if let Some(item) = equipment.slot(s) {
                 self.equip_item_from_bank_or_inventory(s, item);
@@ -1284,7 +1284,7 @@ impl Character {
         };
     }
 
-    fn order_equipment(&self, equipment: Equipment<'_>, priority: i32, reason: String) {
+    fn order_equipment(&self, equipment: Gear<'_>, priority: i32, reason: String) {
         //TODO handle rings correctly
         //TODO handle consumables
         Slot::iter().for_each(|s| {
@@ -1313,14 +1313,18 @@ impl Character {
                 &item.code,
                 1,
                 priority,
-                format!("{} ({:?})", reason, slot),
+                Purpose::Gear {
+                    char: self.name.to_owned(),
+                    slot,
+                    item_code: item.code.to_owned(),
+                },
             ));
             return true;
         }
         false
     }
 
-    fn reserv_equipment(&self, equipment: Equipment<'_>) {
+    fn reserv_equipment(&self, equipment: Gear<'_>) {
         //TODO handle rings correctly
         //TODO handle consumables
         Slot::iter().for_each(|s| {

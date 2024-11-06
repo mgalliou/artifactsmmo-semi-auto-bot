@@ -6,16 +6,16 @@ use ordered_float::OrderedFloat;
 
 use super::{
     character::Character,
-    equipment::{Equipment, Slot},
+    gear::{Gear, Slot},
     items::{Items, Type},
     ItemSchemaExt,
 };
 
-pub struct EquipmentFinder {
+pub struct GearFinder {
     items: Arc<Items>,
 }
 
-impl EquipmentFinder {
+impl GearFinder {
     pub fn new(items: &Arc<Items>) -> Self {
         Self {
             items: items.clone(),
@@ -27,7 +27,7 @@ impl EquipmentFinder {
         char: &'a Character,
         monster: &'a MonsterSchema,
         filter: Filter,
-    ) -> Equipment<'_> {
+    ) -> Gear<'_> {
         if let Some(equipment) = self
             .bests_against(char, monster, filter)
             .into_iter()
@@ -44,7 +44,7 @@ impl EquipmentFinder {
         char: &'a Character,
         monster: &'a MonsterSchema,
         filter: Filter,
-    ) -> Vec<Equipment<'_>> {
+    ) -> Vec<Gear<'_>> {
         self.items
             .equipable_at_level(char.level(), Type::Weapon)
             .iter()
@@ -59,7 +59,7 @@ impl EquipmentFinder {
         monster: &MonsterSchema,
         filter: Filter,
         weapon: &'a ItemSchema,
-    ) -> Vec<Equipment> {
+    ) -> Vec<Gear> {
         // TODO: low level equipment with empty slots need to be handled properly,
         // Maybe with `Option`s.
         let helmets =
@@ -113,7 +113,7 @@ impl EquipmentFinder {
             .multi_cartesian_product()
             .map(|items| {
                 let mut iter = items.into_iter().peekable();
-                Equipment {
+                Gear {
                     weapon: Some(weapon),
                     helmet: iter.peeking_next(|i| i.is_of_type(Type::Helmet)),
                     shield: iter.peeking_next(|i| i.is_of_type(Type::Shield)),
@@ -202,7 +202,7 @@ impl EquipmentFinder {
         &'a self,
         char: &'a Character,
         monster: &MonsterSchema,
-    ) -> Equipment {
+    ) -> Gear {
         let best_equipment = char
             .available_equipable_weapons()
             .iter()
@@ -219,8 +219,8 @@ impl EquipmentFinder {
         char: &Character,
         monster: &MonsterSchema,
         weapon: &'a ItemSchema,
-    ) -> Equipment {
-        Equipment {
+    ) -> Gear {
+        Gear {
             weapon: Some(weapon),
             shield: self.best_in_slot_available_against_with_weapon(
                 char,
