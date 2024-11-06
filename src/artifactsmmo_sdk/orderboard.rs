@@ -36,10 +36,9 @@ impl OrderBoard {
 
     pub fn add(&self, order: Order) {
         if !self.has_similar(&order) {
-            if let Ok(mut r) = self.orders.write() {
-                info!("orderboard: added: {}.", order);
-                r.push(Arc::new(order))
-            }
+            let arc = Arc::new(order);
+            self.orders.write().unwrap().push(arc.clone());
+            info!("orderboard: added: {}.", arc);
         }
     }
 
@@ -53,11 +52,10 @@ impl OrderBoard {
     }
 
     pub fn remove(&self, order: &Order) {
-        if let Ok(mut queue) = self.orders.write() {
-            if queue.iter().any(|r| r.is_similar(order)) {
-                queue.retain(|r| !r.is_similar(order));
-                info!("orderboard: removed: {}.", order)
-            }
+        let mut queue = self.orders.write().unwrap();
+        if queue.iter().any(|r| r.is_similar(order)) {
+            queue.retain(|r| !r.is_similar(order));
+            info!("orderboard: removed: {}.", order)
         }
     }
 
@@ -137,21 +135,15 @@ impl Order {
     }
 
     pub fn inc_deposited(&self, n: i32) {
-        if let Ok(mut deposited) = self.deposited.write() {
-            *deposited += n;
-        }
+        *self.deposited.write().unwrap() += n;
     }
 
     pub fn inc_being_crafted(&self, n: i32) {
-        if let Ok(mut being_crafted) = self.being_crafted.write() {
-            *being_crafted += n;
-        }
+        *self.being_crafted.write().unwrap() += n;
     }
 
     pub fn dec_being_crafted(&self, n: i32) {
-        if let Ok(mut being_crafted) = self.being_crafted.write() {
-            *being_crafted -= n;
-        }
+        *self.being_crafted.write().unwrap() -= n;
     }
 
     pub fn inc_worked_by(&self, n: i32) {

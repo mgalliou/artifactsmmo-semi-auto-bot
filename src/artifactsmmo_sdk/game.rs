@@ -1,3 +1,7 @@
+use super::{
+    config::Config, events::Events, items::Items, maps::Maps, monsters::Monsters,
+    orderboard::OrderBoard, resources::Resources, tasks::Tasks,
+};
 use artifactsmmo_openapi::{
     apis::{
         configuration::Configuration,
@@ -8,10 +12,6 @@ use artifactsmmo_openapi::{
 };
 use chrono::{DateTime, TimeDelta, Utc};
 use log::debug;
-
-use super::{
-    config::Config, events::Events, items::Items, maps::Maps, monsters::Monsters, orderboard::OrderBoard, resources::Resources, tasks::Tasks
-};
 use std::sync::{Arc, RwLock};
 
 pub struct Game {
@@ -65,10 +65,7 @@ impl Game {
         // TODO: properly handle failure to retreive server_time
         let server_time = self.server_time().unwrap_or(Utc::now());
         let now = Utc::now();
-        let _ = self
-            .server_offset
-            .write()
-            .map(|mut so| *so = now - server_time);
+        *self.server_offset.write().unwrap() = now - server_time;
         debug!("system time: {}", now);
         debug!("server time: {}", self.server_time().unwrap());
         debug!(

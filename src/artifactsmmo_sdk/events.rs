@@ -25,17 +25,17 @@ impl Events {
     pub fn refresh(&self) {
         let now = Utc::now();
         if Utc::now() - self.last_refresh() > Duration::seconds(30) {
-            if let Ok(mut events) = self.events.write() {
-                self.update_lash_refresh(now);
-                if let Ok(new) = self.api.all() {
-                    *events = new;
-                    debug!("events refreshed.");
-                }
+            // NOTE: keep `events` locked before updating last refresh
+            let mut events = self.events.write().unwrap();
+            self.update_last_refresh(now);
+            if let Ok(new) = self.api.all() {
+                *events = new;
+                debug!("events refreshed.");
             }
         }
     }
 
-    fn update_lash_refresh(&self, now: DateTime<Utc>) {
+    fn update_last_refresh(&self, now: DateTime<Utc>) {
         self.last_refresh
             .write()
             .expect("`last_refresh` to be writable")

@@ -113,9 +113,7 @@ impl Bank {
     }
 
     pub fn update_content(&self, content: &Vec<SimpleItemSchema>) {
-        if let Ok(mut c) = self.content.write() {
-            c.clone_from(content)
-        }
+        self.content.write().unwrap().clone_from(content)
     }
 
     /// Request the `quantity` of the given `item` to be reserved to the player.
@@ -136,10 +134,8 @@ impl Bank {
                 quantity: RwLock::new(quantity),
                 owner: owner.to_owned(),
             });
-            if let Ok(mut reservations) = self.reservations.write() {
-                reservations.push(res.clone());
-                info!("added reservation to bank: {}", res);
-            }
+            self.reservations.write().unwrap().push(res.clone());
+            info!("added reservation to bank: {}", res);
         }
         Ok(())
     }
@@ -165,10 +161,11 @@ impl Bank {
     }
 
     pub fn remove_reservation(&self, reservation: &Reservation) {
-        if let Ok(mut reservations) = self.reservations.write() {
-            reservations.retain(|r| **r != *reservation);
-            info!("removed reservation from bank: {}", reservation);
-        }
+        self.reservations
+            .write()
+            .unwrap()
+            .retain(|r| **r != *reservation);
+        info!("removed reservation from bank: {}", reservation);
     }
 
     pub fn reservations(&self) -> Vec<Arc<Reservation>> {

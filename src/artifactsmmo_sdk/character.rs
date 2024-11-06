@@ -1226,18 +1226,15 @@ impl Character {
 
     /// Update the `Character` schema with the given `schema.
     fn update_data(&self, schema: &CharacterSchema) {
-        if let Ok(mut d) = self.data.write() {
-            d.clone_from(schema)
-        }
+        self.data.write().unwrap().clone_from(schema)
     }
 
     pub fn toggle_idle(&self) {
-        if let Ok(mut conf) = self.conf.write() {
-            conf.idle ^= true;
-            info!("{} toggled idle: {}.", self.name, conf.idle);
-            if !conf.idle {
-                self.refresh_data()
-            }
+        let mut conf = self.conf.write().unwrap();
+        conf.idle ^= true;
+        info!("{} toggled idle: {}.", self.name, conf.idle);
+        if !conf.idle {
+            self.refresh_data()
         }
     }
 
