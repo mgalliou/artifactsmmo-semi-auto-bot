@@ -202,10 +202,7 @@ impl Character {
         if orders.iter().cloned().any(|o| self.turn_in_order(o)) {
             return true;
         }
-        let mut completable = orders
-            .iter()
-            .filter(|o| self.can_complete(o))
-            .cloned();
+        let mut completable = orders.iter().filter(|o| self.can_complete(o)).cloned();
         if completable.any(|r| self.handle_order(r)) {
             return true;
         }
@@ -370,7 +367,8 @@ impl Character {
     /// Deposit items requiered by the given `order` if needed.
     /// Returns true if items has be deposited.
     fn turn_in_order(&self, order: Arc<Order>) -> bool {
-        if (!order.turned_in() && self.account.in_inventories(&order.item) >= order.missing())
+        if (!order.turned_in()
+            && self.account.in_inventories(&order.item) + order.being_crafted() >= order.missing())
             || self.inventory_is_full()
         {
             return self.deposit_order(&order);
