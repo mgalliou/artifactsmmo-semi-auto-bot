@@ -198,22 +198,19 @@ impl Character {
     /// from an order. Then check for orders that can be progressed. Then check for order for which
     /// the skill level required needs to be leveled.
     fn handle_orderboard(&self) -> bool {
-        if self
-            .orderboard
-            .orders()
-            .into_iter()
-            .any(|o| self.turn_in_order(o))
-        {
+        let orders = self.orderboard.orders_by_priority();
+        if orders.iter().cloned().any(|o| self.turn_in_order(o)) {
             return true;
         }
-        let completable = self.orderboard.orders_filtered(|o| self.can_complete(o));
-        if completable.into_iter().any(|r| self.handle_order(r)) {
+        let mut completable = orders
+            .iter()
+            .filter(|o| self.can_complete(o))
+            .cloned();
+        if completable.any(|r| self.handle_order(r)) {
             return true;
         }
-        let mut orders = self.orderboard.orders_filtered(|o| self.can_progress(o));
-        orders.sort_by_key(|o| o.priority);
-        orders.reverse();
-        if orders.into_iter().any(|r| self.handle_order(r)) {
+        let mut progressable = orders.into_iter().filter(|o| self.can_progress(o));
+        if progressable.any(|r| self.handle_order(r)) {
             return true;
         }
         false

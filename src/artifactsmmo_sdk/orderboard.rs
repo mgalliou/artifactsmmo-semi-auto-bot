@@ -4,6 +4,8 @@ use std::{
     fmt::{write, Display},
     sync::{Arc, RwLock},
 };
+use strum::IntoEnumIterator;
+use strum_macros::{EnumIs, EnumIter};
 
 use super::{gear::Slot, skill::Skill};
 
@@ -31,7 +33,27 @@ impl OrderBoard {
     }
 
     pub fn orders_by_priority(&self) -> Vec<Arc<Order>> {
-        todo!()
+        let mut orders: Vec<Arc<Order>> = vec![];
+        Purpose::iter().for_each(|p| match p {
+            Purpose::Cli => {
+                orders.extend(self.orders_filtered(|o| o.purpose.is_cli()));
+            }
+
+            Purpose::Gear {
+                char: _,
+                slot: _,
+                item_code: _,
+            } => {
+                orders.extend(self.orders_filtered(|o| o.purpose.is_gear()));
+            }
+            Purpose::Task { char: _ } => {
+                orders.extend(self.orders_filtered(|o| o.purpose.is_task()));
+            }
+            Purpose::Leveling { char: _, skill: _ } => {
+                orders.extend(self.orders_filtered(|o| o.purpose.is_leveling()));
+            }
+        });
+        orders
     }
 
     pub fn add(&self, order: Order) {
@@ -173,13 +195,9 @@ impl Display for Order {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, EnumIs, EnumIter)]
 pub enum Purpose {
     Cli,
-    Leveling {
-        char: String,
-        skill: Skill,
-    },
     Gear {
         char: String,
         slot: Slot,
@@ -187,6 +205,10 @@ pub enum Purpose {
     },
     Task {
         char: String,
+    },
+    Leveling {
+        char: String,
+        skill: Skill,
     },
 }
 

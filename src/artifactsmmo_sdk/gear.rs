@@ -183,9 +183,10 @@ impl From<Gear<'_>> for Vec<SimpleItemSchema> {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Display, AsRefStr, EnumString, EnumIter, EnumIs)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Display, AsRefStr, EnumString, EnumIter, EnumIs)]
 #[strum(serialize_all = "snake_case")]
 pub enum Slot {
+    #[default]
     Weapon,
     Shield,
     Helmet,

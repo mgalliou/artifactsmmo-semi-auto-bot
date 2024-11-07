@@ -149,6 +149,10 @@ fn handle_orderboard(args: &[&str], orderboard: &Arc<OrderBoard>) {
                 println!("orders:");
                 orderboard.orders().iter().for_each(|o| println!("{}", o));
             }
+            "prio" =>  {
+                println!("orders:");
+                orderboard.orders_by_priority().iter().for_each(|o| println!("{}", o));
+            }
             _ => println!("invalid verb"),
         },
         None => eprint!("missing verb"),
