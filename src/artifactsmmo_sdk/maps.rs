@@ -1,22 +1,37 @@
-use super::{api::maps::MapsApi, config::Config, skill::Skill, MapSchemaExt};
+use std::sync::Arc;
+
+use super::{
+    api::{events, maps::MapsApi},
+    config::Config,
+    events::Events,
+    skill::Skill,
+    MapSchemaExt,
+};
 use artifactsmmo_openapi::models::{MapContentSchema, MapSchema, ResourceSchema};
 use itertools::Itertools;
 
 pub struct Maps {
     pub data: Vec<MapSchema>,
+    pub events: Arc<Events>,
 }
 
 impl Maps {
-    pub fn new(config: &Config) -> Maps {
+    pub fn new(config: &Config, events: &Arc<Events>) -> Maps {
         let api = MapsApi::new(&config.base_url, &config.token);
         Maps {
             data: api.all(None, None).expect("maps to be retrieved from API."),
+            events: events.clone(),
         }
     }
 
     pub fn get(&self, x: i32, y: i32) -> Option<&MapSchema> {
-        self.data.iter().find(|m| m.x == x && m.y == y)
+        if let Some(map) = self.events.maps().iter().find(|m| m.x == x && m.y == y) {
+            Some(map)
+        } else {
+            self.data.iter().find(|m| m.x == x && m.y == y)
+        }
     }
+
 
     pub fn closest_from_amoung(x: i32, y: i32, maps: Vec<&MapSchema>) -> Option<&MapSchema> {
         maps.into_iter()
@@ -26,6 +41,7 @@ impl Maps {
     pub fn of_type(&self, r#type: &str) -> Vec<&MapSchema> {
         self.data
             .iter()
+            .chain(self.events.maps().into_iter())
             .filter(|m| m.content.as_ref().is_some_and(|c| c.r#type == r#type))
             .collect_vec()
     }
@@ -33,6 +49,7 @@ impl Maps {
     pub fn with_ressource(&self, code: &str) -> Vec<&MapSchema> {
         self.data
             .iter()
+            .chain(self.events.maps().into_iter())
             .filter(|m| m.content.as_ref().is_some_and(|c| c.code == code))
             .collect_vec()
     }
@@ -40,17 +57,21 @@ impl Maps {
     pub fn with_monster(&self, code: &str) -> Vec<&MapSchema> {
         self.data
             .iter()
+            .chain(self.events.maps().into_iter())
             .filter(|m| m.content.as_ref().is_some_and(|c| c.code == code))
             .collect_vec()
     }
 
     pub fn with_content_code(&self, code: &str) -> Option<&MapSchema> {
-        self.data.iter().find(|m| m.content_is(code))
+        self.data.iter()
+            .chain(self.events.maps().into_iter())
+            .find(|m| m.content_is(code))
     }
 
     pub fn with_content_schema(&self, schema: &MapContentSchema) -> Vec<&MapSchema> {
         self.data
             .iter()
+            .chain(self.events.maps().into_iter())
             .filter(|m| m.content().is_some_and(|c| c == *schema))
             .collect_vec()
     }

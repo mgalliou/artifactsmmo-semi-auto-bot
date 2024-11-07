@@ -1,5 +1,5 @@
 use super::{api::events::EventsApi, config::Config, ActiveEventSchemaExt, MapSchemaExt};
-use artifactsmmo_openapi::models::ActiveEventSchema;
+use artifactsmmo_openapi::models::{ActiveEventSchema, MapSchema};
 use chrono::{DateTime, Duration, Utc};
 use itertools::Itertools;
 use log::debug;
@@ -20,6 +20,10 @@ impl Events {
         };
         events.refresh();
         events
+    }
+
+    pub fn maps(&self) -> Vec<&MapSchema> {
+        self.events.read().unwrap().iter().map(|e| &(*e.map.clone())).collect_vec()
     }
 
     pub fn refresh(&self) {

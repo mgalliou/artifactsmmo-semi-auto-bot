@@ -33,13 +33,14 @@ impl Game {
         let monsters = Arc::new(Monsters::new(config));
         let resources = Arc::new(Resources::new(config));
         let tasks = Arc::new(Tasks::new(config));
+        let events = Arc::new(Events::new(config));
         let game = Game {
             configuration,
-            maps: Arc::new(Maps::new(config)),
+            maps: Arc::new(Maps::new(config, &events)),
             resources: resources.clone(),
             monsters: monsters.clone(),
             items: Arc::new(Items::new(config, &resources, &monsters, &tasks)),
-            events: Arc::new(Events::new(config)),
+            events,
             orderboard: orderboard.clone(),
             server_offset: RwLock::new(TimeDelta::default()),
         };
