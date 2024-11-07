@@ -11,7 +11,7 @@ use artifactsmmo_openapi::models::{MapContentSchema, MapSchema, ResourceSchema};
 use itertools::Itertools;
 
 pub struct Maps {
-    pub data: Vec<MapSchema>,
+    pub data: Vec<Arc<MapSchema>>,
     pub events: Arc<Events>,
 }
 
@@ -19,64 +19,79 @@ impl Maps {
     pub fn new(config: &Config, events: &Arc<Events>) -> Maps {
         let api = MapsApi::new(&config.base_url, &config.token);
         Maps {
-            data: api.all(None, None).expect("maps to be retrieved from API."),
+            data: api
+                .all(None, None)
+                .expect("maps to be retrieved from API.")
+                .into_iter()
+                .map(|m| Arc::new(m))
+                .collect_vec(),
             events: events.clone(),
         }
     }
 
-    pub fn get(&self, x: i32, y: i32) -> Option<&MapSchema> {
-        if let Some(map) = self.events.maps().iter().find(|m| m.x == x && m.y == y) {
-            Some(map)
-        } else {
-            self.data.iter().find(|m| m.x == x && m.y == y)
-        }
+    pub fn get(&self, x: i32, y: i32) -> Option<Arc<MapSchema>> {
+        self.events
+            .maps()
+            .into_iter()
+            .find(|m| m.x == x && m.y == y)
+            .or_else(|| {
+                self.data
+                    .iter()
+                    .find(|m| m.x == x && m.y == y)
+                    .cloned()
+            })
     }
 
-
-    pub fn closest_from_amoung(x: i32, y: i32, maps: Vec<&MapSchema>) -> Option<&MapSchema> {
+    pub fn closest_from_amoung(x: i32, y: i32, maps: Vec<Arc<MapSchema>>) -> Option<Arc<MapSchema>> {
         maps.into_iter()
             .min_by_key(|m| i32::abs(m.x - x) + i32::abs(m.y - y))
     }
 
-    pub fn of_type(&self, r#type: &str) -> Vec<&MapSchema> {
+    pub fn of_type(&self, r#type: &str) -> Vec<Arc<MapSchema>> {
         self.data
             .iter()
-            .chain(self.events.maps().into_iter())
+            .chain(self.events.maps().iter())
             .filter(|m| m.content.as_ref().is_some_and(|c| c.r#type == r#type))
+            .cloned()
             .collect_vec()
     }
 
-    pub fn with_ressource(&self, code: &str) -> Vec<&MapSchema> {
+    pub fn with_ressource(&self, code: &str) -> Vec<Arc<MapSchema>> {
         self.data
             .iter()
-            .chain(self.events.maps().into_iter())
+            .chain(self.events.maps().iter())
             .filter(|m| m.content.as_ref().is_some_and(|c| c.code == code))
+            .cloned()
             .collect_vec()
     }
 
-    pub fn with_monster(&self, code: &str) -> Vec<&MapSchema> {
+    pub fn with_monster(&self, code: &str) -> Vec<Arc<MapSchema>> {
         self.data
             .iter()
-            .chain(self.events.maps().into_iter())
+            .chain(self.events.maps().iter())
             .filter(|m| m.content.as_ref().is_some_and(|c| c.code == code))
+            .cloned()
             .collect_vec()
     }
 
-    pub fn with_content_code(&self, code: &str) -> Option<&MapSchema> {
-        self.data.iter()
-            .chain(self.events.maps().into_iter())
+    pub fn with_content_code(&self, code: &str) -> Option<Arc<MapSchema>> {
+        self.data
+            .iter()
+            .chain(self.events.maps().iter())
             .find(|m| m.content_is(code))
+            .cloned()
     }
 
-    pub fn with_content_schema(&self, schema: &MapContentSchema) -> Vec<&MapSchema> {
+    pub fn with_content_schema(&self, schema: &MapContentSchema) -> Vec<Arc<MapSchema>> {
         self.data
             .iter()
-            .chain(self.events.maps().into_iter())
+            .chain(self.events.maps().iter())
             .filter(|m| m.content().is_some_and(|c| c == *schema))
+            .cloned()
             .collect_vec()
     }
 
-    pub fn to_craft(&self, skill: Skill) -> Option<&MapSchema> {
+    pub fn to_craft(&self, skill: Skill) -> Option<Arc<MapSchema>> {
         match skill {
             Skill::Weaponcrafting => self.with_content_code("weaponcrafting"),
             Skill::Gearcrafting => self.with_content_code("gearcrafting"),

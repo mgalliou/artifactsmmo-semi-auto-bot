@@ -3,7 +3,7 @@ use artifactsmmo_openapi::models::{ActiveEventSchema, MapSchema};
 use chrono::{DateTime, Duration, Utc};
 use itertools::Itertools;
 use log::debug;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 
 pub struct Events {
     api: EventsApi,
@@ -22,8 +22,13 @@ impl Events {
         events
     }
 
-    pub fn maps(&self) -> Vec<&MapSchema> {
-        self.events.read().unwrap().iter().map(|e| &(*e.map.clone())).collect_vec()
+    pub fn maps(&self) -> Vec<Arc<MapSchema>> {
+        self.events
+            .read()
+            .unwrap()
+            .iter()
+            .map(|e| Arc::new(*e.map.clone()))
+            .collect_vec()
     }
 
     pub fn refresh(&self) {

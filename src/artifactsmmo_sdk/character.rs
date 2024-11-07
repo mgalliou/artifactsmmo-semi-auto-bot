@@ -822,6 +822,14 @@ impl Character {
         })
     }
 
+    pub fn deposit_all_gold(&self) {
+        let gold = self.data.read().unwrap().gold;
+        if gold <= 0 {
+            return;
+        };
+        self.action_deposit_gold(gold);
+    }
+
     pub fn empty_bank(&self) {
         let _ = self.move_to_closest_map_of_type("bank");
         self.deposit_all();
@@ -1069,7 +1077,7 @@ impl Character {
 
     /// Returns the closest map from the `Character` containing the given
     /// content `type`.
-    fn closest_map_of_type(&self, r#type: &str) -> Option<&MapSchema> {
+    fn closest_map_of_type(&self, r#type: &str) -> Option<Arc<MapSchema>> {
         let maps = self.maps.of_type(r#type);
         if maps.is_empty() {
             return None;
@@ -1079,7 +1087,7 @@ impl Character {
 
     /// Returns the closest map from the `Character` containing the given
     /// content `code`.
-    fn closest_map_with_content_code(&self, code: &str) -> Option<&MapSchema> {
+    fn closest_map_with_content_code(&self, code: &str) -> Option<Arc<MapSchema>> {
         let maps = self.maps.with_ressource(code);
         if maps.is_empty() {
             return None;
@@ -1089,7 +1097,7 @@ impl Character {
 
     /// Returns the closest map from the `Character` containing the given
     /// content schema.
-    fn closest_map_with_content_schema(&self, schema: &MapContentSchema) -> Option<&MapSchema> {
+    fn closest_map_with_content_schema(&self, schema: &MapContentSchema) -> Option<Arc<MapSchema>> {
         let maps = self.maps.with_content_schema(schema);
         if maps.is_empty() {
             return None;
@@ -1098,7 +1106,7 @@ impl Character {
     }
 
     /// Returns the closest map from the `Character` among the `maps` given.
-    fn closest_map_among<'a>(&'a self, maps: Vec<&'a MapSchema>) -> Option<&MapSchema> {
+    fn closest_map_among(&self, maps: Vec<Arc<MapSchema>>) -> Option<Arc<MapSchema>> {
         let (x, y) = self.position();
         Maps::closest_from_amoung(x, y, maps)
     }
@@ -1110,7 +1118,7 @@ impl Character {
         (x, y)
     }
 
-    fn map(&self) -> &MapSchema {
+    fn map(&self) -> Arc<MapSchema> {
         let (x, y) = self.position();
         self.maps.get(x, y).unwrap()
     }

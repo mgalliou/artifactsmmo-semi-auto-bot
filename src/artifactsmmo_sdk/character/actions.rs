@@ -6,12 +6,13 @@ use crate::artifactsmmo_sdk::{
 use artifactsmmo_openapi::{
     apis::Error,
     models::{
-        cooldown_schema::Reason, fight_schema, BankItemTransactionResponseSchema,
-        CharacterFightResponseSchema, CharacterMovementResponseSchema, CharacterSchema,
-        DeleteItemResponseSchema, DropSchema, EquipmentResponseSchema, FightSchema,
-        MapContentSchema, MapSchema, RecyclingResponseSchema, SimpleItemSchema, SkillDataSchema,
-        SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema, TaskSchema,
-        TaskTradeResponseSchema, TaskTradeSchema, TasksRewardResponseSchema, TasksRewardSchema,
+        cooldown_schema::Reason, fight_schema, BankGoldTransactionResponseSchema,
+        BankItemTransactionResponseSchema, BankSchema, CharacterFightResponseSchema,
+        CharacterMovementResponseSchema, CharacterSchema, DeleteItemResponseSchema, DropSchema,
+        EquipmentResponseSchema, FightSchema, MapContentSchema, MapSchema, RecyclingResponseSchema,
+        SimpleItemSchema, SkillDataSchema, SkillResponseSchema, TaskCancelledResponseSchema,
+        TaskResponseSchema, TaskSchema, TaskTradeResponseSchema, TaskTradeSchema,
+        TasksRewardResponseSchema, TasksRewardSchema,
     },
 };
 use chrono::{DateTime, Utc};
@@ -22,12 +23,23 @@ use strum_macros::{Display, EnumIs};
 impl Character {
     fn perform_action(&self, action: Action) -> Result<Box<dyn ResponseSchema>, RequestError> {
         let mut bank_content: Option<RwLockWriteGuard<'_, Vec<SimpleItemSchema>>> = None;
+        let mut bank_details: Option<RwLockWriteGuard<'_, BankSchema>> = None;
 
         self.wait_for_cooldown();
-        if action.is_deposit() || action.is_withdraw() {
+        if action.is_deposit()
+            || action.is_withdraw()
+            || action.is_deposit_gold()
+            || action.is_withdraw_gold()
+        {
             bank_content = Some(
                 self.bank
                     .content
+                    .write()
+                    .expect("bank_content to be writable"),
+            );
+            bank_details = Some(
+                self.bank
+                    .details
                     .write()
                     .expect("bank_content to be writable"),
             );
@@ -58,14 +70,24 @@ impl Character {
                 .delete(&self.name, code, quantity)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
+            Action::Deposit { code, quantity } => self
+                .my_api
+                .deposit(&self.name, code, quantity)
+                .map(|r| r.into())
+                .map_err(|e| e.into()),
             Action::Withdraw { code, quantity } => self
                 .my_api
                 .withdraw(&self.name, code, quantity)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
-            Action::Deposit { code, quantity } => self
+            Action::DepositGold { quantity } => self
                 .my_api
-                .deposit(&self.name, code, quantity)
+                .deposit_gold(&self.name, quantity)
+                .map(|r| r.into())
+                .map_err(|e| e.into()),
+            Action::WithdrawGold { quantity } => self
+                .my_api
+                .withdraw_gold(&self.name, quantity)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
             Action::Recycle { code, quantity } => self
@@ -122,6 +144,11 @@ impl Character {
                         *bank_content = s.data.bank.clone();
                     }
                 };
+                if let Some(s) = res.downcast_ref::<BankGoldTransactionResponseSchema>() {
+                    if let Some(mut bank_details) = bank_details {
+                        bank_details.gold = s.data.bank.quantity
+                    }
+                };
                 Ok(res)
             }
             Err(e) => {
@@ -133,7 +160,7 @@ impl Character {
 
     pub fn action_move(&self, x: i32, y: i32) -> Result<MapSchema, RequestError> {
         if self.position() == (x, y) {
-            return Ok(self.map().clone());
+            return Ok((*self.map()).clone());
         }
         self.perform_action(Action::Move { x, y })
             .and_then(|r| {
@@ -161,6 +188,26 @@ impl Character {
             .map(|s| *s.data)
     }
 
+    pub fn action_deposit(
+        &self,
+        code: &str,
+        quantity: i32,
+        owner: Option<String>,
+    ) -> Result<SimpleItemSchema, RequestError> {
+        let _ = self.move_to_closest_map_of_type("bank");
+        self.deposit_all_gold();
+        self.perform_action(Action::Deposit { code, quantity })
+            .map(|_| {
+                if let Some(owner) = owner {
+                    let _ = self.bank.reserv(code, quantity, &owner);
+                }
+                SimpleItemSchema {
+                    code: code.to_owned(),
+                    quantity,
+                }
+            })
+    }
+
     pub fn action_withdraw(
         &self,
         code: &str,
@@ -177,23 +224,24 @@ impl Character {
             })
     }
 
-    pub fn action_deposit(
-        &self,
-        code: &str,
-        quantity: i32,
-        owner: Option<String>,
-    ) -> Result<SimpleItemSchema, RequestError> {
+    pub fn action_deposit_gold(&self, quantity: i32) -> Result<i32, RequestError> {
         let _ = self.move_to_closest_map_of_type("bank");
-        self.perform_action(Action::Deposit { code, quantity })
-            .map(|_| {
-                if let Some(owner) = owner {
-                    let _ = self.bank.reserv(code, quantity, &owner);
-                }
-                SimpleItemSchema {
-                    code: code.to_owned(),
-                    quantity,
-                }
+        self.perform_action(Action::DepositGold { quantity })
+            .and_then(|r| {
+                r.downcast::<BankGoldTransactionResponseSchema>()
+                    .map_err(|_| RequestError::DowncastError)
             })
+            .map(|s| s.data.bank.quantity)
+    }
+
+    pub fn action_withdraw_gold(&self, quantity: i32) -> Result<i32, RequestError> {
+        let _ = self.move_to_closest_map_of_type("bank");
+        self.perform_action(Action::WithdrawGold { quantity })
+            .and_then(|r| {
+                r.downcast::<BankGoldTransactionResponseSchema>()
+                    .map_err(|_| RequestError::DowncastError)
+            })
+            .map(|s| s.data.bank.quantity)
     }
 
     pub fn action_craft(&self, code: &str, quantity: i32) -> Result<(), RequestError> {
@@ -381,12 +429,18 @@ pub enum Action<'a> {
         code: &'a str,
         quantity: i32,
     },
+    Deposit {
+        code: &'a str,
+        quantity: i32,
+    },
     Withdraw {
         code: &'a str,
         quantity: i32,
     },
-    Deposit {
-        code: &'a str,
+    DepositGold {
+        quantity: i32,
+    },
+    WithdrawGold {
         quantity: i32,
     },
     Recycle {
@@ -575,6 +629,30 @@ impl ResponseSchema for BankItemTransactionResponseSchema {
             format!(
                 "{}: deposited '{}' to the bank. {}s",
                 self.data.character.name, self.data.item.code, self.data.cooldown.remaining_seconds
+            )
+        }
+    }
+
+    fn character(&self) -> &CharacterSchema {
+        &self.data.character
+    }
+}
+
+impl ResponseSchema for BankGoldTransactionResponseSchema {
+    fn pretty(&self) -> String {
+        if self.data.cooldown.reason == Reason::WithdrawBank {
+            format!(
+                "{}: withdrawed {} gold from the bank. {}s",
+                self.data.character.name,
+                self.data.bank.quantity,
+                self.data.cooldown.remaining_seconds
+            )
+        } else {
+            format!(
+                "{}: deposited {} gold to the bank. {}s",
+                self.data.character.name,
+                self.data.bank.quantity,
+                self.data.cooldown.remaining_seconds
             )
         }
     }

@@ -2,14 +2,45 @@ use artifactsmmo_openapi::{
     apis::{
         configuration::Configuration,
         my_characters_api::{
-            action_accept_new_task_my_name_action_task_new_post, action_complete_task_my_name_action_task_complete_post, action_crafting_my_name_action_crafting_post, action_delete_item_my_name_action_delete_post, action_deposit_bank_my_name_action_bank_deposit_post, action_equip_item_my_name_action_equip_post, action_fight_my_name_action_fight_post, action_gathering_my_name_action_gathering_post, action_move_my_name_action_move_post, action_recycling_my_name_action_recycling_post, action_task_cancel_my_name_action_task_cancel_post, action_task_exchange_my_name_action_task_exchange_post, action_task_trade_my_name_action_task_trade_post, action_unequip_item_my_name_action_unequip_post, action_withdraw_bank_my_name_action_bank_withdraw_post, get_my_characters_my_characters_get, ActionAcceptNewTaskMyNameActionTaskNewPostError, ActionCompleteTaskMyNameActionTaskCompletePostError, ActionCraftingMyNameActionCraftingPostError, ActionDeleteItemMyNameActionDeletePostError, ActionDepositBankMyNameActionBankDepositPostError, ActionEquipItemMyNameActionEquipPostError, ActionFightMyNameActionFightPostError, ActionGatheringMyNameActionGatheringPostError, ActionMoveMyNameActionMovePostError, ActionRecyclingMyNameActionRecyclingPostError, ActionTaskCancelMyNameActionTaskCancelPostError, ActionTaskExchangeMyNameActionTaskExchangePostError, ActionTaskTradeMyNameActionTaskTradePostError, ActionUnequipItemMyNameActionUnequipPostError, ActionWithdrawBankMyNameActionBankWithdrawPostError, GetMyCharactersMyCharactersGetError
+            action_accept_new_task_my_name_action_task_new_post,
+            action_complete_task_my_name_action_task_complete_post,
+            action_crafting_my_name_action_crafting_post,
+            action_delete_item_my_name_action_delete_post,
+            action_deposit_bank_gold_my_name_action_bank_deposit_gold_post,
+            action_deposit_bank_my_name_action_bank_deposit_post,
+            action_equip_item_my_name_action_equip_post, action_fight_my_name_action_fight_post,
+            action_gathering_my_name_action_gathering_post, action_move_my_name_action_move_post,
+            action_recycling_my_name_action_recycling_post,
+            action_task_cancel_my_name_action_task_cancel_post,
+            action_task_exchange_my_name_action_task_exchange_post,
+            action_task_trade_my_name_action_task_trade_post,
+            action_unequip_item_my_name_action_unequip_post,
+            action_withdraw_bank_gold_my_name_action_bank_withdraw_gold_post,
+            action_withdraw_bank_my_name_action_bank_withdraw_post,
+            get_my_characters_my_characters_get, ActionAcceptNewTaskMyNameActionTaskNewPostError,
+            ActionCompleteTaskMyNameActionTaskCompletePostError,
+            ActionCraftingMyNameActionCraftingPostError,
+            ActionDeleteItemMyNameActionDeletePostError,
+            ActionDepositBankGoldMyNameActionBankDepositGoldPostError,
+            ActionDepositBankMyNameActionBankDepositPostError,
+            ActionEquipItemMyNameActionEquipPostError, ActionFightMyNameActionFightPostError,
+            ActionGatheringMyNameActionGatheringPostError, ActionMoveMyNameActionMovePostError,
+            ActionRecyclingMyNameActionRecyclingPostError,
+            ActionTaskCancelMyNameActionTaskCancelPostError,
+            ActionTaskExchangeMyNameActionTaskExchangePostError,
+            ActionTaskTradeMyNameActionTaskTradePostError,
+            ActionUnequipItemMyNameActionUnequipPostError,
+            ActionWithdrawBankGoldMyNameActionBankWithdrawGoldPostError,
+            ActionWithdrawBankMyNameActionBankWithdrawPostError,
+            GetMyCharactersMyCharactersGetError,
         },
         Error,
     },
     models::{
-        equip_schema, unequip_schema, BankItemTransactionResponseSchema,
-        CharacterFightResponseSchema, CharacterMovementResponseSchema, CraftingSchema,
-        DeleteItemResponseSchema, DestinationSchema, EquipSchema, EquipmentResponseSchema,
+        equip_schema, unequip_schema, BankGoldTransactionResponseSchema,
+        BankItemTransactionResponseSchema, CharacterFightResponseSchema,
+        CharacterMovementResponseSchema, CraftingSchema, DeleteItemResponseSchema,
+        DepositWithdrawGoldSchema, DestinationSchema, EquipSchema, EquipmentResponseSchema,
         MyCharactersListSchema, RecyclingResponseSchema, RecyclingSchema, SimpleItemSchema,
         SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema,
         TaskTradeResponseSchema, TasksRewardResponseSchema, UnequipSchema,
@@ -153,6 +184,34 @@ impl MyCharacterApi {
         )
     }
 
+    pub fn deposit_gold(
+        &self,
+        name: &str,
+        quantity: i32,
+    ) -> Result<
+        BankGoldTransactionResponseSchema,
+        Error<ActionDepositBankGoldMyNameActionBankDepositGoldPostError>,
+    > {
+        let s = DepositWithdrawGoldSchema { quantity };
+        action_deposit_bank_gold_my_name_action_bank_deposit_gold_post(&self.configuration, name, s)
+    }
+
+    pub fn withdraw_gold(
+        &self,
+        name: &str,
+        quantity: i32,
+    ) -> Result<
+        BankGoldTransactionResponseSchema,
+        Error<ActionWithdrawBankGoldMyNameActionBankWithdrawGoldPostError>,
+    > {
+        let s = DepositWithdrawGoldSchema { quantity };
+        action_withdraw_bank_gold_my_name_action_bank_withdraw_gold_post(
+            &self.configuration,
+            name,
+            s,
+        )
+    }
+
     pub fn accept_task(
         &self,
         name: &str,
@@ -192,7 +251,8 @@ impl MyCharacterApi {
     pub fn task_exchange(
         &self,
         name: &str,
-    ) -> Result<TasksRewardResponseSchema, Error<ActionTaskExchangeMyNameActionTaskExchangePostError>>{
+    ) -> Result<TasksRewardResponseSchema, Error<ActionTaskExchangeMyNameActionTaskExchangePostError>>
+    {
         action_task_exchange_my_name_action_task_exchange_post(&self.configuration, name)
     }
 
