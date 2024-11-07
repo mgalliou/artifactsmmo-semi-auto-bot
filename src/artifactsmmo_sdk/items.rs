@@ -255,51 +255,50 @@ impl Items {
     }
 
     /// Returns the best items to level the given `skill` at the given `level.
-    pub fn best_for_leveling_hc(&self, level: i32, skill: Skill) -> Option<&ItemSchema> {
+    pub fn best_for_leveling_hc(&self, level: i32, skill: Skill) -> Vec<&ItemSchema> {
         match skill {
             Skill::Gearcrafting => {
-                if level >= 30 {
-                    self.get("gold_platelegs")
-                } else if level >= 20 {
-                    self.get("skeleton_helmet")
+                if level >= 20 {
+                    return self.best_for_leveling(level, skill);
                 } else if level >= 10 {
-                    self.get("iron_helm")
+                    vec![self.get("iron_helm")]
                 } else if level >= 5 {
-                    self.get("copper_legs_armor")
+                    vec![self.get("copper_legs_armor")]
                 } else {
-                    self.get("wooden_shield")
+                    vec![self.get("wooden_shield")]
                 }
             }
             Skill::Weaponcrafting => {
-                if level >= 30 {
-                    None
-                } else if level >= 20 {
-                    self.get("skull_staff")
+                if level >= 20 {
+                    return self.best_for_leveling(level, skill);
                 } else if level >= 10 {
-                    self.get("iron_dagger")
+                    vec![self.get("iron_dagger")]
                 } else {
-                    self.get("copper_dagger")
+                    vec![self.get("copper_dagger")]
                 }
             }
             Skill::Jewelrycrafting => {
                 if level >= 30 {
-                    self.get("gold_ring")
+                    vec![self.get("gold_ring")]
                 } else if level >= 25 {
-                    self.get("steel_ring")
+                    vec![self.get("steel_ring")]
                 } else if level >= 20 {
-                    self.get("life_ring")
+                    vec![self.get("life_ring")]
                 } else if level >= 10 {
-                    self.get("iron_ring")
+                    vec![self.get("iron_ring")]
                 } else {
-                    self.get("copper_ring")
+                    vec![self.get("copper_ring")]
                 }
             }
-            Skill::Mining => None,
-            Skill::Woodcutting => None,
-            Skill::Cooking => None,
-            Skill::Fishing => None,
-            Skill::Combat => None,
+            Skill::Mining => vec![None],
+            Skill::Woodcutting => vec![None],
+            Skill::Cooking => vec![None],
+            Skill::Fishing => vec![None],
+            Skill::Combat => vec![None],
         }
+        .into_iter()
+        .flatten()
+        .collect_vec()
     }
 
     pub fn best_for_leveling(&self, level: i32, skill: Skill) -> Vec<&ItemSchema> {
