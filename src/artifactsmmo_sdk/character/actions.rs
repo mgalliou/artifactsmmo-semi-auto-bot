@@ -165,6 +165,7 @@ impl Character {
             }
             Err(e) => {
                 drop(bank_content);
+                drop(bank_details);
                 self.handle_action_error(action, e)
             }
         }
