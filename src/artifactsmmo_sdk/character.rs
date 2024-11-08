@@ -589,7 +589,7 @@ impl Character {
         Ok(self.action_fight()?)
     }
 
-    /// Checks if the character is able to gather the given `resource`. if it
+    /// Checks if the character is able to gather the given `resource`. If it
     /// can, equips the best available appropriate tool, then move the `Character`
     /// to the given map or the closest containing the `resource` and gather it.  
     fn gather_resource(
@@ -597,39 +597,42 @@ impl Character {
         resource: &ResourceSchema,
         map: Option<&MapSchema>,
     ) -> Result<SkillDataSchema, CharacterError> {
-        let mut tool = None;
         self.can_gather(resource)?;
-        if let Ok(_browsed) = self.bank.browsed.write() {
-            tool = self.best_tool_for_resource(&resource.code);
-            if let Some(tool) = tool {
-                if self.has_available(&tool.code) > 0 {
-                    self.reserv_if_needed_and_available(Slot::Weapon, tool);
-                } else {
-                    self.orderboard.add(Order::new(
-                        Some(&self.name),
-                        &tool.code,
-                        1,
-                        1,
-                        Purpose::Gear {
-                            char: self.name.to_owned(),
-                            slot: Slot::Weapon,
-                            item_code: tool.code.to_owned(),
-                        },
-                    ));
-                }
-            }
-        }
-        if let Some(tool) = tool {
-            if self.has_available(&tool.code) > 0 {
-                self.equip_item_from_bank_or_inventory(Slot::Weapon, tool);
-            }
-        }
+        self.check_for_tool(resource);
         if let Some(map) = map {
             self.action_move(map.x, map.y)?;
         } else if let Some(map) = self.closest_map_with_content_code(&resource.code) {
             self.action_move(map.x, map.y)?;
         }
         Ok(self.action_gather()?)
+    }
+
+    /// TODO: handle available tool versus best craftable
+    fn check_for_tool(&self, resource: &ResourceSchema) {
+        let Some(tool) = self.best_tool_for_resource(&resource.code) else {
+            return;
+        };
+        let Ok(_browsed) = self.bank.browsed.write() else {
+            return;
+        };
+        if self.has_available(&tool.code) > 0 {
+            self.reserv_if_needed_and_available(Slot::Weapon, tool);
+        } else {
+            self.orderboard.add(Order::new(
+                Some(&self.name),
+                &tool.code,
+                1,
+                1,
+                Purpose::Gear {
+                    char: self.name.to_owned(),
+                    slot: Slot::Weapon,
+                    item_code: tool.code.to_owned(),
+                },
+            ));
+        }
+        if self.has_available(&tool.code) > 0 {
+            self.equip_item_from_bank_or_inventory(Slot::Weapon, tool);
+        }
     }
 
     /// Checks if the `Character` is able to kill the given monster and returns
