@@ -29,6 +29,7 @@ pub enum Goal {
     Orders,
     ReachLevel { level: i32 },
     ReachSkillLevel { skill: Skill, level: i32 },
+    Events,
 }
 
 impl Display for Goal {

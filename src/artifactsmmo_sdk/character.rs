@@ -28,13 +28,7 @@ use itertools::Itertools;
 use log::{error, info, warn};
 use serde::Deserialize;
 use std::{
-    cmp::min,
-    io,
-    option::Option,
-    sync::{Arc, RwLock},
-    thread::{self, sleep, JoinHandle},
-    time::Duration,
-    vec::Vec,
+    cmp::min, io, option::Option, sync::{Arc, RwLock}, thread::{self, sleep, JoinHandle}, time::Duration, vec::Vec
 };
 use strum::IntoEnumIterator;
 use strum_macros::EnumIs;
@@ -110,12 +104,10 @@ impl Character {
                 continue;
             }
             self.events.refresh();
-            if self.conf().do_events && self.handle_events() {
-                continue;
-            }
             if self.conf().goals.iter().any(|g| match g {
+                Goal::Events => self.handle_events(),
                 Goal::Orders => self.handle_orderboard(),
-                Goal::ReachLevel { level } => self.level() < *level && self.find_and_kill(),
+                Goal::ReachLevel { level } => self.level() < *level && self.level_combat().is_ok(),
                 Goal::ReachSkillLevel { skill, level } => {
                     if self.skill_level(*skill) < *level {
                         self.level_skill_up(*skill);
@@ -161,7 +153,7 @@ impl Character {
                     )
                     .is_ok()
                 })
-                || self.level_skill_by_gathering(&skill);
+                || self.level_skill_by_gathering(&skill).is_ok();
         }
         self.items
             .best_for_leveling_hc(self.skill_level(skill), skill)
@@ -506,61 +498,35 @@ impl Character {
     }
 
     /// Find a target and kill it if possible.
-    fn find_and_kill(&self) -> bool {
+    fn level_combat(&self) -> Result<(), CharacterError> {
         if !self.skill_enabled(Skill::Combat) {
-            return false;
+            return Err(CharacterError::SkillDisabled);
         }
-        if let Some(monster_code) = &self.conf().target_monster {
-            if let Some(monster) = self.monsters.get(monster_code) {
-                if self.kill_monster(monster, None).is_ok() {
-                    return true;
-                }
-            }
-        }
-        if let Some(monster) = self
+        let Some(monster) = self
             .monsters
             .data
             .iter()
             .filter(|m| m.level <= self.level())
             .max_by_key(|m| if self.can_kill(m).is_ok() { m.level } else { 0 })
-        {
-            info!(
-                "{}: found highest killable monster: {}",
-                self.name, monster.code
-            );
-            if let Err(e) = self.kill_monster(monster, None) {
-                error!("{:?}", e);
-                return false;
-            }
-            return true;
-        }
-        false
+        else {
+            return Err(CharacterError::MonsterNotFound);
+        };
+        info!(
+            "{}: found highest killable monster: {}",
+            self.name, monster.code
+        );
+        self.kill_monster(monster, None)?;
+        Ok(())
     }
 
-    fn find_and_gather(&self) -> bool {
-        if let Some(item) = self.conf().target_item {
-            if let Some(resource) = self.resources.dropping(&item).first() {
-                if self.gather_resource(resource, None).is_ok() {
-                    return true;
-                }
-            }
-        }
-        if let Some(skill) = self.conf().skills.iter().find(|s| s.is_gathering()) {
-            return self.level_skill_by_gathering(skill);
-        }
-        false
-    }
-
-    fn level_skill_by_gathering(&self, skill: &Skill) -> bool {
+    fn level_skill_by_gathering(&self, skill: &Skill) -> Result<(), CharacterError> {
         if let Some(resource) = self
             .resources
             .highest_providing_exp(self.skill_level(*skill), *skill)
         {
-            if self.gather_resource(resource, None).is_ok() {
-                return true;
-            }
+            self.gather_resource(resource, None)?;
         }
-        false
+        Err(CharacterError::RessourceNotFound)
     }
 
     /// Checks if an gear making the `Character` able to kill the given
@@ -643,6 +609,9 @@ impl Character {
         if !self.skill_enabled(Skill::Combat) {
             return Err(CharacterError::SkillDisabled);
         }
+        if self.inventory_is_full() {
+            return Err(CharacterError::InventoryFull);
+        }
         let available = self
             .gear_finder
             .best_against(self, monster, Filter::Available);
@@ -674,6 +643,9 @@ impl Character {
                 resource.level,
             ));
         }
+        if self.inventory_is_full() {
+            return Err(CharacterError::InventoryFull);
+        }
         Ok(())
     }
 
@@ -690,6 +662,10 @@ impl Character {
                 return Ok(());
             }
             return Err(CharacterError::ItemNotCraftable);
+        }
+        // TODO: improve condition
+        if self.inventory_is_full() {
+            return Err(CharacterError::InventoryFull);
         }
         Err(CharacterError::ItemNotFound)
     }
@@ -977,12 +953,12 @@ impl Character {
     /// Withdraw the materials required to craft the `quantity` of the
     /// item `code` and returns the maximum amount that can be crafted.
     // TODO: add check on `inventory_max_items`
-    fn withdraw_mats_for(&self, code: &str, quantity: i32) -> bool {
+    fn withdraw_mats_for(&self, code: &str, quantity: i32) -> Result<(), CharacterError> {
         let mats = self.items.mats(code);
         for mat in &mats {
             if self.bank.has_item(&mat.code, Some(&self.name)) < mat.quantity * quantity {
                 warn!("{}: not enough materials in bank to withdraw the materials required to craft '{code}'x{quantity}", self.name);
-                return false;
+                return Err(CharacterError::InsuffisientMaterials);
             }
         }
         info!(
@@ -990,22 +966,17 @@ impl Character {
             self.name
         );
         for mat in &mats {
-            if let Err(e) = self.withdraw_item(&mat.code, mat.quantity * quantity) {
-                error!(
-                    "{}: failed to withdraw item during mats withdrawing for '{}'x{}: {:?}",
-                    self.name, code, quantity, e
-                )
-            }
+            self.withdraw_item(&mat.code, mat.quantity * quantity)?;
         }
-        true
+        Ok(())
     }
 
     /// Withdraw the maximum amount of materials considering free spaces in inventory to craft the
     /// maximum amount of the item `code` and returns the maximum amount that can be crafted.
-    fn withdraw_max_mats_for(&self, code: &str) -> i32 {
+    fn withdraw_max_mats_for(&self, code: &str) -> Result<i32, CharacterError> {
         let max = self.max_current_craftable_items(code);
-        self.withdraw_mats_for(code, max);
-        max
+        self.withdraw_mats_for(code, max)?;
+        Ok(max)
     }
 
     /// Calculates the maximum number of items that can be crafted in one go based on
@@ -1426,27 +1397,21 @@ impl Character {
     fn order_best_gear_against(&self, monster: &MonsterSchema, filter: Filter) {
         let gear = self.gear_finder.best_against(self, monster, filter);
         if self.can_kill_with(monster, &gear) {
-            self.order_gear(gear, 1, format!("gear({:?})", filter));
+            self.order_gear(gear, 1);
         };
     }
 
-    fn order_gear(&self, gear: Gear<'_>, priority: i32, reason: String) {
+    fn order_gear(&self, gear: Gear<'_>, priority: i32) {
         //TODO handle rings correctly
         //TODO handle consumables
         Slot::iter().for_each(|s| {
             if let Some(item) = gear.slot(s) {
-                self.order_if_needed(s, item, priority, reason.clone());
+                self.order_if_needed(s, item, priority);
             }
         });
     }
 
-    fn order_if_needed(
-        &self,
-        slot: Slot,
-        item: &ItemSchema,
-        priority: i32,
-        reason: String,
-    ) -> bool {
+    fn order_if_needed(&self, slot: Slot, item: &ItemSchema, priority: i32) -> bool {
         if (self.equiped_in(slot).is_none()
             || self
                 .equiped_in(slot)
@@ -1564,6 +1529,11 @@ pub enum CharacterError {
     InsuffisientGold,
     BankUnavailable,
     InventoryFull,
+    RessourceNotFound,
+    MonsterNotFound,
+    EventNotFound,
+    NoOrderFullfilable,
+    NotGoalFullfilable,
 }
 
 impl From<RequestError> for CharacterError {
