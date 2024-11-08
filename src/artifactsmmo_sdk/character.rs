@@ -103,6 +103,10 @@ impl Character {
             if self.conf.read().unwrap().idle {
                 continue;
             }
+            if self.inventory_is_full() {
+                self.deposit_all();
+                continue;
+            }
             self.events.refresh();
             if self.conf().do_events && self.handle_events() {
                 continue;
