@@ -98,7 +98,9 @@ impl Character {
 
     fn run_loop(&self) {
         info!("{}: started !", self.name);
-        self.handle_wooden_stick();
+        if let Err(e) = self.handle_wooden_stick() {
+            error!("{} error while handling wooden_stick: {:?}", self.name, e)
+        };
         loop {
             if self.conf.read().unwrap().idle {
                 continue;
@@ -110,14 +112,6 @@ impl Character {
             self.events.refresh();
             if self.conf().do_events && self.handle_events() {
                 continue;
-            }
-            if let Some(craft) = self.conf().target_craft {
-                if self
-                    .craft_max_from_bank(&craft, PostCraftAction::Deposit)
-                    .is_ok()
-                {
-                    continue;
-                }
             }
             if self.conf().goals.iter().any(|g| match g {
                 Goal::Orders => self.handle_orderboard(),
@@ -138,11 +132,12 @@ impl Character {
         }
     }
 
-    fn handle_wooden_stick(&self) {
+    fn handle_wooden_stick(&self) -> Result<(), CharacterError> {
         if self.conf().skills.contains(&Skill::Combat) && self.has_equiped("wooden_stick") > 0 {
-            let _ = self.action_unequip(Slot::Weapon, 1);
-            let _ = self.deposit_item("wooden_stick", 1, None);
+            self.action_unequip(Slot::Weapon, 1)?;
+            self.deposit_item("wooden_stick", 1, None)?;
         };
+        Ok(())
     }
 
     fn level_skill_up(&self, skill: Skill) -> bool {
@@ -354,7 +349,9 @@ impl Character {
             Ok(r) => Some(r),
             Err(e) => {
                 if let CharacterError::NoTask = e {
-                    let _ = self.action_accept_task("items");
+                    if let Err(e) = self.action_accept_task("items") {
+                        error!("{} error while accepting new task: {:?}", self.name, e)
+                    }
                     Some(0)
                 } else if let CharacterError::TaskNotFinished = e {
                     if self.progress_task() {
@@ -453,7 +450,12 @@ impl Character {
 
         if in_bank >= missing {
             let q = min(missing, self.inventory_max_items());
-            let _ = self.bank.reserv(item, q, &self.name);
+            if let Err(e) = self.bank.reserv(item, q, &self.name) {
+                error!(
+                    "{}: error while reserving items for item task: {:?}",
+                    self.name, e
+                )
+            }
             self.deposit_all();
             if let Err(e) = self.withdraw_item(item, q) {
                 error!("{}: error while withdrawing {:?}", self.name, e);
@@ -805,14 +807,30 @@ impl Character {
         );
         self.deposit_all();
         self.withdraw_mats_for(code, quantity);
+        self.move_to_craft(code)?;
         self.action_craft(code, quantity)?;
         //TODO: return errors
         match post_action {
             PostCraftAction::Deposit => {
-                let _ = self.deposit_item(code, quantity, None);
+                if let Err(e) = self.deposit_item(code, quantity, None) {
+                    error!(
+                        "{}: error while depositing items after crafting from bank: {:?}",
+                        self.name, e
+                    )
+                }
             }
             PostCraftAction::Recycle => {
-                let _ = self.action_recycle(code, quantity);
+                if let Err(e) = self.move_to_craft(code) {
+                    error!(
+                        "{}: failed to move before recycling items after crafting from bank: {:?}",
+                        self.name, e
+                    )
+                } else if let Err(e) = self.action_recycle(code, quantity) {
+                    error!(
+                        "{}: error while recycling items after crafting from bank: {:?}",
+                        self.name, e
+                    )
+                }
             }
             PostCraftAction::None => (),
         };
@@ -838,7 +856,9 @@ impl Character {
         let deposit = self.action_deposit(item, quantity);
         if deposit.is_ok() {
             if let Some(owner) = owner {
-                let _ = self.bank.reserv(item, quantity, &owner);
+                if let Err(e) = self.bank.reserv(item, quantity, &owner) {
+                    error!("{}: failed to reserv deposited item: {:?}", self.name, e)
+                }
             }
         }
         if let Err(e) = self.deposit_all_gold() {
@@ -906,7 +926,12 @@ impl Character {
     }
 
     pub fn empty_bank(&self) {
-        let _ = self.move_to_closest_map_of_type("bank");
+        if let Err(e) = self.move_to_closest_map_of_type("bank") {
+            error!(
+                "{} failed to move to bank before emptying bank: {:?}",
+                self.name, e
+            )
+        }
         self.deposit_all();
         let content = self.bank.content.read().unwrap().clone();
         content.iter().for_each(|i| {
@@ -914,8 +939,18 @@ impl Character {
             let mut remain = i.quantity;
             while remain > 0 {
                 let quantity = min(self.inventory_free_space(), remain);
-                let _ = self.withdraw_item(&i.code, quantity);
-                let _ = self.action_delete(&i.code, quantity);
+                if let Err(e) = self.withdraw_item(&i.code, quantity) {
+                    error!(
+                        "{} error while withdrawing item during bank empting: {:?}",
+                        self.name, e
+                    )
+                }
+                if let Err(e) = self.action_delete(&i.code, quantity) {
+                    error!(
+                        "{} error while delete item during bank emptying: {:?}",
+                        self.name, e
+                    )
+                }
                 remain -= quantity;
             }
         });
@@ -955,7 +990,12 @@ impl Character {
             self.name
         );
         for mat in &mats {
-            let _ = self.withdraw_item(&mat.code, mat.quantity * quantity);
+            if let Err(e) = self.withdraw_item(&mat.code, mat.quantity * quantity) {
+                error!(
+                    "{}: failed to withdraw item during mats withdrawing for '{}'x{}: {:?}",
+                    self.name, code, quantity, e
+                )
+            }
         }
         true
     }
@@ -994,21 +1034,18 @@ impl Character {
 
     /// Craft the maximum amount of the item `code` with the materials currently available
     /// in the character inventory and returns the amount crafted.
-    fn craft_max_from_inventory(&self, code: &str) -> i32 {
+    fn craft_max_from_inventory(&self, code: &str) -> Result<(), CharacterError> {
         let n = self.has_mats_for(code);
-        if n > 0 {
+        if 0 < n {
+            Err(CharacterError::InsuffisientMaterials)
+        } else {
             info!(
                 "{}: going to craft all '{}' with materials available in inventory.",
                 self.name, code
             );
-            let _ = self.action_craft(code, n);
-            n
-        } else {
-            error!(
-                "{}: not enough materials in inventory to craft {}",
-                self.name, code
-            );
-            0
+            self.move_to_craft(code)?;
+            self.action_craft(code, n)?;
+            Ok(())
         }
     }
 
@@ -1018,7 +1055,12 @@ impl Character {
         let n = self.has_in_inventory(code);
         if n > 0 {
             info!("{}: recycling all '{}'.", self.name, code);
-            let _ = self.action_recycle(code, n);
+            if let Err(e) = self.action_recycle(code, n) {
+                error!(
+                    "{}: error while recycling all '{}': {:?}",
+                    self.name, code, e
+                )
+            }
         }
         n
     }
@@ -1196,15 +1238,16 @@ impl Character {
 
     /// Moves the `Character` to the crafting station corresponding to the skill
     /// required to craft the given item `code`.
-    fn move_to_craft(&self, code: &str) -> bool {
-        if let Some(dest) = self
+    fn move_to_craft(&self, code: &str) -> Result<(), CharacterError> {
+        let Some(dest) = self
             .items
             .skill_to_craft(code)
             .and_then(|s| self.maps.to_craft(s))
-        {
-            let _ = self.action_move(dest.x, dest.y);
-        }
-        false
+        else {
+            return Err(CharacterError::MapNotFound);
+        };
+        self.action_move(dest.x, dest.y)?;
+        Ok(())
     }
 
     fn equip_gear(&self, gear: &Gear) {
@@ -1444,13 +1487,13 @@ impl Character {
                 .is_some_and(|equiped| item.code != equiped.code))
             && self.has_in_inventory(&item.code) < 1
         {
-            let _ = self.bank.reserv(&item.code, 1, &self.name);
+            if let Err(e) = self.bank.reserv(&item.code, 1, &self.name) {
+                error!("{} failed to reserv '{}': {:?}", self.name, item.code, e)
+            }
         }
     }
 
     pub fn unequip_and_deposit_all(&self) {
-        let _ = self.move_to_closest_map_of_type("bank");
-        //TODO check available space in bank
         Slot::iter().for_each(|s| {
             if let Some(item) = self.equiped_in(s) {
                 let quantity = match s {
@@ -1458,8 +1501,17 @@ impl Character {
                     Slot::Consumable2 => self.data.read().unwrap().consumable2_slot_quantity,
                     _ => 1,
                 };
-                let _ = self.action_unequip(s, quantity);
-                let _ = self.deposit_item(&item.code, quantity, None);
+                if let Err(e) = self.action_unequip(s, quantity) {
+                    error!(
+                        "{}: failed to unequip '{}'x{} during unequip_and_deposit_all: {:?}",
+                        self.name, &item.code, quantity, e
+                    )
+                } else if let Err(e) = self.deposit_item(&item.code, quantity, None) {
+                    error!(
+                        "{}: failed to deposit '{}'x{} during `unequip_and_deposit_all`: {:?}",
+                        self.name, &item.code, quantity, e
+                    )
+                }
             }
         })
     }
@@ -1511,6 +1563,7 @@ pub enum CharacterError {
     NotEnoughCoin,
     InsuffisientGold,
     BankUnavailable,
+    InventoryFull,
 }
 
 impl From<RequestError> for CharacterError {

@@ -17,10 +17,7 @@ use artifactsmmo_openapi::{
 };
 use chrono::{DateTime, Utc};
 use log::{debug, error, info};
-use std::{
-    cmp::Ordering, fmt::Display, sync::RwLockWriteGuard, thread::sleep,
-    time::Duration,
-};
+use std::{cmp::Ordering, fmt::Display, sync::RwLockWriteGuard, thread::sleep, time::Duration};
 use strum_macros::{Display, EnumIs};
 
 impl Character {
@@ -237,7 +234,6 @@ impl Character {
     }
 
     pub fn action_withdraw_gold(&self, quantity: i32) -> Result<i32, RequestError> {
-        let _ = self.move_to_closest_map_of_type("bank");
         self.perform_action(Action::WithdrawGold { quantity })
             .and_then(|r| {
                 r.downcast::<BankGoldTransactionResponseSchema>()
@@ -247,7 +243,6 @@ impl Character {
     }
 
     pub fn action_expand_bank(&self) -> Result<i32, RequestError> {
-        let _ = self.move_to_closest_map_of_type("bank");
         self.perform_action(Action::ExpandBank)
             .and_then(|r| {
                 r.downcast::<BankExtensionTransactionResponseSchema>()
@@ -257,7 +252,6 @@ impl Character {
     }
 
     pub fn action_craft(&self, code: &str, quantity: i32) -> Result<(), RequestError> {
-        self.move_to_craft(code);
         self.perform_action(Action::Craft { code, quantity })
             .map(|_| ())
     }
@@ -268,7 +262,6 @@ impl Character {
     }
 
     pub fn action_recycle(&self, code: &str, quantity: i32) -> Result<(), RequestError> {
-        self.move_to_craft(code);
         self.perform_action(Action::Recycle { code, quantity })
             .map(|_| ())
     }
