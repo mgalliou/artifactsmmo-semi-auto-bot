@@ -53,7 +53,7 @@ pub struct Character {
     events: Arc<Events>,
     bank: Arc<Bank>,
     orderboard: Arc<OrderBoard>,
-    equipment_finder: GearFinder,
+    gear_finder: GearFinder,
     fight_simulator: FightSimulator,
     pub conf: Arc<RwLock<CharConfig>>,
     pub data: Arc<RwLock<CharacterSchema>>,
@@ -81,7 +81,7 @@ impl Character {
             items: game.items.clone(),
             events: game.events.clone(),
             orderboard: game.orderboard.clone(),
-            equipment_finder: GearFinder::new(&game.items),
+            gear_finder: GearFinder::new(&game.items),
             fight_simulator: FightSimulator::new(&game.items, &game.monsters),
             bank: bank.clone(),
             data: data.clone(),
@@ -107,7 +107,6 @@ impl Character {
             if self.conf().do_events && self.handle_events() {
                 continue;
             }
-            self.process_inventory();
             if let Some(craft) = self.conf().target_craft {
                 if self
                     .craft_max_from_bank(&craft, PostCraftAction::Deposit)
@@ -142,17 +141,28 @@ impl Character {
         };
     }
 
-    /// If inventory is full, process the raw materials if possible and deposit
-    /// all the consumables and resources in inventory to the bank.
-    fn process_inventory(&self) {
-        if self.inventory_is_full() {
-            self.deposit_all();
-        }
-    }
-
     fn level_skill_up(&self, skill: Skill) -> bool {
         if skill.is_gathering() {
-            return self.level_skill_by_gathering(&skill);
+            return self
+                .items
+                .best_for_leveling(self.skill_level(skill), skill)
+                .iter()
+                .min_by_key(|i| {
+                    self.bank.missing_mats_quantity(
+                        &i.code,
+                        self.max_craftable_items(&i.code),
+                        Some(&self.name),
+                    )
+                })
+                .is_some_and(|i| {
+                    self.craft_from_bank(
+                        &i.code,
+                        self.max_craftable_items(&i.code),
+                        PostCraftAction::Deposit,
+                    )
+                    .is_ok()
+                })
+                || self.level_skill_by_gathering(&skill);
         }
         self.items
             .best_for_leveling_hc(self.skill_level(skill), skill)
@@ -360,7 +370,7 @@ impl Character {
             return Err(CharacterError::NotEnoughCoin);
         }
         self.deposit_all();
-        self.action_withdraw("tasks_coin", 6)?;
+        self.withdraw_item("tasks_coin", 6)?;
         self.action_task_exchange().map_err(|e| e.into())
     }
 
@@ -441,7 +451,7 @@ impl Character {
             let q = min(missing, self.inventory_max_items());
             let _ = self.bank.reserv(item, q, &self.name);
             self.deposit_all();
-            if let Err(e) = self.action_withdraw(item, q) {
+            if let Err(e) = self.withdraw_item(item, q) {
                 error!("{}: error while withdrawing {:?}", self.name, e);
                 self.bank.decrease_reservation(item, q, &self.name);
             };
@@ -547,7 +557,7 @@ impl Character {
         false
     }
 
-    /// Checks if an equipment making the `Character` able to kill the given
+    /// Checks if an gear making the `Character` able to kill the given
     /// `monster` is available, equip it, then move the `Character` to the given
     /// map or the closest containing the `monster` and fight it.
     fn kill_monster(
@@ -555,18 +565,18 @@ impl Character {
         monster: &MonsterSchema,
         map: Option<&MapSchema>,
     ) -> Result<FightSchema, CharacterError> {
-        let mut available: Gear = self.equipment();
+        let mut available: Gear = self.gear();
         if let Ok(_browsed) = self.bank.browsed.write() {
             match self.can_kill(monster) {
-                Ok(equipment) => {
-                    available = equipment;
-                    self.reserv_equipment(available)
+                Ok(gear) => {
+                    available = gear;
+                    self.reserv_gear(available)
                 }
                 Err(e) => return Err(e),
             }
-            self.order_best_equipment_against(monster, Filter::Craftable);
+            self.order_best_gear_against(monster, Filter::Craftable);
         }
-        self.equip_equipment(&available);
+        self.equip_gear(&available);
         if let Some(map) = map {
             self.action_move(map.x, map.y)?;
         } else if let Some(map) = self.closest_map_with_content_code(&monster.code) {
@@ -619,26 +629,26 @@ impl Character {
     }
 
     /// Checks if the `Character` is able to kill the given monster and returns
-    /// the best available equipment to do so.
+    /// the best available gear to do so.
     fn can_kill<'a>(&'a self, monster: &'a MonsterSchema) -> Result<Gear<'_>, CharacterError> {
         if !self.skill_enabled(Skill::Combat) {
             return Err(CharacterError::SkillDisabled);
         }
         let available = self
-            .equipment_finder
+            .gear_finder
             .best_against(self, monster, Filter::Available);
         if self.can_kill_with(monster, &available) {
             Ok(available)
         } else {
-            Err(CharacterError::EquipmentTooWeak)
+            Err(CharacterError::GearTooWeak)
         }
     }
 
     /// Checks if the `Character` could kill the given `monster` with the given
-    /// `equipment`
-    fn can_kill_with(&self, monster: &MonsterSchema, equipment: &Gear) -> bool {
+    /// `gear`
+    fn can_kill_with(&self, monster: &MonsterSchema, gear: &Gear) -> bool {
         self.fight_simulator
-            .simulate(self.level(), equipment, monster)
+            .simulate(self.level(), gear, monster)
             .result
             == fight_schema::Result::Win
     }
@@ -675,8 +685,8 @@ impl Character {
         Err(CharacterError::ItemNotFound)
     }
 
-    /// Returns the current `Equipment` of the `Character`, containing item schemas.
-    pub fn equipment(&self) -> Gear {
+    /// Returns the current `Gear` of the `Character`, containing item schemas.
+    pub fn gear(&self) -> Gear {
         let d = self.data.read().unwrap();
         Gear {
             weapon: self.items.get(&d.weapon_slot),
@@ -897,7 +907,7 @@ impl Character {
             let mut remain = i.quantity;
             while remain > 0 {
                 let quantity = min(self.inventory_free_space(), remain);
-                let _ = self.action_withdraw(&i.code, quantity);
+                let _ = self.withdraw_item(&i.code, quantity);
                 let _ = self.action_delete(&i.code, quantity);
                 remain -= quantity;
             }
@@ -938,7 +948,7 @@ impl Character {
             self.name
         );
         for mat in &mats {
-            let _ = self.action_withdraw(&mat.code, mat.quantity * quantity);
+            let _ = self.withdraw_item(&mat.code, mat.quantity * quantity);
         }
         true
     }
@@ -1190,9 +1200,9 @@ impl Character {
         false
     }
 
-    fn equip_equipment(&self, equipment: &Gear) {
+    fn equip_gear(&self, gear: &Gear) {
         Slot::iter().for_each(|s| {
-            if let Some(item) = equipment.slot(s) {
+            if let Some(item) = gear.slot(s) {
                 self.equip_item_from_bank_or_inventory(s, item);
             }
         })
@@ -1203,19 +1213,30 @@ impl Character {
         if prev_equiped.is_some_and(|e| e.code == item.code) {
             return;
         }
-        if self.has_in_inventory(&item.code) > 0
-            || (self.bank.has_item(&item.code, Some(&self.name)) > 0
-                && self.action_withdraw(&item.code, 1).is_ok())
+        if self.has_in_inventory(&item.code) <= 0
+            && self.bank.has_item(&item.code, Some(&self.name)) > 0
         {
-            let _ = self.action_equip(&item.code, s, 1);
-            if let Some(i) = prev_equiped {
-                let _ = self.deposit_item(&i.code, 1, None);
+            self.deposit_all();
+            if let Err(e) = self.withdraw_item(&item.code, 1) {
+                error!(
+                    "{} failed withdraw item from bank or inventory: {:?}",
+                    self.name, e
+                );
             }
-        } else {
+        }
+        if let Err(e) = self.action_equip(&item.code, s, 1) {
             error!(
-                "{}: item not found in bank or inventory: '{}'.",
-                self.name, item.code
+                "{} failed to equip item from bank or inventory: {:?}",
+                self.name, e
             );
+        }
+        if let Some(i) = prev_equiped {
+            if let Err(e) = self.deposit_item(&i.code, 1, None) {
+                error!(
+                    "{} failed to deposit previously equiped item: {:?}",
+                    self.name, e
+                );
+            }
         }
     }
 
@@ -1237,7 +1258,7 @@ impl Character {
         self.bank.has_item(code, Some(&self.name)) + self.has_in_inventory(code)
     }
 
-    /// Returns the amount of the given item `code` available in bank, inventory and equipment.
+    /// Returns the amount of the given item `code` available in bank, inventory and gear.
     pub fn has_available(&self, code: &str) -> i32 {
         self.has_in_bank_or_inv(code) + self.has_equiped(code) as i32
     }
@@ -1343,7 +1364,7 @@ impl Character {
         }
     }
 
-    /// Returns the base health of the `Character` without its equipment.
+    /// Returns the base health of the `Character` without its gear.
     fn base_health(&self) -> i32 {
         115 + 5 * self.level()
     }
@@ -1352,18 +1373,18 @@ impl Character {
         self.conf.read().unwrap().clone()
     }
 
-    fn order_best_equipment_against(&self, monster: &MonsterSchema, filter: Filter) {
-        let equipment = self.equipment_finder.best_against(self, monster, filter);
-        if self.can_kill_with(monster, &equipment) {
-            self.order_equipment(equipment, 1, format!("equipment({:?})", filter));
+    fn order_best_gear_against(&self, monster: &MonsterSchema, filter: Filter) {
+        let gear = self.gear_finder.best_against(self, monster, filter);
+        if self.can_kill_with(monster, &gear) {
+            self.order_gear(gear, 1, format!("gear({:?})", filter));
         };
     }
 
-    fn order_equipment(&self, equipment: Gear<'_>, priority: i32, reason: String) {
+    fn order_gear(&self, gear: Gear<'_>, priority: i32, reason: String) {
         //TODO handle rings correctly
         //TODO handle consumables
         Slot::iter().for_each(|s| {
-            if let Some(item) = equipment.slot(s) {
+            if let Some(item) = gear.slot(s) {
                 self.order_if_needed(s, item, priority, reason.clone());
             }
         });
@@ -1399,11 +1420,11 @@ impl Character {
         false
     }
 
-    fn reserv_equipment(&self, equipment: Gear<'_>) {
+    fn reserv_gear(&self, gear: Gear<'_>) {
         //TODO handle rings correctly
         //TODO handle consumables
         Slot::iter().for_each(|s| {
-            if let Some(item) = equipment.slot(s) {
+            if let Some(item) = gear.slot(s) {
                 self.reserv_if_needed_and_available(s, item);
             }
         })
@@ -1468,13 +1489,13 @@ pub enum CharacterError {
     InsuffisientSkillLevel(Skill, i32),
     InsuffisientMaterials,
     InvalidQuantity,
-    NoEquipmentToKill,
+    NoGearToKill,
     MapNotFound,
     FailedToMove,
     NothingToDeposit,
     RequestError(RequestError),
     SkillDisabled,
-    EquipmentTooWeak,
+    GearTooWeak,
     TooLowLevel,
     ItemNotCraftable,
     ItemNotFound,

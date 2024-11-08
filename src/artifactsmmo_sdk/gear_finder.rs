@@ -28,12 +28,12 @@ impl GearFinder {
         monster: &'a MonsterSchema,
         filter: Filter,
     ) -> Gear<'_> {
-        if let Some(equipment) = self
+        if let Some(gear) = self
             .bests_against(char, monster, filter)
             .into_iter()
             .max_by_key(|e| OrderedFloat(e.attack_damage_against(monster)))
         {
-            equipment
+            gear
         } else {
             Default::default()
         }
@@ -60,7 +60,7 @@ impl GearFinder {
         filter: Filter,
         weapon: &'a ItemSchema,
     ) -> Vec<Gear> {
-        // TODO: low level equipment with empty slots need to be handled properly,
+        // TODO: low level gear with empty slots need to be handled properly,
         // Maybe with `Option`s.
         let helmets =
             self.best_armors_against_with_weapon(char, monster, filter, weapon, Type::Helmet);
@@ -203,15 +203,15 @@ impl GearFinder {
         char: &'a Character,
         monster: &MonsterSchema,
     ) -> Gear {
-        let best_equipment = char
+        let gear = char
             .available_equipable_weapons()
             .iter()
             .map(|w| self.best_available_against_with_weapon(char, monster, w))
             .max_by_key(|e| OrderedFloat(e.attack_damage_against(monster)));
-        if let Some(best_equipment) = best_equipment {
-            return best_equipment;
+        if let Some(gear) = gear {
+            return gear;
         }
-        char.equipment()
+        char.gear()
     }
 
     fn best_available_against_with_weapon<'a>(

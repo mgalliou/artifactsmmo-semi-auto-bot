@@ -15,17 +15,17 @@ impl FightSimulator {
         }
     }
 
-    pub fn simulate(&self, level: i32, equipment: &Gear, monster: &MonsterSchema) -> Fight {
-        let mut hp = 115 + 5 * level + equipment.health_increase();
+    pub fn simulate(&self, level: i32, gear: &Gear, monster: &MonsterSchema) -> Fight {
+        let mut hp = 115 + 5 * level + gear.health_increase();
         let mut monster_hp = monster.hp;
         let mut turns = 1;
 
         while turns <= 100 {
-            monster_hp -= equipment.attack_damage_against(monster).floor() as i32;
+            monster_hp -= gear.attack_damage_against(monster).floor() as i32;
             if monster_hp <= 0 {
                 break;
             }
-            hp -= equipment.attack_damage_from(monster).floor() as i32;
+            hp -= gear.attack_damage_from(monster).floor() as i32;
             if hp <= 0 {
                 break;
             }

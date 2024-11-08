@@ -279,7 +279,7 @@ impl Character {
                 Slot::Consumable2 => self.data.read().unwrap().consumable2_slot_quantity,
                 _ => 1,
             };
-            let _ = self.action_unequip(slot, quantity);
+            self.action_unequip(slot, quantity)?
         }
         self.perform_action(Action::Equip {
             code,

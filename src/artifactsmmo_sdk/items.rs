@@ -290,9 +290,9 @@ impl Items {
                     vec![self.get("copper_ring")]
                 }
             }
-            Skill::Mining => vec![None],
-            Skill::Woodcutting => vec![None],
-            Skill::Cooking => vec![None],
+            Skill::Mining | Skill::Woodcutting | Skill::Cooking => {
+                return self.best_for_leveling(level, skill)
+            }
             Skill::Fishing => vec![None],
             Skill::Combat => vec![None],
         }
