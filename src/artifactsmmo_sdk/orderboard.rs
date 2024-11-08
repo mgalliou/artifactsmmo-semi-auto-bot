@@ -56,12 +56,14 @@ impl OrderBoard {
         orders
     }
 
-    pub fn add(&self, order: Order) {
+    pub fn add(&self, order: Order) -> bool {
         if !self.has_similar(&order) {
             let arc = Arc::new(order);
             self.orders.write().unwrap().push(arc.clone());
             info!("orderboard: added: {}.", arc);
+            return true;
         }
+        false
     }
 
     pub fn update(&self, order: Order) {
@@ -69,7 +71,7 @@ impl OrderBoard {
             *o.quantity.write().unwrap() = order.quantity();
             debug!("orderboard: updated: {}.", order)
         } else {
-            self.add(order)
+            self.add(order);
         }
     }
 

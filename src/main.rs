@@ -15,7 +15,7 @@ use itertools::Itertools;
 use log::LevelFilter;
 use rustyline::Result;
 use rustyline::{error::ReadlineError, DefaultEditor};
-use std::{str::FromStr, sync::Arc};
+use std::{str::FromStr, sync::Arc, thread::sleep, time::Duration};
 
 fn main() -> Result<()> {
     let _ = simple_logging::log_to_file("artifactsmmo.log", LevelFilter::Info);
@@ -33,7 +33,10 @@ fn main() -> Result<()> {
         .read()
         .unwrap()
         .iter()
-        .map(|c| Character::run(c.clone()).unwrap())
+        .map(|c| {
+            sleep(Duration::from_millis(250));
+            Character::run(c.clone()).unwrap()
+        })
         .collect_vec();
     run_cli(&game, &account)?;
     handles.into_iter().for_each(|h| {
@@ -136,22 +139,27 @@ fn handle_orderboard(args: &[&str], orderboard: &Arc<OrderBoard>) {
     match args.first() {
         Some(verb) => match *verb {
             "request" => match (args.get(1), args.get(2)) {
-                (Some(item), Some(quantity)) => orderboard.add(Order::new(
-                    Some("cli"),
-                    item,
-                    quantity.parse::<i32>().unwrap_or(0),
-                    1,
-                    Purpose::Cli,
-                )),
+                (Some(item), Some(quantity)) => {
+                    orderboard.add(Order::new(
+                        Some("cli"),
+                        item,
+                        quantity.parse::<i32>().unwrap_or(0),
+                        1,
+                        Purpose::Cli,
+                    ));
+                }
                 _ => eprintln!("missings args"),
             },
             "orders" => {
                 println!("orders:");
                 orderboard.orders().iter().for_each(|o| println!("{}", o));
             }
-            "prio" =>  {
+            "prio" => {
                 println!("orders:");
-                orderboard.orders_by_priority().iter().for_each(|o| println!("{}", o));
+                orderboard
+                    .orders_by_priority()
+                    .iter()
+                    .for_each(|o| println!("{}", o));
             }
             _ => println!("invalid verb"),
         },

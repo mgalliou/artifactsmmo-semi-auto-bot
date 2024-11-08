@@ -28,7 +28,13 @@ use itertools::Itertools;
 use log::{error, info, warn};
 use serde::Deserialize;
 use std::{
-    cmp::min, io, option::Option, sync::{Arc, RwLock}, thread::{self, sleep, JoinHandle}, time::Duration, vec::Vec
+    cmp::min,
+    io,
+    option::Option,
+    sync::{Arc, RwLock},
+    thread::{self, sleep, JoinHandle},
+    time::Duration,
+    vec::Vec,
 };
 use strum::IntoEnumIterator;
 use strum_macros::EnumIs;
@@ -133,31 +139,24 @@ impl Character {
     }
 
     fn level_skill_up(&self, skill: Skill) -> bool {
-        if skill.is_gathering() {
-            return self
-                .items
-                .best_for_leveling(self.skill_level(skill), skill)
-                .iter()
-                .min_by_key(|i| {
-                    self.bank.missing_mats_quantity(
-                        &i.code,
-                        self.max_craftable_items(&i.code),
-                        Some(&self.name),
-                    )
-                })
-                .is_some_and(|i| {
-                    self.craft_from_bank(
-                        &i.code,
-                        self.max_craftable_items(&i.code),
-                        PostCraftAction::Deposit,
-                    )
-                    .is_ok()
-                })
-                || self.level_skill_by_gathering(&skill).is_ok();
+        self.level_skill_by_crafting(skill) || self.level_skill_by_gathering(&skill).is_ok()
+    }
+
+    fn level_skill_by_gathering(&self, skill: &Skill) -> Result<(), CharacterError> {
+        if let Some(resource) = self
+            .resources
+            .highest_providing_exp(self.skill_level(*skill), *skill)
+        {
+            self.gather_resource(resource, None)?;
         }
-        self.items
-            .best_for_leveling_hc(self.skill_level(skill), skill)
-            .iter()
+        Err(CharacterError::RessourceNotFound)
+    }
+
+    fn level_skill_by_crafting(&self, skill: Skill) -> bool {
+        let Some(item) = self
+            .items
+            .best_for_leveling(self.skill_level(skill), skill)
+            .into_iter()
             .min_by_key(|i| {
                 self.bank.missing_mats_quantity(
                     &i.code,
@@ -165,33 +164,39 @@ impl Character {
                     Some(&self.name),
                 )
             })
-            .is_some_and(|i| {
-                match self.craft_from_bank(
-                    &i.code,
-                    self.max_craftable_items(&i.code),
-                    PostCraftAction::Recycle,
-                ) {
-                    Ok(n) => {
-                        info!("{} crafted '{}'x{} to level up.", self.name, i.code, n);
-                        self.deposit_all();
-                        true
-                    }
-                    Err(e) => {
-                        if let CharacterError::InsuffisientMaterials = e {
-                            self.order_missing_mats(
-                                &i.code,
-                                self.max_craftable_items(&i.code),
-                                1,
-                                Purpose::Leveling {
-                                    char: self.name.to_owned(),
-                                    skill,
-                                },
-                            )
-                        }
-                        false
+        else {
+            return false;
+        };
+        match self.craft_from_bank(
+            &item.code,
+            self.max_craftable_items(&item.code),
+            if skill.is_gathering() {
+                PostCraftAction::Deposit
+            } else {
+                PostCraftAction::Recycle
+            },
+        ) {
+            Ok(n) => {
+                info!("{} crafted '{}'x{} to level up.", self.name, item.code, n);
+                true
+            }
+            Err(e) => {
+                if let CharacterError::InsuffisientMaterials = e {
+                    if !skill.is_gathering() {
+                        return self.order_missing_mats(
+                            &item.code,
+                            self.max_craftable_items(&item.code),
+                            1,
+                            Purpose::Leveling {
+                                char: self.name.to_owned(),
+                                skill,
+                            },
+                        );
                     }
                 }
-            })
+                false
+            }
+        }
     }
 
     /// Browse orderboard for completable orders: first check if some orders
@@ -237,20 +242,30 @@ impl Character {
 
     /// Creates orders based on the missing (not available in bank) materials requiered to craft
     /// the `quantity` of the given `item`. Orders are created with the given `priority` and
-    /// `reason`.
-    fn order_missing_mats(&self, item: &str, quantity: i32, priority: i32, purpose: Purpose) {
+    /// `purpose`. Returns true if an order has been made.
+    fn order_missing_mats(
+        &self,
+        item: &str,
+        quantity: i32,
+        priority: i32,
+        purpose: Purpose,
+    ) -> bool {
+        let mut ordered: bool = false;
         self.bank
             .missing_mats_for(item, quantity, Some(&self.name))
             .iter()
             .for_each(|m| {
-                self.orderboard.add(Order::new(
+                if self.orderboard.add(Order::new(
                     None,
                     &m.code,
                     m.quantity,
                     priority,
                     purpose.clone(),
-                ));
+                )) {
+                    ordered = true
+                }
             });
+        ordered
     }
 
     fn can_complete(&self, order: &Order) -> bool {
@@ -321,13 +336,15 @@ impl Character {
             Err(e) => {
                 if let CharacterError::NotEnoughCoin = e {
                     let q = 6 - self.bank.has_item("tasks_coin", Some(&self.name));
-                    self.orderboard.add(Order::new(
+                    if self.orderboard.add(Order::new(
                         None,
                         "tasks_coin",
                         q,
                         1,
                         order.purpose.to_owned(),
-                    ))
+                    )) {
+                        return Some(0);
+                    }
                 }
                 None
             }
@@ -396,18 +413,39 @@ impl Character {
     }
 
     fn progress_crafting_order(&self, order: &Order) -> Option<i32> {
-        if self.can_craft(&order.item).is_ok()
-            && order.being_crafted() < order.missing() - self.account.in_inventories(&order.item)
-        {
-            let quantity = min(
-                self.max_craftable_items(&order.item),
-                order.missing() - order.being_crafted() - self.account.in_inventories(&order.item),
-            );
-            if quantity > 0 {
-                order.inc_being_crafted(quantity);
-                let crafted = self.craft_from_bank(&order.item, quantity, PostCraftAction::None);
-                order.dec_being_crafted(quantity);
-                return crafted.ok();
+        match self.can_craft(&order.item) {
+            Ok(()) => {
+                if order.being_crafted()
+                    < order.missing() - self.account.in_inventories(&order.item)
+                {
+                    let quantity = min(
+                        self.max_craftable_items(&order.item),
+                        order.missing()
+                            - order.being_crafted()
+                            - self.account.in_inventories(&order.item),
+                    );
+                    if quantity > 0 {
+                        order.inc_being_crafted(quantity);
+                        let crafted =
+                            self.craft_from_bank(&order.item, quantity, PostCraftAction::None);
+                        order.dec_being_crafted(quantity);
+                        return crafted.ok();
+                    }
+                }
+            }
+            Err(e) => {
+                if let CharacterError::InsuffisientMaterials = e {
+                    if order.being_crafted() <= 0
+                        && self.order_missing_mats(
+                            &order.item,
+                            order.missing() - self.account.in_inventories(&order.item),
+                            order.priority,
+                            order.purpose.clone(),
+                        )
+                    {
+                        return Some(0);
+                    }
+                }
             }
         }
         None
@@ -517,16 +555,6 @@ impl Character {
         );
         self.kill_monster(monster, None)?;
         Ok(())
-    }
-
-    fn level_skill_by_gathering(&self, skill: &Skill) -> Result<(), CharacterError> {
-        if let Some(resource) = self
-            .resources
-            .highest_providing_exp(self.skill_level(*skill), *skill)
-        {
-            self.gather_resource(resource, None)?;
-        }
-        Err(CharacterError::RessourceNotFound)
     }
 
     /// Checks if an gear making the `Character` able to kill the given
