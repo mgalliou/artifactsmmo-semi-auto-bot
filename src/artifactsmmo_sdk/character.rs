@@ -143,13 +143,14 @@ impl Character {
     }
 
     fn level_skill_by_gathering(&self, skill: &Skill) -> Result<(), CharacterError> {
-        if let Some(resource) = self
+        let Some(resource) = self
             .resources
             .highest_providing_exp(self.skill_level(*skill), *skill)
-        {
-            self.gather_resource(resource, None)?;
-        }
-        Err(CharacterError::RessourceNotFound)
+        else {
+            return Err(CharacterError::RessourceNotFound);
+        };
+        self.gather_resource(resource, None)?;
+        Ok(())
     }
 
     fn level_skill_by_crafting(&self, skill: Skill) -> bool {
@@ -182,8 +183,8 @@ impl Character {
             }
             Err(e) => {
                 if let CharacterError::InsuffisientMaterials = e {
-                    if !skill.is_gathering() {
-                        return self.order_missing_mats(
+                    return !skill.is_gathering()
+                        && self.order_missing_mats(
                             &item.code,
                             self.max_craftable_items(&item.code),
                             1,
@@ -192,7 +193,6 @@ impl Character {
                                 skill,
                             },
                         );
-                    }
                 }
                 false
             }
@@ -287,16 +287,24 @@ impl Character {
     }
 
     fn handle_order(&self, order: Arc<Order>) -> bool {
-        if self.progress_order(&order).is_some() {
-            self.turn_in_order(order);
-            return true;
+        let Some(progress) = self.progress_order(&order) else {
+            return false;
+        };
+        if progress > 0 {
+            info!(
+                "{}: progressed by {} on order: {}, in inventories: {}",
+                self.name,
+                progress,
+                order,
+                self.account.in_inventories(&order.item),
+            );
         }
-        false
+        self.turn_in_order(order);
+        true
     }
 
     fn progress_order(&self, order: &Order) -> Option<i32> {
-        let ret = self
-            .items
+        self.items
             .sources_of(&order.item)
             .iter()
             .find_map(|s| match s {
@@ -311,19 +319,7 @@ impl Character {
                 ItemSource::Craft => self.progress_crafting_order(order),
                 ItemSource::TaskReward => self.progress_task_reward_order(order),
                 ItemSource::Task => self.progress_task_order(),
-            });
-        if let Some(progress) = ret {
-            if progress > 0 {
-                info!(
-                    "{}: progressed by {} on order: {}, in inventories: {}",
-                    self.name,
-                    progress,
-                    order,
-                    self.account.in_inventories(&order.item),
-                );
-            }
-        }
-        ret
+            })
     }
 
     fn progress_task_reward_order(&self, order: &Order) -> Option<i32> {
@@ -679,23 +675,23 @@ impl Character {
 
     // Checks that the `Character` has the required skill level to craft the given item `code`
     pub fn can_craft(&self, code: &str) -> Result<(), CharacterError> {
-        if let Some(item) = self.items.get(code) {
-            if let Some(skill) = item.skill_to_craft() {
-                if !self.skill_enabled(skill) {
-                    return Err(CharacterError::SkillDisabled);
-                }
-                if self.skill_level(skill) < item.level {
-                    return Err(CharacterError::InsuffisientSkillLevel(skill, item.level));
-                }
-                return Ok(());
-            }
+        let Some(item) = self.items.get(code) else {
+            return Err(CharacterError::ItemNotFound);
+        };
+        let Some(skill) = item.skill_to_craft() else {
             return Err(CharacterError::ItemNotCraftable);
+        };
+        if !self.skill_enabled(skill) {
+            return Err(CharacterError::SkillDisabled);
+        }
+        if self.skill_level(skill) < item.level {
+            return Err(CharacterError::InsuffisientSkillLevel(skill, item.level));
         }
         // TODO: improve condition
         if self.inventory_is_full() {
             return Err(CharacterError::InventoryFull);
         }
-        Err(CharacterError::ItemNotFound)
+        Ok(())
     }
 
     /// Returns the current `Gear` of the `Character`, containing item schemas.
@@ -897,7 +893,7 @@ impl Character {
             return;
         }
         info!("{}: going to deposit all items to the bank.", self.name,);
-        self.orderboard.orders().iter().for_each(|o| {
+        self.orderboard.orders_by_priority().iter().for_each(|o| {
             self.deposit_order(o);
         });
         self.inventory_copy().iter().for_each(|slot| {
@@ -918,15 +914,15 @@ impl Character {
     }
 
     pub fn expand_bank(&self) -> Result<i32, CharacterError> {
-        if let Ok(_being_expanded) = self.bank.being_expanded.try_write() {
-            if self.bank.gold() + self.gold() < self.bank.next_expansion_cost() {
-                return Err(CharacterError::InsuffisientGold);
-            };
-            self.move_to_closest_map_of_type("bank")?;
-            self.action_withdraw_gold(self.bank.next_expansion_cost() - self.gold())?;
-            return Ok(self.action_expand_bank()?);
-        }
-        Err(CharacterError::BankUnavailable)
+        let Ok(_being_expanded) = self.bank.being_expanded.try_write() else {
+            return Err(CharacterError::BankUnavailable);
+        };
+        if self.bank.gold() + self.gold() < self.bank.next_expansion_cost() {
+            return Err(CharacterError::InsuffisientGold);
+        };
+        self.move_to_closest_map_of_type("bank")?;
+        self.action_withdraw_gold(self.bank.next_expansion_cost() - self.gold())?;
+        Ok(self.action_expand_bank()?)
     }
 
     pub fn empty_bank(&self) {
@@ -1167,24 +1163,22 @@ impl Character {
         &self,
         code: &str,
     ) -> Result<MapSchema, CharacterError> {
-        if let Some(map) = self.closest_map_with_content_code(code) {
-            let (x, y) = (map.x, map.y);
-            Ok(self.action_move(x, y)?)
-        } else {
-            Err(CharacterError::FailedToMove)
-        }
+        let Some(map) = self.closest_map_with_content_code(code) else {
+            return Err(CharacterError::FailedToMove);
+        };
+        let (x, y) = (map.x, map.y);
+        Ok(self.action_move(x, y)?)
     }
 
     fn move_to_closest_map_with_content_schema(
         &self,
         schema: &MapContentSchema,
     ) -> Result<MapSchema, CharacterError> {
-        if let Some(map) = self.closest_map_with_content_schema(schema) {
-            let (x, y) = (map.x, map.y);
-            Ok(self.action_move(x, y)?)
-        } else {
-            Err(CharacterError::FailedToMove)
-        }
+        let Some(map) = self.closest_map_with_content_schema(schema) else {
+            return Err(CharacterError::FailedToMove);
+        };
+        let (x, y) = (map.x, map.y);
+        Ok(self.action_move(x, y)?)
     }
 
     /// Returns the closest map from the `Character` containing the given
