@@ -322,6 +322,45 @@ impl Character {
             })
     }
 
+    fn progress_crafting_order(&self, order: &Order) -> Option<i32> {
+        match self.can_craft(&order.item) {
+            Ok(()) => {
+                if order.being_crafted()
+                    < order.missing() - self.account.in_inventories(&order.item)
+                {
+                    let quantity = min(
+                        self.max_craftable_items(&order.item),
+                        order.missing()
+                            - order.being_crafted()
+                            - self.account.in_inventories(&order.item),
+                    );
+                    if quantity > 0 {
+                        order.inc_being_crafted(quantity);
+                        let crafted =
+                            self.craft_from_bank(&order.item, quantity, PostCraftAction::None);
+                        order.dec_being_crafted(quantity);
+                        return crafted.ok();
+                    }
+                }
+            }
+            Err(e) => {
+                if let CharacterError::InsuffisientMaterials = e {
+                    if order.being_crafted() <= 0
+                        && self.order_missing_mats(
+                            &order.item,
+                            order.missing() - self.account.in_inventories(&order.item),
+                            order.priority,
+                            order.purpose.clone(),
+                        )
+                    {
+                        return Some(0);
+                    }
+                }
+            }
+        }
+        None
+    }
+
     fn progress_task_reward_order(&self, order: &Order) -> Option<i32> {
         if order.worked_by() > 0 {
             return None;
@@ -371,15 +410,6 @@ impl Character {
         }
     }
 
-    fn exchange_task(&self) -> Result<TasksRewardSchema, CharacterError> {
-        if self.bank.reserv("tasks_coin", 6, &self.name).is_err() {
-            return Err(CharacterError::NotEnoughCoin);
-        }
-        self.deposit_all();
-        self.withdraw_item("tasks_coin", 6)?;
-        self.action_task_exchange().map_err(|e| e.into())
-    }
-
     /// Deposit items requiered by the given `order` if needed.
     /// Returns true if items has be deposited.
     fn turn_in_order(&self, order: Arc<Order>) -> bool {
@@ -403,55 +433,6 @@ impl Character {
             if order.turned_in() {
                 self.orderboard.remove(order);
             }
-            return true;
-        }
-        false
-    }
-
-    fn progress_crafting_order(&self, order: &Order) -> Option<i32> {
-        match self.can_craft(&order.item) {
-            Ok(()) => {
-                if order.being_crafted()
-                    < order.missing() - self.account.in_inventories(&order.item)
-                {
-                    let quantity = min(
-                        self.max_craftable_items(&order.item),
-                        order.missing()
-                            - order.being_crafted()
-                            - self.account.in_inventories(&order.item),
-                    );
-                    if quantity > 0 {
-                        order.inc_being_crafted(quantity);
-                        let crafted =
-                            self.craft_from_bank(&order.item, quantity, PostCraftAction::None);
-                        order.dec_being_crafted(quantity);
-                        return crafted.ok();
-                    }
-                }
-            }
-            Err(e) => {
-                if let CharacterError::InsuffisientMaterials = e {
-                    if order.being_crafted() <= 0
-                        && self.order_missing_mats(
-                            &order.item,
-                            order.missing() - self.account.in_inventories(&order.item),
-                            order.priority,
-                            order.purpose.clone(),
-                        )
-                    {
-                        return Some(0);
-                    }
-                }
-            }
-        }
-        None
-    }
-
-    fn handle_events(&self) -> bool {
-        if self.handle_resource_event() {
-            return true;
-        }
-        if self.handle_monster_event() {
             return true;
         }
         false
@@ -512,6 +493,25 @@ impl Character {
         self.action_complete_task()
             .map(|r| r.quantity)
             .map_err(|e| e.into())
+    }
+
+    fn exchange_task(&self) -> Result<TasksRewardSchema, CharacterError> {
+        if self.bank.reserv("tasks_coin", 6, &self.name).is_err() {
+            return Err(CharacterError::NotEnoughCoin);
+        }
+        self.deposit_all();
+        self.withdraw_item("tasks_coin", 6)?;
+        self.action_task_exchange().map_err(|e| e.into())
+    }
+
+    fn handle_events(&self) -> bool {
+        if self.handle_resource_event() {
+            return true;
+        }
+        if self.handle_monster_event() {
+            return true;
+        }
+        false
     }
 
     fn handle_resource_event(&self) -> bool {
