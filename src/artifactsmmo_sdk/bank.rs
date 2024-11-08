@@ -219,6 +219,7 @@ impl Bank {
     }
 }
 
+#[derive(Debug)]
 pub enum BankError {
     ItemUnavailable,
 }
