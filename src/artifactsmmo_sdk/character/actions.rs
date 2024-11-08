@@ -17,7 +17,10 @@ use artifactsmmo_openapi::{
 };
 use chrono::{DateTime, Utc};
 use log::{debug, error, info};
-use std::{cmp::Ordering, fmt::Display, sync::RwLockWriteGuard, thread::sleep, time::Duration};
+use std::{
+    cmp::Ordering, fmt::Display, sync::RwLockWriteGuard, thread::sleep,
+    time::Duration,
+};
 use strum_macros::{Display, EnumIs};
 
 impl Character {
@@ -218,11 +221,9 @@ impl Character {
         quantity: i32,
     ) -> Result<SimpleItemSchema, RequestError> {
         self.perform_action(Action::Withdraw { code, quantity })
-            .map(|_| {
-                SimpleItemSchema {
-                    code: code.to_owned(),
-                    quantity,
-                }
+            .map(|_| SimpleItemSchema {
+                code: code.to_owned(),
+                quantity,
             })
     }
 
@@ -363,23 +364,32 @@ impl Character {
         action: Action,
         e: RequestError,
     ) -> Result<Box<dyn ResponseSchema>, RequestError> {
-        if let RequestError::ResponseError(ref res) = e {
-            if res.error.code == 499 {
-                error!(
-                    "{}: code 499 received, resyncronizing server time",
-                    self.name
-                );
-                self.game.update_offset();
-                return self.perform_action(action);
+        match e {
+            RequestError::ResponseError(ref res) => {
+                if res.error.code == 499 {
+                    error!(
+                        "{}: code 499 received, resyncronizing server time",
+                        self.name
+                    );
+                    self.game.update_offset();
+                    return self.perform_action(action);
+                }
+                if res.error.code == 500 || res.error.code == 520 {
+                    error!(
+                        "{}: unknown error ({}), retrying in 10 secondes.",
+                        self.name, res.error.code
+                    );
+                    sleep(Duration::from_secs(10));
+                    return self.perform_action(action);
+                }
             }
-            if res.error.code == 500 || res.error.code == 520 {
-                error!(
-                    "{}: unknown error ({}), retrying in 10 secondes.",
-                    self.name, res.error.code
-                );
-                sleep(Duration::from_secs(10));
-                return self.perform_action(action);
+            RequestError::Reqwest(ref req) => {
+                if req.is_timeout() {
+                    error!("{}: request timeout, retrying...", self.name);
+                    return self.perform_action(action);
+                }
             }
+            _ => {}
         }
         error!(
             "{}: request error during action {action}: {:?}",
