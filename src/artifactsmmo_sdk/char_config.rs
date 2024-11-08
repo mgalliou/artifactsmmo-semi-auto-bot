@@ -42,6 +42,7 @@ impl Display for Goal {
             Goal::ReachSkillLevel { skill, level } => {
                 write!(f, "reach_skill_level: {},{}", skill, level)
             }
+            Goal::Events => write!(f, "handle events"),
         }
     }
 }
