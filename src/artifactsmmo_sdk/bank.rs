@@ -14,6 +14,7 @@ pub struct Bank {
     pub details: RwLock<BankSchema>,
     pub content: RwLock<Vec<SimpleItemSchema>>,
     pub reservations: RwLock<Vec<Arc<Reservation>>>,
+    pub being_expanded: RwLock<()>,
 }
 
 impl Bank {
@@ -25,7 +26,24 @@ impl Bank {
             details: RwLock::new(*api.details().unwrap().data),
             content: RwLock::new(api.items(None).unwrap()),
             reservations: RwLock::new(vec![]),
+            being_expanded: RwLock::new(()),
         }
+    }
+
+    pub fn is_full(&self) -> bool {
+        self.free_slots() <= 0
+    }
+
+    pub fn free_slots(&self) -> i32 {
+        self.details.read().unwrap().slots - self.content.read().unwrap().len() as i32
+    }
+
+    pub fn gold(&self) -> i32 {
+        self.details.read().unwrap().gold
+    }
+
+    pub fn next_expansion_cost(&self) -> i32 {
+        self.details.read().unwrap().next_expansion_cost
     }
 
     /// Returns the total quantity of the given `item` code currently in the bank.

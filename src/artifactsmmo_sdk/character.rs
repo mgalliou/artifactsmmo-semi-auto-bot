@@ -22,7 +22,7 @@ use crate::artifactsmmo_sdk::char_config::Goal;
 use actions::{PostCraftAction, RequestError};
 use artifactsmmo_openapi::models::{
     fight_schema, CharacterSchema, FightSchema, InventorySlot, ItemSchema, MapContentSchema,
-    MapSchema, MonsterSchema, ResourceSchema, SkillDataSchema, TasksRewardSchema,
+    MapSchema, MonsterSchema, ResourceSchema, SimpleItemSchema, SkillDataSchema, TasksRewardSchema,
 };
 use itertools::Itertools;
 use log::{error, info, warn};
@@ -138,7 +138,7 @@ impl Character {
     fn handle_wooden_stick(&self) {
         if self.conf().skills.contains(&Skill::Combat) && self.has_equiped("wooden_stick") > 0 {
             let _ = self.action_unequip(Slot::Weapon, 1);
-            let _ = self.action_deposit("wooden_stick", 1, None);
+            let _ = self.deposit_item("wooden_stick", 1, None);
         };
     }
 
@@ -380,7 +380,7 @@ impl Character {
         let q = self.has_in_inventory(&order.item);
         if q > 0
             && self
-                .action_deposit(&order.item, min(q, order.missing()), order.owner.clone())
+                .deposit_item(&order.item, min(q, order.missing()), order.owner.clone())
                 .is_ok()
         {
             order.inc_deposited(q);
@@ -792,7 +792,7 @@ impl Character {
         //TODO: return errors
         match post_action {
             PostCraftAction::Deposit => {
-                let _ = self.action_deposit(code, quantity, None);
+                let _ = self.deposit_item(code, quantity, None);
             }
             PostCraftAction::Recycle => {
                 let _ = self.action_recycle(code, quantity);
@@ -802,8 +802,54 @@ impl Character {
         Ok(quantity)
     }
 
-    /// Deposits all the items in the character inventory into the bank.
+    pub fn deposit_item(
+        &self,
+        item: &str,
+        quantity: i32,
+        owner: Option<String>,
+    ) -> Result<SimpleItemSchema, CharacterError> {
+        if self.has_in_inventory(item) < quantity {
+            // TODO: return a better error
+            return Err(CharacterError::ItemNotFound);
+        }
+        self.move_to_closest_map_of_type("bank")?;
+        if self.bank.free_slots() <= 3 {
+            if let Err(e) = self.expand_bank() {
+                error!("{}: failed to expand bank capacity: {:?}", self.name, e)
+            }
+        }
+        let deposit = self.action_deposit(item, quantity);
+        if deposit.is_ok() {
+            if let Some(owner) = owner {
+                let _ = self.bank.reserv(item, quantity, &owner);
+            }
+        }
+        if let Err(e) = self.deposit_all_gold() {
+            error!("{}: failed to deposit gold to the bank: {:?}", self.name, e)
+        }
+        Ok(deposit?)
+    }
+
+    pub fn withdraw_item(
+        &self,
+        item: &str,
+        quantity: i32,
+    ) -> Result<SimpleItemSchema, CharacterError> {
+        if self.bank.has_item(item, Some(&self.name)) < quantity {
+            // TODO: return a better error
+            return Err(CharacterError::ItemNotFound);
+        }
+        self.move_to_closest_map_of_type("bank")?;
+        let deposit = self.action_withdraw(item, quantity);
+        if deposit.is_ok() {
+            self.bank.decrease_reservation(item, quantity, &self.name);
+        }
+        Ok(deposit?)
+    }
+
+    /// Deposits all the gold and items in the character inventory into the bank.
     /// Items needed by orders are turned in first.
+    /// Bank is expanded if close to being full.
     /// TODO: add returns type with Result breakdown
     pub fn deposit_all(&self) {
         if self.inventory_total() <= 0 {
@@ -815,19 +861,31 @@ impl Character {
         });
         self.inventory_copy().iter().for_each(|slot| {
             if slot.quantity > 0 {
-                if let Err(e) = self.action_deposit(&slot.code, slot.quantity, None) {
+                if let Err(e) = self.deposit_item(&slot.code, slot.quantity, None) {
                     error!("{}: {:?}", self.name, e)
                 }
             }
-        })
+        });
     }
 
-    pub fn deposit_all_gold(&self) {
+    pub fn deposit_all_gold(&self) -> Result<i32, CharacterError> {
         let gold = self.data.read().unwrap().gold;
         if gold <= 0 {
-            return;
+            return Ok(0);
         };
-        self.action_deposit_gold(gold);
+        Ok(self.action_deposit_gold(gold)?)
+    }
+
+    pub fn expand_bank(&self) -> Result<i32, CharacterError> {
+        if let Ok(_being_expanded) = self.bank.being_expanded.try_write() {
+            if self.bank.gold() + self.gold() < self.bank.next_expansion_cost() {
+                return Err(CharacterError::InsuffisientGold);
+            };
+            self.move_to_closest_map_of_type("bank")?;
+            self.action_withdraw_gold(self.bank.next_expansion_cost() - self.gold())?;
+            return Ok(self.action_expand_bank()?);
+        }
+        Err(CharacterError::BankUnavailable)
     }
 
     pub fn empty_bank(&self) {
@@ -857,18 +915,10 @@ impl Character {
         );
         for slot in self.inventory_copy() {
             if slot.quantity > 0 && self.items.is_of_type(&slot.code, r#type) {
-                if let Err(e) = self.action_deposit(&slot.code, slot.quantity, None) {
+                if let Err(e) = self.deposit_item(&slot.code, slot.quantity, None) {
                     error!("{}: {:?}", self.name, e)
                 }
             }
-        }
-    }
-
-    /// Deposit all of the given `item` to the bank.
-    fn deposit_all_of(&self, code: &str) {
-        let amount = self.has_in_inventory(code);
-        if amount > 0 {
-            let _ = self.action_deposit(code, amount, None);
         }
     }
 
@@ -954,6 +1004,10 @@ impl Character {
             let _ = self.action_recycle(code, n);
         }
         n
+    }
+
+    fn gold(&self) -> i32 {
+        self.data.read().unwrap().gold
     }
 
     /// Checks if the `Character` inventory is full (all slots are occupied or
@@ -1155,7 +1209,7 @@ impl Character {
         {
             let _ = self.action_equip(&item.code, s, 1);
             if let Some(i) = prev_equiped {
-                let _ = self.action_deposit(&i.code, 1, None);
+                let _ = self.deposit_item(&i.code, 1, None);
             }
         } else {
             error!(
@@ -1377,7 +1431,7 @@ impl Character {
                     _ => 1,
                 };
                 let _ = self.action_unequip(s, quantity);
-                let _ = self.action_deposit(&item.code, quantity, None);
+                let _ = self.deposit_item(&item.code, quantity, None);
             }
         })
     }
@@ -1427,6 +1481,8 @@ pub enum CharacterError {
     NoTask,
     TaskNotFinished,
     NotEnoughCoin,
+    InsuffisientGold,
+    BankUnavailable,
 }
 
 impl From<RequestError> for CharacterError {

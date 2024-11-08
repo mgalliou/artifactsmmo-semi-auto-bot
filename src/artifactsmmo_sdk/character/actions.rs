@@ -6,13 +6,13 @@ use crate::artifactsmmo_sdk::{
 use artifactsmmo_openapi::{
     apis::Error,
     models::{
-        cooldown_schema::Reason, fight_schema, BankGoldTransactionResponseSchema,
-        BankItemTransactionResponseSchema, BankSchema, CharacterFightResponseSchema,
-        CharacterMovementResponseSchema, CharacterSchema, DeleteItemResponseSchema, DropSchema,
-        EquipmentResponseSchema, FightSchema, MapContentSchema, MapSchema, RecyclingResponseSchema,
-        SimpleItemSchema, SkillDataSchema, SkillResponseSchema, TaskCancelledResponseSchema,
-        TaskResponseSchema, TaskSchema, TaskTradeResponseSchema, TaskTradeSchema,
-        TasksRewardResponseSchema, TasksRewardSchema,
+        cooldown_schema::Reason, fight_schema, BankExtensionTransactionResponseSchema,
+        BankGoldTransactionResponseSchema, BankItemTransactionResponseSchema, BankSchema,
+        CharacterFightResponseSchema, CharacterMovementResponseSchema, CharacterSchema,
+        DeleteItemResponseSchema, DropSchema, EquipmentResponseSchema, FightSchema,
+        MapContentSchema, MapSchema, RecyclingResponseSchema, SimpleItemSchema, SkillDataSchema,
+        SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema, TaskSchema,
+        TaskTradeResponseSchema, TaskTradeSchema, TasksRewardResponseSchema, TasksRewardSchema,
     },
 };
 use chrono::{DateTime, Utc};
@@ -30,6 +30,7 @@ impl Character {
             || action.is_withdraw()
             || action.is_deposit_gold()
             || action.is_withdraw_gold()
+            || action.is_expand_bank()
         {
             bank_content = Some(
                 self.bank
@@ -90,6 +91,11 @@ impl Character {
                 .withdraw_gold(&self.name, quantity)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
+            Action::ExpandBank => self
+                .my_api
+                .expand_bank(&self.name)
+                .map(|r| r.into())
+                .map_err(|e| e.into()),
             Action::Recycle { code, quantity } => self
                 .my_api
                 .recycle(&self.name, code, quantity)
@@ -143,10 +149,16 @@ impl Character {
                     if let Some(mut bank_content) = bank_content {
                         *bank_content = s.data.bank.clone();
                     }
-                };
-                if let Some(s) = res.downcast_ref::<BankGoldTransactionResponseSchema>() {
+                } else if let Some(s) = res.downcast_ref::<BankGoldTransactionResponseSchema>() {
                     if let Some(mut bank_details) = bank_details {
                         bank_details.gold = s.data.bank.quantity
+                    }
+                } else if res
+                    .downcast_ref::<BankExtensionTransactionResponseSchema>()
+                    .is_some()
+                {
+                    if let Some(mut bank_details) = bank_details {
+                        bank_details.slots += 20;
                     }
                 };
                 Ok(res)
@@ -192,19 +204,11 @@ impl Character {
         &self,
         code: &str,
         quantity: i32,
-        owner: Option<String>,
     ) -> Result<SimpleItemSchema, RequestError> {
-        let _ = self.move_to_closest_map_of_type("bank");
-        self.deposit_all_gold();
         self.perform_action(Action::Deposit { code, quantity })
-            .map(|_| {
-                if let Some(owner) = owner {
-                    let _ = self.bank.reserv(code, quantity, &owner);
-                }
-                SimpleItemSchema {
-                    code: code.to_owned(),
-                    quantity,
-                }
+            .map(|_| SimpleItemSchema {
+                code: code.to_owned(),
+                quantity,
             })
     }
 
@@ -213,10 +217,8 @@ impl Character {
         code: &str,
         quantity: i32,
     ) -> Result<SimpleItemSchema, RequestError> {
-        let _ = self.move_to_closest_map_of_type("bank");
         self.perform_action(Action::Withdraw { code, quantity })
             .map(|_| {
-                self.bank.decrease_reservation(code, quantity, &self.name);
                 SimpleItemSchema {
                     code: code.to_owned(),
                     quantity,
@@ -225,7 +227,6 @@ impl Character {
     }
 
     pub fn action_deposit_gold(&self, quantity: i32) -> Result<i32, RequestError> {
-        let _ = self.move_to_closest_map_of_type("bank");
         self.perform_action(Action::DepositGold { quantity })
             .and_then(|r| {
                 r.downcast::<BankGoldTransactionResponseSchema>()
@@ -242,6 +243,16 @@ impl Character {
                     .map_err(|_| RequestError::DowncastError)
             })
             .map(|s| s.data.bank.quantity)
+    }
+
+    pub fn action_expand_bank(&self) -> Result<i32, RequestError> {
+        let _ = self.move_to_closest_map_of_type("bank");
+        self.perform_action(Action::ExpandBank)
+            .and_then(|r| {
+                r.downcast::<BankExtensionTransactionResponseSchema>()
+                    .map_err(|_| RequestError::DowncastError)
+            })
+            .map(|s| s.data.transaction.price)
     }
 
     pub fn action_craft(&self, code: &str, quantity: i32) -> Result<(), RequestError> {
@@ -443,6 +454,7 @@ pub enum Action<'a> {
     WithdrawGold {
         quantity: i32,
     },
+    ExpandBank,
     Recycle {
         code: &'a str,
         quantity: i32,
@@ -491,54 +503,6 @@ impl<T> From<Error<T>> for RequestError {
                 Ok(e) => RequestError::ResponseError(e),
                 Err(e) => RequestError::Serde(e),
             },
-        }
-    }
-}
-
-pub enum CharacterResponseSchema {
-    Movement(CharacterMovementResponseSchema),
-    Fight(CharacterFightResponseSchema),
-    Skill(SkillResponseSchema),
-    Recycle(RecyclingResponseSchema),
-    BankItemTransaction(BankItemTransactionResponseSchema),
-    Task(TaskResponseSchema),
-    TaskCancel(TaskCancelledResponseSchema),
-    TaskTrade(TaskTradeResponseSchema),
-    Equip(EquipmentResponseSchema),
-    Unequip(EquipmentResponseSchema),
-    CompleteTask(TasksRewardResponseSchema),
-}
-
-impl CharacterResponseSchema {
-    fn character(&self) -> &CharacterSchema {
-        match self {
-            CharacterResponseSchema::Movement(s) => s.character(),
-            CharacterResponseSchema::Fight(s) => s.character(),
-            CharacterResponseSchema::Skill(s) => s.character(),
-            CharacterResponseSchema::Recycle(s) => s.character(),
-            CharacterResponseSchema::BankItemTransaction(s) => s.character(),
-            CharacterResponseSchema::Task(s) => s.character(),
-            CharacterResponseSchema::TaskCancel(s) => s.character(),
-            CharacterResponseSchema::TaskTrade(s) => s.character(),
-            CharacterResponseSchema::Equip(s) => s.character(),
-            CharacterResponseSchema::Unequip(s) => s.character(),
-            CharacterResponseSchema::CompleteTask(s) => s.character(),
-        }
-    }
-
-    fn pretty(&self) -> String {
-        match self {
-            CharacterResponseSchema::Movement(s) => s.pretty(),
-            CharacterResponseSchema::Fight(s) => s.pretty(),
-            CharacterResponseSchema::Skill(s) => s.pretty(),
-            CharacterResponseSchema::Recycle(s) => s.pretty(),
-            CharacterResponseSchema::BankItemTransaction(s) => s.pretty(),
-            CharacterResponseSchema::Task(s) => s.pretty(),
-            CharacterResponseSchema::TaskCancel(s) => s.pretty(),
-            CharacterResponseSchema::TaskTrade(s) => s.pretty(),
-            CharacterResponseSchema::Equip(s) => s.pretty(),
-            CharacterResponseSchema::Unequip(s) => s.pretty(),
-            CharacterResponseSchema::CompleteTask(s) => s.pretty(),
         }
     }
 }
@@ -655,6 +619,21 @@ impl ResponseSchema for BankGoldTransactionResponseSchema {
                 self.data.cooldown.remaining_seconds
             )
         }
+    }
+
+    fn character(&self) -> &CharacterSchema {
+        &self.data.character
+    }
+}
+
+impl ResponseSchema for BankExtensionTransactionResponseSchema {
+    fn pretty(&self) -> String {
+        format!(
+            "{}: bought bank expansion for {} golds. {}s",
+            self.data.character.name,
+            self.data.transaction.price,
+            self.data.cooldown.remaining_seconds
+        )
     }
 
     fn character(&self) -> &CharacterSchema {
