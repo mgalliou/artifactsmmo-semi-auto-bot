@@ -782,7 +782,7 @@ impl Character {
             self.name, code, quantity
         );
         self.deposit_all();
-        self.withdraw_mats_for(code, quantity);
+        self.withdraw_mats_for(code, quantity)?;
         self.move_to_craft(code)?;
         self.action_craft(code, quantity)?;
         //TODO: return errors
