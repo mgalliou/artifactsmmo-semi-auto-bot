@@ -389,8 +389,8 @@ impl Character {
             _ => {}
         }
         error!(
-            "{}: request error during action {action}: {:?}",
-            self.name, e
+            "{}: request error during action {:?}: {:?}",
+            self.name, action, e
         );
         Err(e)
     }
