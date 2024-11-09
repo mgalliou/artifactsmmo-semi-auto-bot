@@ -6,14 +6,7 @@ use crate::artifactsmmo_sdk::{
 use artifactsmmo_openapi::{
     apis::Error,
     models::{
-        cooldown_schema::Reason, fight_schema, BankExtensionTransactionResponseSchema,
-        BankGoldTransactionResponseSchema, BankItemTransactionResponseSchema, BankSchema,
-        CharacterFightResponseSchema, CharacterMovementResponseSchema, CharacterSchema,
-        DeleteItemResponseSchema, DropSchema, EquipmentResponseSchema, FightSchema,
-        MapContentSchema, MapSchema, RecyclingResponseSchema, SimpleItemSchema, SkillDataSchema,
-        SkillInfoSchema, SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema,
-        TaskSchema, TaskTradeResponseSchema, TaskTradeSchema, TasksRewardResponseSchema,
-        TasksRewardSchema,
+        cooldown_schema::Reason, fight_schema, BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema, BankItemTransactionResponseSchema, BankSchema, CharacterFightResponseSchema, CharacterMovementResponseSchema, CharacterSchema, DeleteItemResponseSchema, DeleteItemSchema, DropSchema, EquipmentResponseSchema, FightSchema, MapContentSchema, MapSchema, RecyclingItemsSchema, RecyclingResponseSchema, SimpleItemSchema, SkillDataSchema, SkillInfoSchema, SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema, TaskSchema, TaskTradeResponseSchema, TaskTradeSchema, TasksRewardResponseSchema, TasksRewardSchema
     },
 };
 use chrono::{DateTime, Utc};
@@ -259,14 +252,22 @@ impl Character {
             .map(|s| *s.data.details)
     }
 
-    pub fn action_delete(&self, code: &str, quantity: i32) -> Result<(), RequestError> {
+    pub fn action_delete(&self, code: &str, quantity: i32) -> Result<SimpleItemSchema, RequestError> {
         self.perform_action(Action::Delete { code, quantity })
-            .map(|_| ())
+            .and_then(|r| {
+                r.downcast::<DeleteItemResponseSchema>()
+                    .map_err(|_| RequestError::DowncastError)
+            })
+            .map(|s| *s.data.item)
     }
 
-    pub fn action_recycle(&self, code: &str, quantity: i32) -> Result<(), RequestError> {
+    pub fn action_recycle(&self, code: &str, quantity: i32) -> Result<RecyclingItemsSchema, RequestError> {
         self.perform_action(Action::Recycle { code, quantity })
-            .map(|_| ())
+            .and_then(|r| {
+                r.downcast::<RecyclingResponseSchema>()
+                    .map_err(|_| RequestError::DowncastError)
+            })
+            .map(|s| *s.data.details)
     }
 
     pub fn action_equip(&self, code: &str, slot: Slot, quantity: i32) -> Result<(), RequestError> {
