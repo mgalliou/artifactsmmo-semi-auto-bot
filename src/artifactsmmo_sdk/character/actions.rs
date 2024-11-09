@@ -26,23 +26,20 @@ impl Character {
         let mut bank_details: Option<RwLockWriteGuard<'_, BankSchema>> = None;
 
         self.wait_for_cooldown();
-        if action.is_deposit()
-            || action.is_withdraw()
-            || action.is_deposit_gold()
-            || action.is_withdraw_gold()
-            || action.is_expand_bank()
-        {
+        if action.is_deposit() || action.is_withdraw() {
             bank_content = Some(
                 self.bank
                     .content
                     .write()
                     .expect("bank_content to be writable"),
             );
+        }
+        if action.is_deposit_gold() || action.is_withdraw_gold() || action.is_expand_bank() {
             bank_details = Some(
                 self.bank
                     .details
                     .write()
-                    .expect("bank_content to be writable"),
+                    .expect("bank_details to be writable"),
             );
         }
         let res: Result<Box<dyn ResponseSchema>, RequestError> = match action {
