@@ -18,11 +18,12 @@ use super::{
     skill::Skill,
     ActiveEventSchemaExt, FightSchemaExt, ItemSchemaExt, MonsterSchemaExt, SkillSchemaExt,
 };
-use crate::artifactsmmo_sdk::char_config::Goal;
+use crate::artifactsmmo_sdk::{char_config::Goal, SkillInfoSchemaExt};
 use actions::{PostCraftAction, RequestError};
 use artifactsmmo_openapi::models::{
     fight_schema, CharacterSchema, FightSchema, InventorySlot, ItemSchema, MapContentSchema,
-    MapSchema, MonsterSchema, ResourceSchema, SimpleItemSchema, SkillDataSchema, TasksRewardSchema,
+    MapSchema, MonsterSchema, ResourceSchema, SimpleItemSchema, SkillDataSchema, SkillInfoSchema,
+    TasksRewardSchema,
 };
 use itertools::Itertools;
 use log::{error, info, warn};
@@ -139,7 +140,7 @@ impl Character {
     }
 
     fn level_skill_up(&self, skill: Skill) -> bool {
-        self.level_skill_by_crafting(skill) || self.level_skill_by_gathering(&skill).is_ok()
+        self.level_skill_by_crafting(skill).is_ok() || self.level_skill_by_gathering(&skill).is_ok()
     }
 
     fn level_skill_by_gathering(&self, skill: &Skill) -> Result<(), CharacterError> {
@@ -153,7 +154,7 @@ impl Character {
         Ok(())
     }
 
-    fn level_skill_by_crafting(&self, skill: Skill) -> bool {
+    fn level_skill_by_crafting(&self, skill: Skill) -> Result<(), CharacterError> {
         let Some(item) = self
             .items
             .best_for_leveling(self.skill_level(skill), skill)
@@ -166,9 +167,9 @@ impl Character {
                 )
             })
         else {
-            return false;
+            return Err(CharacterError::ItemNotFound);
         };
-        match self.craft_from_bank(
+        let craft = self.craft_from_bank(
             &item.code,
             self.max_craftable_items(&item.code),
             if skill.is_gathering() {
@@ -176,27 +177,30 @@ impl Character {
             } else {
                 PostCraftAction::Recycle
             },
-        ) {
-            Ok(n) => {
-                info!("{} crafted '{}'x{} to level up.", self.name, item.code, n);
-                true
+        );
+        if let Err(CharacterError::InsuffisientMaterials) = craft {
+            if !skill.is_gathering()
+                && self.order_missing_mats(
+                    &item.code,
+                    self.max_craftable_items(&item.code),
+                    1,
+                    Purpose::Leveling {
+                        char: self.name.to_owned(),
+                        skill,
+                    },
+                )
+            {
+                return Ok(());
             }
-            Err(e) => {
-                if let CharacterError::InsuffisientMaterials = e {
-                    return !skill.is_gathering()
-                        && self.order_missing_mats(
-                            &item.code,
-                            self.max_craftable_items(&item.code),
-                            1,
-                            Purpose::Leveling {
-                                char: self.name.to_owned(),
-                                skill,
-                            },
-                        );
-                }
-                false
-            }
-        }
+        };
+        craft.map(|s| {
+            info!(
+                "{} crafted '{}'x{} to level up.",
+                self.name,
+                &item.code,
+                s.amount_of(&item.code)
+            );
+        })
     }
 
     /// Browse orderboard for completable orders: first check if some orders
@@ -325,8 +329,10 @@ impl Character {
     fn progress_crafting_order(&self, order: &Order) -> Option<i32> {
         match self.can_craft(&order.item) {
             Ok(()) => {
-                if order.being_crafted()
-                    < order.missing() - self.account.in_inventories(&order.item)
+                if order.missing()
+                    - self.account.in_inventories(&order.item)
+                    - order.being_crafted()
+                    > 0
                 {
                     let quantity = min(
                         self.max_craftable_items(&order.item),
@@ -334,13 +340,14 @@ impl Character {
                             - order.being_crafted()
                             - self.account.in_inventories(&order.item),
                     );
-                    if quantity > 0 {
-                        order.inc_being_crafted(quantity);
-                        let crafted =
-                            self.craft_from_bank(&order.item, quantity, PostCraftAction::None);
-                        order.dec_being_crafted(quantity);
-                        return crafted.ok();
+                    if quantity <= 0 {
+                        return None;
                     }
+                    order.inc_being_crafted(quantity);
+                    let crafted =
+                        self.craft_from_bank(&order.item, quantity, PostCraftAction::None);
+                    order.dec_being_crafted(quantity);
+                    crafted.ok();
                 }
             }
             Err(e) => {
@@ -424,10 +431,12 @@ impl Character {
 
     fn deposit_order(&self, order: &Order) -> bool {
         let q = self.has_in_inventory(&order.item);
-        if q > 0
-            && self
-                .deposit_item(&order.item, min(q, order.missing()), order.owner.clone())
-                .is_ok()
+        if q <= 0 {
+            return false;
+        }
+        if self
+            .deposit_item(&order.item, min(q, order.missing()), order.owner.clone())
+            .is_ok()
         {
             order.inc_deposited(q);
             if order.turned_in() {
@@ -622,6 +631,7 @@ impl Character {
                 },
             ));
         }
+        drop(_browsed);
         if self.has_available(&tool.code) > 0 {
             self.equip_item_from_bank_or_inventory(Slot::Weapon, tool);
         }
@@ -717,27 +727,23 @@ impl Character {
 
     /// Returns the item equiped in the `given` slot.
     fn equiped_in(&self, slot: Slot) -> Option<&ItemSchema> {
-        self.data
-            .read()
-            .map(|d| {
-                self.items.get(match slot {
-                    Slot::Weapon => &d.weapon_slot,
-                    Slot::Shield => &d.shield_slot,
-                    Slot::Helmet => &d.helmet_slot,
-                    Slot::BodyArmor => &d.body_armor_slot,
-                    Slot::LegArmor => &d.leg_armor_slot,
-                    Slot::Boots => &d.boots_slot,
-                    Slot::Ring1 => &d.ring1_slot,
-                    Slot::Ring2 => &d.ring2_slot,
-                    Slot::Amulet => &d.amulet_slot,
-                    Slot::Artifact1 => &d.artifact1_slot,
-                    Slot::Artifact2 => &d.artifact2_slot,
-                    Slot::Artifact3 => &d.artifact3_slot,
-                    Slot::Consumable1 => &d.consumable1_slot,
-                    Slot::Consumable2 => &d.consumable2_slot,
-                })
-            })
-            .ok()?
+        let d = self.data.read().unwrap();
+        self.items.get(match slot {
+            Slot::Weapon => &d.weapon_slot,
+            Slot::Shield => &d.shield_slot,
+            Slot::Helmet => &d.helmet_slot,
+            Slot::BodyArmor => &d.body_armor_slot,
+            Slot::LegArmor => &d.leg_armor_slot,
+            Slot::Boots => &d.boots_slot,
+            Slot::Ring1 => &d.ring1_slot,
+            Slot::Ring2 => &d.ring2_slot,
+            Slot::Amulet => &d.amulet_slot,
+            Slot::Artifact1 => &d.artifact1_slot,
+            Slot::Artifact2 => &d.artifact2_slot,
+            Slot::Artifact3 => &d.artifact3_slot,
+            Slot::Consumable1 => &d.consumable1_slot,
+            Slot::Consumable2 => &d.consumable2_slot,
+        })
     }
 
     /// Withdraw the materials for, craft, then deposit the item `code` until
@@ -758,7 +764,7 @@ impl Character {
                     min(self.max_current_craftable_items(code), quantity - crafted),
                     PostCraftAction::Deposit,
                 )
-                .unwrap_or(0);
+                .map_or(0, |s| s.amount_of(code));
             craftable = self.bank.has_mats_for(code, Some(&self.name));
             info!("{}: crafted {}/{} '{}", self.name, crafted, quantity, code)
         }
@@ -774,7 +780,7 @@ impl Character {
         &self,
         code: &str,
         post_action: PostCraftAction,
-    ) -> Result<i32, CharacterError> {
+    ) -> Result<SkillInfoSchema, CharacterError> {
         let max = self.max_craftable_items_from_bank(code);
         self.craft_from_bank(code, max, post_action)
     }
@@ -787,7 +793,7 @@ impl Character {
         code: &str,
         quantity: i32,
         post_action: PostCraftAction,
-    ) -> Result<i32, CharacterError> {
+    ) -> Result<SkillInfoSchema, CharacterError> {
         self.can_craft(code)?;
         self.craft_from_bank_unchecked(code, quantity, post_action)
     }
@@ -797,7 +803,7 @@ impl Character {
         code: &str,
         quantity: i32,
         post_action: PostCraftAction,
-    ) -> Result<i32, CharacterError> {
+    ) -> Result<SkillInfoSchema, CharacterError> {
         if self.max_craftable_items_from_bank(code) < quantity {
             return Err(CharacterError::InsuffisientMaterials);
         }
@@ -808,8 +814,7 @@ impl Character {
         self.deposit_all();
         self.withdraw_mats_for(code, quantity)?;
         self.move_to_craft(code)?;
-        self.action_craft(code, quantity)?;
-        //TODO: return errors
+        let craft = self.action_craft(code, quantity)?;
         match post_action {
             PostCraftAction::Deposit => {
                 if let Err(e) = self.deposit_item(code, quantity, None) {
@@ -834,7 +839,7 @@ impl Character {
             }
             PostCraftAction::None => (),
         };
-        Ok(quantity)
+        Ok(craft)
     }
 
     pub fn deposit_item(
@@ -899,7 +904,7 @@ impl Character {
         self.inventory_copy().iter().for_each(|slot| {
             if slot.quantity > 0 {
                 if let Err(e) = self.deposit_item(&slot.code, slot.quantity, None) {
-                    error!("{}: {:?}", self.name, e)
+                    error!("{}: error while depositing all to bank: {:?}", self.name, e)
                 }
             }
         });

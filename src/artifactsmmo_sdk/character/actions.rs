@@ -1,7 +1,7 @@
 use super::Character;
 use crate::artifactsmmo_sdk::{
     gear::Slot, ApiErrorResponseSchema, FightSchemaExt, MapSchemaExt, ResponseSchema,
-    SkillSchemaExt,
+    SkillInfoSchemaExt, SkillSchemaExt,
 };
 use artifactsmmo_openapi::{
     apis::Error,
@@ -11,8 +11,9 @@ use artifactsmmo_openapi::{
         CharacterFightResponseSchema, CharacterMovementResponseSchema, CharacterSchema,
         DeleteItemResponseSchema, DropSchema, EquipmentResponseSchema, FightSchema,
         MapContentSchema, MapSchema, RecyclingResponseSchema, SimpleItemSchema, SkillDataSchema,
-        SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema, TaskSchema,
-        TaskTradeResponseSchema, TaskTradeSchema, TasksRewardResponseSchema, TasksRewardSchema,
+        SkillInfoSchema, SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema,
+        TaskSchema, TaskTradeResponseSchema, TaskTradeSchema, TasksRewardResponseSchema,
+        TasksRewardSchema,
     },
 };
 use chrono::{DateTime, Utc};
@@ -249,9 +250,13 @@ impl Character {
             .map(|s| s.data.transaction.price)
     }
 
-    pub fn action_craft(&self, code: &str, quantity: i32) -> Result<(), RequestError> {
+    pub fn action_craft(&self, code: &str, quantity: i32) -> Result<SkillInfoSchema, RequestError> {
         self.perform_action(Action::Craft { code, quantity })
-            .map(|_| ())
+            .and_then(|r| {
+                r.downcast::<SkillResponseSchema>()
+                    .map_err(|_| RequestError::DowncastError)
+            })
+            .map(|s| *s.data.details)
     }
 
     pub fn action_delete(&self, code: &str, quantity: i32) -> Result<(), RequestError> {
@@ -779,6 +784,15 @@ impl SkillSchemaExt for SkillDataSchema {
     fn amount_of(&self, code: &str) -> i32 {
         self.details
             .items
+            .iter()
+            .find(|i| i.code == code)
+            .map_or(0, |i| i.quantity)
+    }
+}
+
+impl SkillInfoSchemaExt for SkillInfoSchema {
+    fn amount_of(&self, code: &str) -> i32 {
+        self.items
             .iter()
             .find(|i| i.code == code)
             .map_or(0, |i| i.quantity)

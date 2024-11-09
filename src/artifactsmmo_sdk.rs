@@ -81,6 +81,10 @@ trait SkillSchemaExt {
     fn amount_of(&self, code: &str) -> i32;
 }
 
+trait SkillInfoSchemaExt {
+    fn amount_of(&self, code: &str) -> i32;
+}
+
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ApiErrorResponseSchema {
     error: ApiErrorSchema,
