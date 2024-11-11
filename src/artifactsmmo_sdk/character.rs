@@ -542,11 +542,16 @@ impl Character {
         else {
             return Err(CharacterError::MonsterNotFound);
         };
-        info!(
-            "{}: found highest killable monster: {}",
-            self.name, monster.code
-        );
-        self.kill_monster(monster, None)?;
+        if let Err(CharacterError::NoTask) = self.complete_task() {
+            if let Err(e) = self.action_accept_task("items") {
+                error!("{} error while accepting new task: {:?}", self.name, e)
+            }
+        }
+        if let Some(task_monster) = self.monsters.get(&self.task()) {
+            self.kill_monster(task_monster, None)?;
+        } else {
+            self.kill_monster(monster, None)?;
+        }
         Ok(())
     }
 
