@@ -8,12 +8,12 @@ use artifactsmmo_openapi::{
     models::{
         ActionType, BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema,
         BankItemTransactionResponseSchema, BankSchema, CharacterFightResponseSchema,
-        CharacterMovementResponseSchema, CharacterSchema, DeleteItemResponseSchema, DropSchema,
-        EquipmentResponseSchema, FightResult, FightSchema, MapContentSchema, MapSchema,
-        RecyclingItemsSchema, RecyclingResponseSchema, SimpleItemSchema, SkillDataSchema,
-        SkillInfoSchema, SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema,
-        TaskRewardsSchema, TaskSchema, TaskTradeResponseSchema, TaskTradeSchema,
-        TasksRewardDataResponseSchema,
+        CharacterMovementResponseSchema, CharacterRestDataSchema, CharacterRestResponseSchema,
+        CharacterSchema, DeleteItemResponseSchema, DropSchema, EquipmentResponseSchema,
+        FightResult, FightSchema, MapContentSchema, MapSchema, RecyclingItemsSchema,
+        RecyclingResponseSchema, SimpleItemSchema, SkillDataSchema, SkillInfoSchema,
+        SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema, TaskRewardsSchema,
+        TaskSchema, TaskTradeResponseSchema, TaskTradeSchema, TasksRewardDataResponseSchema,
     },
 };
 use chrono::{DateTime, Utc};
@@ -52,6 +52,11 @@ impl Character {
             Action::Fight => self
                 .my_api
                 .fight(&self.name)
+                .map(|r| r.into())
+                .map_err(|e| e.into()),
+            Action::Rest => self
+                .my_api
+                .rest(&self.name)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
             Action::Gather => self
@@ -188,6 +193,15 @@ impl Character {
                     .map_err(|_| RequestError::DowncastError)
             })
             .map(|s| *s.data.fight)
+    }
+
+    pub fn action_rest(&self) -> Result<i32, RequestError> {
+        self.perform_action(Action::Rest)
+            .and_then(|r| {
+                r.downcast::<CharacterRestResponseSchema>()
+                    .map_err(|_| RequestError::DowncastError)
+            })
+            .map(|s| s.data.hp_restored)
     }
 
     pub fn action_gather(&self) -> Result<SkillDataSchema, RequestError> {
@@ -498,6 +512,7 @@ pub enum Action<'a> {
         quantity: i32,
     },
     TaskExchange,
+    Rest,
 }
 
 pub enum PostCraftAction {
@@ -563,6 +578,19 @@ impl ResponseSchema for CharacterFightResponseSchema {
                 self.data.cooldown.remaining_seconds
             ),
         }
+    }
+
+    fn character(&self) -> &CharacterSchema {
+        &self.data.character
+    }
+}
+
+impl ResponseSchema for CharacterRestResponseSchema {
+    fn pretty(&self) -> String {
+        format!(
+            "{}: rested and restored {}hp. {}s",
+            self.data.character.name, self.data.hp_restored, self.data.cooldown.remaining_seconds
+        )
     }
 
     fn character(&self) -> &CharacterSchema {

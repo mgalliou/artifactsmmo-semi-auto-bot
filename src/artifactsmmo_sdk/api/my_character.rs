@@ -11,7 +11,7 @@ use artifactsmmo_openapi::{
             action_deposit_bank_my_name_action_bank_deposit_post,
             action_equip_item_my_name_action_equip_post, action_fight_my_name_action_fight_post,
             action_gathering_my_name_action_gathering_post, action_move_my_name_action_move_post,
-            action_recycling_my_name_action_recycling_post,
+            action_recycling_my_name_action_recycling_post, action_rest_my_name_action_rest_post,
             action_task_cancel_my_name_action_task_cancel_post,
             action_task_exchange_my_name_action_task_exchange_post,
             action_task_trade_my_name_action_task_trade_post,
@@ -27,7 +27,7 @@ use artifactsmmo_openapi::{
             ActionDepositBankMyNameActionBankDepositPostError,
             ActionEquipItemMyNameActionEquipPostError, ActionFightMyNameActionFightPostError,
             ActionGatheringMyNameActionGatheringPostError, ActionMoveMyNameActionMovePostError,
-            ActionRecyclingMyNameActionRecyclingPostError,
+            ActionRecyclingMyNameActionRecyclingPostError, ActionRestMyNameActionRestPostError,
             ActionTaskCancelMyNameActionTaskCancelPostError,
             ActionTaskExchangeMyNameActionTaskExchangePostError,
             ActionTaskTradeMyNameActionTaskTradePostError,
@@ -41,11 +41,11 @@ use artifactsmmo_openapi::{
     models::{
         BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema,
         BankItemTransactionResponseSchema, CharacterFightResponseSchema,
-        CharacterMovementResponseSchema, CraftingSchema, DeleteItemResponseSchema,
-        DepositWithdrawGoldSchema, DestinationSchema, EquipSchema, EquipmentResponseSchema,
-        ItemSlot, MyCharactersListSchema, RecyclingResponseSchema, RecyclingSchema,
-        SimpleItemSchema, SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema,
-        TaskTradeResponseSchema, TasksRewardDataResponseSchema, UnequipSchema,
+        CharacterMovementResponseSchema, CharacterRestResponseSchema, CraftingSchema,
+        DeleteItemResponseSchema, DepositWithdrawGoldSchema, DestinationSchema, EquipSchema,
+        EquipmentResponseSchema, ItemSlot, MyCharactersListSchema, RecyclingResponseSchema,
+        RecyclingSchema, SimpleItemSchema, SkillResponseSchema, TaskCancelledResponseSchema,
+        TaskResponseSchema, TaskTradeResponseSchema, TasksRewardDataResponseSchema, UnequipSchema,
     },
 };
 
@@ -83,6 +83,13 @@ impl MyCharacterApi {
         name: &str,
     ) -> Result<CharacterFightResponseSchema, Error<ActionFightMyNameActionFightPostError>> {
         action_fight_my_name_action_fight_post(&self.configuration, name)
+    }
+
+    pub fn rest(
+        &self,
+        name: &str,
+    ) -> Result<CharacterRestResponseSchema, Error<ActionRestMyNameActionRestPostError>> {
+        action_rest_my_name_action_rest_post(&self.configuration, name)
     }
 
     pub fn gather(

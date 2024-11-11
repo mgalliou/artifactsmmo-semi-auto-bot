@@ -30,6 +30,7 @@ use itertools::Itertools;
 use log::{error, info, warn};
 use serde::Deserialize;
 use std::{
+    ascii::AsciiExt,
     cmp::min,
     io,
     option::Option,
@@ -580,7 +581,17 @@ impl Character {
         } else if let Some(map) = self.closest_map_with_content_code(&monster.code) {
             self.action_move(map.x, map.y)?;
         }
+        if let Err(e) = self.rest() {
+            error!("{}: error while resting: {:?}", self.name, e)
+        }
         Ok(self.action_fight()?)
+    }
+
+    fn rest(&self) -> Result<(), CharacterError> {
+        if self.data.read().unwrap().hp < self.data.read().unwrap().max_hp {
+            self.action_rest()?;
+        }
+        Ok(())
     }
 
     /// Checks if the character is able to gather the given `resource`. If it
