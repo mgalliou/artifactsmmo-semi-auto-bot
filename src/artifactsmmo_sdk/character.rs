@@ -100,9 +100,6 @@ impl Character {
 
     fn run_loop(&self) {
         info!("{}: started !", self.name);
-        if let Err(e) = self.handle_wooden_stick() {
-            error!("{} error while handling wooden_stick: {:?}", self.name, e)
-        };
         loop {
             if self.conf.read().unwrap().idle {
                 continue;
@@ -130,14 +127,6 @@ impl Character {
             info!("{}: no action found, sleeping for 30sec.", self.name);
             sleep(Duration::from_secs(30));
         }
-    }
-
-    fn handle_wooden_stick(&self) -> Result<(), CharacterError> {
-        if self.conf().skills.contains(&Skill::Combat) && self.has_equiped("wooden_stick") > 0 {
-            self.action_unequip(Slot::Weapon, 1)?;
-            self.deposit_item("wooden_stick", 1, None)?;
-        };
-        Ok(())
     }
 
     fn level_skill_up(&self, skill: Skill) -> bool {
@@ -609,7 +598,20 @@ impl Character {
 
     /// TODO: handle available tool versus best craftable
     fn check_for_tool(&self, resource: &ResourceSchema) {
-        let Some(tool) = self.best_tool_for_resource(&resource.code) else {
+        let prev_equiped = self.equiped_in(Slot::Weapon);
+        let tool = self.best_tool_for_resource(&resource.code);
+        if let Some(prev_equiped) = prev_equiped {
+            if tool.is_none() || tool.is_some_and(|t| t.code != prev_equiped.code) {
+                let _ = self.action_unequip(Slot::Weapon, 1);
+                if let Err(e) = self.deposit_item(&prev_equiped.code, 1, None) {
+                    error!(
+                        "{}: error while depositing previously equiped weapon: {:?}",
+                        self.name, e
+                    )
+                }
+            }
+        }
+        let Some(tool) = tool else {
             return;
         };
         let Ok(_browsed) = self.bank.browsed.write() else {
