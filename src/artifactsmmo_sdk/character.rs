@@ -30,7 +30,6 @@ use itertools::Itertools;
 use log::{error, info, warn};
 use serde::Deserialize;
 use std::{
-    ascii::AsciiExt,
     cmp::min,
     io,
     option::Option,
@@ -113,15 +112,11 @@ impl Character {
             if self.conf().goals.iter().any(|g| match g {
                 Goal::Events => self.handle_events(),
                 Goal::Orders => self.handle_orderboard(),
-                Goal::ReachLevel { level } => self.level() < *level && self.level_combat().is_ok(),
-                Goal::ReachSkillLevel { skill, level } => {
-                    if self.skill_level(*skill) < *level {
-                        self.level_skill_up(*skill);
-                        true
-                    } else {
-                        false
-                    }
+                Goal::ReachLevel { level } if self.level() < *level => self.level_combat().is_ok(),
+                Goal::ReachSkillLevel { skill, level } if self.skill_level(*skill) < *level => {
+                    self.level_skill_up(*skill)
                 }
+                _ => false,
             }) {
                 continue;
             }
@@ -146,9 +141,10 @@ impl Character {
     }
 
     fn level_skill_by_crafting(&self, skill: Skill) -> Result<(), CharacterError> {
+        info!("{}: leveling skill up: {:?}", self.name, skill);
         let Some(item) = self
             .items
-            .best_for_leveling(self.skill_level(skill), skill)
+            .best_for_leveling_hc(self.skill_level(skill), skill)
             .into_iter()
             .min_by_key(|i| {
                 self.bank.missing_mats_quantity(
@@ -158,6 +154,7 @@ impl Character {
                 )
             })
         else {
+            error!("{}: no item found to level skill: {:?}", self.name, skill);
             return Err(CharacterError::ItemNotFound);
         };
         let craft = self.craft_from_bank(
@@ -543,10 +540,13 @@ impl Character {
         else {
             return Err(CharacterError::MonsterNotFound);
         };
-        if let Err(CharacterError::NoTask) = self.complete_task() {
-            if let Err(e) = self.action_accept_task("items") {
-                error!("{} error while accepting new task: {:?}", self.name, e)
+        match self.complete_task() {
+            Ok(_) | Err(CharacterError::NoTask) => {
+                if let Err(e) = self.action_accept_task("monsters") {
+                    error!("{} error while accepting new task: {:?}", self.name, e)
+                }
             }
+            _ => (),
         }
         if let Some(task_monster) = self.monsters.get(&self.task()) {
             self.kill_monster(task_monster, None)?;

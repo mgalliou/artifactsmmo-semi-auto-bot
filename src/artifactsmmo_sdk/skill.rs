@@ -32,7 +32,7 @@ pub enum Skill {
 
 impl Skill {
     pub fn is_gathering(&self) -> bool {
-        matches!(self, Skill::Mining | Skill::Woodcutting | Skill::Fishing)
+        matches!(self, Skill::Mining | Skill::Woodcutting | Skill::Fishing | Skill::Alchemy)
     }
 }
 
