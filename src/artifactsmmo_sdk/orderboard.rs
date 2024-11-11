@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use log::{debug, info};
 use std::{
-    fmt::{write, Display},
+    fmt::Display,
     sync::{Arc, RwLock},
 };
 use strum::IntoEnumIterator;

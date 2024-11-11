@@ -1,18 +1,17 @@
-use super::{gear::Gear, items::Items, monsters::Monsters};
-use artifactsmmo_openapi::models::{fight_schema::Result, MonsterSchema};
-use std::sync::Arc;
+use super::gear::Gear;
+use artifactsmmo_openapi::models::{FightResult, MonsterSchema};
 
-pub struct FightSimulator {
-    items: Arc<Items>,
-    monsters: Arc<Monsters>,
+pub struct FightSimulator {}
+
+impl Default for FightSimulator {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl FightSimulator {
-    pub fn new(items: &Arc<Items>, monsters: &Arc<Monsters>) -> Self {
-        Self {
-            items: items.clone(),
-            monsters: monsters.clone(),
-        }
+    pub fn new() -> Self {
+        Self {}
     }
 
     pub fn simulate(&self, level: i32, gear: &Gear, monster: &MonsterSchema) -> Fight {
@@ -34,9 +33,9 @@ impl FightSimulator {
         Fight {
             turns,
             result: if monster_hp <= 0 {
-                Result::Win
+                FightResult::Win
             } else {
-                Result::Lose
+                FightResult::Loss
             },
         }
     }
@@ -44,5 +43,5 @@ impl FightSimulator {
 
 pub struct Fight {
     pub turns: i32,
-    pub result: Result,
+    pub result: FightResult,
 }

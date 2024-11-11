@@ -37,7 +37,7 @@ impl Events {
             // NOTE: keep `events` locked before updating last refresh
             let mut events = self.events.write().unwrap();
             self.update_last_refresh(now);
-            if let Ok(new) = self.api.all() {
+            if let Ok(new) = self.api.active() {
                 *events = new;
                 debug!("events refreshed.");
             }

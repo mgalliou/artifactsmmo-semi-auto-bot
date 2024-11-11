@@ -7,7 +7,7 @@ use artifactsmmo_openapi::{
         },
         Error,
     },
-    models::{ItemResponseSchema, ItemSchema},
+    models::{CraftSkill, ItemResponseSchema, ItemSchema, ItemType},
 };
 
 pub struct ItemsApi {
@@ -27,8 +27,8 @@ impl ItemsApi {
         min_level: Option<i32>,
         max_level: Option<i32>,
         name: Option<&str>,
-        r#type: Option<&str>,
-        craft_skill: Option<&str>,
+        r#type: Option<ItemType>,
+        craft_skill: Option<CraftSkill>,
         craft_material: Option<&str>,
     ) -> Result<Vec<ItemSchema>, Error<GetAllItemsItemsGetError>> {
         let mut items: Vec<ItemSchema> = vec![];

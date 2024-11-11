@@ -39,13 +39,13 @@ use artifactsmmo_openapi::{
         Error,
     },
     models::{
-        equip_schema, unequip_schema, BankExtensionTransactionResponseSchema,
-        BankGoldTransactionResponseSchema, BankItemTransactionResponseSchema,
-        CharacterFightResponseSchema, CharacterMovementResponseSchema, CraftingSchema,
-        DeleteItemResponseSchema, DepositWithdrawGoldSchema, DestinationSchema, EquipSchema,
-        EquipmentResponseSchema, MyCharactersListSchema, RecyclingResponseSchema, RecyclingSchema,
+        BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema,
+        BankItemTransactionResponseSchema, CharacterFightResponseSchema,
+        CharacterMovementResponseSchema, CraftingSchema, DeleteItemResponseSchema,
+        DepositWithdrawGoldSchema, DestinationSchema, EquipSchema, EquipmentResponseSchema,
+        ItemSlot, MyCharactersListSchema, RecyclingResponseSchema, RecyclingSchema,
         SimpleItemSchema, SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema,
-        TaskTradeResponseSchema, TasksRewardResponseSchema, UnequipSchema,
+        TaskTradeResponseSchema, TasksRewardDataResponseSchema, UnequipSchema,
     },
 };
 
@@ -135,7 +135,7 @@ impl MyCharacterApi {
         &self,
         name: &str,
         code: &str,
-        slot: equip_schema::Slot,
+        slot: ItemSlot,
         quantity: Option<i32>,
     ) -> Result<EquipmentResponseSchema, Error<ActionEquipItemMyNameActionEquipPostError>> {
         let mut schema = EquipSchema::new(code.to_string(), slot);
@@ -146,7 +146,7 @@ impl MyCharacterApi {
     pub fn unequip(
         &self,
         name: &str,
-        slot: unequip_schema::Slot,
+        slot: ItemSlot,
         quantity: Option<i32>,
     ) -> Result<EquipmentResponseSchema, Error<ActionUnequipItemMyNameActionUnequipPostError>> {
         let mut schema = UnequipSchema::new(slot);
@@ -234,8 +234,10 @@ impl MyCharacterApi {
     pub fn complete_task(
         &self,
         name: &str,
-    ) -> Result<TasksRewardResponseSchema, Error<ActionCompleteTaskMyNameActionTaskCompletePostError>>
-    {
+    ) -> Result<
+        TasksRewardDataResponseSchema,
+        Error<ActionCompleteTaskMyNameActionTaskCompletePostError>,
+    > {
         action_complete_task_my_name_action_task_complete_post(&self.configuration, name)
     }
 
@@ -263,8 +265,10 @@ impl MyCharacterApi {
     pub fn task_exchange(
         &self,
         name: &str,
-    ) -> Result<TasksRewardResponseSchema, Error<ActionTaskExchangeMyNameActionTaskExchangePostError>>
-    {
+    ) -> Result<
+        TasksRewardDataResponseSchema,
+        Error<ActionTaskExchangeMyNameActionTaskExchangePostError>,
+    > {
         action_task_exchange_my_name_action_task_exchange_post(&self.configuration, name)
     }
 

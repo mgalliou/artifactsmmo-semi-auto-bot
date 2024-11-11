@@ -17,13 +17,14 @@ use super::{
     resources::Resources,
     skill::Skill,
     ActiveEventSchemaExt, FightSchemaExt, ItemSchemaExt, MonsterSchemaExt, SkillSchemaExt,
+    TaskRewardsSchemaExt,
 };
 use crate::artifactsmmo_sdk::{char_config::Goal, SkillInfoSchemaExt};
 use actions::{PostCraftAction, RequestError};
 use artifactsmmo_openapi::models::{
-    fight_schema, CharacterSchema, FightSchema, InventorySlot, ItemSchema, MapContentSchema,
+    CharacterSchema, FightResult, FightSchema, InventorySlot, ItemSchema, MapContentSchema,
     MapSchema, MonsterSchema, ResourceSchema, SimpleItemSchema, SkillDataSchema, SkillInfoSchema,
-    TasksRewardSchema,
+    TaskRewardsSchema,
 };
 use itertools::Itertools;
 use log::{error, info, warn};
@@ -83,7 +84,7 @@ impl Character {
             events: game.events.clone(),
             orderboard: game.orderboard.clone(),
             gear_finder: GearFinder::new(&game.items),
-            fight_simulator: FightSimulator::new(&game.items, &game.monsters),
+            fight_simulator: FightSimulator::new(),
             bank: bank.clone(),
             data: data.clone(),
         }
@@ -322,7 +323,7 @@ impl Character {
                     .map(|fight| fight.amount_of(&order.item)),
                 ItemSource::Craft => self.progress_crafting_order(order),
                 ItemSource::TaskReward => self.progress_task_reward_order(order),
-                ItemSource::Task => self.progress_task_order(),
+                ItemSource::Task => self.progress_task_order(order),
             })
     }
 
@@ -374,7 +375,7 @@ impl Character {
         }
         order.inc_worked_by(1);
         let ret = match self.exchange_task() {
-            Ok(r) => Some(if r.code == order.item { r.quantity } else { 0 }),
+            Ok(r) => Some(r.amount_of(&order.item)),
             Err(e) => {
                 if let CharacterError::NotEnoughCoin = e {
                     let q = 6 - self.bank.has_item("tasks_coin", Some(&self.name));
@@ -395,9 +396,9 @@ impl Character {
         ret
     }
 
-    fn progress_task_order(&self) -> Option<i32> {
+    fn progress_task_order(&self, order: &Order) -> Option<i32> {
         match self.complete_task() {
-            Ok(r) => Some(r),
+            Ok(r) => Some(r.amount_of(&order.item)),
             Err(e) => {
                 if let CharacterError::NoTask = e {
                     if let Err(e) = self.action_accept_task("items") {
@@ -492,19 +493,17 @@ impl Character {
         }
     }
 
-    fn complete_task(&self) -> Result<i32, CharacterError> {
+    fn complete_task(&self) -> Result<TaskRewardsSchema, CharacterError> {
         if self.task().is_empty() {
             return Err(CharacterError::NoTask);
         }
         if !self.task_finished() {
             return Err(CharacterError::TaskNotFinished);
         }
-        self.action_complete_task()
-            .map(|r| r.quantity)
-            .map_err(|e| e.into())
+        self.action_complete_task().map_err(|e| e.into())
     }
 
-    fn exchange_task(&self) -> Result<TasksRewardSchema, CharacterError> {
+    fn exchange_task(&self) -> Result<TaskRewardsSchema, CharacterError> {
         if self.bank.reserv("tasks_coin", 6, &self.name).is_err() {
             return Err(CharacterError::NotEnoughCoin);
         }
@@ -662,7 +661,7 @@ impl Character {
         self.fight_simulator
             .simulate(self.level(), gear, monster)
             .result
-            == fight_schema::Result::Win
+            == FightResult::Win
     }
 
     // Checks that the `Character` has the required skill level to gather the given `resource`
@@ -720,8 +719,8 @@ impl Character {
             artifact1: self.items.get(&d.artifact1_slot),
             artifact2: self.items.get(&d.artifact2_slot),
             artifact3: self.items.get(&d.artifact3_slot),
-            consumable1: self.items.get(&d.consumable1_slot),
-            consumable2: self.items.get(&d.consumable2_slot),
+            utility1: self.items.get(&d.utility1_slot),
+            utility2: self.items.get(&d.utility2_slot),
         }
     }
 
@@ -741,8 +740,8 @@ impl Character {
             Slot::Artifact1 => &d.artifact1_slot,
             Slot::Artifact2 => &d.artifact2_slot,
             Slot::Artifact3 => &d.artifact3_slot,
-            Slot::Consumable1 => &d.consumable1_slot,
-            Slot::Consumable2 => &d.consumable2_slot,
+            Slot::Utility1 => &d.utility1_slot,
+            Slot::Utility2 => &d.utility2_slot,
         })
     }
 
@@ -1409,6 +1408,7 @@ impl Character {
             Skill::Gearcrafting => d.gearcrafting_level,
             Skill::Jewelrycrafting => d.jewelrycrafting_level,
             Skill::Cooking => d.cooking_level,
+            Skill::Alchemy => d.alchemy_level,
         }
     }
 
@@ -1489,8 +1489,8 @@ impl Character {
         Slot::iter().for_each(|s| {
             if let Some(item) = self.equiped_in(s) {
                 let quantity = match s {
-                    Slot::Consumable1 => self.data.read().unwrap().consumable1_slot_quantity,
-                    Slot::Consumable2 => self.data.read().unwrap().consumable2_slot_quantity,
+                    Slot::Utility1 => self.data.read().unwrap().utility1_slot_quantity,
+                    Slot::Utility2 => self.data.read().unwrap().utility2_slot_quantity,
                     _ => 1,
                 };
                 if let Err(e) = self.action_unequip(s, quantity) {

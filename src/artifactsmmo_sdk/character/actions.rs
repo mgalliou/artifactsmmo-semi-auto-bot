@@ -1,12 +1,19 @@
 use super::Character;
 use crate::artifactsmmo_sdk::{
     gear::Slot, ApiErrorResponseSchema, FightSchemaExt, MapSchemaExt, ResponseSchema,
-    SkillInfoSchemaExt, SkillSchemaExt,
+    SkillInfoSchemaExt, SkillSchemaExt, TaskRewardsSchemaExt,
 };
 use artifactsmmo_openapi::{
     apis::Error,
     models::{
-        cooldown_schema::Reason, fight_schema, BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema, BankItemTransactionResponseSchema, BankSchema, CharacterFightResponseSchema, CharacterMovementResponseSchema, CharacterSchema, DeleteItemResponseSchema, DeleteItemSchema, DropSchema, EquipmentResponseSchema, FightSchema, MapContentSchema, MapSchema, RecyclingItemsSchema, RecyclingResponseSchema, SimpleItemSchema, SkillDataSchema, SkillInfoSchema, SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema, TaskSchema, TaskTradeResponseSchema, TaskTradeSchema, TasksRewardResponseSchema, TasksRewardSchema
+        ActionType, BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema,
+        BankItemTransactionResponseSchema, BankSchema, CharacterFightResponseSchema,
+        CharacterMovementResponseSchema, CharacterSchema, DeleteItemResponseSchema, DropSchema,
+        EquipmentResponseSchema, FightResult, FightSchema, MapContentSchema, MapSchema,
+        RecyclingItemsSchema, RecyclingResponseSchema, SimpleItemSchema, SkillDataSchema,
+        SkillInfoSchema, SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema,
+        TaskRewardsSchema, TaskSchema, TaskTradeResponseSchema, TaskTradeSchema,
+        TasksRewardDataResponseSchema,
     },
 };
 use chrono::{DateTime, Utc};
@@ -252,7 +259,11 @@ impl Character {
             .map(|s| *s.data.details)
     }
 
-    pub fn action_delete(&self, code: &str, quantity: i32) -> Result<SimpleItemSchema, RequestError> {
+    pub fn action_delete(
+        &self,
+        code: &str,
+        quantity: i32,
+    ) -> Result<SimpleItemSchema, RequestError> {
         self.perform_action(Action::Delete { code, quantity })
             .and_then(|r| {
                 r.downcast::<DeleteItemResponseSchema>()
@@ -261,7 +272,11 @@ impl Character {
             .map(|s| *s.data.item)
     }
 
-    pub fn action_recycle(&self, code: &str, quantity: i32) -> Result<RecyclingItemsSchema, RequestError> {
+    pub fn action_recycle(
+        &self,
+        code: &str,
+        quantity: i32,
+    ) -> Result<RecyclingItemsSchema, RequestError> {
         self.perform_action(Action::Recycle { code, quantity })
             .and_then(|r| {
                 r.downcast::<RecyclingResponseSchema>()
@@ -273,8 +288,8 @@ impl Character {
     pub fn action_equip(&self, code: &str, slot: Slot, quantity: i32) -> Result<(), RequestError> {
         if self.equiped_in(slot).is_some() {
             let quantity = match slot {
-                Slot::Consumable1 => self.data.read().unwrap().consumable1_slot_quantity,
-                Slot::Consumable2 => self.data.read().unwrap().consumable2_slot_quantity,
+                Slot::Utility1 => self.data.read().unwrap().utility1_slot_quantity,
+                Slot::Utility2 => self.data.read().unwrap().utility2_slot_quantity,
                 _ => 1,
             };
             self.action_unequip(slot, quantity)?
@@ -305,17 +320,17 @@ impl Character {
             .map(|s| *s.data.task)
     }
 
-    pub fn action_complete_task(&self) -> Result<TasksRewardSchema, RequestError> {
+    pub fn action_complete_task(&self) -> Result<TaskRewardsSchema, RequestError> {
         let _ = self.move_to_closest_map_with_content_schema(&MapContentSchema {
             r#type: "tasks_master".to_owned(),
             code: self.task_type().to_owned(),
         });
         self.perform_action(Action::CompleteTask)
             .and_then(|r| {
-                r.downcast::<TasksRewardResponseSchema>()
+                r.downcast::<TasksRewardDataResponseSchema>()
                     .map_err(|_| RequestError::DowncastError)
             })
-            .map(|s| *s.data.reward)
+            .map(|s| *s.data.rewards)
     }
 
     pub fn action_cancel_task(&self) -> Result<(), RequestError> {
@@ -343,17 +358,17 @@ impl Character {
             .map(|s| *s.data.trade)
     }
 
-    pub fn action_task_exchange(&self) -> Result<TasksRewardSchema, RequestError> {
+    pub fn action_task_exchange(&self) -> Result<TaskRewardsSchema, RequestError> {
         let _ = self.move_to_closest_map_with_content_schema(&MapContentSchema {
             r#type: "tasks_master".to_owned(),
             code: self.task_type().to_owned(),
         });
         self.perform_action(Action::TaskExchange)
             .and_then(|r| {
-                r.downcast::<TasksRewardResponseSchema>()
+                r.downcast::<TasksRewardDataResponseSchema>()
                     .map_err(|_| RequestError::DowncastError)
             })
-            .map(|s| *s.data.reward)
+            .map(|s| *s.data.rewards)
     }
 
     fn handle_action_error(
@@ -532,7 +547,7 @@ impl ResponseSchema for CharacterMovementResponseSchema {
 impl ResponseSchema for CharacterFightResponseSchema {
     fn pretty(&self) -> String {
         match self.data.fight.result {
-            fight_schema::Result::Win => format!(
+            FightResult::Win => format!(
                 "{} won a fight after {} turns ({}xp, {}g, [{}]). {}s",
                 self.data.character.name,
                 self.data.fight.turns,
@@ -541,7 +556,7 @@ impl ResponseSchema for CharacterFightResponseSchema {
                 DropSchemas(&self.data.fight.drops),
                 self.data.cooldown.remaining_seconds
             ),
-            fight_schema::Result::Lose => format!(
+            FightResult::Loss => format!(
                 "{} lost a fight after {} turns. {}s",
                 self.data.character.name,
                 self.data.fight.turns,
@@ -557,7 +572,7 @@ impl ResponseSchema for CharacterFightResponseSchema {
 
 impl ResponseSchema for SkillResponseSchema {
     fn pretty(&self) -> String {
-        let reason = if self.data.cooldown.reason == Reason::Crafting {
+        let reason = if self.data.cooldown.reason == ActionType::Crafting {
             "crafted"
         } else {
             "gathered"
@@ -591,7 +606,7 @@ impl ResponseSchema for DeleteItemResponseSchema {
 
 impl ResponseSchema for BankItemTransactionResponseSchema {
     fn pretty(&self) -> String {
-        if self.data.cooldown.reason == Reason::WithdrawBank {
+        if self.data.cooldown.reason == ActionType::Withdraw {
             format!(
                 "{}: withdrawed '{}' from the bank. {}s",
                 self.data.character.name, self.data.item.code, self.data.cooldown.remaining_seconds
@@ -611,7 +626,7 @@ impl ResponseSchema for BankItemTransactionResponseSchema {
 
 impl ResponseSchema for BankGoldTransactionResponseSchema {
     fn pretty(&self) -> String {
-        if self.data.cooldown.reason == Reason::WithdrawBank {
+        if self.data.cooldown.reason == ActionType::Withdraw {
             format!(
                 "{}: withdrawed {} gold from the bank. {}s",
                 self.data.character.name,
@@ -665,7 +680,7 @@ impl ResponseSchema for RecyclingResponseSchema {
 
 impl ResponseSchema for EquipmentResponseSchema {
     fn pretty(&self) -> String {
-        if self.data.cooldown.reason == Reason::Equip {
+        if self.data.cooldown.reason == ActionType::Equip {
             format!(
                 "{}: equiped '{}' in the '{:?}' slot. {}s",
                 &self.data.character.name,
@@ -706,13 +721,13 @@ impl ResponseSchema for TaskResponseSchema {
     }
 }
 
-impl ResponseSchema for TasksRewardResponseSchema {
+impl ResponseSchema for TasksRewardDataResponseSchema {
     fn pretty(&self) -> String {
         format!(
-            "{}: completed task and was rewarded with '{}'x{}. {}s",
+            "{}: completed task and was rewarded with [{:?}] and {}g. {}s",
             self.data.character.name,
-            self.data.reward.code,
-            self.data.reward.quantity,
+            self.data.rewards.items,
+            self.data.rewards.gold,
             self.data.cooldown.remaining_seconds
         )
     }
@@ -792,6 +807,15 @@ impl SkillSchemaExt for SkillDataSchema {
 }
 
 impl SkillInfoSchemaExt for SkillInfoSchema {
+    fn amount_of(&self, code: &str) -> i32 {
+        self.items
+            .iter()
+            .find(|i| i.code == code)
+            .map_or(0, |i| i.quantity)
+    }
+}
+
+impl TaskRewardsSchemaExt for TaskRewardsSchema {
     fn amount_of(&self, code: &str) -> i32 {
         self.items
             .iter()

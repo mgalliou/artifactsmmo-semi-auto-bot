@@ -15,11 +15,11 @@ pub mod bank;
 pub mod char_config;
 pub mod character;
 pub mod config;
-pub mod gear;
-pub mod gear_finder;
 pub mod events;
 pub mod fight_simulator;
 pub mod game;
+pub mod gear;
+pub mod gear_finder;
 pub mod items;
 pub mod maps;
 pub mod monsters;
@@ -82,6 +82,10 @@ trait SkillSchemaExt {
 }
 
 trait SkillInfoSchemaExt {
+    fn amount_of(&self, code: &str) -> i32;
+}
+
+trait TaskRewardsSchemaExt {
     fn amount_of(&self, code: &str) -> i32;
 }
 

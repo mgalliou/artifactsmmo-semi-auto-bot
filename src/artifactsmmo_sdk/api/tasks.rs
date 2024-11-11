@@ -7,7 +7,7 @@ use artifactsmmo_openapi::{
         },
         Error,
     },
-    models::{TaskFullSchema, TasksRewardFullSchema},
+    models::{DropRateSchema, Skill, TaskFullSchema, TaskType},
 };
 
 pub struct TasksApi {
@@ -26,8 +26,8 @@ impl TasksApi {
         &self,
         min_level: Option<i32>,
         max_level: Option<i32>,
-        skill: Option<&str>,
-        r#type: Option<&str>,
+        skill: Option<Skill>,
+        r#type: Option<TaskType>,
     ) -> Result<Vec<TaskFullSchema>, Error<GetAllTasksTasksListGetError>> {
         let mut tasks: Vec<TaskFullSchema> = vec![];
         let mut current_page = 1;
@@ -63,8 +63,8 @@ impl TasksApi {
 
     pub fn rewards(
         &self,
-    ) -> Result<Vec<TasksRewardFullSchema>, Error<GetAllTasksRewardsTasksRewardsGetError>> {
-        let mut tasks: Vec<TasksRewardFullSchema> = vec![];
+    ) -> Result<Vec<DropRateSchema>, Error<GetAllTasksRewardsTasksRewardsGetError>> {
+        let mut drops: Vec<DropRateSchema> = vec![];
         let mut current_page = 1;
         let mut finished = false;
         while !finished {
@@ -75,7 +75,7 @@ impl TasksApi {
             );
             match resp {
                 Ok(resp) => {
-                    tasks.extend(resp.data);
+                    drops.extend(resp.data);
                     if let Some(Some(pages)) = resp.pages {
                         if current_page >= pages {
                             finished = true
@@ -89,6 +89,6 @@ impl TasksApi {
                 Err(e) => return Err(e),
             }
         }
-        Ok(tasks)
+        Ok(drops)
     }
 }

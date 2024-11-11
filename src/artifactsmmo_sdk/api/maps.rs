@@ -7,7 +7,7 @@ use artifactsmmo_openapi::{
         },
         Error,
     },
-    models::{MapResponseSchema, MapSchema},
+    models::{MapContentType, MapResponseSchema, MapSchema},
 };
 
 pub struct MapsApi {
@@ -24,7 +24,7 @@ impl MapsApi {
 
     pub fn all(
         &self,
-        content_type: Option<&str>,
+        content_type: Option<MapContentType>,
         content_code: Option<&str>,
     ) -> Result<Vec<MapSchema>, Error<GetAllMapsMapsGetError>> {
         let mut maps: Vec<MapSchema> = vec![];

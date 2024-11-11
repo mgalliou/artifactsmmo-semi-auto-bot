@@ -7,7 +7,7 @@ use artifactsmmo_openapi::{
         },
         Error,
     },
-    models::{ResourceResponseSchema, ResourceSchema},
+    models::{GatheringSkill, ResourceResponseSchema, ResourceSchema},
 };
 
 pub struct ResourcesApi {
@@ -26,7 +26,7 @@ impl ResourcesApi {
         &self,
         min_level: Option<i32>,
         max_level: Option<i32>,
-        skill: Option<&str>,
+        skill: Option<GatheringSkill>,
         drop: Option<&str>,
     ) -> Result<Vec<ResourceSchema>, Error<GetAllResourcesResourcesGetError>> {
         let mut resources: Vec<ResourceSchema> = vec![];

@@ -4,9 +4,7 @@ use super::skill::Skill;
 use super::tasks::Tasks;
 use super::{api::items::ItemsApi, monsters::Monsters, resources::Resources};
 use super::{average_dmg, persist_data, retreive_data, ItemSchemaExt, MonsterSchemaExt};
-use artifactsmmo_openapi::models::{
-    CraftSchema, GeItemSchema, ItemEffectSchema, ItemSchema, SimpleItemSchema,
-};
+use artifactsmmo_openapi::models::{CraftSchema, ItemEffectSchema, ItemSchema, SimpleItemSchema};
 use artifactsmmo_openapi::models::{MonsterSchema, ResourceSchema};
 use itertools::Itertools;
 use log::{debug, error};
@@ -140,10 +138,6 @@ impl Items {
         self.base_mats(code).iter().any(|m| m.code == mat)
     }
 
-    pub fn ge_info(&self, code: &str) -> Option<GeItemSchema> {
-        self.api.info(code).ok()?.data.ge?.map(|ge| (*ge))
-    }
-
     pub fn mats_mob_average_lvl(&self, code: &str) -> i32 {
         let mob_mats = self
             .mats(code)
@@ -165,35 +159,6 @@ impl Items {
             .filter(|i| i.subtype == SubType::Mob)
             .max_by_key(|i| i.level)
             .map_or(0, |i| i.level)
-    }
-
-    /// Takes an item `code` and returns the average sell prices of the metarials
-    /// received when the item is recycled.
-    pub fn recycle_average_price(&self, code: &str) -> i32 {
-        self.mats(code)
-            .iter()
-            .map(|mat| {
-                self.ge_info(&mat.code)
-                    .map_or(0, |i| i.sell_price.unwrap_or(0) * mat.quantity)
-            })
-            .sum::<i32>()
-            / self.mats_quantity_for(code)
-            / 5
-    }
-
-    /// Takes an item `code` and returns its base mats buy price at the Grand
-    /// Exchange.
-    pub fn base_mats_buy_price(&self, code: &str) -> i32 {
-        let price = self
-            .base_mats(code)
-            .iter()
-            .map(|mat| {
-                self.ge_info(&mat.code)
-                    .map_or(0, |i| i.buy_price.unwrap_or(0) * mat.quantity)
-            })
-            .sum();
-        debug!("total price for {}: {}", code, price);
-        price
     }
 
     /// Takes an item `code` and returns the amount of inventory space the mats
@@ -293,6 +258,7 @@ impl Items {
             Skill::Mining | Skill::Woodcutting | Skill::Cooking => {
                 return self.best_for_leveling(level, skill)
             }
+            Skill::Alchemy => return self.best_for_leveling(level, skill),
             Skill::Fishing => vec![None],
             Skill::Combat => vec![None],
         }
@@ -556,6 +522,7 @@ pub enum Type {
     Ring,
     Artifact,
     Currency,
+    Utility,
 }
 
 impl From<Slot> for Type {
@@ -573,8 +540,8 @@ impl From<Slot> for Type {
             Slot::Artifact1 => Self::Artifact,
             Slot::Artifact2 => Self::Artifact,
             Slot::Artifact3 => Self::Artifact,
-            Slot::Consumable1 => Self::Consumable,
-            Slot::Consumable2 => Self::Consumable,
+            Slot::Utility1 => Self::Utility,
+            Slot::Utility2 => Self::Utility,
         }
     }
 }

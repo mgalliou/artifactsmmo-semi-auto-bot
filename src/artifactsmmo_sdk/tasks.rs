@@ -3,13 +3,13 @@ use std::path::Path;
 use super::config::Config;
 use super::retreive_data;
 use super::{api::tasks::TasksApi, persist_data};
-use artifactsmmo_openapi::models::{TaskFullSchema, TasksRewardFullSchema};
+use artifactsmmo_openapi::models::{DropRateSchema, TaskFullSchema};
 use log::error;
 
 pub struct Tasks {
     pub api: TasksApi,
     pub list: Vec<TaskFullSchema>,
-    pub rewards: Vec<TasksRewardFullSchema>,
+    pub rewards: Vec<DropRateSchema>,
 }
 
 impl Tasks {
@@ -28,7 +28,7 @@ impl Tasks {
             data
         };
         let rewards_path = Path::new(".cache/task_rewards.json");
-        let rewards = if let Ok(data) = retreive_data::<Vec<TasksRewardFullSchema>>(rewards_path) {
+        let rewards = if let Ok(data) = retreive_data::<Vec<DropRateSchema>>(rewards_path) {
             data
         } else {
             let data = api.rewards().expect("items to be retrieved from API.");

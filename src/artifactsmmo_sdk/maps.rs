@@ -1,12 +1,6 @@
 use std::sync::Arc;
 
-use super::{
-    api::{events, maps::MapsApi},
-    config::Config,
-    events::Events,
-    skill::Skill,
-    MapSchemaExt,
-};
+use super::{api::maps::MapsApi, config::Config, events::Events, skill::Skill, MapSchemaExt};
 use artifactsmmo_openapi::models::{MapContentSchema, MapSchema, ResourceSchema};
 use itertools::Itertools;
 
@@ -23,7 +17,7 @@ impl Maps {
                 .all(None, None)
                 .expect("maps to be retrieved from API.")
                 .into_iter()
-                .map(|m| Arc::new(m))
+                .map(Arc::new)
                 .collect_vec(),
             events: events.clone(),
         }
@@ -34,15 +28,14 @@ impl Maps {
             .maps()
             .into_iter()
             .find(|m| m.x == x && m.y == y)
-            .or_else(|| {
-                self.data
-                    .iter()
-                    .find(|m| m.x == x && m.y == y)
-                    .cloned()
-            })
+            .or_else(|| self.data.iter().find(|m| m.x == x && m.y == y).cloned())
     }
 
-    pub fn closest_from_amoung(x: i32, y: i32, maps: Vec<Arc<MapSchema>>) -> Option<Arc<MapSchema>> {
+    pub fn closest_from_amoung(
+        x: i32,
+        y: i32,
+        maps: Vec<Arc<MapSchema>>,
+    ) -> Option<Arc<MapSchema>> {
         maps.into_iter()
             .min_by_key(|m| i32::abs(m.x - x) + i32::abs(m.y - y))
     }

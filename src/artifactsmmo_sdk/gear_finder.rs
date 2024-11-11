@@ -126,8 +126,8 @@ impl GearFinder {
                     artifact1: iter.peeking_next(|i| i.is_of_type(Type::Artifact)),
                     artifact2: iter.peeking_next(|i| i.is_of_type(Type::Artifact)),
                     artifact3: iter.peeking_next(|i| i.is_of_type(Type::Artifact)),
-                    consumable1: iter.peeking_next(|i| i.is_of_type(Type::Consumable)),
-                    consumable2: iter.peeking_next(|i| i.is_of_type(Type::Consumable)),
+                    utility1: iter.peeking_next(|i| i.is_of_type(Type::Utility)),
+                    utility2: iter.peeking_next(|i| i.is_of_type(Type::Utility)),
                 }
             })
             .collect_vec()
@@ -288,15 +288,15 @@ impl GearFinder {
                 monster,
                 weapon,
             ),
-            consumable1: self.best_in_slot_available_against_with_weapon(
+            utility1: self.best_in_slot_available_against_with_weapon(
                 char,
-                Slot::Consumable1,
+                Slot::Utility1,
                 monster,
                 weapon,
             ),
-            consumable2: self.best_in_slot_available_against_with_weapon(
+            utility2: self.best_in_slot_available_against_with_weapon(
                 char,
-                Slot::Consumable2,
+                Slot::Utility2,
                 monster,
                 weapon,
             ),

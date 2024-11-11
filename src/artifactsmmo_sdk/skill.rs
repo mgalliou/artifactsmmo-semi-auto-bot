@@ -1,8 +1,20 @@
-use artifactsmmo_openapi::models::{craft_schema, resource_schema};
+use artifactsmmo_openapi::models::{CraftSkill, GatheringSkill};
 use serde::Deserialize;
 use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
 
-#[derive(Debug, Clone, Copy, PartialEq, Default, Deserialize, Display, AsRefStr, EnumIter, EnumString, EnumIs)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Default,
+    Deserialize,
+    Display,
+    AsRefStr,
+    EnumIter,
+    EnumString,
+    EnumIs,
+)]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all(deserialize = "snake_case"))]
 pub enum Skill {
@@ -15,6 +27,7 @@ pub enum Skill {
     Gearcrafting,
     Jewelrycrafting,
     Cooking,
+    Alchemy,
 }
 
 impl Skill {
@@ -23,25 +36,27 @@ impl Skill {
     }
 }
 
-impl From<craft_schema::Skill> for Skill {
-    fn from(value: craft_schema::Skill) -> Self {
+impl From<CraftSkill> for Skill {
+    fn from(value: CraftSkill) -> Self {
         match value {
-            craft_schema::Skill::Weaponcrafting => Skill::Weaponcrafting,
-            craft_schema::Skill::Gearcrafting => Skill::Gearcrafting,
-            craft_schema::Skill::Jewelrycrafting => Skill::Jewelrycrafting,
-            craft_schema::Skill::Cooking => Skill::Cooking,
-            craft_schema::Skill::Woodcutting => Skill::Woodcutting,
-            craft_schema::Skill::Mining => Skill::Mining,
+            CraftSkill::Weaponcrafting => Skill::Weaponcrafting,
+            CraftSkill::Gearcrafting => Skill::Gearcrafting,
+            CraftSkill::Jewelrycrafting => Skill::Jewelrycrafting,
+            CraftSkill::Cooking => Skill::Cooking,
+            CraftSkill::Woodcutting => Skill::Woodcutting,
+            CraftSkill::Mining => Skill::Mining,
+            CraftSkill::Alchemy => Skill::Alchemy,
         }
     }
 }
 
-impl From<resource_schema::Skill> for Skill {
-    fn from(value: resource_schema::Skill) -> Self {
+impl From<GatheringSkill> for Skill {
+    fn from(value: GatheringSkill) -> Self {
         match value {
-            resource_schema::Skill::Woodcutting => Self::Woodcutting,
-            resource_schema::Skill::Mining => Self::Mining,
-            resource_schema::Skill::Fishing => Self::Fishing,
+            GatheringSkill::Woodcutting => Self::Woodcutting,
+            GatheringSkill::Mining => Self::Mining,
+            GatheringSkill::Fishing => Self::Fishing,
+            GatheringSkill::Alchemy => Self::Alchemy,
         }
     }
 }
