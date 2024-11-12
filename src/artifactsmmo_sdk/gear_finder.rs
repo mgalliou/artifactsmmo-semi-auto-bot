@@ -1,15 +1,13 @@
-use std::sync::Arc;
-
-use artifactsmmo_openapi::models::{ItemSchema, MonsterSchema};
-use itertools::{Itertools, PeekingNext};
-use ordered_float::OrderedFloat;
-
 use super::{
     character::Character,
     gear::{Gear, Slot},
     items::{Items, Type},
     ItemSchemaExt,
 };
+use artifactsmmo_openapi::models::{ItemSchema, MonsterSchema};
+use itertools::{Itertools, PeekingNext};
+use ordered_float::OrderedFloat;
+use std::sync::Arc;
 
 pub struct GearFinder {
     items: Arc<Items>,

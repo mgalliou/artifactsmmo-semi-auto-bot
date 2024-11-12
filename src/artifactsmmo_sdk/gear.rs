@@ -81,6 +81,12 @@ impl<'a> Gear<'a> {
             .map(|s| self.slot(s).map_or(0, |i| i.resistance(t)))
             .sum()
     }
+
+    pub fn haste(&self) -> i32 {
+        Slot::iter()
+            .map(|s| self.slot(s).map_or(0, |i| i.haste()))
+            .sum()
+    }
 }
 
 impl Display for Gear<'_> {

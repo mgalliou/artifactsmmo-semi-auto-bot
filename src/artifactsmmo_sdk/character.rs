@@ -656,6 +656,53 @@ impl Character {
         }
     }
 
+    fn time_to_kill(&self, monster: &MonsterSchema) -> Option<i32> {
+        match self.can_kill(monster) {
+            Ok(gear) => {
+                let fight = self.fight_simulator.simulate(self.level(), &gear, monster);
+                if fight.result == FightResult::Win {
+                    Some(fight.cd)
+                } else {
+                    None
+                }
+            }
+            Err(_) => None,
+        }
+    }
+
+    fn time_to_gather(&self, resource: &ResourceSchema) -> Option<i32> {
+        if self.can_gather(resource).is_err() {
+            return None;
+        }
+        let cd_reduction = if let Some(tool) = self.best_tool_for_resource(&resource.code) {
+            tool.skill_cooldown_reduction(resource.skill.into())
+        } else {
+            0
+        };
+        Some(
+            (25.0
+                - (self.skill_level(resource.skill.into()) - resource.level) as f32 / 10.0
+                    * (1.0 - cd_reduction as f32 / 100.0))
+                .ceil() as i32,
+        )
+    }
+
+    fn time_to_get(&self, item: &str) -> Option<i32> {
+        self.items
+            .sources_of(item)
+            .iter()
+            .filter_map(|s| match s {
+                ItemSource::Resource(r) => self.time_to_gather(r),
+                ItemSource::Monster(m) => self
+                    .time_to_kill(m)
+                    .map(|time| time * (100 / (100 / self.items.drop_rate(item)))),
+                ItemSource::Craft => None,
+                ItemSource::TaskReward => None,
+                ItemSource::Task => None,
+            })
+            .min()
+    }
+
     /// Checks if the `Character` is able to kill the given monster and returns
     /// the best available gear to do so.
     fn can_kill<'a>(&'a self, monster: &'a MonsterSchema) -> Result<Gear<'_>, CharacterError> {

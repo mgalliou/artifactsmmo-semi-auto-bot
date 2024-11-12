@@ -37,6 +37,8 @@ impl FightSimulator {
             } else {
                 FightResult::Loss
             },
+            cd: ((turns * 2) as f32 - (gear.haste() as f32 * 0.01) * (turns * 2) as f32).ceil()
+                as i32,
         }
     }
 }
@@ -44,4 +46,5 @@ impl FightSimulator {
 pub struct Fight {
     pub turns: i32,
     pub result: FightResult,
+    pub cd: i32,
 }

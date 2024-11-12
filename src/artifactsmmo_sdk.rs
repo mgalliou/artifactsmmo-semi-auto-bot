@@ -46,6 +46,7 @@ trait ItemSchemaExt {
     fn resistance(&self, r#type: DamageType) -> i32;
     fn total_resistance(&self) -> i32;
     fn health(&self) -> i32;
+    fn haste(&self) -> i32;
     fn skill_cooldown_reduction(&self, skijll: Skill) -> i32;
     fn damage_increase_against_with(&self, monster: &MonsterSchema, weapon: &ItemSchema) -> f32;
     fn damage_reduction_against(&self, monster: &MonsterSchema) -> f32;

@@ -482,6 +482,14 @@ impl ItemSchemaExt for ItemSchema {
             .unwrap_or(0)
     }
 
+    fn haste(&self) -> i32 {
+        self.effects()
+            .iter()
+            .find(|e| e.name == "haste")
+            .map(|e| e.value)
+            .unwrap_or(0)
+    }
+
     fn skill_cooldown_reduction(&self, skill: Skill) -> i32 {
         self.effects()
             .iter()
