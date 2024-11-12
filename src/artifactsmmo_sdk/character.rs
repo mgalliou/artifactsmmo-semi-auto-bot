@@ -549,10 +549,12 @@ impl Character {
             _ => (),
         }
         if let Some(task_monster) = self.monsters.get(&self.task()) {
-            self.kill_monster(task_monster, None)?;
-        } else {
-            self.kill_monster(monster, None)?;
+            if self.can_kill(task_monster).is_ok() {
+                self.kill_monster(task_monster, None)?;
+                return Ok(());
+            }
         }
+        self.kill_monster(monster, None)?;
         Ok(())
     }
 
