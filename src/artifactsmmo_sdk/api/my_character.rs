@@ -16,6 +16,7 @@ use artifactsmmo_openapi::{
             action_task_exchange_my_name_action_task_exchange_post,
             action_task_trade_my_name_action_task_trade_post,
             action_unequip_item_my_name_action_unequip_post,
+            action_use_item_my_name_action_use_post,
             action_withdraw_bank_gold_my_name_action_bank_withdraw_gold_post,
             action_withdraw_bank_my_name_action_bank_withdraw_post,
             get_my_characters_my_characters_get, ActionAcceptNewTaskMyNameActionTaskNewPostError,
@@ -31,7 +32,7 @@ use artifactsmmo_openapi::{
             ActionTaskCancelMyNameActionTaskCancelPostError,
             ActionTaskExchangeMyNameActionTaskExchangePostError,
             ActionTaskTradeMyNameActionTaskTradePostError,
-            ActionUnequipItemMyNameActionUnequipPostError,
+            ActionUnequipItemMyNameActionUnequipPostError, ActionUseItemMyNameActionUsePostError,
             ActionWithdrawBankGoldMyNameActionBankWithdrawGoldPostError,
             ActionWithdrawBankMyNameActionBankWithdrawPostError,
             GetMyCharactersMyCharactersGetError,
@@ -46,6 +47,7 @@ use artifactsmmo_openapi::{
         EquipmentResponseSchema, ItemSlot, MyCharactersListSchema, RecyclingResponseSchema,
         RecyclingSchema, SimpleItemSchema, SkillResponseSchema, TaskCancelledResponseSchema,
         TaskResponseSchema, TaskTradeResponseSchema, TasksRewardDataResponseSchema, UnequipSchema,
+        UseItemResponseSchema,
     },
 };
 
@@ -90,6 +92,19 @@ impl MyCharacterApi {
         name: &str,
     ) -> Result<CharacterRestResponseSchema, Error<ActionRestMyNameActionRestPostError>> {
         action_rest_my_name_action_rest_post(&self.configuration, name)
+    }
+
+    pub fn use_item(
+        &self,
+        name: &str,
+        item: &str,
+        quantity: i32,
+    ) -> Result<UseItemResponseSchema, Error<ActionUseItemMyNameActionUsePostError>> {
+        let schema = SimpleItemSchema {
+            code: item.to_owned(),
+            quantity,
+        };
+        action_use_item_my_name_action_use_post(&self.configuration, name, schema)
     }
 
     pub fn gather(
