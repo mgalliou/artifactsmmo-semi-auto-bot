@@ -92,7 +92,9 @@ impl Maps {
             Skill::Cooking => self.with_content_code("cooking"),
             Skill::Woodcutting => self.with_content_code("woodcutting"),
             Skill::Mining => self.with_content_code("mining"),
-            _ => None,
+            Skill::Alchemy => self.with_content_code("alchemy"),
+            Skill::Combat => None,
+            Skill::Fishing => None,
         }
     }
 }
