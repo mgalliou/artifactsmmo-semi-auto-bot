@@ -154,7 +154,6 @@ impl Character {
                 )
             })
         else {
-            error!("{}: no item found to level skill: {:?}", self.name, skill);
             return Err(CharacterError::ItemNotFound);
         };
         let craft = self.craft_from_bank(
