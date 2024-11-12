@@ -684,16 +684,14 @@ impl ResponseSchema for BankGoldTransactionResponseSchema {
     fn pretty(&self) -> String {
         if self.data.cooldown.reason == ActionType::Withdraw {
             format!(
-                "{}: withdrawed {} gold from the bank. {}s",
+                "{}: withdrawed gold from the bank. {}s",
                 self.data.character.name,
-                self.data.bank.quantity,
                 self.data.cooldown.remaining_seconds
             )
         } else {
             format!(
-                "{}: deposited {} gold to the bank. {}s",
+                "{}: deposited gold to the bank. {}s",
                 self.data.character.name,
-                self.data.bank.quantity,
                 self.data.cooldown.remaining_seconds
             )
         }
