@@ -152,7 +152,7 @@ fn handle_orderboard(args: &[&str], orderboard: &Arc<OrderBoard>) {
             },
             "orders" => {
                 println!("orders:");
-                orderboard.orders().iter().for_each(|o| println!("{}", o));
+                orderboard.orders_by_priority().iter().for_each(|o| println!("{}", o));
             }
             "prio" => {
                 println!("orders:");
