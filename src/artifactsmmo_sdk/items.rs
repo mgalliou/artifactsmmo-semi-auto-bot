@@ -255,10 +255,20 @@ impl Items {
                     vec![self.get("copper_ring")]
                 }
             }
-            Skill::Mining | Skill::Woodcutting | Skill::Cooking => {
+            Skill::Cooking => {
+                if level >= 30 {
+                    vec![self.get("cooked_bass")]
+                } else if level >= 20 {
+                    vec![self.get("cooked_trout")]
+                } else if level >= 10 {
+                    vec![self.get("cooked_shrimp")]
+                } else {
+                    vec![self.get("cooked_gudgeon")]
+                }
+            }
+            Skill::Mining | Skill::Woodcutting | Skill::Alchemy => {
                 return self.best_for_leveling(level, skill)
             }
-            Skill::Alchemy => return self.best_for_leveling(level, skill),
             Skill::Fishing => vec![None],
             Skill::Combat => vec![None],
         }
