@@ -14,7 +14,7 @@ pub struct Events {
 impl Events {
     pub fn new(config: &GameConfig) -> Self {
         let events = Self {
-            api: EventsApi::new(&config.base_url, &config.token),
+            api: EventsApi::new(&config.base_url),
             events: RwLock::new(vec![]),
             last_refresh: RwLock::new(DateTime::<Utc>::MIN_UTC),
         };

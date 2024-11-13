@@ -15,10 +15,9 @@ pub struct MapsApi {
 }
 
 impl MapsApi {
-    pub fn new(base_path: &str, token: &str) -> MapsApi {
+    pub fn new(base_path: &str) -> MapsApi {
         let mut configuration = Configuration::new();
         configuration.base_path = base_path.to_owned();
-        configuration.bearer_access_token = Some(token.to_owned());
         MapsApi { configuration }
     }
 

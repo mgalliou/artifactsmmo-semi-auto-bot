@@ -14,7 +14,7 @@ pub struct Tasks {
 
 impl Tasks {
     pub fn new(config: &GameConfig) -> Self {
-        let api = TasksApi::new(&config.base_url, &config.token);
+        let api = TasksApi::new(&config.base_url);
         let tasks_path = Path::new(".cache/tasks.json");
         let list = if let Ok(data) = retreive_data::<Vec<TaskFullSchema>>(tasks_path) {
             data

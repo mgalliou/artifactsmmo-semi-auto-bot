@@ -14,10 +14,9 @@ pub struct EventsApi {
 }
 
 impl EventsApi {
-    pub fn new(base_path: &str, token: &str) -> Self {
+    pub fn new(base_path: &str) -> Self {
         let mut configuration = Configuration::new();
         configuration.base_path = base_path.to_owned();
-        configuration.bearer_access_token = Some(token.to_owned());
         EventsApi { configuration }
     }
 

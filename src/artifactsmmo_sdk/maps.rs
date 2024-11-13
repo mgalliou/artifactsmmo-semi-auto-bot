@@ -11,7 +11,7 @@ pub struct Maps {
 
 impl Maps {
     pub fn new(config: &GameConfig, events: &Arc<Events>) -> Maps {
-        let api = MapsApi::new(&config.base_url, &config.token);
+        let api = MapsApi::new(&config.base_url);
         Maps {
             data: api
                 .all(None, None)

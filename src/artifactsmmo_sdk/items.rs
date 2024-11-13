@@ -30,7 +30,7 @@ impl Items {
         monsters: &Arc<Monsters>,
         tasks: &Arc<Tasks>,
     ) -> Items {
-        let api = ItemsApi::new(&config.base_url, &config.token);
+        let api = ItemsApi::new(&config.base_url);
         let path = Path::new(".cache/items.json");
         let data = if let Ok(data) = retreive_data::<Vec<ItemSchema>>(path) {
             data

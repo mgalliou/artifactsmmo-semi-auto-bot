@@ -15,10 +15,9 @@ pub struct ItemsApi {
 }
 
 impl ItemsApi {
-    pub fn new(base_path: &str, token: &str) -> ItemsApi {
+    pub fn new(base_path: &str) -> ItemsApi {
         let mut configuration = Configuration::new();
         configuration.base_path = base_path.to_owned();
-        configuration.bearer_access_token = Some(token.to_owned());
         ItemsApi { configuration }
     }
 

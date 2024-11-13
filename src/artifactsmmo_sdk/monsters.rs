@@ -12,7 +12,7 @@ pub struct Monsters {
 
 impl Monsters {
     pub fn new(config: &GameConfig) -> Monsters {
-        let api = MonstersApi::new(&config.base_url, &config.token);
+        let api = MonstersApi::new(&config.base_url);
         let path = Path::new(".cache/monsters.json");
         let data = if let Ok(data) = retreive_data::<Vec<MonsterSchema>>(path) {
             data

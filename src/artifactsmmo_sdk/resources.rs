@@ -9,7 +9,7 @@ pub struct Resources {
 
 impl Resources {
     pub fn new(config: &GameConfig) -> Resources {
-        let api = ResourcesApi::new(&config.base_url, &config.token);
+        let api = ResourcesApi::new(&config.base_url);
         let path = Path::new(".cache/resources.json");
         let data = if path.exists() {
             let content = read_to_string(path).unwrap();

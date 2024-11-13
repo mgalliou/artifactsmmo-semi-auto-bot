@@ -15,10 +15,9 @@ pub struct MonstersApi {
 }
 
 impl MonstersApi {
-    pub fn new(base_path: &str, token: &str) -> MonstersApi {
+    pub fn new(base_path: &str) -> MonstersApi {
         let mut configuration = Configuration::new();
         configuration.base_path = base_path.to_owned();
-        configuration.bearer_access_token = Some(token.to_owned());
         MonstersApi { configuration }
     }
 
