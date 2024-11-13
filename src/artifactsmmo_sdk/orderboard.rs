@@ -38,6 +38,9 @@ impl OrderBoard {
             Purpose::Cli => {
                 orders.extend(self.orders_filtered(|o| o.purpose.is_cli()));
             }
+            Purpose::Task { char: _ } => {
+                orders.extend(self.orders_filtered(|o| o.purpose.is_task()));
+            }
             Purpose::Gather {
                 char: _,
                 skill: _,
@@ -51,9 +54,6 @@ impl OrderBoard {
                 item_code: _,
             } => {
                 orders.extend(self.orders_filtered(|o| o.purpose.is_gear()));
-            }
-            Purpose::Task { char: _ } => {
-                orders.extend(self.orders_filtered(|o| o.purpose.is_task()));
             }
             Purpose::Leveling { char: _, skill: _ } => {
                 orders.extend(self.orders_filtered(|o| o.purpose.is_leveling()));

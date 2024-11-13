@@ -390,16 +390,27 @@ impl Character {
                     if let Err(e) = self.action_accept_task("items") {
                         error!("{} error while accepting new task: {:?}", self.name, e)
                     }
-                    Some(0)
+                    return Some(0);
                 } else if let CharacterError::TaskNotFinished = e {
-                    if self.progress_task() {
-                        Some(0)
-                    } else {
-                        None
-                    }
-                } else {
-                    None
+                    match self.progress_task() {
+                        Ok(_) => return Some(0),
+                        Err(CharacterError::MissingItems { item, quantity }) => {
+                            if self.orderboard.add(Order::new(
+                                Some(&self.name),
+                                &item,
+                                quantity,
+                                1,
+                                Purpose::Task {
+                                    char: self.name.to_owned(),
+                                },
+                            )) {
+                                return Some(0);
+                            }
+                        }
+                        _ => {}
+                    };
                 }
+                None
             }
         }
     }
@@ -434,49 +445,46 @@ impl Character {
         false
     }
 
-    fn progress_task(&self) -> bool {
+    fn progress_task(&self) -> Result<(), CharacterError> {
         if let Some(monster) = self.monsters.get(&self.task()) {
             if self.kill_monster(monster, None).is_ok() {
-                return true;
+                return Ok(());
             }
         }
-        if self.progress_item_task() {
-            return true;
-        }
-        false
+        self.trade_task()
     }
 
-    fn progress_item_task(&self) -> bool {
-        let item = &self.task();
-        let in_bank = self.bank.has_item(&self.task(), Some(&self.name));
-        let missing = self.task_missing();
-
-        if in_bank >= missing {
-            let q = min(missing, self.inventory_max_items());
-            if let Err(e) = self.bank.reserv(item, q, &self.name) {
+    fn trade_task(&self) -> Result<(), CharacterError> {
+        if self.task_type() != "items" {
+            return Err(CharacterError::InvalidTaskType);
+        }
+        if self.task_missing()
+            > self.bank.has_item(&self.task(), Some(&self.name))
+                + self.has_in_inventory(&self.task())
+        {
+            return Err(CharacterError::MissingItems {
+                item: self.task().to_owned(),
+                quantity: self.task_missing()
+                    - self.bank.has_item(&self.task(), Some(&self.name))
+                    - self.has_in_inventory(&self.task()),
+            });
+        }
+        let q = min(self.task_missing(), self.inventory_max_items());
+        if !self.bank.is_reserved(&self.task(), q, &self.name) {
+            if let Err(e) = self.bank.reserv(&self.task(), q, &self.name) {
                 error!(
                     "{}: error while reserving items for item task: {:?}",
                     self.name, e
                 )
             }
-            self.deposit_all();
-            if let Err(e) = self.withdraw_item(item, q) {
-                error!("{}: error while withdrawing {:?}", self.name, e);
-                self.bank.decrease_reservation(item, q, &self.name);
-            };
-            self.action_task_trade(item, q).is_ok()
-        } else {
-            self.orderboard.add(Order::new(
-                Some(&self.name),
-                &self.task(),
-                missing - self.bank.has_item(item, Some(&self.name)),
-                1,
-                Purpose::Task {
-                    char: self.name.to_owned(),
-                },
-            ));
-            false
         }
+        self.deposit_all();
+        if let Err(e) = self.withdraw_item(&self.task(), q) {
+            error!("{}: error while withdrawing {:?}", self.name, e);
+            self.bank.decrease_reservation(&self.task(), q, &self.name);
+        };
+        self.action_task_trade(&self.task(), q)?;
+        Ok(())
     }
 
     fn complete_task(&self) -> Result<TaskRewardsSchema, CharacterError> {
@@ -1628,6 +1636,8 @@ pub enum CharacterError {
     EventNotFound,
     NoOrderFullfilable,
     NotGoalFullfilable,
+    InvalidTaskType,
+    MissingItems { item: String, quantity: i32 },
 }
 
 impl From<RequestError> for CharacterError {
