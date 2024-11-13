@@ -642,9 +642,9 @@ impl Character {
                 &tool.code,
                 1,
                 1,
-                Purpose::Gear {
+                Purpose::Gather {
                     char: self.name.to_owned(),
-                    slot: Slot::Weapon,
+                    skill: resource.skill.into(),
                     item_code: tool.code.to_owned(),
                 },
             ));

@@ -38,7 +38,13 @@ impl OrderBoard {
             Purpose::Cli => {
                 orders.extend(self.orders_filtered(|o| o.purpose.is_cli()));
             }
-
+            Purpose::Gather {
+                char: _,
+                skill: _,
+                item_code: _,
+            } => {
+                orders.extend(self.orders_filtered(|o| o.purpose.is_gather()));
+            }
             Purpose::Gear {
                 char: _,
                 slot: _,
@@ -200,6 +206,11 @@ impl Display for Order {
 #[derive(Debug, PartialEq, Clone, EnumIs, EnumIter)]
 pub enum Purpose {
     Cli,
+    Gather {
+        char: String,
+        skill: Skill,
+        item_code: String,
+    },
     Gear {
         char: String,
         slot: Slot,
@@ -222,11 +233,16 @@ impl Display for Purpose {
             match self {
                 Purpose::Cli => "command line".to_owned(),
                 Purpose::Leveling { char, skill } => format!("leveling {char}'s {skill}"),
+                Purpose::Gather {
+                    char,
+                    skill,
+                    item_code,
+                } => format!("{char}'s '{item_code}' ({skill})"),
                 Purpose::Gear {
                     char,
                     slot,
                     item_code,
-                } => format!("crafting {char}'s '{item_code}' ({slot})"),
+                } => format!("{char}'s '{item_code}' ({slot})"),
                 Purpose::Task { char } => format!("{char}'s  task"),
             }
         )
