@@ -1544,6 +1544,7 @@ impl Character {
                 .equiped_in(s)
                 .is_some_and(|equiped| item.code != equiped.code))
             && self.has_in_inventory(&item.code) < 1
+            && !self.bank.is_reserved(&item.code, 1, &self.name)
         {
             if let Err(e) = self.bank.reserv(&item.code, 1, &self.name) {
                 error!("{} failed to reserv '{}': {:?}", self.name, item.code, e)

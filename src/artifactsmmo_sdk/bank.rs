@@ -110,6 +110,12 @@ impl Bank {
         self.total_of(item) - self.quantity_reserved(item)
     }
 
+    pub fn is_reserved(&self, item: &str, quantity: i32, owner: &str) -> bool {
+        self.reservations()
+            .iter()
+            .any(|r| r.item == item && r.owner == owner && r.quantity() >= quantity)
+    }
+
     /// Returns the quantity of the given item `code` that can be crafted with the mats available in bank
     /// for the given `owner`.
     //  NOTE: this should maybe return a Option to indicate that the item is not craftable and
