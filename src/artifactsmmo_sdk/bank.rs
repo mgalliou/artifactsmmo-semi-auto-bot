@@ -158,9 +158,27 @@ impl Bank {
         self.content.write().unwrap().clone_from(content)
     }
 
+    /// Make sure that the `quantity` of `item` is reserved to the `owner`.
+    /// Create the reservation if possible. Increase the reservation quantity if
+    /// necessary and possible.
+    pub fn reserv_if_not(&self, item: &str, quantity: i32, owner: &str) -> Result<(), BankError> {
+        if let Some(res) = self.get_reservation(owner, item) {
+            if res.quantity() < quantity {
+                if self.quantity_not_reserved(item) >= res.quantity() - quantity {
+                    res.inc_quantity(quantity);
+                    return Ok(());
+                } else {
+                    return Err(BankError::InsuffisientQuantity);
+                }
+            }
+            Ok(())
+        } else {
+            self.reserv(item, quantity, owner)
+        }
+    }
+
     /// Request the `quantity` of the given `item` to be reserved for the the given `owner`.
     /// If the reservation already exist increase the `quantity` of the reservation.
-    // NOTE: should fail if the item are not available
     pub fn reserv(&self, item: &str, quantity: i32, owner: &str) -> Result<(), BankError> {
         if let Some(res) = self.get_reservation(owner, item) {
             if quantity > self.quantity_not_reserved(item) {
@@ -171,15 +189,19 @@ impl Bank {
             if quantity > self.has_item(item, Some(owner)) {
                 return Err(BankError::ItemUnavailable);
             }
-            let res = Arc::new(Reservation {
-                item: item.to_owned(),
-                quantity: RwLock::new(quantity),
-                owner: owner.to_owned(),
-            });
-            self.reservations.write().unwrap().push(res.clone());
-            info!("added reservation to bank: {}", res);
+            self.add_reservation(item, quantity, owner);
         }
         Ok(())
+    }
+
+    fn add_reservation(&self, item: &str, quantity: i32, owner: &str) {
+        let res = Arc::new(Reservation {
+            item: item.to_owned(),
+            quantity: RwLock::new(quantity),
+            owner: owner.to_owned(),
+        });
+        self.reservations.write().unwrap().push(res.clone());
+        info!("added reservation to bank: {}", res);
     }
 
     pub fn decrease_reservation(&self, item: &str, quantity: i32, owner: &str) {
@@ -228,6 +250,7 @@ impl Bank {
 #[derive(Debug)]
 pub enum BankError {
     ItemUnavailable,
+    InsuffisientQuantity,
 }
 
 #[allow(dead_code)]
@@ -282,4 +305,12 @@ impl PartialEq for Reservation {
             && *self.quantity.read().unwrap() == *other.quantity.read().unwrap()
             && self.owner == other.owner
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_name() {}
 }
