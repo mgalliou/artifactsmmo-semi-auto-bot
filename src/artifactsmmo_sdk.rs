@@ -14,7 +14,7 @@ pub mod api;
 pub mod bank;
 pub mod char_config;
 pub mod character;
-pub mod config;
+pub mod game_config;
 pub mod events;
 pub mod fight_simulator;
 pub mod game;

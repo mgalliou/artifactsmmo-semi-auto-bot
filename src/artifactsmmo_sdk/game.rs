@@ -1,5 +1,5 @@
 use super::{
-    config::Config, events::Events, items::Items, maps::Maps, monsters::Monsters,
+    game_config::GameConfig, events::Events, items::Items, maps::Maps, monsters::Monsters,
     orderboard::OrderBoard, resources::Resources, tasks::Tasks,
 };
 use artifactsmmo_openapi::{
@@ -26,7 +26,7 @@ pub struct Game {
 }
 
 impl Game {
-    pub fn new(config: &Config, orderboard: &Arc<OrderBoard>) -> Self {
+    pub fn new(config: &GameConfig, orderboard: &Arc<OrderBoard>) -> Self {
         let mut configuration = Configuration::new();
         configuration.base_path = config.base_url.to_owned();
         configuration.bearer_access_token = Some(config.base_url.to_owned());

@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use super::config::Config;
+use super::game_config::GameConfig;
 use super::retreive_data;
 use super::{api::tasks::TasksApi, persist_data};
 use artifactsmmo_openapi::models::{DropRateSchema, TaskFullSchema};
@@ -13,7 +13,7 @@ pub struct Tasks {
 }
 
 impl Tasks {
-    pub fn new(config: &Config) -> Self {
+    pub fn new(config: &GameConfig) -> Self {
         let api = TasksApi::new(&config.base_url, &config.token);
         let tasks_path = Path::new(".cache/tasks.json");
         let list = if let Ok(data) = retreive_data::<Vec<TaskFullSchema>>(tasks_path) {

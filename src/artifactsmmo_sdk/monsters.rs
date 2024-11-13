@@ -1,5 +1,5 @@
 use super::{
-    api::monsters::MonstersApi, config::Config, items::DamageType, persist_data, retreive_data,
+    api::monsters::MonstersApi, game_config::GameConfig, items::DamageType, persist_data, retreive_data,
     MonsterSchemaExt,
 };
 use artifactsmmo_openapi::models::MonsterSchema;
@@ -11,7 +11,7 @@ pub struct Monsters {
 }
 
 impl Monsters {
-    pub fn new(config: &Config) -> Monsters {
+    pub fn new(config: &GameConfig) -> Monsters {
         let api = MonstersApi::new(&config.base_url, &config.token);
         let path = Path::new(".cache/monsters.json");
         let data = if let Ok(data) = retreive_data::<Vec<MonsterSchema>>(path) {

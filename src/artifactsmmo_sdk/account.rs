@@ -2,7 +2,7 @@ use super::{
     api::{characters::CharactersApi, my_character::MyCharacterApi},
     bank::Bank,
     character::Character,
-    config::Config,
+    game_config::GameConfig,
     game::Game,
 };
 use crate::artifactsmmo_sdk::char_config::CharConfig;
@@ -18,7 +18,7 @@ use std::sync::RwLock;
 
 pub struct Account {
     pub configuration: Configuration,
-    pub config: Arc<Config>,
+    pub config: Arc<GameConfig>,
     pub character_api: CharactersApi,
     pub my_characters_api: MyCharacterApi,
     pub bank: Arc<Bank>,
@@ -26,7 +26,7 @@ pub struct Account {
 }
 
 impl Account {
-    pub fn new(config: &Arc<Config>, game: &Arc<Game>) -> Arc<Account> {
+    pub fn new(config: &Arc<GameConfig>, game: &Arc<Game>) -> Arc<Account> {
         let mut configuration = Configuration::new();
         configuration.base_path = config.base_url.to_owned();
         configuration.bearer_access_token = Some(config.base_url.to_owned());
@@ -113,7 +113,7 @@ fn init_char_conf(confs: &[CharConfig]) -> Vec<Arc<RwLock<CharConfig>>> {
         .collect_vec()
 }
 
-fn init_chars_schema(config: &Config) -> Vec<Arc<RwLock<CharacterSchema>>> {
+fn init_chars_schema(config: &GameConfig) -> Vec<Arc<RwLock<CharacterSchema>>> {
     let my_characters_api = MyCharacterApi::new(&config.base_url, &config.token);
     my_characters_api
         .characters()

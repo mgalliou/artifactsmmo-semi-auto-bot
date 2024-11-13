@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use super::{api::maps::MapsApi, config::Config, events::Events, skill::Skill, MapSchemaExt};
+use super::{api::maps::MapsApi, game_config::GameConfig, events::Events, skill::Skill, MapSchemaExt};
 use artifactsmmo_openapi::models::{MapContentSchema, MapSchema, ResourceSchema};
 use itertools::Itertools;
 
@@ -10,7 +10,7 @@ pub struct Maps {
 }
 
 impl Maps {
-    pub fn new(config: &Config, events: &Arc<Events>) -> Maps {
+    pub fn new(config: &GameConfig, events: &Arc<Events>) -> Maps {
         let api = MapsApi::new(&config.base_url, &config.token);
         Maps {
             data: api

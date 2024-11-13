@@ -1,4 +1,4 @@
-use super::config::Config;
+use super::game_config::GameConfig;
 use super::gear::Slot;
 use super::skill::Skill;
 use super::tasks::Tasks;
@@ -25,7 +25,7 @@ pub struct Items {
 
 impl Items {
     pub fn new(
-        config: &Config,
+        config: &GameConfig,
         resources: &Arc<Resources>,
         monsters: &Arc<Monsters>,
         tasks: &Arc<Tasks>,
@@ -609,7 +609,7 @@ pub enum ItemSource<'a> {
 #[cfg(test)]
 mod tests {
     use crate::artifactsmmo_sdk::{
-        config::Config, monsters::Monsters, resources::Resources, tasks::Tasks, ItemSchemaExt,
+        game_config::GameConfig, monsters::Monsters, resources::Resources, tasks::Tasks, ItemSchemaExt,
     };
     use figment::{
         providers::{Format, Toml},
@@ -622,7 +622,7 @@ mod tests {
 
     #[test]
     fn potential_upgrade() {
-        let config: Config = Figment::new()
+        let config: GameConfig = Figment::new()
             .merge(Toml::file_exact("ArtifactsMMO.toml"))
             .extract()
             .unwrap();
@@ -649,7 +649,7 @@ mod tests {
 
     #[test]
     fn item_damage_against() {
-        let config: Config = Figment::new()
+        let config: GameConfig = Figment::new()
             .merge(Toml::file_exact("ArtifactsMMO.toml"))
             .extract()
             .unwrap();

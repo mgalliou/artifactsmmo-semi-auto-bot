@@ -4,7 +4,7 @@ use super::{
     average_dmg,
     bank::Bank,
     char_config::CharConfig,
-    config::Config,
+    game_config::GameConfig,
     events::Events,
     fight_simulator::FightSimulator,
     game::Game,
@@ -63,7 +63,7 @@ pub struct Character {
 
 impl Character {
     pub fn new(
-        config: &Config,
+        config: &GameConfig,
         account: &Arc<Account>,
         game: &Arc<Game>,
         bank: &Arc<Bank>,

@@ -1,4 +1,4 @@
-use super::{api::resources::ResourcesApi, config::Config, persist_data, skill::Skill};
+use super::{api::resources::ResourcesApi, game_config::GameConfig, persist_data, skill::Skill};
 use artifactsmmo_openapi::models::ResourceSchema;
 use log::error;
 use std::{fs::read_to_string, path::Path};
@@ -8,7 +8,7 @@ pub struct Resources {
 }
 
 impl Resources {
-    pub fn new(config: &Config) -> Resources {
+    pub fn new(config: &GameConfig) -> Resources {
         let api = ResourcesApi::new(&config.base_url, &config.token);
         let path = Path::new(".cache/resources.json");
         let data = if path.exists() {

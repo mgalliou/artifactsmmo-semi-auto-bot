@@ -1,4 +1,4 @@
-use super::{api::events::EventsApi, config::Config, ActiveEventSchemaExt, MapSchemaExt};
+use super::{api::events::EventsApi, game_config::GameConfig, ActiveEventSchemaExt, MapSchemaExt};
 use artifactsmmo_openapi::models::{ActiveEventSchema, MapSchema};
 use chrono::{DateTime, Duration, Utc};
 use itertools::Itertools;
@@ -12,7 +12,7 @@ pub struct Events {
 }
 
 impl Events {
-    pub fn new(config: &Config) -> Self {
+    pub fn new(config: &GameConfig) -> Self {
         let events = Self {
             api: EventsApi::new(&config.base_url, &config.token),
             events: RwLock::new(vec![]),

@@ -1,4 +1,4 @@
-use super::{api::bank::BankApi, config::Config, items::Items};
+use super::{api::bank::BankApi, game_config::GameConfig, items::Items};
 use artifactsmmo_openapi::models::{BankSchema, SimpleItemSchema};
 use itertools::Itertools;
 use log::info;
@@ -18,7 +18,7 @@ pub struct Bank {
 }
 
 impl Bank {
-    pub fn new(config: &Config, items: &Arc<Items>) -> Bank {
+    pub fn new(config: &GameConfig, items: &Arc<Items>) -> Bank {
         let api = BankApi::new(&config.base_url, &config.token);
         Bank {
             items: items.clone(),
