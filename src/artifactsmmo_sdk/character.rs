@@ -904,7 +904,7 @@ impl Character {
             self.name, code, quantity
         );
         self.items.mats(code).iter().for_each(|m| {
-            if let Err(e) = self.bank.reserv_if_not(&m.code, m.quantity, &self.name) {
+            if let Err(e) = self.bank.reserv_if_not(&m.code, m.quantity * quantity, &self.name) {
                 error!(
                     "{}: error while reserving mats for crafting from bank: {:?}",
                     self.name, e
