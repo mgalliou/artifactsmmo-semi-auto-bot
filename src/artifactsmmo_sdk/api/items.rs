@@ -10,6 +10,7 @@ use artifactsmmo_openapi::{
     models::{CraftSkill, ItemResponseSchema, ItemSchema, ItemType},
 };
 
+#[derive(Default)]
 pub struct ItemsApi {
     pub configuration: Configuration,
 }

@@ -15,6 +15,7 @@ use std::{sync::Arc, vec::Vec};
 use strum::IntoEnumIterator;
 use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
 
+#[derive(Default)]
 pub struct Items {
     pub data: Vec<ItemSchema>,
     pub api: ItemsApi,
@@ -609,7 +610,8 @@ pub enum ItemSource<'a> {
 #[cfg(test)]
 mod tests {
     use crate::artifactsmmo_sdk::{
-        game_config::GameConfig, monsters::Monsters, resources::Resources, tasks::Tasks, ItemSchemaExt,
+        game_config::GameConfig, monsters::Monsters, resources::Resources, tasks::Tasks,
+        ItemSchemaExt,
     };
     use figment::{
         providers::{Format, Toml},

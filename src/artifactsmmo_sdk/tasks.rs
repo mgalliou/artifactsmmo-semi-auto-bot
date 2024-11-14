@@ -6,6 +6,7 @@ use super::{api::tasks::TasksApi, persist_data};
 use artifactsmmo_openapi::models::{DropRateSchema, TaskFullSchema};
 use log::error;
 
+#[derive(Default)]
 pub struct Tasks {
     pub api: TasksApi,
     pub list: Vec<TaskFullSchema>,

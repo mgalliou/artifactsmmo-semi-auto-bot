@@ -36,7 +36,7 @@ impl Account {
             config: config.clone(),
             character_api: CharactersApi::new(&config.base_url, &config.token),
             my_characters_api,
-            bank: Arc::new(Bank::new(config, &game.items)),
+            bank: Arc::new(Bank::from_api(config, &game.items)),
             characters: RwLock::new(vec![]),
         });
         account.init_characters(&account, game);

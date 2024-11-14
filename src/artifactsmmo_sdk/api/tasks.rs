@@ -10,6 +10,7 @@ use artifactsmmo_openapi::{
     models::{DropRateSchema, Skill, TaskFullSchema, TaskType},
 };
 
+#[derive(Default)]
 pub struct TasksApi {
     pub configuration: Configuration,
 }

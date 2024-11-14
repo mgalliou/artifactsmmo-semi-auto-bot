@@ -3,6 +3,7 @@ use artifactsmmo_openapi::models::ResourceSchema;
 use log::error;
 use std::{fs::read_to_string, path::Path};
 
+#[derive(Default)]
 pub struct Resources {
     pub data: Vec<ResourceSchema>,
 }

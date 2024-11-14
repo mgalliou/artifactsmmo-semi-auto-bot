@@ -6,6 +6,7 @@ use artifactsmmo_openapi::models::MonsterSchema;
 use log::error;
 use std::path::Path;
 
+#[derive(Default)]
 pub struct Monsters {
     pub data: Vec<MonsterSchema>,
 }

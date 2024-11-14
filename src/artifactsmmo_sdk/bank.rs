@@ -1,13 +1,14 @@
 use super::{api::bank::BankApi, game_config::GameConfig, items::Items};
 use artifactsmmo_openapi::models::{BankSchema, SimpleItemSchema};
 use itertools::Itertools;
-use log::info;
+use log::{info, warn};
 use std::{
     cmp::max,
     fmt::{self, Display, Formatter},
     sync::{Arc, RwLock},
 };
 
+#[derive(Default)]
 pub struct Bank {
     items: Arc<Items>,
     pub browsed: RwLock<()>,
@@ -18,9 +19,13 @@ pub struct Bank {
 }
 
 impl Bank {
-    pub fn new(config: &GameConfig, items: &Arc<Items>) -> Bank {
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    pub fn from_api(config: &GameConfig, items: &Arc<Items>) -> Self {
         let api = BankApi::new(&config.base_url, &config.token);
-        Bank {
+        Self {
             items: items.clone(),
             browsed: RwLock::new(()),
             details: RwLock::new(*api.details().unwrap().data),
@@ -70,6 +75,11 @@ impl Bank {
         } else {
             self.quantity_not_reserved(code)
         }
+    }
+
+    /// Returns the `quantity` of the given item `code` reserved to the given `owner`.
+    pub fn has_item_reserved(&self, code: &str, owner: &str) -> i32 {
+        self.quantity_allowed(code, owner) - self.quantity_not_reserved(code)
     }
 
     /// Returns the quantity the given `owner` can withdraw from the bank.
@@ -162,35 +172,33 @@ impl Bank {
     /// Create the reservation if possible. Increase the reservation quantity if
     /// necessary and possible.
     pub fn reserv_if_not(&self, item: &str, quantity: i32, owner: &str) -> Result<(), BankError> {
-        if let Some(res) = self.get_reservation(owner, item) {
-            if res.quantity() < quantity {
-                if self.quantity_not_reserved(item) >= res.quantity() - quantity {
-                    res.inc_quantity(quantity);
-                    return Ok(());
-                } else {
-                    return Err(BankError::InsuffisientQuantity);
-                }
-            }
+        let Some(res) = self.get_reservation(owner, item) else {
+            return self.reserv(item, quantity, owner);
+        };
+        if res.quantity() >= quantity {
+            Ok(())
+        } else if self.quantity_not_reserved(item) >= quantity - res.quantity() {
+            res.inc_quantity(quantity - res.quantity());
             Ok(())
         } else {
-            self.reserv(item, quantity, owner)
+            Err(BankError::QuantityUnavailable)
         }
     }
 
-    /// Request the `quantity` of the given `item` to be reserved for the the given `owner`.
-    /// If the reservation already exist increase the `quantity` of the reservation.
+    /// Request the `quantity` of the given `item` to be added to exising reservation for the the given `owner`.
+    /// Create the reservation if it does not exist.
     pub fn reserv(&self, item: &str, quantity: i32, owner: &str) -> Result<(), BankError> {
-        if let Some(res) = self.get_reservation(owner, item) {
-            if quantity > self.quantity_not_reserved(item) {
-                return Err(BankError::ItemUnavailable);
-            }
-            res.inc_quantity(quantity);
-        } else {
+        let Some(res) = self.get_reservation(owner, item) else {
             if quantity > self.has_item(item, Some(owner)) {
-                return Err(BankError::ItemUnavailable);
+                return Err(BankError::QuantityUnavailable);
             }
             self.add_reservation(item, quantity, owner);
+            return Ok(());
+        };
+        if quantity > self.quantity_not_reserved(item) {
+            return Err(BankError::QuantityUnavailable);
         }
+        res.inc_quantity(quantity);
         Ok(())
     }
 
@@ -247,10 +255,10 @@ impl Bank {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum BankError {
     ItemUnavailable,
-    InsuffisientQuantity,
+    QuantityUnavailable,
 }
 
 #[allow(dead_code)]
@@ -312,5 +320,36 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_name() {}
+    fn reserv_with_not_item() {
+        let bank = Bank::new();
+        let result = bank.reserv("copper_ore", 50, "char1");
+        assert_eq!(Err(BankError::QuantityUnavailable), result);
+    }
+
+    #[test]
+    fn reserv_with_item_available() {
+        let bank = Bank::new();
+
+        (*bank.content.write().unwrap()).push(SimpleItemSchema {
+            code: "copper_ore".to_owned(),
+            quantity: 100,
+        });
+        let _ = bank.reserv("copper_ore", 50, "char1");
+        let _ = bank.reserv("copper_ore", 50, "char1");
+        assert_eq!(100, bank.has_item("copper_ore", Some("char1")))
+    }
+
+    #[test]
+    fn reserv_if_not_with_item_available() {
+        let bank = Bank::new();
+
+        (*bank.content.write().unwrap()).push(SimpleItemSchema {
+            code: "copper_ore".to_owned(),
+            quantity: 100,
+        });
+        let _ = bank.reserv_if_not("copper_ore", 50, "char1");
+        let _ = bank.reserv_if_not("copper_ore", 50, "char1");
+        assert_eq!(100, bank.has_item("copper_ore", Some("char1")));
+        assert_eq!(50, bank.has_item_reserved("copper_ore", "char1"))
+    }
 }
