@@ -166,7 +166,7 @@ impl Character {
             },
         );
         if let Err(CharacterError::InsuffisientMaterials) = craft {
-            if !skill.is_gathering()
+            if (!skill.is_gathering() || skill.is_alchemy())
                 && self.order_missing_mats(
                     &item.code,
                     self.max_craftable_items(&item.code),
