@@ -698,17 +698,13 @@ impl Character {
         if self.can_gather(resource).is_err() {
             return None;
         }
-        let cd_reduction = if let Some(tool) = self.best_tool_for_resource(&resource.code) {
-            tool.skill_cooldown_reduction(resource.skill.into())
-        } else {
-            0
-        };
-        Some(
-            (25.0
-                - (self.skill_level(resource.skill.into()) - resource.level) as f32 / 10.0
-                    * (1.0 - cd_reduction as f32 / 100.0))
-                .ceil() as i32,
-        )
+        let tool = self.best_tool_for_resource(&resource.code);
+        let time = self.fight_simulator.gather(
+            self.skill_level(resource.skill.into()),
+            resource.level,
+            tool.map_or(0, |t| t.skill_cooldown_reduction(resource.skill.into())),
+        );
+        Some(time)
     }
 
     fn time_to_get(&self, item: &str) -> Option<i32> {
@@ -720,9 +716,15 @@ impl Character {
                 ItemSource::Monster(m) => self
                     .time_to_kill(m)
                     .map(|time| time * (100 / (100 / self.items.drop_rate(item)))),
-                ItemSource::Craft => None,
-                ItemSource::TaskReward => None,
-                ItemSource::Task => None,
+                ItemSource::Craft => Some(
+                    self.items
+                        .mats(item)
+                        .iter()
+                        .map(|m| self.time_to_get(&m.code).unwrap_or(1000) * m.quantity)
+                        .sum(),
+                ),
+                ItemSource::TaskReward => Some(60),
+                ItemSource::Task => Some(60),
             })
             .min()
     }

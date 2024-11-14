@@ -41,10 +41,28 @@ impl FightSimulator {
                 as i32,
         }
     }
+
+    pub fn gather(&self, skill_level: i32, ressource_level: i32, cooldown_reduction: i32) -> i32 {
+        ((25.0 - ((skill_level - ressource_level) as f32 / 10.0))
+            * (1.0 + cooldown_reduction as f32 / 100.0))
+            .round() as i32
+    }
 }
 
 pub struct Fight {
     pub turns: i32,
     pub result: FightResult,
     pub cd: i32,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn gather() {
+        let simulator = FightSimulator::new();
+
+        assert_eq!(simulator.gather(17, 1, -10,), 21);
+    }
 }
