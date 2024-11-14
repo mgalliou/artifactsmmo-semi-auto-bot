@@ -477,13 +477,11 @@ impl Character {
             });
         }
         let q = min(self.task_missing(), self.inventory_max_items());
-        if !self.bank.is_reserved(&self.task(), q, &self.name) {
-            if let Err(e) = self.bank.reserv(&self.task(), q, &self.name) {
-                error!(
-                    "{}: error while reserving items for item task: {:?}",
-                    self.name, e
-                )
-            }
+        if let Err(e) = self.bank.reserv_if_not(&self.task(), q, &self.name) {
+            error!(
+                "{}: error while reserving items for item task: {:?}",
+                self.name, e
+            )
         }
         self.deposit_all();
         if let Err(e) = self.withdraw_item(&self.task(), q) {
@@ -513,7 +511,11 @@ impl Character {
 
     fn exchange_task(&self) -> Result<TaskRewardsSchema, CharacterError> {
         self.can_exchange_task()?;
-        if self.bank.reserv("tasks_coin", 6, &self.name).is_err() {
+        if self
+            .bank
+            .reserv_if_not("tasks_coin", 6, &self.name)
+            .is_err()
+        {
             return Err(CharacterError::NotEnoughCoin);
         }
         self.deposit_all();
@@ -899,6 +901,14 @@ impl Character {
             "{}: going to craft '{}'x{} from bank.",
             self.name, code, quantity
         );
+        self.items.mats(code).iter().for_each(|m| {
+            if let Err(e) = self.bank.reserv_if_not(&m.code, m.quantity, &self.name) {
+                error!(
+                    "{}: error while reserving mats for crafting from bank: {:?}",
+                    self.name, e
+                )
+            }
+        });
         self.deposit_all();
         self.withdraw_mats_for(code, quantity)?;
         self.move_to_craft(code)?;
@@ -1567,9 +1577,8 @@ impl Character {
                 .equiped_in(s)
                 .is_some_and(|equiped| item.code != equiped.code))
             && self.has_in_inventory(&item.code) < 1
-            && !self.bank.is_reserved(&item.code, 1, &self.name)
         {
-            if let Err(e) = self.bank.reserv(&item.code, 1, &self.name) {
+            if let Err(e) = self.bank.reserv_if_not(&item.code, 1, &self.name) {
                 error!("{} failed to reserv '{}': {:?}", self.name, item.code, e)
             }
         }
@@ -1578,11 +1587,7 @@ impl Character {
     pub fn unequip_and_deposit_all(&self) {
         Slot::iter().for_each(|s| {
             if let Some(item) = self.equiped_in(s) {
-                let quantity = match s {
-                    Slot::Utility1 => self.data.read().unwrap().utility1_slot_quantity,
-                    Slot::Utility2 => self.data.read().unwrap().utility2_slot_quantity,
-                    _ => 1,
-                };
+                let quantity = self.quantity_in_slot(s);
                 if let Err(e) = self.action_unequip(s, quantity) {
                     error!(
                         "{}: failed to unequip '{}'x{} during unequip_and_deposit_all: {:?}",
@@ -1596,6 +1601,25 @@ impl Character {
                 }
             }
         })
+    }
+
+    fn quantity_in_slot(&self, s: Slot) -> i32 {
+        match s {
+            Slot::Utility1 => self.data.read().unwrap().utility1_slot_quantity,
+            Slot::Utility2 => self.data.read().unwrap().utility2_slot_quantity,
+            Slot::Weapon
+            | Slot::Shield
+            | Slot::Helmet
+            | Slot::BodyArmor
+            | Slot::LegArmor
+            | Slot::Boots
+            | Slot::Ring1
+            | Slot::Ring2
+            | Slot::Amulet
+            | Slot::Artifact1
+            | Slot::Artifact2
+            | Slot::Artifact3 => 1,
+        }
     }
 
     fn skill_enabled(&self, s: Skill) -> bool {
