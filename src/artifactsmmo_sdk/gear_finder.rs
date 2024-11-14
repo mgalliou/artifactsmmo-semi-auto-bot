@@ -163,14 +163,12 @@ impl GearFinder {
                 damage_increases
                     .iter()
                     .cloned()
-                    .filter(|i| i.damage_reduction_against(monster) > 0.0)
-                    .min_by_key(|i| OrderedFloat(i.damage_from(monster)))
+                    .max_by_key(|i| OrderedFloat(i.damage_reduction_against(monster)))
             } else {
                 equipables
                     .iter()
                     .cloned()
-                    .filter(|i| i.damage_reduction_against(monster) > 0.0)
-                    .min_by_key(|i| OrderedFloat(i.damage_from(monster)))
+                    .max_by_key(|i| OrderedFloat(i.damage_reduction_against(monster)))
             }
         };
         if let Some(best_for_resistance) = best_for_resistance {
@@ -178,16 +176,9 @@ impl GearFinder {
         }
         let best_for_health = {
             if best_for_damage.is_some() {
-                damage_increases
-                    .into_iter()
-                    .filter(|i| i.health() > 0)
-                    .max_by_key(|i| i.health())
+                damage_increases.into_iter().max_by_key(|i| i.health())
             } else {
-                equipables
-                    .iter()
-                    .cloned()
-                    .filter(|i| i.health() > 0)
-                    .min_by_key(|i| OrderedFloat(i.damage_from(monster)))
+                equipables.iter().cloned().max_by_key(|i| i.health())
             }
         };
         if let Some(best_for_health) = best_for_health {

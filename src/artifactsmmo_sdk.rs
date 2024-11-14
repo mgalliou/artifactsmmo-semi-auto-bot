@@ -14,10 +14,10 @@ pub mod api;
 pub mod bank;
 pub mod char_config;
 pub mod character;
-pub mod game_config;
 pub mod events;
 pub mod fight_simulator;
 pub mod game;
+pub mod game_config;
 pub mod gear;
 pub mod gear_finder;
 pub mod items;
@@ -107,8 +107,9 @@ pub trait ApiRequestError {}
 /// chance is considered as a global damage reduction (30 resistence reduce the computed damage by
 /// 3%).
 pub fn average_dmg(attack_damage: i32, damage_increase: i32, target_resistance: i32) -> f32 {
-    let mut dmg =
-        attack_damage as f32 * (damage_increase as f32 * 0.01) * (target_resistance as f32 * 0.01);
+    let mut dmg = attack_damage as f32
+        + (attack_damage as f32 * damage_increase as f32 * 0.01);
+    dmg -= dmg * target_resistance as f32 * 0.01;
     if target_resistance > 0 {
         dmg *= 1.0 - (target_resistance as f32 / 1000.0)
     };
