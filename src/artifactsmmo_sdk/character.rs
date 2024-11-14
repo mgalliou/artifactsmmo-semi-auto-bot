@@ -599,7 +599,7 @@ impl Character {
                 }
                 Err(e) => return Err(e),
             }
-            self.order_best_gear_against(monster, Filter::Craftable);
+            self.order_best_gear_against(monster, Filter::All);
         }
         self.equip_gear(&available);
         if let Some(map) = map {
@@ -660,7 +660,7 @@ impl Character {
             return;
         };
         if self.has_available(&tool.code) > 0 {
-            self.reserv_if_needed_and_available(Slot::Weapon, tool);
+            self.reserv_if_needed_and_available(Slot::Weapon, tool, 1);
         } else {
             self.orderboard.add(Order::new(
                 Some(&self.name),
@@ -904,7 +904,10 @@ impl Character {
             self.name, code, quantity
         );
         self.items.mats(code).iter().for_each(|m| {
-            if let Err(e) = self.bank.reserv_if_not(&m.code, m.quantity * quantity, &self.name) {
+            if let Err(e) = self
+                .bank
+                .reserv_if_not(&m.code, m.quantity * quantity, &self.name)
+            {
                 error!(
                     "{}: error while reserving mats for crafting from bank: {:?}",
                     self.name, e
@@ -1418,15 +1421,6 @@ impl Character {
             .count()
     }
 
-    /// Returns all the weapons available and equipable by the `Character`
-    pub fn available_equipable_weapons(&self) -> Vec<&ItemSchema> {
-        self.items
-            .equipable_at_level(self.level(), Type::Weapon)
-            .into_iter()
-            .filter(|i| self.has_available(&i.code) > 0)
-            .collect_vec()
-    }
-
     fn resistance(&self, r#type: DamageType) -> i32 {
         let d = self.data.read().unwrap();
         match r#type {
@@ -1525,33 +1519,48 @@ impl Character {
     fn order_best_gear_against(&self, monster: &MonsterSchema, filter: Filter) {
         let gear = self.gear_finder.best_against(self, monster, filter);
         if self.can_kill_with(monster, &gear) {
-            self.order_gear(gear, 1);
+            self.order_gear(gear);
         };
     }
 
-    fn order_gear(&self, gear: Gear<'_>, priority: i32) {
-        //TODO handle rings correctly
-        //TODO handle consumables
+    fn order_gear(&self, gear: Gear<'_>) {
         Slot::iter().for_each(|s| {
-            if let Some(item) = gear.slot(s) {
-                self.order_if_needed(s, item, priority);
+            if !(s.is_ring_1() || s.is_ring_2()) {
+                if let Some(item) = gear.slot(s) {
+                    let quantity = if s.is_utility_1() || s.is_utility_2() {
+                        100
+                    } else {
+                        1
+                    };
+                    self.order_if_needed(s, item, quantity);
+                }
             }
         });
+        if gear.ring1.is_some() && gear.ring1 == gear.ring2 {
+            self.order_if_needed(Slot::Ring1, gear.ring1.unwrap(), 2);
+        } else {
+            if let Some(ring1) = gear.ring1 {
+                self.order_if_needed(Slot::Ring1, ring1, 1);
+            }
+            if let Some(ring2) = gear.ring1 {
+                self.order_if_needed(Slot::Ring2, ring2, 1);
+            }
+        }
     }
 
-    fn order_if_needed(&self, slot: Slot, item: &ItemSchema, priority: i32) -> bool {
+    fn order_if_needed(&self, slot: Slot, item: &ItemSchema, quantity: i32) -> bool {
         if (self.equiped_in(slot).is_none()
             || self
                 .equiped_in(slot)
                 .is_some_and(|equiped| item.code != equiped.code))
-            && self.has_in_inventory(&item.code) < 1
+            && self.has_in_inventory(&item.code) < quantity
             && self.bank.has_item(&item.code, Some(&self.name)) < 1
         {
             self.orderboard.add(Order::new(
                 Some(&self.name),
                 &item.code,
+                quantity - self.has_in_inventory(&item.code),
                 1,
-                priority,
                 Purpose::Gear {
                     char: self.name.to_owned(),
                     slot,
@@ -1564,23 +1573,43 @@ impl Character {
     }
 
     fn reserv_gear(&self, gear: Gear<'_>) {
-        //TODO handle rings correctly
-        //TODO handle consumables
         Slot::iter().for_each(|s| {
-            if let Some(item) = gear.slot(s) {
-                self.reserv_if_needed_and_available(s, item);
+            if !(s.is_ring_1() || s.is_ring_2()) {
+                if let Some(item) = gear.slot(s) {
+                    let quantity = if s.is_utility_1() || s.is_utility_2() {
+                        100
+                    } else {
+                        1
+                    };
+                    self.reserv_if_needed_and_available(s, item, quantity);
+                }
             }
-        })
+        });
+        if gear.ring1.is_some() && gear.ring1 == gear.ring2 {
+            self.reserv_if_needed_and_available(Slot::Ring1, gear.ring1.unwrap(), 2);
+        } else {
+            if let Some(ring1) = gear.ring1 {
+                self.reserv_if_needed_and_available(Slot::Ring1, ring1, 1);
+            }
+            if let Some(ring2) = gear.ring1 {
+                self.reserv_if_needed_and_available(Slot::Ring2, ring2, 1);
+            }
+        }
     }
 
-    fn reserv_if_needed_and_available(&self, s: Slot, item: &ItemSchema) {
+    /// Reserves the given `quantity` of the `item` if needed and available.
+    fn reserv_if_needed_and_available(&self, s: Slot, item: &ItemSchema, quantity: i32) {
         if (self.equiped_in(s).is_none()
             || self
                 .equiped_in(s)
                 .is_some_and(|equiped| item.code != equiped.code))
-            && self.has_in_inventory(&item.code) < 1
+            && self.has_in_inventory(&item.code) < quantity
         {
-            if let Err(e) = self.bank.reserv_if_not(&item.code, 1, &self.name) {
+            if let Err(e) = self.bank.reserv_if_not(
+                &item.code,
+                quantity - self.has_in_inventory(&item.code),
+                &self.name,
+            ) {
                 error!("{} failed to reserv '{}': {:?}", self.name, item.code, e)
             }
         }
