@@ -4,10 +4,10 @@ use super::{
     average_dmg,
     bank::Bank,
     char_config::CharConfig,
-    game_config::GameConfig,
     events::Events,
     fight_simulator::FightSimulator,
     game::Game,
+    game_config::GameConfig,
     gear::{Gear, Slot},
     gear_finder::{Filter, GearFinder},
     items::{DamageType, ItemSource, Items, Type},
@@ -356,15 +356,24 @@ impl Character {
     }
 
     fn progress_task_reward_order(&self, order: &Order) -> Option<i32> {
-        if order.worked_by() > 0 {
-            return None;
-        }
-        order.inc_worked_by(1);
-        let ret = match self.exchange_task() {
-            Ok(r) => Some(r.amount_of(&order.item)),
+        match self.can_exchange_task() {
+            Ok(()) => {
+                if order.worked_by() > 0 {
+                    return None;
+                }
+                order.inc_worked_by(1);
+                let exchanged = self.exchange_task().map(|r| r.amount_of(&order.item)).ok();
+                order.dec_worked_by(1);
+                exchanged
+            }
             Err(e) => {
+                if order.missing() - order.worked_by() - self.account.in_inventories(&order.item)
+                    <= 0
+                {
+                    return None;
+                }
                 if let CharacterError::NotEnoughCoin = e {
-                    let q = 6 - self.bank.has_item("tasks_coin", Some(&self.name));
+                    let q = 6 - self.has_in_bank_or_inv("tasks_coin");
                     if self.orderboard.add(Order::new(
                         None,
                         "tasks_coin",
@@ -377,9 +386,7 @@ impl Character {
                 }
                 None
             }
-        };
-        order.dec_worked_by(1);
-        ret
+        }
     }
 
     fn progress_task_order(&self, order: &Order) -> Option<i32> {
@@ -497,7 +504,15 @@ impl Character {
         self.action_complete_task().map_err(|e| e.into())
     }
 
+    fn can_exchange_task(&self) -> Result<(), CharacterError> {
+        if self.bank.has_item("tasks_coin", Some(&self.name)) < 6 {
+            return Err(CharacterError::NotEnoughCoin);
+        }
+        Ok(())
+    }
+
     fn exchange_task(&self) -> Result<TaskRewardsSchema, CharacterError> {
+        self.can_exchange_task()?;
         if self.bank.reserv("tasks_coin", 6, &self.name).is_err() {
             return Err(CharacterError::NotEnoughCoin);
         }
