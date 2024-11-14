@@ -507,7 +507,10 @@ impl ItemSchemaExt for ItemSchema {
                     monster.resistance(t),
                 )
             })
-            .sum()
+            .sum::<f32>()
+            - DamageType::iter()
+                .map(|t| average_dmg(weapon.attack_damage(t), 0, monster.resistance(t)))
+                .sum::<f32>()
     }
 
     fn damage_reduction_against(&self, monster: &MonsterSchema) -> f32 {
