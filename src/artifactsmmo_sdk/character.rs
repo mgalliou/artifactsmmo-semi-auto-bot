@@ -615,7 +615,9 @@ impl Character {
     }
 
     fn rest(&self) -> Result<(), CharacterError> {
-        if self.data.read().unwrap().hp < self.data.read().unwrap().max_hp {
+        let hp = self.data.read().unwrap().hp;
+        let max_hp = self.data.read().unwrap().max_hp;
+        if hp < max_hp && (max_hp - hp) % 5 == 0 {
             self.action_rest()?;
         }
         Ok(())
