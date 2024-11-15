@@ -114,7 +114,8 @@ impl Character {
                 Goal::Orders => self.handle_orderboard(),
                 Goal::ReachLevel { level } if self.level() < *level => self.level_combat().is_ok(),
                 Goal::ReachSkillLevel { skill, level } if self.skill_level(*skill) < *level => {
-                    self.level_skill_up(*skill)
+                    self.level_skill_up(*skill);
+                    true
                 }
                 _ => false,
             }) {
