@@ -600,7 +600,7 @@ impl Character {
                 }
                 Err(e) => return Err(e),
             }
-            self.order_best_gear_against(monster, Filter::All);
+            self.order_best_gear_against(monster, Filter::Craftable);
         }
         self.equip_gear(&available);
         if let Some(map) = map {

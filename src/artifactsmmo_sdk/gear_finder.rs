@@ -191,7 +191,7 @@ impl GearFinder {
             && match filter {
                 Filter::All => i.level < 40,
                 Filter::Available => char.has_available(&i.code) > 0,
-                Filter::Craftable => char.account.can_craft(&i.code),
+                Filter::Craftable => i.craft_schema().is_none() || char.account.can_craft(&i.code),
                 Filter::Farmable => todo!(),
             }
     }
