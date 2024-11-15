@@ -608,16 +608,21 @@ impl Character {
         } else if let Some(map) = self.closest_map_with_content_code(&monster.code) {
             self.action_move(map.x, map.y)?;
         }
-        if let Err(e) = self.rest() {
-            error!("{}: error while resting: {:?}", self.name, e)
+        if self
+            .fight_simulator
+            .simulate(self.level(), self.missing_hp(), &self.gear(), monster)
+            .result
+            == FightResult::Loss
+        {
+            if let Err(e) = self.rest() {
+                error!("{} failed to rest: {:?}", self.name, e)
+            }
         }
         Ok(self.action_fight()?)
     }
 
     fn rest(&self) -> Result<(), CharacterError> {
-        let hp = self.data.read().unwrap().hp;
-        let max_hp = self.data.read().unwrap().max_hp;
-        if hp < max_hp && (max_hp - hp) % 5 == 0 {
+        if self.health() < self.max_health() {
             self.action_rest()?;
         }
         Ok(())
@@ -686,7 +691,9 @@ impl Character {
     fn time_to_kill(&self, monster: &MonsterSchema) -> Option<i32> {
         match self.can_kill(monster) {
             Ok(gear) => {
-                let fight = self.fight_simulator.simulate(self.level(), &gear, monster);
+                let fight = self
+                    .fight_simulator
+                    .simulate(self.level(), 0, &gear, monster);
                 if fight.result == FightResult::Win {
                     Some(fight.cd)
                 } else {
@@ -755,7 +762,7 @@ impl Character {
     /// `gear`
     fn can_kill_with(&self, monster: &MonsterSchema, gear: &Gear) -> bool {
         self.fight_simulator
-            .simulate(self.level(), gear, monster)
+            .simulate(self.level(), 0, gear, monster)
             .result
             == FightResult::Win
     }
@@ -1459,6 +1466,18 @@ impl Character {
         if !conf.idle {
             self.refresh_data()
         }
+    }
+
+    fn max_health(&self) -> i32 {
+        self.data.read().unwrap().max_hp
+    }
+
+    fn health(&self) -> i32 {
+        self.data.read().unwrap().hp
+    }
+
+    fn missing_hp(&self) -> i32 {
+        self.data.read().unwrap().max_hp - self.data.read().unwrap().hp
     }
 
     fn is_gatherer(&self) -> bool {

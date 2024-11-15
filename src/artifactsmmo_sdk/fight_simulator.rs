@@ -14,8 +14,14 @@ impl FightSimulator {
         Self {}
     }
 
-    pub fn simulate(&self, level: i32, gear: &Gear, monster: &MonsterSchema) -> Fight {
-        let mut hp = 115 + 5 * level + gear.health_increase();
+    pub fn simulate(
+        &self,
+        level: i32,
+        missing_hp: i32,
+        gear: &Gear,
+        monster: &MonsterSchema,
+    ) -> Fight {
+        let mut hp = 115 + 5 * level + gear.health_increase() - missing_hp;
         let mut monster_hp = monster.hp;
         let mut turns = 1;
 
