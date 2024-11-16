@@ -142,7 +142,6 @@ impl Character {
     }
 
     fn level_skill_by_crafting(&self, skill: Skill) -> Result<(), CharacterError> {
-        info!("{}: leveling skill up: {:?}", self.name, skill);
         let Some(item) = self
             .items
             .best_for_leveling_hc(self.skill_level(skill), skill)
@@ -725,7 +724,7 @@ impl Character {
                 ItemSource::Resource(r) => self.time_to_gather(r),
                 ItemSource::Monster(m) => self
                     .time_to_kill(m)
-                    .map(|time| time * (100 / (100 / self.items.drop_rate(item)))),
+                    .map(|time| time * self.items.drop_rate(item)),
                 ItemSource::Craft => Some(
                     self.items
                         .mats(item)
@@ -733,8 +732,8 @@ impl Character {
                         .map(|m| self.time_to_get(&m.code).unwrap_or(1000) * m.quantity)
                         .sum(),
                 ),
-                ItemSource::TaskReward => Some(60),
-                ItemSource::Task => Some(60),
+                ItemSource::TaskReward => Some(1500),
+                ItemSource::Task => Some(1500),
             })
             .min()
     }
@@ -1536,6 +1535,25 @@ impl Character {
 
     fn conf(&self) -> CharConfig {
         self.conf.read().unwrap().clone()
+    }
+
+    fn time_to_get_gear(&self, gear: &Gear) -> Option<i32> {
+        Slot::iter()
+            .map(|s| gear.slot(s).and_then(|i| self.items.time_to_get(&i.code)))
+            .sum()
+    }
+
+    fn order_upgrades(&self, current: Gear<'_>, monster: &MonsterSchema, filter: Filter) {
+        let gears = self.gear_finder.bests_against(self, monster, filter);
+        if let Some(gear) = gears
+            .iter()
+            .filter(|g| self.can_kill_with(monster, g))
+            .min_by_key(|g| self.time_to_get_gear(g))
+        {
+            if self.can_kill_with(monster, gear) {
+                self.order_gear(*gear);
+            };
+        }
     }
 
     fn order_best_gear_against(&self, monster: &MonsterSchema, filter: Filter) {

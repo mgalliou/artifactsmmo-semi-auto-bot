@@ -364,6 +364,23 @@ impl Items {
         }
         sources
     }
+
+    pub fn time_to_get(&self, item: &str) -> Option<i32> {
+        self.sources_of(item)
+            .iter()
+            .map(|s| match s {
+                ItemSource::Resource(_) => 20,
+                ItemSource::Monster(m) => m.level * self.drop_rate(item),
+                ItemSource::Craft => self
+                    .mats(item)
+                    .iter()
+                    .map(|m| self.time_to_get(&m.code).unwrap_or(10000) * m.quantity)
+                    .sum(),
+                ItemSource::TaskReward => 1500,
+                ItemSource::Task => 1500,
+            })
+            .min()
+    }
 }
 
 impl ItemSchemaExt for ItemSchema {

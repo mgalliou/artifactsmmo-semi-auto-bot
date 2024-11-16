@@ -47,11 +47,11 @@ impl GearFinder {
             .equipable_at_level(char.level(), Type::Weapon)
             .iter()
             .filter(|i| Self::is_eligible(i, filter, char))
-            .flat_map(|w| self.best_against_with_weapon(char, monster, filter, w))
+            .flat_map(|w| self.bests_against_with_weapon(char, monster, filter, w))
             .collect_vec()
     }
 
-    fn best_against_with_weapon<'a>(
+    fn bests_against_with_weapon<'a>(
         &'a self,
         char: &Character,
         monster: &MonsterSchema,
