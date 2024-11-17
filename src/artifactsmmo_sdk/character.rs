@@ -602,6 +602,7 @@ impl Character {
             self.order_best_gear_against(monster, Filter::Craftable);
         }
         self.equip_gear(&available);
+        self.withdraw_food();
         if let Some(map) = map {
             self.action_move(map.x, map.y)?;
         } else if let Some(map) = self.closest_map_with_content_code(&monster.code) {
@@ -613,6 +614,7 @@ impl Character {
             .result
             == FightResult::Loss
         {
+            self.eat_food();
             if let Err(e) = self.rest() {
                 error!("{} failed to rest: {:?}", self.name, e)
             }
@@ -1195,6 +1197,25 @@ impl Character {
                 .all(|s| s.quantity > 0)
     }
 
+    fn food_in_inventory(&self) -> Vec<&ItemSchema> {
+        self.data
+            .read()
+            .unwrap()
+            .inventory
+            .iter()
+            .flatten()
+            .filter_map(|i| {
+                self.items.get(&i.code).filter(|&i| {
+                    i.is_of_type(Type::Consumable)
+                        && i.heal() > 0
+                        && i.level <= self.level()
+                        && i.code != "apple"
+                        && i.code != "egg"
+                })
+            })
+            .collect_vec()
+    }
+
     /// Returns the amount of the given item `code` in the `Character` inventory.
     pub fn has_in_inventory(&self, code: &str) -> i32 {
         self.data
@@ -1695,6 +1716,51 @@ impl Character {
 
     fn skill_enabled(&self, s: Skill) -> bool {
         self.conf().skills.contains(&s)
+    }
+
+    fn withdraw_food(&self) {
+        let Ok(_browsed) = self.bank.browsed.write() else {
+            return;
+        };
+        if !self.food_in_inventory().is_empty() {
+            return;
+        }
+        let Some(food) = self
+            .bank
+            .food()
+            .into_iter()
+            .filter(|f| {
+                f.level <= self.level() && self.bank.has_item(&f.code, Some(&self.name)) > 0
+            })
+            .max_by_key(|f| f.heal())
+        else {
+            return;
+        };
+        let quantity = min(
+            self.inventory_max_items() - 10,
+            self.bank.has_item(&food.code, Some(&self.name)),
+        );
+        if let Err(e) = self.bank.reserv_if_not(&food.code, quantity, &self.name) {
+            error!("{} failed to reserv food: {:?}", self.name, e)
+        };
+        drop(_browsed);
+        self.deposit_all();
+        if let Err(e) = self.withdraw_item(&food.code, quantity) {
+            error!("{} failed to withdraw food: {:?}", self.name, e)
+        }
+    }
+
+    fn eat_food(&self) {
+        let mut foods = self.food_in_inventory();
+        foods.sort_by_key(|i| i.heal());
+        foods.iter().for_each(|f| {
+            let quantity = min(self.missing_hp() / f.heal(), self.has_in_inventory(&f.code));
+            if quantity > 0 {
+                if let Err(e) = self.action_use_item(&f.code, quantity) {
+                    error!("{} failed to use food: {:?}", self.name, e)
+                }
+            }
+        });
     }
 }
 

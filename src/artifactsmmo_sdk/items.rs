@@ -293,6 +293,13 @@ impl Items {
             .collect_vec()
     }
 
+    pub fn consumable_food(&self, level: i32) -> Vec<&ItemSchema> {
+        self.data
+            .iter()
+            .filter(|i| i.is_of_type(Type::Consumable) && i.level <= level)
+            .collect_vec()
+    }
+
     /// Takes a `level` and a `skill` and returns the items providing experince
     /// when crafted.
     pub fn providing_exp(&self, level: i32, skill: Skill) -> Vec<&ItemSchema> {
@@ -512,6 +519,13 @@ impl ItemSchemaExt for ItemSchema {
         self.effects()
             .iter()
             .find_map(|e| (e.name == skill.as_ref()).then_some(e.value))
+            .unwrap_or(0)
+    }
+
+    fn heal(&self) -> i32 {
+        self.effects()
+            .iter()
+            .find_map(|e| (e.name == "heal").then_some(e.value))
             .unwrap_or(0)
     }
 

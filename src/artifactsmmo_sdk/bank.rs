@@ -1,7 +1,12 @@
-use super::{api::bank::BankApi, game_config::GameConfig, items::Items};
-use artifactsmmo_openapi::models::{BankSchema, SimpleItemSchema};
+use super::{
+    api::bank::BankApi,
+    game_config::GameConfig,
+    items::{Items, Type},
+    ItemSchemaExt,
+};
+use artifactsmmo_openapi::models::{BankSchema, ItemSchema, SimpleItemSchema};
 use itertools::Itertools;
-use log::{info, warn};
+use log::info;
 use std::{
     cmp::max,
     fmt::{self, Display, Formatter},
@@ -162,6 +167,22 @@ impl Bank {
             .iter()
             .map(|m| m.quantity)
             .sum()
+    }
+
+    pub fn food(&self) -> Vec<&ItemSchema> {
+        self.content
+            .read()
+            .unwrap()
+            .iter()
+            .filter_map(|i| {
+                self.items.get(&i.code).filter(|&i| {
+                    i.is_of_type(Type::Consumable)
+                        && i.heal() > 0
+                        && i.code != "apple"
+                        && i.code != "egg"
+                })
+            })
+            .collect_vec()
     }
 
     pub fn update_content(&self, content: &Vec<SimpleItemSchema>) {
