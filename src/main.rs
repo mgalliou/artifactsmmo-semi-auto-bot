@@ -141,7 +141,7 @@ fn handle_orderboard(args: &[&str], orderboard: &Arc<OrderBoard>) {
             "request" => match (args.get(1), args.get(2)) {
                 (Some(item), Some(quantity)) => {
                     orderboard.add(Order::new(
-                        Some("cli"),
+                        None,
                         item,
                         quantity.parse::<i32>().unwrap_or(0),
                         1,
