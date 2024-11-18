@@ -111,9 +111,10 @@ pub fn average_dmg(attack_damage: i32, damage_increase: i32, target_resistance: 
     let mut dmg = attack_damage as f32
         + (attack_damage as f32 * damage_increase as f32 * 0.01);
     dmg -= dmg * target_resistance as f32 * 0.01;
-    if target_resistance > 0 {
-        dmg *= 1.0 - (target_resistance as f32 / 1000.0)
-    };
+    // TODO: include this in a different function and rename this one
+    //if target_resistance > 0 {
+    //    dmg *= 1.0 - (target_resistance as f32 / 1000.0)
+    //};
     dmg
 }
 
