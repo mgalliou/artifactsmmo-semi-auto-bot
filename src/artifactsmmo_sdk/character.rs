@@ -653,8 +653,21 @@ impl Character {
         let tool = self.best_tool_for_resource(&resource.code);
         if let Some(prev_equiped) = prev_equiped {
             if tool.is_none() || tool.is_some_and(|t| t.code != prev_equiped.code) {
-                let _ = self.action_unequip(Slot::Weapon, 1);
-                if let Err(e) = self.deposit_item(&prev_equiped.code, 1, None) {
+                if let Err(e) = self.action_unequip(Slot::Weapon, 1) {
+                    error!(
+                        "{}: failed to unequip previously equiped weapon: {:?}",
+                        self.name, e
+                    )
+                }
+                // TODO: improve logic: maybe include this logic in `deposit_item` method
+                if let Some(o) = self
+                    .orderboard
+                    .orders_by_priority()
+                    .iter()
+                    .find(|o| o.item == prev_equiped.code)
+                {
+                    self.deposit_order(o);
+                } else if let Err(e) = self.deposit_item(&prev_equiped.code, 1, None) {
                     error!(
                         "{}: error while depositing previously equiped weapon: {:?}",
                         self.name, e
@@ -1435,7 +1448,15 @@ impl Character {
             );
         }
         if let Some(i) = prev_equiped {
-            if let Err(e) = self.deposit_item(&i.code, 1, None) {
+            // TODO: improve logic
+            if let Some(o) = self
+                .orderboard
+                .orders_by_priority()
+                .iter()
+                .find(|o| o.item == i.code)
+            {
+                self.deposit_order(o);
+            } else if let Err(e) = self.deposit_item(&i.code, 1, None) {
                 error!(
                     "{} failed to deposit previously equiped item: {:?}",
                     self.name, e
