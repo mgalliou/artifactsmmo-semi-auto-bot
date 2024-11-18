@@ -603,6 +603,11 @@ impl Character {
         }
         self.equip_gear(&available);
         self.withdraw_food();
+        if let Ok(_) | Err(CharacterError::NoTask) = self.complete_task() {
+            if let Err(e) = self.action_accept_task("monsters") {
+                error!("{} error while accepting new task: {:?}", self.name, e)
+            }
+        }
         if let Some(map) = map {
             self.action_move(map.x, map.y)?;
         } else if let Some(map) = self.closest_map_with_content_code(&monster.code) {
