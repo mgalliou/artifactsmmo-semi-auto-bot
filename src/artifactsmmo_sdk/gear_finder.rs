@@ -172,16 +172,16 @@ impl GearFinder {
         if let Some(best_for_resistance) = best_for_resistance {
             upgrades.push(best_for_resistance);
         }
-        let best_for_health = {
-            if best_for_damage.is_some() {
-                damage_increases.into_iter().max_by_key(|i| i.health())
-            } else {
-                equipables.iter().cloned().max_by_key(|i| i.health())
-            }
-        };
-        if let Some(best_for_health) = best_for_health {
-            upgrades.push(best_for_health);
-        }
+        //let best_for_health = {
+        //    if best_for_damage.is_some() {
+        //        damage_increases.into_iter().max_by_key(|i| i.health())
+        //    } else {
+        //        equipables.iter().cloned().max_by_key(|i| i.health())
+        //    }
+        //};
+        //if let Some(best_for_health) = best_for_health {
+        //    upgrades.push(best_for_health);
+        //}
         upgrades
     }
 
