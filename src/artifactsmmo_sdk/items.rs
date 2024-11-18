@@ -757,8 +757,8 @@ mod tests {
                 .get("steel_boots")
                 .unwrap()
                 .damage_increase_against_with(
-                    monsters.get("chicken").unwrap(),
-                    items.get("steel_battleaxe").unwrap()
+                    monsters.get("ogre").unwrap(),
+                    items.get("skull_staff").unwrap()
                 ),
             0.0
         );
