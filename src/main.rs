@@ -113,6 +113,15 @@ fn handle_char(args: &[&str], account: &Account) {
                     }
                     _ => eprint!("missing args"),
                 },
+                "recycle" => match (args.get(2), args.get(3)) {
+                    (Some(code), Some(quantity)) => {
+                        char.recycle_from_bank(code, quantity.parse::<i32>().unwrap_or(1));
+                    }
+                    (Some(code), None) => {
+                        char.recycle_from_bank(code, 1);
+                    }
+                    _ => eprint!("missing args"),
+                },
                 "unequip_all" => char.unequip_and_deposit_all(),
                 "deposit_all" => char.deposit_all(),
                 "empty_bank" => char.empty_bank(),
@@ -152,7 +161,10 @@ fn handle_orderboard(args: &[&str], orderboard: &Arc<OrderBoard>) {
             },
             "orders" => {
                 println!("orders:");
-                orderboard.orders_by_priority().iter().for_each(|o| println!("{}", o));
+                orderboard
+                    .orders_by_priority()
+                    .iter()
+                    .for_each(|o| println!("{}", o));
             }
             "prio" => {
                 println!("orders:");

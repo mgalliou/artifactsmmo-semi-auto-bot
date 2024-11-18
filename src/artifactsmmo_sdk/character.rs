@@ -23,8 +23,8 @@ use crate::artifactsmmo_sdk::{char_config::Goal, SkillInfoSchemaExt};
 use actions::{PostCraftAction, RequestError};
 use artifactsmmo_openapi::models::{
     CharacterSchema, FightResult, FightSchema, InventorySlot, ItemSchema, MapContentSchema,
-    MapSchema, MonsterSchema, ResourceSchema, SimpleItemSchema, SkillDataSchema, SkillInfoSchema,
-    TaskRewardsSchema,
+    MapSchema, MonsterSchema, RecyclingItemsSchema, ResourceSchema, SimpleItemSchema,
+    SkillDataSchema, SkillInfoSchema, TaskRewardsSchema,
 };
 use itertools::Itertools;
 use log::{error, info, warn};
@@ -954,6 +954,25 @@ impl Character {
             PostCraftAction::None => (),
         };
         Ok(craft)
+    }
+
+    pub fn recycle_from_bank(
+        &self,
+        code: &str,
+        quantity: i32,
+    ) -> Result<RecyclingItemsSchema, CharacterError> {
+        self.can_craft(code)?;
+        if self.bank.has_item(code, Some(&self.name)) < quantity {
+            return Err(CharacterError::ItemNotFound);
+        }
+        info!("{}: going to recycle '{}x{}'.", self.name, code, quantity);
+        if let Err(e) = self.bank.reserv_if_not(code, quantity, &self.name) {
+            error!("{}: error while reserving '{}': {:?}", self.name, code, e);
+        }
+        self.deposit_all();
+        self.withdraw_item(code, quantity)?;
+        self.move_to_craft(code)?;
+        Ok(self.action_recycle(code, quantity)?)
     }
 
     pub fn deposit_item(
