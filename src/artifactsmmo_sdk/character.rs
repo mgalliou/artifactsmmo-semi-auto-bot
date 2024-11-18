@@ -1424,6 +1424,10 @@ impl Character {
                 );
             }
         }
+        // TODO: improve condition
+        if let Err(e) = self.rest() {
+            error!("{} failed to rest: {:?}", self.name, e)
+        };
         if let Err(e) = self.action_equip(&item.code, s, 1) {
             error!(
                 "{} failed to equip item from bank or inventory: {:?}",
