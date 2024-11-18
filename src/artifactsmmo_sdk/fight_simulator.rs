@@ -27,13 +27,13 @@ impl FightSimulator {
 
         while turns <= 100 {
             if turns % 2 == 1 {
-                hp -= gear.attack_damage_from(monster).round() as i32;
-                if hp <= 0 {
+                monster_hp -= gear.attack_damage_against(monster).round() as i32;
+                if monster_hp <= 0 {
                     break;
                 }
             } else {
-                monster_hp -= gear.attack_damage_against(monster).round() as i32;
-                if monster_hp <= 0 {
+                hp -= gear.attack_damage_from(monster).round() as i32;
+                if hp <= 0 {
                     break;
                 }
             }
@@ -41,6 +41,7 @@ impl FightSimulator {
         }
         Fight {
             turns,
+            hp_left: hp,
             result: if hp > 0 {
                 FightResult::Win
             } else {
@@ -60,6 +61,7 @@ impl FightSimulator {
 
 pub struct Fight {
     pub turns: i32,
+    pub hp_left: i32,
     pub result: FightResult,
     pub cd: i32,
 }
