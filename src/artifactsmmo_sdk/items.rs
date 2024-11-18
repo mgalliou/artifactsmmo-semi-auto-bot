@@ -709,4 +709,78 @@ mod tests {
             57.5
         );
     }
+
+    #[test]
+    fn damage_increase() {
+        let config: GameConfig = Figment::new()
+            .merge(Toml::file_exact("ArtifactsMMO.toml"))
+            .extract()
+            .unwrap();
+        let resources = Arc::new(Resources::new(&config));
+        let monsters = Arc::new(Monsters::new(&config));
+        let tasks = Arc::new(Tasks::new(&config));
+        let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
+
+        assert_eq!(
+            items
+                .get("steel_boots")
+                .unwrap()
+                .damage_increase(super::DamageType::Air),
+            0
+        )
+    }
+
+    #[test]
+    fn damage_increase_against() {
+        let config: GameConfig = Figment::new()
+            .merge(Toml::file_exact("ArtifactsMMO.toml"))
+            .extract()
+            .unwrap();
+        let resources = Arc::new(Resources::new(&config));
+        let monsters = Arc::new(Monsters::new(&config));
+        let tasks = Arc::new(Tasks::new(&config));
+        let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
+
+        assert_eq!(
+            items
+                .get("steel_armor")
+                .unwrap()
+                .damage_increase_against_with(
+                    monsters.get("chicken").unwrap(),
+                    items.get("steel_battleaxe").unwrap()
+                ),
+            6.0
+        );
+
+        assert_eq!(
+            items
+                .get("steel_boots")
+                .unwrap()
+                .damage_increase_against_with(
+                    monsters.get("chicken").unwrap(),
+                    items.get("steel_battleaxe").unwrap()
+                ),
+            0.0
+        );
+    }
+
+    #[test]
+    fn damage_reduction_against() {
+        let config: GameConfig = Figment::new()
+            .merge(Toml::file_exact("ArtifactsMMO.toml"))
+            .extract()
+            .unwrap();
+        let resources = Arc::new(Resources::new(&config));
+        let monsters = Arc::new(Monsters::new(&config));
+        let tasks = Arc::new(Tasks::new(&config));
+        let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
+
+        assert_eq!(
+            items
+                .get("steel_armor")
+                .unwrap()
+                .damage_reduction_against(monsters.get("ogre").unwrap()),
+            4.0
+        );
+    }
 }
