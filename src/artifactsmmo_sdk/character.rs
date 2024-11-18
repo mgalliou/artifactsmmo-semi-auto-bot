@@ -1663,13 +1663,12 @@ impl Character {
             || self
                 .equiped_in(slot)
                 .is_some_and(|equiped| item.code != equiped.code))
-            && self.has_in_inventory(&item.code) < quantity
-            && self.bank.has_item(&item.code, Some(&self.name)) < 1
+            && self.has_available(&item.code) < quantity 
         {
             self.orderboard.add(Order::new(
                 Some(&self.name),
                 &item.code,
-                quantity - self.has_in_inventory(&item.code),
+                quantity - self.has_available(&item.code),
                 1,
                 Purpose::Gear {
                     char: self.name.to_owned(),
