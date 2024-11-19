@@ -1,21 +1,40 @@
-use super::{api::events::EventsApi, game_config::GameConfig, ActiveEventSchemaExt, MapSchemaExt};
-use artifactsmmo_openapi::models::{ActiveEventSchema, MapSchema};
+use super::{
+    api::events::EventsApi, game_config::GameConfig, persist_data, retreive_data,
+    ActiveEventSchemaExt, MapSchemaExt,
+};
+use artifactsmmo_openapi::models::{ActiveEventSchema, EventSchema, MapSchema};
 use chrono::{DateTime, Duration, Utc};
 use itertools::Itertools;
-use log::debug;
-use std::sync::{Arc, RwLock};
+use log::{debug, error};
+use std::{
+    path::Path,
+    sync::{Arc, RwLock},
+};
 
 pub struct Events {
     api: EventsApi,
-    pub events: RwLock<Vec<ActiveEventSchema>>,
+    pub data: Vec<EventSchema>,
+    pub active: RwLock<Vec<ActiveEventSchema>>,
     last_refresh: RwLock<DateTime<Utc>>,
 }
 
 impl Events {
     pub fn new(config: &GameConfig) -> Self {
+        let api = EventsApi::new(&config.base_url);
+        let path = Path::new(".cache/events.json");
+        let data = if let Ok(data) = retreive_data::<Vec<EventSchema>>(path) {
+            data
+        } else {
+            let data = api.all().expect("items to be retrieved from API.");
+            if let Err(e) = persist_data(&data, path) {
+                error!("failed to persist items data: {}", e);
+            }
+            data
+        };
         let events = Self {
-            api: EventsApi::new(&config.base_url),
-            events: RwLock::new(vec![]),
+            api,
+            data,
+            active: RwLock::new(vec![]),
             last_refresh: RwLock::new(DateTime::<Utc>::MIN_UTC),
         };
         events.refresh();
@@ -23,7 +42,7 @@ impl Events {
     }
 
     pub fn maps(&self) -> Vec<Arc<MapSchema>> {
-        self.events
+        self.active
             .read()
             .unwrap()
             .iter()
@@ -35,7 +54,7 @@ impl Events {
         let now = Utc::now();
         if Utc::now() - self.last_refresh() > Duration::seconds(30) {
             // NOTE: keep `events` locked before updating last refresh
-            let mut events = self.events.write().unwrap();
+            let mut events = self.active.write().unwrap();
             self.update_last_refresh(now);
             if let Ok(new) = self.api.active() {
                 *events = new;
@@ -59,7 +78,7 @@ impl Events {
     }
 
     pub fn of_type(&self, r#type: &str) -> Vec<ActiveEventSchema> {
-        self.events
+        self.active
             .read()
             .unwrap()
             .iter()
