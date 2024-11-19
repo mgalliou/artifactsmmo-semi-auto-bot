@@ -1,15 +1,22 @@
-use super::{api::resources::ResourcesApi, game_config::GameConfig, persist_data, skill::Skill};
+use super::{
+    api::{events, resources::ResourcesApi},
+    events::Events,
+    game_config::GameConfig,
+    persist_data,
+    skill::Skill,
+};
 use artifactsmmo_openapi::models::ResourceSchema;
 use log::error;
-use std::{fs::read_to_string, path::Path};
+use std::{fs::read_to_string, path::Path, sync::Arc};
 
 #[derive(Default)]
 pub struct Resources {
     pub data: Vec<ResourceSchema>,
+    events: Arc<Events>,
 }
 
 impl Resources {
-    pub fn new(config: &GameConfig) -> Resources {
+    pub fn new(config: &GameConfig, events: &Arc<Events>) -> Resources {
         let api = ResourcesApi::new(&config.base_url);
         let path = Path::new(".cache/resources.json");
         let data = if path.exists() {
@@ -24,7 +31,10 @@ impl Resources {
             }
             data
         };
-        Resources { data }
+        Resources {
+            data,
+            events: events.clone(),
+        }
     }
 
     pub fn get(&self, code: &str) -> Option<&ResourceSchema> {
@@ -53,5 +63,9 @@ impl Resources {
             .filter(|r| Skill::from(r.skill) == skill)
             .filter(|r| r.level <= level)
             .max_by_key(|r| r.level)
+    }
+
+    pub fn is_event(&self, code: &str) -> bool {
+        self.events.data.iter().any(|e| e.code == code)
     }
 }

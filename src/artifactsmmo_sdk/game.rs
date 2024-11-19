@@ -30,10 +30,10 @@ impl Game {
         let mut configuration = Configuration::new();
         configuration.base_path = config.base_url.to_owned();
         configuration.bearer_access_token = Some(config.base_url.to_owned());
-        let monsters = Arc::new(Monsters::new(config));
-        let resources = Arc::new(Resources::new(config));
-        let tasks = Arc::new(Tasks::new(config));
         let events = Arc::new(Events::new(config));
+        let monsters = Arc::new(Monsters::new(config, &events));
+        let resources = Arc::new(Resources::new(config, &events));
+        let tasks = Arc::new(Tasks::new(config));
         let game = Game {
             configuration,
             maps: Arc::new(Maps::new(config, &events)),

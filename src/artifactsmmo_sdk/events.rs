@@ -11,6 +11,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+#[derive(Default)]
 pub struct Events {
     api: EventsApi,
     pub data: Vec<EventSchema>,

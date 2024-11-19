@@ -1,18 +1,19 @@
 use super::{
-    api::monsters::MonstersApi, game_config::GameConfig, items::DamageType, persist_data, retreive_data,
-    MonsterSchemaExt,
+    api::monsters::MonstersApi, events::Events, game_config::GameConfig, items::DamageType,
+    persist_data, retreive_data, MonsterSchemaExt,
 };
 use artifactsmmo_openapi::models::MonsterSchema;
 use log::error;
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
 #[derive(Default)]
 pub struct Monsters {
     pub data: Vec<MonsterSchema>,
+    events: Arc<Events>,
 }
 
 impl Monsters {
-    pub fn new(config: &GameConfig) -> Monsters {
+    pub fn new(config: &GameConfig, events: &Arc<Events>) -> Monsters {
         let api = MonstersApi::new(&config.base_url);
         let path = Path::new(".cache/monsters.json");
         let data = if let Ok(data) = retreive_data::<Vec<MonsterSchema>>(path) {
@@ -26,7 +27,10 @@ impl Monsters {
             }
             data
         };
-        Monsters { data }
+        Monsters {
+            data,
+            events: events.clone(),
+        }
     }
     pub fn get(&self, code: &str) -> Option<&MonsterSchema> {
         self.data.iter().find(|m| m.code == code)
@@ -52,6 +56,10 @@ impl Monsters {
             .iter()
             .filter(|m| m.level <= level)
             .max_by_key(|m| m.level)
+    }
+
+    pub fn is_event(&self, code: &str) -> bool {
+        self.events.data.iter().any(|e| e.code == code)
     }
 }
 

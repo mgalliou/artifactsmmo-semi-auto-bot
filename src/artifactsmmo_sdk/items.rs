@@ -388,6 +388,18 @@ impl Items {
             })
             .min()
     }
+
+    pub fn is_from_event(&self, code: &str) -> bool {
+        self.get(code).map_or(false, |i| {
+            self.sources_of(&i.code).iter().any(|s| match s {
+                ItemSource::Resource(r) => self.resources.is_event(&r.code),
+                ItemSource::Monster(m) => self.monsters.is_event(&m.code),
+                ItemSource::Craft => false,
+                ItemSource::TaskReward => false,
+                ItemSource::Task => false,
+            })
+        })
+    }
 }
 
 impl ItemSchemaExt for ItemSchema {
@@ -662,8 +674,9 @@ mod tests {
             .merge(Toml::file_exact("ArtifactsMMO.toml"))
             .extract()
             .unwrap();
-        let resources = Arc::new(Resources::new(&config));
-        let monsters = Arc::new(Monsters::new(&config));
+        let events = Default::default();
+        let resources = Arc::new(Resources::new(&config, &events));
+        let monsters = Arc::new(Monsters::new(&config, &events));
         let tasks = Arc::new(Tasks::new(&config));
         let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
 
@@ -689,8 +702,9 @@ mod tests {
             .merge(Toml::file_exact("ArtifactsMMO.toml"))
             .extract()
             .unwrap();
-        let resources = Arc::new(Resources::new(&config));
-        let monsters = Arc::new(Monsters::new(&config));
+        let events = Default::default();
+        let resources = Arc::new(Resources::new(&config, &events));
+        let monsters = Arc::new(Monsters::new(&config, &events));
         let tasks = Arc::new(Tasks::new(&config));
         let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
 
@@ -716,8 +730,9 @@ mod tests {
             .merge(Toml::file_exact("ArtifactsMMO.toml"))
             .extract()
             .unwrap();
-        let resources = Arc::new(Resources::new(&config));
-        let monsters = Arc::new(Monsters::new(&config));
+        let events = Default::default();
+        let resources = Arc::new(Resources::new(&config, &events));
+        let monsters = Arc::new(Monsters::new(&config, &events));
         let tasks = Arc::new(Tasks::new(&config));
         let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
 
@@ -736,8 +751,9 @@ mod tests {
             .merge(Toml::file_exact("ArtifactsMMO.toml"))
             .extract()
             .unwrap();
-        let resources = Arc::new(Resources::new(&config));
-        let monsters = Arc::new(Monsters::new(&config));
+        let events = Default::default();
+        let resources = Arc::new(Resources::new(&config, &events));
+        let monsters = Arc::new(Monsters::new(&config, &events));
         let tasks = Arc::new(Tasks::new(&config));
         let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
 
@@ -770,8 +786,9 @@ mod tests {
             .merge(Toml::file_exact("ArtifactsMMO.toml"))
             .extract()
             .unwrap();
-        let resources = Arc::new(Resources::new(&config));
-        let monsters = Arc::new(Monsters::new(&config));
+        let events = Default::default();
+        let resources = Arc::new(Resources::new(&config, &events));
+        let monsters = Arc::new(Monsters::new(&config, &events));
         let tasks = Arc::new(Tasks::new(&config));
         let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
 

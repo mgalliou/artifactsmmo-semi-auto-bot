@@ -9,6 +9,7 @@ use artifactsmmo_openapi::{
     models::{ActiveEventSchema, EventSchema},
 };
 
+#[derive(Default)]
 pub struct EventsApi {
     pub configuration: Configuration,
 }
