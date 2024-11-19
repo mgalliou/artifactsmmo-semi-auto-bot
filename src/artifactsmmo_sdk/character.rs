@@ -319,40 +319,41 @@ impl Character {
                 if order.missing()
                     - self.account.in_inventories(&order.item)
                     - order.being_crafted()
-                    > 0
+                    <= 0
                 {
-                    let quantity = min(
-                        self.max_craftable_items(&order.item),
-                        order.missing()
-                            - order.being_crafted()
-                            - self.account.in_inventories(&order.item),
-                    );
-                    if quantity <= 0 {
-                        return None;
-                    }
-                    order.inc_being_crafted(quantity);
-                    let crafted =
-                        self.craft_from_bank(&order.item, quantity, PostCraftAction::None);
-                    order.dec_being_crafted(quantity);
-                    crafted.ok();
+                    return None;
                 }
+                let quantity = min(
+                    self.max_craftable_items(&order.item),
+                    order.missing()
+                        - order.being_crafted()
+                        - self.account.in_inventories(&order.item),
+                );
+                if quantity <= 0 {
+                    return None;
+                }
+                order.inc_being_crafted(quantity);
+                let crafted = self.craft_from_bank(&order.item, quantity, PostCraftAction::None);
+                order.dec_being_crafted(quantity);
+                crafted.ok().map(|craft| craft.amount_of(&order.item))
             }
             Err(e) => {
-                if let CharacterError::InsuffisientMaterials = e {
-                    if order.being_crafted() <= 0
-                        && self.order_missing_mats(
-                            &order.item,
-                            order.missing() - self.account.in_inventories(&order.item),
-                            order.priority,
-                            order.purpose.clone(),
-                        )
-                    {
-                        return Some(0);
-                    }
+                let CharacterError::InsuffisientMaterials = e else {
+                    return None;
+                };
+                if !self.order_missing_mats(
+                    &order.item,
+                    order.missing()
+                        - self.account.in_inventories(&order.item)
+                        - order.being_crafted(),
+                    order.priority,
+                    order.purpose.clone(),
+                ) {
+                    return None;
                 }
+                Some(0)
             }
         }
-        None
     }
 
     fn progress_task_reward_order(&self, order: &Order) -> Option<i32> {
@@ -1663,7 +1664,7 @@ impl Character {
             || self
                 .equiped_in(slot)
                 .is_some_and(|equiped| item.code != equiped.code))
-            && self.has_in_bank_or_inv(&item.code) < quantity 
+            && self.has_in_bank_or_inv(&item.code) < quantity
         {
             self.orderboard.add(Order::new(
                 Some(&self.name),
