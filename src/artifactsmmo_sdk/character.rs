@@ -1635,7 +1635,7 @@ impl Character {
 
     fn order_gear(&self, gear: Gear<'_>) {
         Slot::iter().for_each(|s| {
-            if !(s.is_ring_1() || s.is_ring_2()) {
+            if !s.is_ring_1() && !s.is_ring_2() {
                 if let Some(item) = gear.slot(s) {
                     let quantity = if s.is_utility_1() || s.is_utility_2() {
                         100
@@ -1663,12 +1663,12 @@ impl Character {
             || self
                 .equiped_in(slot)
                 .is_some_and(|equiped| item.code != equiped.code))
-            && self.has_available(&item.code) < quantity 
+            && self.has_in_bank_or_inv(&item.code) < quantity 
         {
             self.orderboard.add(Order::new(
                 Some(&self.name),
                 &item.code,
-                quantity - self.has_available(&item.code),
+                quantity - self.has_in_bank_or_inv(&item.code),
                 1,
                 Purpose::Gear {
                     char: self.name.to_owned(),
