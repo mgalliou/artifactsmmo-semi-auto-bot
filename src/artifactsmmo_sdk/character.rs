@@ -238,12 +238,10 @@ impl Character {
             .missing_mats_for(item, quantity, Some(&self.name))
             .iter()
             .for_each(|m| {
-                if self.orderboard.add(Order::new(
-                    None,
-                    &m.code,
-                    m.quantity,
-                    purpose.clone(),
-                )) {
+                if self
+                    .orderboard
+                    .add(Order::new(None, &m.code, m.quantity, purpose.clone()))
+                {
                     ordered = true
                 }
             });
@@ -1655,17 +1653,20 @@ impl Character {
                 .is_some_and(|equiped| item.code != equiped.code))
             && self.has_in_bank_or_inv(&item.code) < quantity
         {
-            self.orderboard.add(Order::new(
-                None,
-                &item.code,
-                quantity - self.has_in_bank_or_inv(&item.code),
-                Purpose::Gear {
-                    char: self.name.to_owned(),
-                    slot,
-                    item_code: item.code.to_owned(),
-                },
-            ));
-            return true;
+            let quantity = quantity - self.has_available(&item.code);
+            if quantity > 0 {
+                self.orderboard.add(Order::new(
+                    None,
+                    &item.code,
+                    quantity,
+                    Purpose::Gear {
+                        char: self.name.to_owned(),
+                        slot,
+                        item_code: item.code.to_owned(),
+                    },
+                ));
+                return true;
+            }
         }
         false
     }
