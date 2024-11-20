@@ -153,7 +153,6 @@ fn handle_orderboard(args: &[&str], orderboard: &Arc<OrderBoard>) {
                         None,
                         item,
                         quantity.parse::<i32>().unwrap_or(0),
-                        1,
                         Purpose::Cli,
                     ));
                 }
