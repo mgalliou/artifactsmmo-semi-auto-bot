@@ -8,6 +8,7 @@ use artifactsmmo_openapi::models::{CraftSchema, ItemEffectSchema, ItemSchema, Si
 use artifactsmmo_openapi::models::{MonsterSchema, ResourceSchema};
 use itertools::Itertools;
 use log::{debug, error};
+use std::collections::HashMap;
 use std::fmt;
 use std::path::Path;
 use std::str::FromStr;
@@ -17,7 +18,7 @@ use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
 
 #[derive(Default)]
 pub struct Items {
-    pub data: Vec<ItemSchema>,
+    pub data: HashMap<String, ItemSchema>,
     pub api: ItemsApi,
     resources: Arc<Resources>,
     monsters: Arc<Monsters>,
@@ -33,12 +34,15 @@ impl Items {
     ) -> Items {
         let api = ItemsApi::new(&config.base_url);
         let path = Path::new(".cache/items.json");
-        let data = if let Ok(data) = retreive_data::<Vec<ItemSchema>>(path) {
+        let data = if let Ok(data) = retreive_data(path) {
             data
         } else {
             let data = api
                 .all(None, None, None, None, None, None)
-                .expect("items to be retrieved from API.");
+                .expect("items to be retrieved from API.")
+                .into_iter()
+                .map(|item| (item.code.clone(), item))
+                .collect();
             if let Err(e) = persist_data(&data, path) {
                 error!("failed to persist items data: {}", e);
             }
@@ -55,7 +59,7 @@ impl Items {
 
     /// Takes an item `code` and return its schema.
     pub fn get(&self, code: &str) -> Option<&ItemSchema> {
-        self.data.iter().find(|m| m.code == code)
+        self.data.get(code)
     }
 
     /// Takes an item `code` and return its type.
@@ -110,7 +114,7 @@ impl Items {
     /// Takes an item `code` and returns the items directly crafted with it.
     pub fn crafted_with(&self, code: &str) -> Vec<&ItemSchema> {
         self.data
-            .iter()
+            .values()
             .filter(|i| i.is_crafted_with(code))
             .collect_vec()
     }
@@ -128,7 +132,7 @@ impl Items {
     /// Takes an item `code` and returns the items crafted with it as base mat.
     pub fn crafted_with_base_mat(&self, code: &str) -> Vec<&ItemSchema> {
         self.data
-            .iter()
+            .values()
             .filter(|i| self.is_crafted_with_base_mat(&i.code, code))
             .collect_vec()
     }
@@ -215,7 +219,7 @@ impl Items {
 
     pub fn equipable_at_level(&self, level: i32, r#type: Type) -> Vec<&ItemSchema> {
         self.data
-            .iter()
+            .values()
             .filter(|i| i.r#type == r#type && i.level <= level)
             .collect_vec()
     }
@@ -295,7 +299,7 @@ impl Items {
 
     pub fn consumable_food(&self, level: i32) -> Vec<&ItemSchema> {
         self.data
-            .iter()
+            .values()
             .filter(|i| i.is_of_type(Type::Consumable) && i.level <= level)
             .collect_vec()
     }
@@ -305,7 +309,7 @@ impl Items {
     pub fn providing_exp(&self, level: i32, skill: Skill) -> Vec<&ItemSchema> {
         let min = if level > 11 { level - 10 } else { 1 };
         self.data
-            .iter()
+            .values()
             .filter(|i| i.level >= min && i.level <= level)
             .filter(|i| i.skill_to_craft().is_some_and(|s| s == skill))
             .collect_vec()
@@ -337,7 +341,7 @@ impl Items {
     /// type for which the level is between the given `level` and the item level.
     pub fn potential_upgrade(&self, level: i32, code: &str) -> Vec<&ItemSchema> {
         self.data
-            .iter()
+            .values()
             .filter(|u| {
                 self.get(code)
                     .is_some_and(|i| u.r#type == i.r#type && u.level >= i.level)

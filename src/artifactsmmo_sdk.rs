@@ -7,7 +7,7 @@ use fs_extra::file::{read_to_string, write_all};
 use items::{DamageType, Type};
 use serde::{Deserialize, Serialize};
 use skill::Skill;
-use std::path::Path;
+use std::{collections::HashMap, path::Path};
 
 pub mod account;
 pub mod api;
@@ -125,7 +125,7 @@ pub fn retreive_data<T: for<'a> Deserialize<'a>>(
 }
 
 pub fn persist_data<T: Serialize>(
-    data: &Vec<T>,
+    data: T,
     path: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
     Ok(write_all(path, &serde_json::to_string_pretty(&data)?)?)
