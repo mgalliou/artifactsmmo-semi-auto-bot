@@ -234,9 +234,18 @@ impl Character {
     /// `purpose`. Returns true if an order has been made.
     fn order_missing_mats(&self, item: &str, quantity: i32, purpose: Purpose) -> bool {
         let mut ordered: bool = false;
-        self.bank
-            .missing_mats_for(item, quantity, Some(&self.name))
-            .iter()
+        self.items
+            .mats(item)
+            .into_iter()
+            .filter(|m| self.bank.has_item(&m.code, Some(&self.name)) < m.quantity * quantity)
+            .update(|m| {
+                m.quantity = m.quantity * quantity
+                    - if self.orderboard.is_ordered(&m.code) {
+                        0
+                    } else {
+                        self.bank.has_item(&m.code, Some(&self.name))
+                    }
+            })
             .for_each(|m| {
                 if self
                     .orderboard
@@ -362,7 +371,11 @@ impl Character {
                     return None;
                 }
                 if let CharacterError::NotEnoughCoin = e {
-                    let q = 6 - self.has_in_bank_or_inv("tasks_coin");
+                    let q = 6 - if self.orderboard.is_ordered("tasks_coin") {
+                        0
+                    } else {
+                        self.has_in_bank_or_inv("tasks_coin")
+                    };
                     if q > 0
                         && self.orderboard.add(Order::new(
                             None,

@@ -32,6 +32,11 @@ impl OrderBoard {
         self.orders().into_iter().filter(f).collect_vec()
     }
 
+    pub fn is_ordered(&self, item: &str) -> bool {
+        self.orders().iter().any(|o| o.item == item)
+    }
+
+
     pub fn orders_by_priority(&self) -> Vec<Arc<Order>> {
         let mut orders: Vec<Arc<Order>> = vec![];
         Purpose::iter().for_each(|p| match p {
