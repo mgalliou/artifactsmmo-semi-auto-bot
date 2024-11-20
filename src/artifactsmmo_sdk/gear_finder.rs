@@ -186,8 +186,7 @@ impl GearFinder {
     }
 
     fn is_eligible(i: &ItemSchema, filter: Filter, char: &Character) -> bool {
-        !i.is_crafted_with("jasper_crystal")
-            && !i.is_crafted_with("magical_cure")
+            !i.is_crafted_with("magical_cure")
             && match filter {
                 Filter::All => i.level < 40,
                 Filter::Available => char.has_available(&i.code) > 0,
