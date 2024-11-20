@@ -24,7 +24,7 @@ use actions::{PostCraftAction, RequestError};
 use artifactsmmo_openapi::models::{
     CharacterSchema, FightResult, FightSchema, InventorySlot, ItemSchema, MapContentSchema,
     MapSchema, MonsterSchema, RecyclingItemsSchema, ResourceSchema, SimpleItemSchema,
-    SkillDataSchema, SkillInfoSchema, TaskRewardsSchema,
+    SkillDataSchema, SkillInfoSchema, TaskRewardsSchema, TaskSchema, TaskType,
 };
 use itertools::Itertools;
 use log::{error, info, warn};
@@ -384,7 +384,7 @@ impl Character {
             Ok(r) => Some(r.amount_of(&order.item)),
             Err(e) => {
                 if let CharacterError::NoTask = e {
-                    if let Err(e) = self.action_accept_task("items") {
+                    if let Err(e) = self.accept_task(TaskType::Items) {
                         error!("{} error while accepting new task: {:?}", self.name, e)
                     }
                     return Some(0);
@@ -451,7 +451,7 @@ impl Character {
     }
 
     fn trade_task(&self) -> Result<(), CharacterError> {
-        if self.task_type() != "items" {
+        if !self.task_type().is_some_and(|tt| tt == TaskType::Items) {
             return Err(CharacterError::InvalidTaskType);
         }
         if self.task_missing()
@@ -477,8 +477,14 @@ impl Character {
             error!("{}: error while withdrawing {:?}", self.name, e);
             self.bank.decrease_reservation(&self.task(), q, &self.name);
         };
+        self.move_to_closest_taskmaster(self.task_type())?;
         self.action_task_trade(&self.task(), q)?;
         Ok(())
+    }
+
+    fn accept_task(&self, r#type: TaskType) -> Result<TaskSchema, CharacterError> {
+        self.move_to_closest_taskmaster(Some(r#type))?;
+        Ok(self.action_accept_task(&r#type.to_string())?)
     }
 
     fn complete_task(&self) -> Result<TaskRewardsSchema, CharacterError> {
@@ -488,6 +494,7 @@ impl Character {
         if !self.task_finished() {
             return Err(CharacterError::TaskNotFinished);
         }
+        self.move_to_closest_taskmaster(self.task_type())?;
         self.action_complete_task().map_err(|e| e.into())
     }
 
@@ -509,6 +516,7 @@ impl Character {
         }
         self.deposit_all();
         self.withdraw_item("tasks_coin", 6)?;
+        self.move_to_closest_taskmaster(self.task_type())?;
         self.action_task_exchange().map_err(|e| e.into())
     }
 
@@ -555,7 +563,7 @@ impl Character {
         };
         match self.complete_task() {
             Ok(_) | Err(CharacterError::NoTask) => {
-                if let Err(e) = self.action_accept_task("monsters") {
+                if let Err(e) = self.accept_task(TaskType::Monsters) {
                     error!("{} error while accepting new task: {:?}", self.name, e)
                 }
             }
@@ -593,7 +601,7 @@ impl Character {
         self.equip_gear(&available);
         self.withdraw_food();
         if let Ok(_) | Err(CharacterError::NoTask) = self.complete_task() {
-            if let Err(e) = self.action_accept_task("monsters") {
+            if let Err(e) = self.accept_task(TaskType::Monsters) {
                 error!("{} error while accepting new task: {:?}", self.name, e)
             }
         }
@@ -1322,6 +1330,20 @@ impl Character {
         }
     }
 
+    fn move_to_closest_taskmaster(
+        &self,
+        r#type: Option<TaskType>,
+    ) -> Result<MapSchema, CharacterError> {
+        if let Some(r#type) = r#type {
+            self.move_to_closest_map_with_content_schema(&MapContentSchema {
+                r#type: "tasks_master".to_owned(),
+                code: r#type.to_string(),
+            })
+        } else {
+            self.move_to_closest_map_of_type("task_master")
+        }
+    }
+
     fn move_to_closest_map_with_content_code(
         &self,
         code: &str,
@@ -1545,8 +1567,8 @@ impl Character {
         self.data.read().unwrap().task.to_owned()
     }
 
-    fn task_type(&self) -> String {
-        self.data.read().unwrap().task_type.to_owned()
+    fn task_type(&self) -> Option<TaskType> {
+        serde_json::from_str(&self.data.read().unwrap().task_type).ok()
     }
 
     fn task_progress(&self) -> i32 {

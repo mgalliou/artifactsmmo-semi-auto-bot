@@ -333,10 +333,6 @@ impl Character {
     }
 
     pub fn action_accept_task(&self, r#type: &str) -> Result<TaskSchema, RequestError> {
-        let _ = self.move_to_closest_map_with_content_schema(&MapContentSchema {
-            r#type: "tasks_master".to_owned(),
-            code: r#type.to_owned(),
-        });
         self.perform_action(Action::AcceptTask)
             .and_then(|r| {
                 r.downcast::<TaskResponseSchema>()
@@ -346,10 +342,6 @@ impl Character {
     }
 
     pub fn action_complete_task(&self) -> Result<TaskRewardsSchema, RequestError> {
-        let _ = self.move_to_closest_map_with_content_schema(&MapContentSchema {
-            r#type: "tasks_master".to_owned(),
-            code: self.task_type().to_owned(),
-        });
         self.perform_action(Action::CompleteTask)
             .and_then(|r| {
                 r.downcast::<TasksRewardDataResponseSchema>()
@@ -359,10 +351,6 @@ impl Character {
     }
 
     pub fn action_cancel_task(&self) -> Result<(), RequestError> {
-        let _ = self.move_to_closest_map_with_content_schema(&MapContentSchema {
-            r#type: "tasks_master".to_owned(),
-            code: self.task_type().to_owned(),
-        });
         self.perform_action(Action::CancelTask).map(|_| ())
     }
 
@@ -371,10 +359,6 @@ impl Character {
         code: &str,
         quantity: i32,
     ) -> Result<TaskTradeSchema, RequestError> {
-        let _ = self.move_to_closest_map_with_content_schema(&MapContentSchema {
-            r#type: "tasks_master".to_owned(),
-            code: self.task_type().to_owned(),
-        });
         self.perform_action(Action::TaskTrade { code, quantity })
             .and_then(|r| {
                 r.downcast::<TaskTradeResponseSchema>()
@@ -384,10 +368,6 @@ impl Character {
     }
 
     pub fn action_task_exchange(&self) -> Result<TaskRewardsSchema, RequestError> {
-        let _ = self.move_to_closest_map_with_content_schema(&MapContentSchema {
-            r#type: "tasks_master".to_owned(),
-            code: self.task_type().to_owned(),
-        });
         self.perform_action(Action::TaskExchange)
             .and_then(|r| {
                 r.downcast::<TasksRewardDataResponseSchema>()
@@ -685,14 +665,12 @@ impl ResponseSchema for BankGoldTransactionResponseSchema {
         if self.data.cooldown.reason == ActionType::Withdraw {
             format!(
                 "{}: withdrawed gold from the bank. {}s",
-                self.data.character.name,
-                self.data.cooldown.remaining_seconds
+                self.data.character.name, self.data.cooldown.remaining_seconds
             )
         } else {
             format!(
                 "{}: deposited gold to the bank. {}s",
-                self.data.character.name,
-                self.data.cooldown.remaining_seconds
+                self.data.character.name, self.data.cooldown.remaining_seconds
             )
         }
     }
