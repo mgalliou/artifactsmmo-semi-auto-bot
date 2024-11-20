@@ -18,8 +18,7 @@ use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
 
 #[derive(Default)]
 pub struct Items {
-    pub data: HashMap<String, ItemSchema>,
-    pub api: ItemsApi,
+    data: HashMap<String, ItemSchema>,
     resources: Arc<Resources>,
     monsters: Arc<Monsters>,
     tasks: Arc<Tasks>,
@@ -50,7 +49,6 @@ impl Items {
         };
         Items {
             data,
-            api,
             resources: resources.clone(),
             monsters: monsters.clone(),
             tasks: tasks.clone(),

@@ -15,7 +15,7 @@ use std::{
 pub struct Events {
     api: EventsApi,
     pub data: Vec<EventSchema>,
-    pub active: RwLock<Vec<ActiveEventSchema>>,
+    active: RwLock<Vec<ActiveEventSchema>>,
     last_refresh: RwLock<DateTime<Utc>>,
 }
 

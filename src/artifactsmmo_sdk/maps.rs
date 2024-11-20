@@ -1,12 +1,13 @@
-use std::sync::Arc;
-
-use super::{api::maps::MapsApi, game_config::GameConfig, events::Events, skill::Skill, MapSchemaExt};
+use super::{
+    api::maps::MapsApi, events::Events, game_config::GameConfig, skill::Skill, MapSchemaExt,
+};
 use artifactsmmo_openapi::models::{MapContentSchema, MapSchema, ResourceSchema};
 use itertools::Itertools;
+use std::sync::Arc;
 
 pub struct Maps {
-    pub data: Vec<Arc<MapSchema>>,
-    pub events: Arc<Events>,
+    data: Vec<Arc<MapSchema>>,
+    events: Arc<Events>,
 }
 
 impl Maps {

@@ -7,7 +7,7 @@ use fs_extra::file::{read_to_string, write_all};
 use items::{DamageType, Type};
 use serde::{Deserialize, Serialize};
 use skill::Skill;
-use std::{collections::HashMap, path::Path};
+use std::path::Path;
 
 pub mod account;
 pub mod api;

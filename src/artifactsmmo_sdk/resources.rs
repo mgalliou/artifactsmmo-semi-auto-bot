@@ -1,8 +1,5 @@
 use super::{
-    api::{events, resources::ResourcesApi},
-    events::Events,
-    game_config::GameConfig,
-    persist_data,
+    api::resources::ResourcesApi, events::Events, game_config::GameConfig, persist_data,
     skill::Skill,
 };
 use artifactsmmo_openapi::models::ResourceSchema;
@@ -11,7 +8,7 @@ use std::{fs::read_to_string, path::Path, sync::Arc};
 
 #[derive(Default)]
 pub struct Resources {
-    pub data: Vec<ResourceSchema>,
+    data: Vec<ResourceSchema>,
     events: Arc<Events>,
 }
 
