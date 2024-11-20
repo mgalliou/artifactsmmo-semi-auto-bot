@@ -26,7 +26,7 @@ pub struct Game {
 }
 
 impl Game {
-    pub fn new(config: &GameConfig, orderboard: &Arc<OrderBoard>) -> Self {
+    pub fn new(config: &GameConfig) -> Self {
         let mut configuration = Configuration::new();
         configuration.base_path = config.base_url.to_owned();
         configuration.bearer_access_token = Some(config.base_url.to_owned());
@@ -34,12 +34,14 @@ impl Game {
         let monsters = Arc::new(Monsters::new(config, &events));
         let resources = Arc::new(Resources::new(config, &events));
         let tasks = Arc::new(Tasks::new(config));
+        let items = Arc::new(Items::new(config, &resources, &monsters, &tasks));
+        let orderboard = Arc::new(OrderBoard::new(&items));
         let game = Game {
             configuration,
             maps: Arc::new(Maps::new(config, &events)),
             resources: resources.clone(),
             monsters: monsters.clone(),
-            items: Arc::new(Items::new(config, &resources, &monsters, &tasks)),
+            items,
             events,
             orderboard: orderboard.clone(),
             server_offset: RwLock::new(TimeDelta::default()),

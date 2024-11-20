@@ -7,17 +7,19 @@ use std::{
 use strum::IntoEnumIterator;
 use strum_macros::{EnumIs, EnumIter};
 
-use super::{gear::Slot, skill::Skill};
+use super::{gear::Slot, items::Items, skill::Skill};
 
 #[derive(Default)]
 pub struct OrderBoard {
     pub orders: RwLock<Vec<Arc<Order>>>,
+    items: Arc<Items>,
 }
 
 impl OrderBoard {
-    pub fn new() -> Self {
+    pub fn new(items: &Arc<Items>) -> Self {
         OrderBoard {
             orders: RwLock::new(vec![]),
+            items: items.clone(),
         }
     }
 
@@ -35,7 +37,6 @@ impl OrderBoard {
     pub fn is_ordered(&self, item: &str) -> bool {
         self.orders().iter().any(|o| o.item == item)
     }
-
 
     pub fn orders_by_priority(&self) -> Vec<Arc<Order>> {
         let mut orders: Vec<Arc<Order>> = vec![];
@@ -64,6 +65,7 @@ impl OrderBoard {
                 orders.extend(self.orders_filtered(|o| o.purpose.is_leveling()));
             }
         });
+        orders.sort_by_key(|o| self.items.is_from_event(&o.item));
         orders
     }
 

@@ -25,8 +25,7 @@ fn main() -> Result<()> {
             .extract()
             .unwrap(),
     );
-    let orderboard = Arc::new(OrderBoard::new());
-    let game = Arc::new(Game::new(&config, &orderboard));
+    let game = Arc::new(Game::new(&config));
     let account = Account::new(&config, &game);
     let handles = account
         .characters
