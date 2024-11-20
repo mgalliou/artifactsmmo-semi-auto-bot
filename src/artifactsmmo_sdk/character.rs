@@ -375,13 +375,15 @@ impl Character {
                 }
                 if let CharacterError::NotEnoughCoin = e {
                     let q = 6 - self.has_in_bank_or_inv("tasks_coin");
-                    if self.orderboard.add(Order::new(
-                        None,
-                        "tasks_coin",
-                        q,
-                        1,
-                        order.purpose.to_owned(),
-                    )) {
+                    if q > 0
+                        && self.orderboard.add(Order::new(
+                            None,
+                            "tasks_coin",
+                            q,
+                            1,
+                            order.purpose.to_owned(),
+                        ))
+                    {
                         return Some(0);
                     }
                 }
