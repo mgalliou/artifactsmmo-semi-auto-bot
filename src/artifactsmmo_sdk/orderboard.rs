@@ -108,7 +108,6 @@ pub struct Order {
     pub owner: Option<String>,
     pub item: String,
     pub quantity: RwLock<i32>,
-    pub priority: i32,
     pub purpose: Purpose,
     pub worked_by: RwLock<i32>,
     pub being_crafted: RwLock<i32>,
@@ -117,18 +116,11 @@ pub struct Order {
 }
 
 impl Order {
-    pub fn new(
-        owner: Option<&str>,
-        item: &str,
-        quantity: i32,
-        priority: i32,
-        purpose: Purpose,
-    ) -> Self {
+    pub fn new(owner: Option<&str>, item: &str, quantity: i32, purpose: Purpose) -> Self {
         Order {
             owner: owner.map(|o| o.to_owned()),
             item: item.to_owned(),
             quantity: RwLock::new(quantity),
-            priority,
             purpose,
             worked_by: RwLock::new(0),
             being_crafted: RwLock::new(0),

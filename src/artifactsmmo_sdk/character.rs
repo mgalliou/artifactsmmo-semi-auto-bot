@@ -170,7 +170,6 @@ impl Character {
                 && self.order_missing_mats(
                     &item.code,
                     self.max_craftable_items(&item.code),
-                    1,
                     Purpose::Leveling {
                         char: self.name.to_owned(),
                         skill,
@@ -220,7 +219,6 @@ impl Character {
                     self.order_missing_mats(
                         &order.item,
                         order.missing() - self.account.in_inventories(&order.item),
-                        order.priority,
                         order.purpose.clone(),
                     );
                 };
@@ -234,13 +232,7 @@ impl Character {
     /// Creates orders based on the missing (not available in bank) materials requiered to craft
     /// the `quantity` of the given `item`. Orders are created with the given `priority` and
     /// `purpose`. Returns true if an order has been made.
-    fn order_missing_mats(
-        &self,
-        item: &str,
-        quantity: i32,
-        priority: i32,
-        purpose: Purpose,
-    ) -> bool {
+    fn order_missing_mats(&self, item: &str, quantity: i32, purpose: Purpose) -> bool {
         let mut ordered: bool = false;
         self.bank
             .missing_mats_for(item, quantity, Some(&self.name))
@@ -250,7 +242,6 @@ impl Character {
                     None,
                     &m.code,
                     m.quantity,
-                    priority,
                     purpose.clone(),
                 )) {
                     ordered = true
@@ -346,7 +337,6 @@ impl Character {
                     order.missing()
                         - self.account.in_inventories(&order.item)
                         - order.being_crafted(),
-                    order.priority,
                     order.purpose.clone(),
                 ) {
                     return None;
@@ -380,7 +370,6 @@ impl Character {
                             None,
                             "tasks_coin",
                             q,
-                            1,
                             order.purpose.to_owned(),
                         ))
                     {
@@ -409,7 +398,6 @@ impl Character {
                                 Some(&self.name),
                                 &item,
                                 quantity,
-                                1,
                                 Purpose::Task {
                                     char: self.name.to_owned(),
                                 },
@@ -695,7 +683,6 @@ impl Character {
             self.orderboard.add(Order::new(
                 Some(&self.name),
                 &tool.code,
-                1,
                 1,
                 Purpose::Gather {
                     char: self.name.to_owned(),
@@ -1672,7 +1659,6 @@ impl Character {
                 Some(&self.name),
                 &item.code,
                 quantity - self.has_in_bank_or_inv(&item.code),
-                1,
                 Purpose::Gear {
                     char: self.name.to_owned(),
                     slot,
