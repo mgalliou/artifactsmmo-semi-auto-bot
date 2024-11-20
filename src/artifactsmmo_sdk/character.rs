@@ -1656,7 +1656,7 @@ impl Character {
             && self.has_in_bank_or_inv(&item.code) < quantity
         {
             self.orderboard.add(Order::new(
-                Some(&self.name),
+                None,
                 &item.code,
                 quantity - self.has_in_bank_or_inv(&item.code),
                 Purpose::Gear {
