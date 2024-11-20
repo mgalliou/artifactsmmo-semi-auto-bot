@@ -1,7 +1,6 @@
 use super::Character;
 use crate::artifactsmmo_sdk::{
-    gear::Slot, ApiErrorResponseSchema, FightSchemaExt, MapSchemaExt, ResponseSchema,
-    SkillInfoSchemaExt, SkillSchemaExt, TaskRewardsSchemaExt,
+    gear::Slot, ApiErrorResponseSchema, FightSchemaExt, ItemSchemaExt, MapSchemaExt, ResponseSchema, SkillInfoSchemaExt, SkillSchemaExt, TaskRewardsSchemaExt
 };
 use artifactsmmo_openapi::{
     apis::Error,
@@ -311,14 +310,6 @@ impl Character {
     }
 
     pub fn action_equip(&self, code: &str, slot: Slot, quantity: i32) -> Result<(), RequestError> {
-        if self.equiped_in(slot).is_some() {
-            let quantity = match slot {
-                Slot::Utility1 => self.data.read().unwrap().utility1_slot_quantity,
-                Slot::Utility2 => self.data.read().unwrap().utility2_slot_quantity,
-                _ => 1,
-            };
-            self.action_unequip(slot, quantity)?
-        }
         self.perform_action(Action::Equip {
             code,
             slot,

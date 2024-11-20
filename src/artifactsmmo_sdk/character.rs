@@ -1449,8 +1449,21 @@ impl Character {
         })
     }
 
-    fn equip_item_from_bank_or_inventory(&self, s: Slot, item: &ItemSchema) {
-        let prev_equiped = self.equiped_in(s);
+    fn equip_item(&self, item: &str, slot: Slot, quantity: i32) -> Result<(), CharacterError> {
+        // TODO: add check from inventory space
+        if let Some(equiped) = self.equiped_in(slot) {
+            if equiped.health() >= self.health() {
+                // TODO: eat food if possible
+                self.rest()?;
+            }
+            self.action_unequip(slot, self.quantity_in_slot(slot))?;
+        }
+        self.action_equip(item, slot, quantity)?;
+        Ok(())
+    }
+
+    fn equip_item_from_bank_or_inventory(&self, slot: Slot, item: &ItemSchema) {
+        let prev_equiped = self.equiped_in(slot);
         if prev_equiped.is_some_and(|e| e.code == item.code) {
             return;
         }
@@ -1465,11 +1478,7 @@ impl Character {
                 );
             }
         }
-        // TODO: improve condition
-        if let Err(e) = self.rest() {
-            error!("{} failed to rest: {:?}", self.name, e)
-        };
-        if let Err(e) = self.action_equip(&item.code, s, 1) {
+        if let Err(e) = self.equip_item(&item.code, slot, 1) {
             error!(
                 "{} failed to equip item from bank or inventory: {:?}",
                 self.name, e
