@@ -182,11 +182,13 @@ impl GearFinder {
         //if let Some(best_for_health) = best_for_health {
         //    upgrades.push(best_for_health);
         //}
+        upgrades.sort_by_key(|i| &i.code);
+        upgrades.dedup_by_key(|i| &i.code);
         upgrades
     }
 
     fn is_eligible(i: &ItemSchema, filter: Filter, char: &Character) -> bool {
-            !i.is_crafted_with("magical_cure")
+        !i.is_crafted_with("magical_cure")
             && match filter {
                 Filter::All => i.level < 40,
                 Filter::Available => char.has_available(&i.code) > 0,
