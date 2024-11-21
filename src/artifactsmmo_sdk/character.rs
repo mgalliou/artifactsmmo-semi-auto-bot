@@ -642,6 +642,13 @@ impl Character {
             == FightResult::Loss
         {
             self.eat_food();
+        }
+        if self
+            .fight_simulator
+            .simulate(self.level(), self.missing_hp(), &self.gear(), monster)
+            .result
+            == FightResult::Loss
+        {
             if let Err(e) = self.rest() {
                 error!("{} failed to rest: {:?}", self.name, e)
             }
