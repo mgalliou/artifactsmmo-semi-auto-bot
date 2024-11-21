@@ -112,7 +112,6 @@ impl Character {
             if self.conf().goals.iter().any(|g| match g {
                 Goal::Events => self.handle_events(),
                 Goal::Orders => self.handle_orderboard(),
-                Goal::ReachLevel { level } if self.level() < *level => self.level_combat().is_ok(),
                 Goal::ReachSkillLevel { skill, level } if self.skill_level(*skill) < *level => {
                     self.level_skill_up(*skill);
                     true
@@ -121,8 +120,7 @@ impl Character {
                     skill,
                     skill_to_follow,
                 } if self.skill_level(*skill) < self.account.max_skill_level(*skill_to_follow) => {
-                    self.level_skill_up(*skill);
-                    true
+                    self.level_skill_up(*skill)
                 }
                 _ => false,
             }) {
@@ -134,6 +132,9 @@ impl Character {
     }
 
     fn level_skill_up(&self, skill: Skill) -> bool {
+        if skill.is_combat() {
+            return self.level_combat().is_ok()
+        }
         self.level_skill_by_crafting(skill).is_ok() || self.level_skill_by_gathering(&skill).is_ok()
     }
 

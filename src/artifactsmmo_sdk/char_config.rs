@@ -27,7 +27,6 @@ pub struct CharConfig {
 #[serde(rename_all(deserialize = "snake_case"))]
 pub enum Goal {
     Orders,
-    ReachLevel { level: i32 },
     ReachSkillLevel { skill: Skill, level: i32 },
     FollowMaxSkillLevel { skill: Skill, skill_to_follow: Skill },
     Events,
@@ -39,7 +38,6 @@ impl Display for Goal {
             Goal::Orders => {
                 write!(f, "progress orders")
             }
-            Goal::ReachLevel { level } => write!(f, "reach_level: {}", level),
             Goal::ReachSkillLevel { skill, level } => {
                 write!(f, "reach_skill_level: {},{}", skill, level)
             }
