@@ -1590,7 +1590,11 @@ impl Character {
     }
 
     fn task_type(&self) -> Option<TaskType> {
-        serde_json::from_str(&self.data.read().unwrap().task_type).ok()
+        match self.data.read().unwrap().task_type.as_str() {
+            "monsters" => Some(TaskType::Monsters),
+            "items" => Some(TaskType::Items),
+            _ => None,
+        }
     }
 
     fn task_progress(&self) -> i32 {
