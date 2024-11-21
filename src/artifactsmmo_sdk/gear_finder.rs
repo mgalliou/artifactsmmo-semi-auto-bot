@@ -188,11 +188,29 @@ impl GearFinder {
     }
 
     fn is_eligible(i: &ItemSchema, filter: Filter, char: &Character) -> bool {
-        !i.is_crafted_with("magical_cure")
-            && match filter {
-                Filter::All => i.level < 40,
+            match filter {
+                Filter::All => {
+                    i.code != "lizard_skin_armor"
+                        && i.code != "lizard_skin_legs_armor"
+                        && i.code != "piggy_armor"
+                        && i.code != "piggy_pants"
+                        && i.code != "serpent_skin_armor"
+                        && i.code != "serpent_skin_legs_armor"
+                        && i.code != "stormforged_armor"
+                        && i.code != "stormforged_pants"
+                }
                 Filter::Available => char.has_available(&i.code) > 0,
-                Filter::Craftable => i.craft_schema().is_none() || char.account.can_craft(&i.code),
+                Filter::Craftable => {
+                    (i.craft_schema().is_none() || char.account.can_craft(&i.code))
+                        && i.code != "lizard_skin_armor"
+                        && i.code != "lizard_skin_legs_armor"
+                        && i.code != "piggy_armor"
+                        && i.code != "piggy_pants"
+                        && i.code != "serpent_skin_armor"
+                        && i.code != "serpent_skin_legs_armor"
+                        && i.code != "stormforged_armor"
+                        && i.code != "stormforged_pants"
+                }
                 Filter::Farmable => todo!(),
             }
     }
