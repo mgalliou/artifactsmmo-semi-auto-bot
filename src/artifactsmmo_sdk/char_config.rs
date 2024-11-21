@@ -29,6 +29,7 @@ pub enum Goal {
     Orders,
     ReachLevel { level: i32 },
     ReachSkillLevel { skill: Skill, level: i32 },
+    FollowMaxSkillLevel { skill: Skill, skill_to_follow: Skill },
     Events,
 }
 
@@ -41,6 +42,12 @@ impl Display for Goal {
             Goal::ReachLevel { level } => write!(f, "reach_level: {}", level),
             Goal::ReachSkillLevel { skill, level } => {
                 write!(f, "reach_skill_level: {},{}", skill, level)
+            }
+            Goal::FollowMaxSkillLevel {
+                skill,
+                skill_to_follow,
+            } => {
+                write!(f, "follow_max_skill_level: {},{}", skill, skill_to_follow)
             }
             Goal::Events => write!(f, "handle events"),
         }

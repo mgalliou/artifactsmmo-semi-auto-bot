@@ -117,6 +117,13 @@ impl Character {
                     self.level_skill_up(*skill);
                     true
                 }
+                Goal::FollowMaxSkillLevel {
+                    skill,
+                    skill_to_follow,
+                } if self.skill_level(*skill) < self.account.max_skill_level(*skill_to_follow) => {
+                    self.level_skill_up(*skill);
+                    true
+                }
                 _ => false,
             }) {
                 continue;
@@ -1624,7 +1631,7 @@ impl Character {
     }
 
     /// Returns the `Character` level in the given `skill`.
-    fn skill_level(&self, skill: Skill) -> i32 {
+    pub fn skill_level(&self, skill: Skill) -> i32 {
         let d = self.data.read().unwrap();
         match skill {
             Skill::Combat => d.level,

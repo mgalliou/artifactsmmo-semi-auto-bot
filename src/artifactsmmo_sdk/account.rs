@@ -1,9 +1,5 @@
 use super::{
-    api::{characters::CharactersApi, my_character::MyCharacterApi},
-    bank::Bank,
-    character::Character,
-    game_config::GameConfig,
-    game::Game,
+    api::{characters::CharactersApi, my_character::MyCharacterApi}, bank::Bank, character::Character, game::Game, game_config::GameConfig, skill::Skill
 };
 use crate::artifactsmmo_sdk::char_config::CharConfig;
 use artifactsmmo_openapi::{
@@ -103,6 +99,16 @@ impl Account {
             .unwrap()
             .iter()
             .any(|c| c.can_craft(code).is_ok())
+    }
+
+    pub fn max_skill_level(&self, skill: Skill) -> i32 {
+        self.characters
+            .read()
+            .unwrap()
+            .iter()
+            .map(|c| c.skill_level(skill))
+            .max()
+            .unwrap_or(1)
     }
 }
 
