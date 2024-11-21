@@ -159,7 +159,7 @@ impl Character {
         let craft = self.craft_from_bank(
             &item.code,
             self.max_craftable_items(&item.code),
-            if skill.is_gathering() {
+            if skill.is_gathering() || skill.is_cooking() {
                 PostCraftAction::Deposit
             } else {
                 PostCraftAction::Recycle
