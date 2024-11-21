@@ -397,7 +397,12 @@ impl Character {
             Ok(r) => Some(r.amount_of(&order.item)),
             Err(e) => {
                 if let CharacterError::NoTask = e {
-                    if let Err(e) = self.accept_task(TaskType::Items) {
+                    let r#type = if self.skill_enabled(Skill::Combat) {
+                        TaskType::Monsters
+                    } else {
+                        TaskType::Items
+                    };
+                    if let Err(e) = self.accept_task(r#type) {
                         error!("{} error while accepting new task: {:?}", self.name, e)
                     }
                     return Some(0);
