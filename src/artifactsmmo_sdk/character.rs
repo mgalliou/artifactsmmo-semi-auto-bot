@@ -1757,7 +1757,7 @@ impl Character {
             if let Some(ring1) = gear.ring1 {
                 self.reserv_if_needed_and_available(Slot::Ring1, ring1, 1);
             }
-            if let Some(ring2) = gear.ring1 {
+            if let Some(ring2) = gear.ring2 {
                 self.reserv_if_needed_and_available(Slot::Ring2, ring2, 1);
             }
         }
