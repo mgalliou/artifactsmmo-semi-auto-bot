@@ -202,7 +202,7 @@ impl Bank {
             res.inc_quantity(quantity - res.quantity());
             Ok(())
         } else {
-            Err(BankError::QuantityUnavailable)
+            Err(BankError::QuantityUnavailable(quantity))
         }
     }
 
@@ -211,13 +211,13 @@ impl Bank {
     pub fn reserv(&self, item: &str, quantity: i32, owner: &str) -> Result<(), BankError> {
         let Some(res) = self.get_reservation(owner, item) else {
             if quantity > self.has_item(item, Some(owner)) {
-                return Err(BankError::QuantityUnavailable);
+                return Err(BankError::QuantityUnavailable(quantity));
             }
             self.add_reservation(item, quantity, owner);
             return Ok(());
         };
         if quantity > self.quantity_not_reserved(item) {
-            return Err(BankError::QuantityUnavailable);
+            return Err(BankError::QuantityUnavailable(quantity));
         }
         res.inc_quantity(quantity);
         Ok(())
@@ -279,7 +279,7 @@ impl Bank {
 #[derive(Debug, PartialEq)]
 pub enum BankError {
     ItemUnavailable,
-    QuantityUnavailable,
+    QuantityUnavailable(i32),
 }
 
 #[allow(dead_code)]
@@ -344,7 +344,7 @@ mod tests {
     fn reserv_with_not_item() {
         let bank = Bank::new();
         let result = bank.reserv("copper_ore", 50, "char1");
-        assert_eq!(Err(BankError::QuantityUnavailable), result);
+        assert_eq!(Err(BankError::QuantityUnavailable(50)), result);
     }
 
     #[test]
