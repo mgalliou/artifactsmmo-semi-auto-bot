@@ -109,31 +109,52 @@ impl Character {
                 continue;
             }
             self.events.refresh();
-            if self.conf().goals.iter().any(|g| match g {
-                Goal::Events => self.handle_events(),
-                Goal::Orders => self.handle_orderboard(),
-                Goal::ReachSkillLevel { skill, level } if self.skill_level(*skill) < *level => {
-                    self.level_skill_up(*skill);
-                    true
+            // TODO: improve the way ReachSkillLevel is handled 
+            let first_level_goal_not_reached = self.conf().goals.into_iter().find(|g| {
+                if let Goal::ReachSkillLevel { skill, level } = g {
+                    self.skill_level(*skill) < *level
+                } else {
+                    false
                 }
-                Goal::FollowMaxSkillLevel {
-                    skill,
-                    skill_to_follow,
-                } if self.skill_level(*skill) < self.account.max_skill_level(*skill_to_follow) => {
-                    self.level_skill_up(*skill)
-                }
-                _ => false,
-            }) {
+            });
+            if self
+                .conf()
+                .goals
+                .iter()
+                .filter(|g| {
+                    g.is_reach_skill_level()
+                        && first_level_goal_not_reached.is_some_and(|gnr| **g == gnr)
+                        || !g.is_reach_skill_level()
+                })
+                .any(|g| match g {
+                    Goal::Events => self.handle_events(),
+                    Goal::Orders => self.handle_orderboard(),
+                    Goal::ReachSkillLevel { skill, level } if self.skill_level(*skill) < *level => {
+                        self.level_skill_up(*skill)
+                    }
+                    Goal::FollowMaxSkillLevel {
+                        skill,
+                        skill_to_follow,
+                    } if self.skill_level(*skill)
+                        < self.account.max_skill_level(*skill_to_follow) =>
+                    {
+                        self.level_skill_up(*skill)
+                    }
+                    _ => false,
+                })
+            {
                 continue;
             }
-            info!("{}: no action found, sleeping for 30sec.", self.name);
-            sleep(Duration::from_secs(30));
+            // TODO: improve fallback
+            if let Err(e)  = self.level_combat() {
+                error!("{} failed to level combat: {:?}", self.name, e);
+            }
         }
     }
 
     fn level_skill_up(&self, skill: Skill) -> bool {
         if skill.is_combat() {
-            return self.level_combat().is_ok()
+            return self.level_combat().is_ok();
         }
         self.level_skill_by_crafting(skill).is_ok() || self.level_skill_by_gathering(&skill).is_ok()
     }
@@ -1843,7 +1864,7 @@ impl Character {
             return;
         };
         let quantity = min(
-            self.inventory_max_items() - 10,
+            self.inventory_max_items() - 30,
             self.bank.has_item(&food.code, Some(&self.name)),
         );
         if let Err(e) = self.bank.reserv_if_not(&food.code, quantity, &self.name) {
