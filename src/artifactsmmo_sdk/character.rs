@@ -1,7 +1,6 @@
 use super::{
     account::Account,
     api::{characters::CharactersApi, my_character::MyCharacterApi},
-    average_dmg,
     bank::Bank,
     char_config::CharConfig,
     events::Events,
@@ -34,8 +33,7 @@ use std::{
     io,
     option::Option,
     sync::{Arc, RwLock},
-    thread::{self, sleep, JoinHandle},
-    time::Duration,
+    thread::{self, JoinHandle},
     vec::Vec,
 };
 use strum::IntoEnumIterator;
@@ -1585,7 +1583,7 @@ impl Character {
 
     fn attack_damage_from(&self, monster: &MonsterSchema) -> f32 {
         DamageType::iter()
-            .map(|t| average_dmg(monster.attack_damage(t), 0, self.resistance(t)))
+            .map(|t| FightSimulator::average_dmg(monster.attack_damage(t), 0, self.resistance(t)))
             .sum()
     }
 

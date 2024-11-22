@@ -1,9 +1,10 @@
+use super::fight_simulator::FightSimulator;
 use super::game_config::GameConfig;
 use super::gear::Slot;
 use super::skill::Skill;
 use super::tasks::Tasks;
 use super::{api::items::ItemsApi, monsters::Monsters, resources::Resources};
-use super::{average_dmg, persist_data, retreive_data, ItemSchemaExt, MonsterSchemaExt};
+use super::{persist_data, retreive_data, ItemSchemaExt, MonsterSchemaExt};
 use artifactsmmo_openapi::models::{CraftSchema, ItemEffectSchema, ItemSchema, SimpleItemSchema};
 use artifactsmmo_openapi::models::{MonsterSchema, ResourceSchema};
 use itertools::Itertools;
@@ -484,13 +485,13 @@ impl ItemSchemaExt for ItemSchema {
 
     fn attack_damage_against(&self, monster: &MonsterSchema) -> f32 {
         DamageType::iter()
-            .map(|t| average_dmg(self.attack_damage(t), 0, monster.resistance(t)))
+            .map(|t| FightSimulator::average_dmg(self.attack_damage(t), 0, monster.resistance(t)))
             .sum()
     }
 
     fn damage_from(&self, monster: &MonsterSchema) -> f32 {
         DamageType::iter()
-            .map(|t| average_dmg(monster.attack_damage(t), 0, self.resistance(t)))
+            .map(|t| FightSimulator::average_dmg(monster.attack_damage(t), 0, self.resistance(t)))
             .sum()
     }
 
@@ -546,7 +547,7 @@ impl ItemSchemaExt for ItemSchema {
     fn damage_increase_against_with(&self, monster: &MonsterSchema, weapon: &ItemSchema) -> f32 {
         DamageType::iter()
             .map(|t| {
-                average_dmg(
+                FightSimulator::average_dmg(
                     weapon.attack_damage(t),
                     self.damage_increase(t),
                     monster.resistance(t),
@@ -554,16 +555,16 @@ impl ItemSchemaExt for ItemSchema {
             })
             .sum::<f32>()
             - DamageType::iter()
-                .map(|t| average_dmg(weapon.attack_damage(t), 0, monster.resistance(t)))
+                .map(|t| FightSimulator::average_dmg(weapon.attack_damage(t), 0, monster.resistance(t)))
                 .sum::<f32>()
     }
 
     fn damage_reduction_against(&self, monster: &MonsterSchema) -> f32 {
         DamageType::iter()
-            .map(|t| average_dmg(monster.attack_damage(t), 0, 0))
+            .map(|t| FightSimulator::average_dmg(monster.attack_damage(t), 0, 0))
             .sum::<f32>()
             - DamageType::iter()
-                .map(|t| average_dmg(monster.attack_damage(t), 0, self.resistance(t)))
+                .map(|t| FightSimulator::average_dmg(monster.attack_damage(t), 0, self.resistance(t)))
                 .sum::<f32>()
     }
 }

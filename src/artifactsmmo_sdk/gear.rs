@@ -1,4 +1,4 @@
-use super::{average_dmg, items::DamageType, ItemSchemaExt, MonsterSchemaExt};
+use super::{fight_simulator::FightSimulator, items::DamageType, ItemSchemaExt, MonsterSchemaExt};
 use artifactsmmo_openapi::models::{ItemSchema, ItemSlot, MonsterSchema, SimpleItemSchema};
 use itertools::Itertools;
 use std::fmt::Display;
@@ -28,7 +28,7 @@ impl<'a> Gear<'a> {
         DamageType::iter()
             .map(|t| {
                 self.weapon.map_or(0.0, |w| {
-                    average_dmg(
+                    FightSimulator::average_dmg(
                         w.attack_damage(t),
                         self.damage_increase(t),
                         monster.resistance(t),
@@ -40,7 +40,7 @@ impl<'a> Gear<'a> {
 
     pub fn attack_damage_from(&self, monster: &MonsterSchema) -> f32 {
         DamageType::iter()
-            .map(|t| average_dmg(monster.attack_damage(t), 0, self.resistance(t)))
+            .map(|t| FightSimulator::average_dmg(monster.attack_damage(t), 0, self.resistance(t)))
             .sum()
     }
 

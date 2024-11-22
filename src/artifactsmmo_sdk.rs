@@ -104,29 +104,12 @@ pub struct ApiErrorSchema {
 
 pub trait ApiRequestError {}
 
-/// Compute the average damage an attack will do against the given `target_resistance`. Block
-/// chance is considered as a global damage reduction (30 resistence reduce the computed damage by
-/// 3%).
-pub fn average_dmg(attack_damage: i32, damage_increase: i32, target_resistance: i32) -> f32 {
-    let mut dmg = attack_damage as f32
-        + (attack_damage as f32 * damage_increase as f32 * 0.01);
-    dmg -= dmg * target_resistance as f32 * 0.01;
-    // TODO: include this in a different function and rename this one
-    //if target_resistance > 0 {
-    //    dmg *= 1.0 - (target_resistance as f32 / 1000.0)
-    //};
-    dmg
-}
-
 pub fn retreive_data<T: for<'a> Deserialize<'a>>(
     path: &Path,
 ) -> Result<T, Box<dyn std::error::Error>> {
     Ok(serde_json::from_str(&read_to_string(path)?)?)
 }
 
-pub fn persist_data<T: Serialize>(
-    data: T,
-    path: &Path,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub fn persist_data<T: Serialize>(data: T, path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     Ok(write_all(path, &serde_json::to_string_pretty(&data)?)?)
 }

@@ -14,6 +14,19 @@ impl FightSimulator {
         Self {}
     }
 
+    /// Compute the average damage an attack will do against the given `target_resistance`. Block
+    /// chance is considered as a global damage reduction (30 resistence reduce the computed damage by
+    /// 3%).
+    pub fn average_dmg(attack_damage: i32, damage_increase: i32, target_resistance: i32) -> f32 {
+        let mut dmg = attack_damage as f32 + (attack_damage as f32 * damage_increase as f32 * 0.01);
+        dmg -= dmg * target_resistance as f32 * 0.01;
+        // TODO: include this in a different function and rename this one
+        //if target_resistance > 0 {
+        //    dmg *= 1.0 - (target_resistance as f32 / 1000.0)
+        //};
+        dmg
+    }
+
     pub fn simulate(
         &self,
         level: i32,
