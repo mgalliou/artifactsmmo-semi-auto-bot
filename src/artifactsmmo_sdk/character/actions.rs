@@ -1,6 +1,7 @@
 use super::Character;
 use crate::artifactsmmo_sdk::{
-    gear::Slot, ApiErrorResponseSchema, FightSchemaExt, ItemSchemaExt, MapSchemaExt, ResponseSchema, SkillInfoSchemaExt, SkillSchemaExt, TaskRewardsSchemaExt
+    gear::Slot, ApiErrorResponseSchema, FightSchemaExt, MapSchemaExt,
+    ResponseSchema, SkillInfoSchemaExt, SkillSchemaExt, TaskRewardsSchemaExt,
 };
 use artifactsmmo_openapi::{
     apis::Error,
@@ -8,8 +9,7 @@ use artifactsmmo_openapi::{
         ActionType, BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema,
         BankItemTransactionResponseSchema, BankSchema, CharacterFightResponseSchema,
         CharacterMovementResponseSchema, CharacterRestResponseSchema, CharacterSchema,
-        DeleteItemResponseSchema, DropSchema, EquipmentResponseSchema, FightResult, FightSchema,
-        MapContentSchema, MapSchema, RecyclingItemsSchema, RecyclingResponseSchema,
+        DeleteItemResponseSchema, DropSchema, EquipmentResponseSchema, FightResult, FightSchema, MapSchema, RecyclingItemsSchema, RecyclingResponseSchema,
         SimpleItemSchema, SkillDataSchema, SkillInfoSchema, SkillResponseSchema,
         TaskCancelledResponseSchema, TaskResponseSchema, TaskRewardsSchema, TaskSchema,
         TaskTradeResponseSchema, TaskTradeSchema, TasksRewardDataResponseSchema,
@@ -323,7 +323,7 @@ impl Character {
             .map(|_| ())
     }
 
-    pub fn action_accept_task(&self, r#type: &str) -> Result<TaskSchema, RequestError> {
+    pub fn action_accept_task(&self) -> Result<TaskSchema, RequestError> {
         self.perform_action(Action::AcceptTask)
             .and_then(|r| {
                 r.downcast::<TaskResponseSchema>()

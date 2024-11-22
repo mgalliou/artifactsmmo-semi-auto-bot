@@ -9,13 +9,13 @@ use super::{
     game_config::GameConfig,
     gear::{Gear, Slot},
     gear_finder::{Filter, GearFinder},
-    items::{DamageType, ItemSource, Items, Type},
+    items::{ItemSource, Items, Type},
     maps::Maps,
     monsters::Monsters,
     orderboard::{Order, OrderBoard, Purpose},
     resources::Resources,
     skill::Skill,
-    ActiveEventSchemaExt, FightSchemaExt, ItemSchemaExt, MonsterSchemaExt, SkillSchemaExt,
+    ActiveEventSchemaExt, FightSchemaExt, ItemSchemaExt, SkillSchemaExt,
     TaskRewardsSchemaExt,
 };
 use crate::artifactsmmo_sdk::{char_config::Goal, SkillInfoSchemaExt};
@@ -529,7 +529,7 @@ impl Character {
 
     fn accept_task(&self, r#type: TaskType) -> Result<TaskSchema, CharacterError> {
         self.move_to_closest_taskmaster(Some(r#type))?;
-        Ok(self.action_accept_task(&r#type.to_string())?)
+        Ok(self.action_accept_task()?)
     }
 
     fn complete_task(&self) -> Result<TaskRewardsSchema, CharacterError> {
@@ -784,6 +784,7 @@ impl Character {
         Some(time)
     }
 
+    #[allow(dead_code)]
     fn time_to_get(&self, item: &str) -> Option<i32> {
         self.items
             .sources_of(item)
@@ -1160,24 +1161,6 @@ impl Character {
         });
     }
 
-    /// Deposits all the items of the given `type` to the bank.
-    fn deposit_all_of_type(&self, r#type: Type) {
-        if self.inventory_total() <= 0 {
-            return;
-        }
-        info!(
-            "{}: depositing all items of type '{}' to the bank.",
-            self.name, r#type
-        );
-        for slot in self.inventory_copy() {
-            if slot.quantity > 0 && self.items.is_of_type(&slot.code, r#type) {
-                if let Err(e) = self.deposit_item(&slot.code, slot.quantity, None) {
-                    error!("{}: {:?}", self.name, e)
-                }
-            }
-        }
-    }
-
     /// Withdraw the materials required to craft the `quantity` of the
     /// item `code` and returns the maximum amount that can be crafted.
     // TODO: add check on `inventory_max_items`
@@ -1197,14 +1180,6 @@ impl Character {
             self.withdraw_item(&mat.code, mat.quantity * quantity)?;
         }
         Ok(())
-    }
-
-    /// Withdraw the maximum amount of materials considering free spaces in inventory to craft the
-    /// maximum amount of the item `code` and returns the maximum amount that can be crafted.
-    fn withdraw_max_mats_for(&self, code: &str) -> Result<i32, CharacterError> {
-        let max = self.max_current_craftable_items(code);
-        self.withdraw_mats_for(code, max)?;
-        Ok(max)
     }
 
     /// Calculates the maximum number of items that can be crafted in one go based on
@@ -1229,23 +1204,6 @@ impl Character {
             self.bank.has_mats_for(code, Some(&self.name)),
             self.inventory_free_space() / self.items.mats_quantity_for(code),
         )
-    }
-
-    /// Craft the maximum amount of the item `code` with the materials currently available
-    /// in the character inventory and returns the amount crafted.
-    fn craft_max_from_inventory(&self, code: &str) -> Result<(), CharacterError> {
-        let n = self.has_mats_for(code);
-        if 0 < n {
-            Err(CharacterError::InsuffisientMaterials)
-        } else {
-            info!(
-                "{}: going to craft all '{}' with materials available in inventory.",
-                self.name, code
-            );
-            self.move_to_craft(code)?;
-            self.action_craft(code, n)?;
-            Ok(())
-        }
     }
 
     /// Reycle the maximum amount of the item `code` with the items  currently
@@ -1335,17 +1293,6 @@ impl Character {
         self.inventory_max_items() - self.inventory_total()
     }
 
-    /// Returns the amount of the given item `code` that can be crafted with
-    /// the materials currently in the `Character` inventory.
-    fn has_mats_for(&self, code: &str) -> i32 {
-        self.items
-            .mats(code)
-            .iter()
-            .map(|mat| self.has_in_inventory(&mat.code) / mat.quantity)
-            .min()
-            .unwrap_or(0)
-    }
-
     /// Returns a copy of the inventory to be used while depositing or
     /// withdrawing items.
     fn inventory_copy(&self) -> Vec<InventorySlot> {
@@ -1356,20 +1303,6 @@ impl Character {
             .iter()
             .flatten()
             .cloned()
-            .collect_vec()
-    }
-
-    /// Return the `ItemSchema` of the raw materials present in the `Character`
-    /// inventory.
-    fn inventory_raw_mats(&self) -> Vec<&ItemSchema> {
-        self.data
-            .read()
-            .unwrap()
-            .inventory
-            .iter()
-            .flatten()
-            .filter_map(|slot| self.items.get(&slot.code))
-            .filter(|i| i.is_raw_mat())
             .collect_vec()
     }
 
@@ -1394,17 +1327,6 @@ impl Character {
         } else {
             self.move_to_closest_map_of_type("task_master")
         }
-    }
-
-    fn move_to_closest_map_with_content_code(
-        &self,
-        code: &str,
-    ) -> Result<MapSchema, CharacterError> {
-        let Some(map) = self.closest_map_with_content_code(code) else {
-            return Err(CharacterError::FailedToMove);
-        };
-        let (x, y) = (map.x, map.y);
-        Ok(self.action_move(x, y)?)
     }
 
     fn move_to_closest_map_with_content_schema(
@@ -1571,22 +1493,6 @@ impl Character {
             .count()
     }
 
-    fn resistance(&self, r#type: DamageType) -> i32 {
-        let d = self.data.read().unwrap();
-        match r#type {
-            DamageType::Air => d.res_air,
-            DamageType::Earth => d.res_earth,
-            DamageType::Fire => d.res_fire,
-            DamageType::Water => d.res_water,
-        }
-    }
-
-    fn attack_damage_from(&self, monster: &MonsterSchema) -> f32 {
-        DamageType::iter()
-            .map(|t| FightSimulator::average_dmg(monster.attack_damage(t), 0, self.resistance(t)))
-            .sum()
-    }
-
     /// Refresh the `Character` schema from API.
     fn refresh_data(&self) {
         if let Ok(resp) = self.api.get(&self.name) {
@@ -1618,10 +1524,6 @@ impl Character {
 
     fn missing_hp(&self) -> i32 {
         self.data.read().unwrap().max_hp - self.data.read().unwrap().hp
-    }
-
-    fn is_gatherer(&self) -> bool {
-        self.conf().skills.iter().any(|s| s.is_gathering())
     }
 
     fn task(&self) -> String {
@@ -1673,21 +1575,21 @@ impl Character {
         }
     }
 
-    /// Returns the base health of the `Character` without its gear.
-    fn base_health(&self) -> i32 {
-        115 + 5 * self.level()
-    }
-
     fn conf(&self) -> CharConfig {
         self.conf.read().unwrap().clone()
     }
 
+    #[allow(dead_code)]
     fn time_to_get_gear(&self, gear: &Gear) -> Option<i32> {
         Slot::iter()
             .map(|s| gear.slot(s).and_then(|i| self.items.time_to_get(&i.code)))
             .sum()
     }
 
+
+    //TODO: finish implementing this function
+    #[allow(dead_code)]
+    #[allow(unused_variables)]
     fn order_upgrades(&self, current: Gear<'_>, monster: &MonsterSchema, filter: Filter) {
         let gears = self.gear_finder.bests_against(self, monster, filter);
         if let Some(gear) = gears
