@@ -249,9 +249,9 @@ impl Items {
             Skill::Jewelrycrafting => {
                 if level >= 30 {
                     vec![self.get("gold_ring")]
-                } else if level >= 25 {
-                    vec![self.get("steel_ring")]
                 } else if level >= 20 {
+                    vec![self.get("steel_ring")]
+                } else if level >= 15 {
                     vec![self.get("life_ring")]
                 } else if level >= 10 {
                     vec![self.get("iron_ring")]
