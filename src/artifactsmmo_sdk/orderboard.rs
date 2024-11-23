@@ -54,6 +54,9 @@ impl OrderBoard {
             } => {
                 orders.extend(self.orders_filtered(|o| o.purpose.is_gather()));
             }
+            Purpose::Food { char: _ } => {
+                orders.extend(self.orders_filtered(|o| o.purpose.is_food()));
+            }
             Purpose::Gear {
                 char: _,
                 slot: _,
@@ -77,6 +80,16 @@ impl OrderBoard {
             return true;
         }
         false
+    }
+
+    pub fn add_or_reset(&self, order: Order) -> bool {
+        if let Some(o) = self.orders().iter().find(|o| o.is_similar(&order)) {
+            *o.deposited.write().unwrap() = 0;
+            debug!("orderboard: reset: {}.", order);
+            true
+        } else {
+            self.add(order)
+        }
     }
 
     pub fn update(&self, order: Order) {
@@ -210,6 +223,9 @@ pub enum Purpose {
         skill: Skill,
         item_code: String,
     },
+    Food {
+        char: String,
+    },
     Gear {
         char: String,
         slot: Slot,
@@ -237,6 +253,7 @@ impl Display for Purpose {
                     skill,
                     item_code,
                 } => format!("{char}'s '{item_code}' ({skill})"),
+                Purpose::Food { char } => format!("{char}'s food"),
                 Purpose::Gear {
                     char,
                     slot,

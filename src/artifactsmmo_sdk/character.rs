@@ -15,8 +15,7 @@ use super::{
     orderboard::{Order, OrderBoard, Purpose},
     resources::Resources,
     skill::Skill,
-    ActiveEventSchemaExt, FightSchemaExt, ItemSchemaExt, SkillSchemaExt,
-    TaskRewardsSchemaExt,
+    ActiveEventSchemaExt, FightSchemaExt, ItemSchemaExt, SkillSchemaExt, TaskRewardsSchemaExt,
 };
 use crate::artifactsmmo_sdk::{char_config::Goal, SkillInfoSchemaExt};
 use actions::{PostCraftAction, RequestError};
@@ -1586,7 +1585,6 @@ impl Character {
             .sum()
     }
 
-
     //TODO: finish implementing this function
     #[allow(dead_code)]
     #[allow(unused_variables)]
@@ -1749,6 +1747,7 @@ impl Character {
         let Ok(_browsed) = self.bank.browsed.write() else {
             return;
         };
+        self.order_food();
         if !self.food_in_inventory().is_empty() {
             return;
         }
@@ -1774,6 +1773,30 @@ impl Character {
         self.deposit_all();
         if let Err(e) = self.withdraw_item(&food.code, quantity) {
             error!("{} failed to withdraw food: {:?}", self.name, e)
+        }
+    }
+
+    fn order_food(&self) {
+        if let Some(best_food) = self
+            .items
+            .consumable_food(self.level())
+            .iter()
+            .min_by_key(|i| {
+                self.bank
+                    .missing_mats_quantity(&i.code, self.inventory_max_items() - 30, None)
+            })
+        {
+            let quantity = 500 - self.bank.has_item(&best_food.code, Some(&self.name));
+            if quantity > 0 {
+                self.orderboard.add_or_reset(Order::new(
+                    Some(&self.name),
+                    &best_food.code,
+                    quantity,
+                    Purpose::Food {
+                        char: self.name.to_owned(),
+                    },
+                ));
+            }
         }
     }
 

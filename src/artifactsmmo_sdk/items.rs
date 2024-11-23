@@ -299,7 +299,12 @@ impl Items {
     pub fn consumable_food(&self, level: i32) -> Vec<&ItemSchema> {
         self.data
             .values()
-            .filter(|i| i.is_of_type(Type::Consumable) && i.level <= level)
+            .filter(|i| {
+                i.is_of_type(Type::Consumable)
+                    && i.level >= level - level % 10
+                    && i.level <= level
+                    && i.code != "apple_pie"
+            })
             .collect_vec()
     }
 
