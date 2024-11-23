@@ -1325,7 +1325,7 @@ impl Character {
                 code: r#type.to_string(),
             })
         } else {
-            self.move_to_closest_map_of_type("task_master")
+            self.move_to_closest_map_of_type("tasks_master")
         }
     }
 
