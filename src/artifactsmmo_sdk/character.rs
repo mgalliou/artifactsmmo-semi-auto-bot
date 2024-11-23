@@ -106,7 +106,7 @@ impl Character {
                 continue;
             }
             self.events.refresh();
-            // TODO: improve the way ReachSkillLevel is handled 
+            // TODO: improve the way ReachSkillLevel is handled
             let first_level_goal_not_reached = self.conf().goals.into_iter().find(|g| {
                 if let Goal::ReachSkillLevel { skill, level } = g {
                     self.skill_level(*skill) < *level
@@ -143,7 +143,7 @@ impl Character {
                 continue;
             }
             // TODO: improve fallback
-            if let Err(e)  = self.level_combat() {
+            if let Err(e) = self.level_combat() {
                 error!("{} failed to level combat: {:?}", self.name, e);
             }
         }

@@ -560,7 +560,9 @@ impl ItemSchemaExt for ItemSchema {
             })
             .sum::<f32>()
             - DamageType::iter()
-                .map(|t| FightSimulator::average_dmg(weapon.attack_damage(t), 0, monster.resistance(t)))
+                .map(|t| {
+                    FightSimulator::average_dmg(weapon.attack_damage(t), 0, monster.resistance(t))
+                })
                 .sum::<f32>()
     }
 
@@ -569,7 +571,9 @@ impl ItemSchemaExt for ItemSchema {
             .map(|t| FightSimulator::average_dmg(monster.attack_damage(t), 0, 0))
             .sum::<f32>()
             - DamageType::iter()
-                .map(|t| FightSimulator::average_dmg(monster.attack_damage(t), 0, self.resistance(t)))
+                .map(|t| {
+                    FightSimulator::average_dmg(monster.attack_damage(t), 0, self.resistance(t))
+                })
                 .sum::<f32>()
     }
 }
