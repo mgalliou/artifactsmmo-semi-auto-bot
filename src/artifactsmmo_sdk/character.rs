@@ -1799,16 +1799,19 @@ impl Character {
     }
 
     fn eat_food(&self) {
-        let mut foods = self.food_in_inventory();
-        foods.sort_by_key(|i| i.heal());
-        foods.iter().for_each(|f| {
-            let quantity = min(self.missing_hp() / f.heal(), self.has_in_inventory(&f.code));
-            if quantity > 0 {
-                if let Err(e) = self.action_use_item(&f.code, quantity) {
-                    error!("{} failed to use food: {:?}", self.name, e)
+        self.food_in_inventory()
+            .iter()
+            .sorted_by_key(|i| i.heal())
+            .for_each(|f| {
+                // TODO: improve logic to eat different foods to restore more hp
+                // also add a threasholf to allow some overheal
+                let quantity = min(self.missing_hp() / f.heal(), self.has_in_inventory(&f.code));
+                if quantity > 0 {
+                    if let Err(e) = self.action_use_item(&f.code, quantity) {
+                        error!("{} failed to use food: {:?}", self.name, e)
+                    }
                 }
-            }
-        });
+            });
     }
 }
 
