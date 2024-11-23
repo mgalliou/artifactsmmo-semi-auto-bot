@@ -94,7 +94,7 @@ impl Account {
             .unwrap()
             .iter()
             .cloned()
-            .map(|c| c.has_available_in_inventory(code))
+            .map(|c| c.inventory.has_available(code))
             .sum()
     }
 
