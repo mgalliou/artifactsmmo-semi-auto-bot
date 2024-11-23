@@ -29,6 +29,7 @@ use log::{error, info, warn};
 use serde::Deserialize;
 use std::{
     cmp::min,
+    fmt::{self, Display, Formatter},
     io,
     option::Option,
     sync::{Arc, RwLock},
@@ -56,6 +57,7 @@ pub struct Character {
     fight_simulator: FightSimulator,
     pub conf: Arc<RwLock<CharConfig>>,
     pub data: Arc<RwLock<CharacterSchema>>,
+    reservations: RwLock<Vec<Arc<InventoryReservation>>>,
 }
 
 impl Character {
@@ -84,6 +86,7 @@ impl Character {
             fight_simulator: FightSimulator::new(),
             bank: bank.clone(),
             data: data.clone(),
+            reservations: RwLock::new(vec![]),
         }
     }
 
@@ -244,7 +247,7 @@ impl Character {
                     // NOTE: Maybe ordering missing mats should be done elsewhere
                     self.order_missing_mats(
                         &order.item,
-                        order.missing() - self.account.in_inventories(&order.item),
+                        order.missing() - self.account.available_in_inventories(&order.item),
                         order.purpose.clone(),
                     );
                 };
@@ -309,7 +312,7 @@ impl Character {
                 self.name,
                 progress,
                 order,
-                self.account.in_inventories(&order.item),
+                self.account.available_in_inventories(&order.item),
             );
         }
         self.turn_in_order(order);
@@ -339,7 +342,7 @@ impl Character {
         match self.can_craft(&order.item) {
             Ok(()) => {
                 if order.missing()
-                    - self.account.in_inventories(&order.item)
+                    - self.account.available_in_inventories(&order.item)
                     - order.being_crafted()
                     <= 0
                 {
@@ -349,7 +352,7 @@ impl Character {
                     self.max_craftable_items(&order.item),
                     order.missing()
                         - order.being_crafted()
-                        - self.account.in_inventories(&order.item),
+                        - self.account.available_in_inventories(&order.item),
                 );
                 if quantity <= 0 {
                     return None;
@@ -366,7 +369,7 @@ impl Character {
                 if !self.order_missing_mats(
                     &order.item,
                     order.missing()
-                        - self.account.in_inventories(&order.item)
+                        - self.account.available_in_inventories(&order.item)
                         - order.being_crafted(),
                     order.purpose.clone(),
                 ) {
@@ -389,7 +392,9 @@ impl Character {
                 exchanged
             }
             Err(e) => {
-                if order.missing() - order.worked_by() - self.account.in_inventories(&order.item)
+                if order.missing()
+                    - order.worked_by()
+                    - self.account.available_in_inventories(&order.item)
                     <= 0
                 {
                     return None;
@@ -457,7 +462,8 @@ impl Character {
     /// Returns true if items has be deposited.
     fn turn_in_order(&self, order: Arc<Order>) -> bool {
         if (!order.turned_in()
-            && self.account.in_inventories(&order.item) + order.being_crafted() >= order.missing())
+            && self.account.available_in_inventories(&order.item) + order.being_crafted()
+                >= order.missing())
             || self.inventory_is_full()
         {
             return self.deposit_order(&order);
@@ -1257,7 +1263,7 @@ impl Character {
     }
 
     /// Returns the amount of the given item `code` in the `Character` inventory.
-    pub fn has_in_inventory(&self, code: &str) -> i32 {
+    fn has_in_inventory(&self, code: &str) -> i32 {
         self.data
             .read()
             .unwrap()
@@ -1266,6 +1272,30 @@ impl Character {
             .flatten()
             .find(|i| i.code == code)
             .map_or(0, |i| i.quantity)
+    }
+
+    /// Returns the amount of the given item `code` in the `Character` inventory.
+    pub fn has_available_in_inventory(&self, code: &str) -> i32 {
+        self.has_in_inventory(code) - self.quantity_reserved(code)
+    }
+
+    pub fn quantity_reserved(&self, item: &str) -> i32 {
+        self.reservations
+            .read()
+            .unwrap()
+            .iter()
+            .filter_map(|r| {
+                if r.item == item {
+                    Some(r.quantity())
+                } else {
+                    None
+                }
+            })
+            .sum()
+    }
+
+    pub fn quantity_not_reserved(&self, item: &str) -> i32 {
+        self.has_in_inventory(item) - self.quantity_reserved(item)
     }
 
     /// Returns the amount of item in the `Character` inventory.
@@ -1288,6 +1318,61 @@ impl Character {
     /// Returns the free spaces in the `Character` inventory.
     fn inventory_free_space(&self) -> i32 {
         self.inventory_max_items() - self.inventory_total()
+    }
+
+    fn reserv_items_if_not(&self, item: &str, quantity: i32) -> Result<(), CharacterError> {
+        let Some(res) = self.get_reservation(item) else {
+            return self.reserv(item, quantity);
+        };
+        if res.quantity() >= quantity {
+            Ok(())
+        } else if self.quantity_not_reserved(item) >= quantity - res.quantity() {
+            res.inc_quantity(quantity - res.quantity());
+            Ok(())
+        } else {
+            Err(CharacterError::QuantityUnavailable(quantity))
+        }
+    }
+
+    fn reserv(&self, item: &str, quantity: i32) -> Result<(), CharacterError> {
+        let Some(res) = self.get_reservation(item) else {
+            if quantity > self.has_in_inventory(item) {
+                return Err(CharacterError::QuantityUnavailable(quantity));
+            }
+            self.add_reservation(item, quantity);
+            return Ok(());
+        };
+        if quantity > self.quantity_not_reserved(item) {
+            return Err(CharacterError::QuantityUnavailable(quantity));
+        }
+        res.inc_quantity(quantity);
+        Ok(())
+    }
+
+    fn get_reservation(&self, item: &str) -> Option<Arc<InventoryReservation>> {
+        self.reservations
+            .read()
+            .unwrap()
+            .iter()
+            .find(|r| r.item == item)
+            .cloned()
+    }
+
+    fn add_reservation(&self, item: &str, quantity: i32) {
+        let res = Arc::new(InventoryReservation {
+            item: item.to_owned(),
+            quantity: RwLock::new(quantity),
+        });
+        self.reservations.write().unwrap().push(res.clone());
+        info!("added reservation to bank: {}", res);
+    }
+
+    pub fn remove_reservation(&self, reservation: &InventoryReservation) {
+        self.reservations
+            .write()
+            .unwrap()
+            .retain(|r| **r != *reservation);
+        info!("removed reservation from bank: {}", reservation);
     }
 
     /// Returns a copy of the inventory to be used while depositing or
@@ -1772,6 +1857,9 @@ impl Character {
         if let Err(e) = self.withdraw_item(&food.code, quantity) {
             error!("{} failed to withdraw food: {:?}", self.name, e)
         }
+        if let Err(e) = self.reserv_items_if_not(&food.code, quantity) {
+            error!("{} failed to reserv food: {:?}", self.name, e)
+        };
     }
 
     fn order_food(&self) {
@@ -1809,6 +1897,12 @@ impl Character {
                 if quantity > 0 {
                     if let Err(e) = self.action_use_item(&f.code, quantity) {
                         error!("{} failed to use food: {:?}", self.name, e)
+                    }
+                    if let Some(res) = self.get_reservation(&f.code) {
+                        res.dec_quantity(quantity);
+                        if res.quantity() <= 0 {
+                            self.remove_reservation(&res);
+                        }
                     }
                 }
             });
@@ -1865,10 +1959,45 @@ pub enum CharacterError {
     NotGoalFullfilable,
     InvalidTaskType,
     MissingItems { item: String, quantity: i32 },
+    QuantityUnavailable(i32),
 }
 
 impl From<RequestError> for CharacterError {
     fn from(value: RequestError) -> Self {
         CharacterError::RequestError(value)
+    }
+}
+
+#[derive(Debug)]
+struct InventoryReservation {
+    item: String,
+    quantity: RwLock<i32>,
+}
+
+impl InventoryReservation {
+    pub fn inc_quantity(&self, i: i32) {
+        *self.quantity.write().unwrap() += i;
+        info!("increased quantity of reservation by '{}': [{}]", i, self);
+    }
+
+    pub fn dec_quantity(&self, i: i32) {
+        *self.quantity.write().unwrap() -= i;
+        info!("decreased quantity of reservation by '{}': [{}]", i, self);
+    }
+
+    pub fn quantity(&self) -> i32 {
+        *self.quantity.read().unwrap()
+    }
+}
+
+impl Display for InventoryReservation {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "'{}'x{}", self.item, self.quantity.read().unwrap(),)
+    }
+}
+
+impl PartialEq for InventoryReservation {
+    fn eq(&self, other: &Self) -> bool {
+        self.item == other.item && self.quantity() == other.quantity()
     }
 }

@@ -282,7 +282,6 @@ pub enum BankError {
     QuantityUnavailable(i32),
 }
 
-#[allow(dead_code)]
 #[derive(Debug)]
 pub struct Reservation {
     owner: String,

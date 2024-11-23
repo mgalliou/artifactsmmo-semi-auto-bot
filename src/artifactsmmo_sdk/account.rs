@@ -1,5 +1,10 @@
 use super::{
-    api::{characters::CharactersApi, my_character::MyCharacterApi}, bank::Bank, character::Character, game::Game, game_config::GameConfig, skill::Skill
+    api::{characters::CharactersApi, my_character::MyCharacterApi},
+    bank::Bank,
+    character::Character,
+    game::Game,
+    game_config::GameConfig,
+    skill::Skill,
 };
 use crate::artifactsmmo_sdk::char_config::CharConfig;
 use artifactsmmo_openapi::{
@@ -83,13 +88,13 @@ impl Account {
             .cloned()
     }
 
-    pub fn in_inventories(&self, code: &str) -> i32 {
+    pub fn available_in_inventories(&self, code: &str) -> i32 {
         self.characters
             .read()
             .unwrap()
             .iter()
             .cloned()
-            .map(|c| c.has_in_inventory(code))
+            .map(|c| c.has_available_in_inventory(code))
             .sum()
     }
 
