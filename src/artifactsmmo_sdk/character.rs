@@ -294,10 +294,8 @@ impl Character {
                         .missing_mats_for(&order.item, order.quantity(), Some(&self.name))
                         .is_empty()
             }
-            ItemSource::TaskReward => self.bank.has_item("tasks_coin", Some(&self.name)) >= 6,
-            ItemSource::Task => {
-                self.bank.has_item(&self.task(), Some(&self.name)) >= self.task_missing()
-            }
+            ItemSource::TaskReward => self.has_available("tasks_coin") >= 6,
+            ItemSource::Task => self.has_available(&self.task()) >= self.task_missing(),
         })
     }
 
