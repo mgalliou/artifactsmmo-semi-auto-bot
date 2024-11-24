@@ -20,7 +20,6 @@ use std::sync::{Arc, RwLock};
 
 #[derive(Default)]
 pub struct Game {
-    pub configuration: Configuration,
     pub maps: Arc<Maps>,
     pub resources: Arc<Resources>,
     pub monsters: Arc<Monsters>,
@@ -39,9 +38,6 @@ impl Game {
                 .extract()
                 .unwrap(),
         );
-        let mut configuration = Configuration::new();
-        configuration.base_path = config.base_url.to_owned();
-        configuration.bearer_access_token = Some(config.base_url.to_owned());
         let events = Arc::new(Events::new(&config));
         let monsters = Arc::new(Monsters::new(&config, &events));
         let resources = Arc::new(Resources::new(&config, &events));
@@ -50,7 +46,6 @@ impl Game {
         let account = Account::new(&config, &items);
         let orderboard = Arc::new(OrderBoard::new(&items, &account));
         Game {
-            configuration,
             maps: Arc::new(Maps::new(&config, &events)),
             resources: resources.clone(),
             monsters: monsters.clone(),
@@ -85,18 +80,18 @@ impl Server {
         }
     }
 
-    pub fn server_status(&self) -> Result<StatusResponseSchema, Error<GetStatusGetError>> {
+    pub fn status(&self) -> Result<StatusResponseSchema, Error<GetStatusGetError>> {
         get_status_get(&self.configuration)
     }
 
     pub fn time(&self) -> Option<DateTime<Utc>> {
-        match get_status_get(&self.configuration) {
-            Ok(s) => match DateTime::parse_from_rfc3339(&s.data.server_time) {
-                Ok(t) => Some(t.to_utc()),
-                Err(_) => None,
-            },
-            Err(_) => None,
-        }
+        let Ok(status) = get_status_get(&self.configuration) else {
+            return None;
+        };
+        let Ok(time) = DateTime::parse_from_rfc3339(&status.data.server_time) else {
+            return None;
+        };
+        Some(time.to_utc())
     }
 
     pub fn update_offset(&self) {
