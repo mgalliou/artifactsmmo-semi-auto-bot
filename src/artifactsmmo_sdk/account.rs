@@ -1,10 +1,5 @@
 use super::{
-    api::{characters::CharactersApi, my_character::MyCharacterApi},
-    bank::Bank,
-    character::Character,
-    game::Game,
-    game_config::GameConfig,
-    skill::Skill,
+    api::{characters::CharactersApi, my_character::MyCharacterApi}, bank::Bank, character::Character, game::Game, game_config::GameConfig, items::Items, skill::Skill
 };
 use crate::artifactsmmo_sdk::char_config::CharConfig;
 use artifactsmmo_openapi::{
@@ -17,6 +12,7 @@ use itertools::Itertools;
 use std::sync::Arc;
 use std::sync::RwLock;
 
+#[derive(Default)]
 pub struct Account {
     pub configuration: Configuration,
     pub config: Arc<GameConfig>,
@@ -27,24 +23,22 @@ pub struct Account {
 }
 
 impl Account {
-    pub fn new(config: &Arc<GameConfig>, game: &Arc<Game>) -> Arc<Account> {
+    pub fn new(config: &Arc<GameConfig>, items: &Arc<Items>) -> Arc<Account> {
         let mut configuration = Configuration::new();
         configuration.base_path = config.base_url.to_owned();
         configuration.bearer_access_token = Some(config.base_url.to_owned());
         let my_characters_api = MyCharacterApi::new(&config.base_url, &config.token);
-        let account = Arc::new(Account {
+        Arc::new(Account {
             configuration,
             config: config.clone(),
             character_api: CharactersApi::new(&config.base_url, &config.token),
             my_characters_api,
-            bank: Arc::new(Bank::from_api(config, &game.items)),
+            bank: Arc::new(Bank::from_api(config, items)),
             characters: RwLock::new(vec![]),
-        });
-        account.init_characters(&account, game);
-        account
+        })
     }
 
-    pub fn init_characters(&self, account: &Arc<Account>, game: &Arc<Game>) {
+    pub fn init_characters(&self, game: &Game) {
         let chars_conf = init_char_conf(&self.config.characters);
         let chars_schema = init_chars_schema(&self.config);
         if let Ok(mut chars) = self.characters.write() {
@@ -54,7 +48,7 @@ impl Account {
                 .map(|(conf, schema)| {
                     Arc::new(Character::new(
                         &self.config,
-                        account,
+                        &game.account,
                         game,
                         &self.bank,
                         &conf,

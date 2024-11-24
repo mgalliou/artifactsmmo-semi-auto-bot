@@ -51,7 +51,7 @@ use artifactsmmo_openapi::{
     },
 };
 
-#[derive(Clone)]
+#[derive(Default, Clone)]
 pub struct MyCharacterApi {
     pub configuration: Configuration,
 }

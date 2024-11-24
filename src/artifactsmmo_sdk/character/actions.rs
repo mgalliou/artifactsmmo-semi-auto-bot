@@ -379,7 +379,7 @@ impl Character {
                         "{}: code 499 received, resyncronizing server time",
                         self.name
                     );
-                    self.game.update_offset();
+                    self.server.update_offset();
                     return self.perform_action(action);
                 }
                 if res.error.code == 500 || res.error.code == 520 {
@@ -423,7 +423,7 @@ impl Character {
     /// Returns the remaining cooldown duration of the `Character`.
     fn remaining_cooldown(&self) -> Duration {
         if let Some(exp) = self.cooldown_expiration() {
-            let synced = Utc::now() - *self.game.server_offset.read().unwrap();
+            let synced = Utc::now() - *self.server.server_offset.read().unwrap();
             if synced.cmp(&exp.to_utc()) == Ordering::Less {
                 return (exp.to_utc() - synced).to_std().unwrap();
             }

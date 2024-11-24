@@ -7,19 +7,21 @@ use std::{
 use strum::IntoEnumIterator;
 use strum_macros::{EnumIs, EnumIter};
 
-use super::{gear::Slot, items::Items, skill::Skill};
+use super::{account::Account, gear::Slot, items::Items, skill::Skill};
 
 #[derive(Default)]
 pub struct OrderBoard {
     pub orders: RwLock<Vec<Arc<Order>>>,
     items: Arc<Items>,
+    account: Arc<Account>,
 }
 
 impl OrderBoard {
-    pub fn new(items: &Arc<Items>) -> Self {
+    pub fn new(items: &Arc<Items>, account: &Arc<Account>) -> Self {
         OrderBoard {
             orders: RwLock::new(vec![]),
             items: items.clone(),
+            account: account.clone(),
         }
     }
 
@@ -120,6 +122,12 @@ impl OrderBoard {
                 self.remove(order);
             }
         }
+    }
+
+    pub fn should_be_turned_in(&self, order: &Order) -> bool {
+        !order.turned_in()
+            && self.account.available_in_inventories(&order.item) + order.being_crafted()
+                >= order.missing()
     }
 }
 

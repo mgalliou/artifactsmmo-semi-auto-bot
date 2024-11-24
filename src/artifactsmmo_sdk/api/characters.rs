@@ -7,7 +7,7 @@ use artifactsmmo_openapi::{
     models::CharacterResponseSchema,
 };
 
-#[derive(Clone)]
+#[derive(Default, Clone)]
 pub struct CharactersApi {
     pub configuration: Configuration,
 }

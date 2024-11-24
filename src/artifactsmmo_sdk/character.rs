@@ -5,7 +5,7 @@ use super::{
     char_config::CharConfig,
     events::Events,
     fight_simulator::FightSimulator,
-    game::Game,
+    game::{Game, Server},
     game_config::GameConfig,
     gear::{Gear, Slot},
     gear_finder::{Filter, GearFinder},
@@ -45,7 +45,7 @@ pub struct Character {
     my_api: MyCharacterApi,
     api: CharactersApi,
     pub account: Arc<Account>,
-    game: Arc<Game>,
+    server: Arc<Server>,
     maps: Arc<Maps>,
     resources: Arc<Resources>,
     monsters: Arc<Monsters>,
@@ -64,7 +64,7 @@ impl Character {
     pub fn new(
         config: &GameConfig,
         account: &Arc<Account>,
-        game: &Arc<Game>,
+        game: &Game,
         bank: &Arc<Bank>,
         conf: &Arc<RwLock<CharConfig>>,
         data: &Arc<RwLock<CharacterSchema>>,
@@ -75,7 +75,7 @@ impl Character {
             my_api: MyCharacterApi::new(&config.base_url, &config.token),
             api: CharactersApi::new(&config.base_url, &config.token),
             account: account.clone(),
-            game: game.clone(),
+            server: game.server.clone(),
             maps: game.maps.clone(),
             resources: game.resources.clone(),
             monsters: game.monsters.clone(),
@@ -86,7 +86,7 @@ impl Character {
             fight_simulator: FightSimulator::new(),
             bank: bank.clone(),
             data: data.clone(),
-            inventory: Arc::new(Inventory::new(&data)),
+            inventory: Arc::new(Inventory::new(data)),
         }
     }
 
@@ -136,7 +136,7 @@ impl Character {
                         skill,
                         skill_to_follow,
                     } if self.skill_level(*skill)
-                        < self.account.max_skill_level(*skill_to_follow) =>
+                        < min(1 + self.account.max_skill_level(*skill_to_follow), 40) =>
                     {
                         self.level_skill_up(*skill)
                     }
@@ -461,11 +461,7 @@ impl Character {
     /// Deposit items requiered by the given `order` if needed.
     /// Returns true if items has be deposited.
     fn turn_in_order(&self, order: Arc<Order>) -> bool {
-        if (!order.turned_in()
-            && self.account.available_in_inventories(&order.item) + order.being_crafted()
-                >= order.missing())
-            || self.inventory.is_full()
-        {
+        if self.orderboard.should_be_turned_in(&order) || self.inventory.is_full() {
             return self.deposit_order(&order);
         }
         false

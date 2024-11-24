@@ -5,6 +5,7 @@ use artifactsmmo_openapi::models::{MapContentSchema, MapSchema, ResourceSchema};
 use itertools::Itertools;
 use std::sync::Arc;
 
+#[derive(Default)]
 pub struct Maps {
     data: Vec<Arc<MapSchema>>,
     events: Arc<Events>,

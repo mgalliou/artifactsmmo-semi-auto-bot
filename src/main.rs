@@ -7,10 +7,6 @@ use artifactsmmo_playground::artifactsmmo_sdk::{
     orderboard::{Order, OrderBoard, Purpose},
     skill::Skill,
 };
-use figment::{
-    providers::{Format, Toml},
-    Figment,
-};
 use itertools::Itertools;
 use log::LevelFilter;
 use rustyline::Result;
@@ -19,15 +15,10 @@ use std::{str::FromStr, sync::Arc, thread::sleep, time::Duration};
 
 fn main() -> Result<()> {
     let _ = simple_logging::log_to_file("artifactsmmo.log", LevelFilter::Info);
-    let config = Arc::new(
-        Figment::new()
-            .merge(Toml::file_exact("ArtifactsMMO.toml"))
-            .extract()
-            .unwrap(),
-    );
-    let game = Arc::new(Game::new(&config));
-    let account = Account::new(&config, &game);
-    let handles = account
+    let game = Game::new();
+    game.init();
+    let handles = game
+        .account
         .characters
         .read()
         .unwrap()
@@ -37,20 +28,20 @@ fn main() -> Result<()> {
             Character::run(c.clone()).unwrap()
         })
         .collect_vec();
-    run_cli(&game, &account)?;
+    run_cli(&game)?;
     handles.into_iter().for_each(|h| {
         h.join().unwrap();
     });
     Ok(())
 }
 
-fn run_cli(game: &Arc<Game>, account: &Account) -> Result<()> {
+fn run_cli(game: &Game) -> Result<()> {
     let mut rl = DefaultEditor::new()?;
     loop {
         let readline = rl.readline(">> ");
         match readline {
             Ok(line) => {
-                handle_cmd_line(line, game, account);
+                handle_cmd_line(line, game);
             }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");
@@ -69,14 +60,14 @@ fn run_cli(game: &Arc<Game>, account: &Account) -> Result<()> {
     Ok(())
 }
 
-fn handle_cmd_line(line: String, game: &Arc<Game>, account: &Account) {
+fn handle_cmd_line(line: String, game: &Game) {
     let args = line.split_whitespace().collect_vec();
     if let Some(cmd) = args.first() {
         match *cmd {
             "items" => handle_items(&args[1..], &game.items),
-            "char" => handle_char(&args[1..], account),
+            "char" => handle_char(&args[1..], &game.account),
             "orderboard" => handle_orderboard(&args[1..], &game.orderboard),
-            "bank" => handle_bank(&args[1..], &account.bank),
+            "bank" => handle_bank(&args[1..], &game.account.bank),
             _ => println!("error"),
         }
     }
