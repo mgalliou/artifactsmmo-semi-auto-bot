@@ -1712,6 +1712,23 @@ impl Character {
         let Ok(_browsed) = self.bank.browsed.write() else {
             return;
         };
+        // NOTE: this maybe should be done before checking
+        // orders because if the first character orders food and the following character already
+        // have it in inventory, they gonna deposit it instead of keeping it for themselves since
+        // it is not yet reserved
+        self.food_in_inventory().iter().for_each(|f| {
+            if self.inventory.get_reservation(&f.code).is_none() {
+                if let Err(e) = self
+                    .inventory
+                    .reserv_items_if_not(&f.code, self.inventory.contains(&f.code))
+                {
+                    error!(
+                        "{} failed to reserv food currently in inventory: {:?}",
+                        self.name, e
+                    )
+                }
+            };
+        });
         self.order_food();
         if !self.food_in_inventory().is_empty() {
             return;
