@@ -1771,12 +1771,13 @@ impl Character {
                     .missing_mats_quantity(&i.code, self.inventory.max_items() - 30, None)
             })
         {
-            let quantity = 500 - self.bank.has_item(&best_food.code, Some(&self.name));
-            if quantity > 0 {
+            if self.bank.has_item(&best_food.code, Some(&self.name))
+                < 300
+            {
                 self.orderboard.add_or_reset(Order::new(
                     Some(&self.name),
                     &best_food.code,
-                    quantity,
+                    self.inventory.max_items() - 30,
                     Purpose::Food {
                         char: self.name.to_owned(),
                     },
