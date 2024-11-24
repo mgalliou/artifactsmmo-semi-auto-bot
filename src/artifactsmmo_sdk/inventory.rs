@@ -153,6 +153,16 @@ impl Inventory {
         info!("added reservation to bank: {}", res);
     }
 
+    pub fn decrease_reservation(&self, item: &str, quantity: i32) {
+        if let Some(res) = self.get_reservation(item) {
+            if quantity >= *res.quantity.read().unwrap() {
+                self.remove_reservation(&res)
+            } else {
+                res.dec_quantity(quantity)
+            }
+        }
+    }
+
     pub fn remove_reservation(&self, reservation: &InventoryReservation) {
         self.reservations
             .write()

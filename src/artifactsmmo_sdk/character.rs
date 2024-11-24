@@ -552,8 +552,13 @@ impl Character {
         }
         self.deposit_all();
         self.withdraw_item("tasks_coin", 6)?;
+        if let Err(e) = self.inventory.reserv_items_if_not("tasks_coin", 6) {
+            error!("{}: error while reserving 'tasks_coin': {:?}", self.name, e);
+        }
         self.move_to_closest_taskmaster(self.task_type())?;
-        self.action_task_exchange().map_err(|e| e.into())
+        let res = self.action_task_exchange().map_err(|e| e.into());
+        self.inventory.decrease_reservation("tasks_coin", 6);
+        res
     }
 
     fn handle_events(&self) -> bool {
@@ -984,9 +989,20 @@ impl Character {
             }
         });
         self.deposit_all();
-        self.withdraw_mats_for(code, quantity)?;
+        let mats = self.withdraw_mats_for(code, quantity)?;
+        mats.iter().for_each(|m| {
+            if let Err(e) = self.inventory.reserv_items_if_not(&m.code, m.quantity) {
+                error!(
+                    "{}: error while reserving mats for crafting from inventory: {:?}",
+                    self.name, e
+                )
+            }
+        });
         self.move_to_craft(code)?;
         let craft = self.action_craft(code, quantity)?;
+        mats.iter().for_each(|m| {
+            self.inventory.decrease_reservation(&m.code, m.quantity);
+        });
         match post_action {
             PostCraftAction::Deposit => {
                 if let Err(e) = self.deposit_item(code, quantity, None) {
@@ -1161,10 +1177,19 @@ impl Character {
     /// Withdraw the materials required to craft the `quantity` of the
     /// item `code` and returns the maximum amount that can be crafted.
     // TODO: add check on `inventory_max_items`
-    fn withdraw_mats_for(&self, code: &str, quantity: i32) -> Result<(), CharacterError> {
-        let mats = self.items.mats(code);
+    fn withdraw_mats_for(
+        &self,
+        code: &str,
+        quantity: i32,
+    ) -> Result<Vec<SimpleItemSchema>, CharacterError> {
+        let mats = self
+            .items
+            .mats(code)
+            .into_iter()
+            .update(|m| m.quantity *= quantity)
+            .collect_vec();
         for mat in &mats {
-            if self.bank.has_item(&mat.code, Some(&self.name)) < mat.quantity * quantity {
+            if self.bank.has_item(&mat.code, Some(&self.name)) < mat.quantity {
                 warn!("{}: not enough materials in bank to withdraw the materials required to craft '{code}'x{quantity}", self.name);
                 return Err(CharacterError::InsuffisientMaterials);
             }
@@ -1174,9 +1199,9 @@ impl Character {
             self.name
         );
         for mat in &mats {
-            self.withdraw_item(&mat.code, mat.quantity * quantity)?;
+            self.withdraw_item(&mat.code, mat.quantity)?;
         }
-        Ok(())
+        Ok(mats)
     }
 
     /// Calculates the maximum number of items that can be crafted in one go based on
