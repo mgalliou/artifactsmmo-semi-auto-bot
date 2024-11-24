@@ -243,17 +243,17 @@ impl Character {
             ItemSource::Resource(r) => self.can_gather(r).is_ok(),
             ItemSource::Monster(m) => self.can_kill(m).is_ok(),
             ItemSource::Craft => self.can_craft(&order.item).is_ok_and(|_| {
-                if order.being_crafted() <= 0 {
+                if order.in_progress() <= 0 {
                     // NOTE: Maybe ordering missing mats should be done elsewhere
                     self.order_missing_mats(
                         &order.item,
-                        order.missing() - self.account.available_in_inventories(&order.item),
+                        self.orderboard.total_missing(order),
                         order.purpose.clone(),
                     );
                 };
                 true
             }),
-            ItemSource::TaskReward => order.worked_by() <= 0,
+            ItemSource::TaskReward => order.in_progress() <= 0,
             ItemSource::Task => true,
         })
     }
@@ -341,25 +341,19 @@ impl Character {
     fn progress_crafting_order(&self, order: &Order) -> Option<i32> {
         match self.can_craft(&order.item) {
             Ok(()) => {
-                if order.missing()
-                    - self.account.available_in_inventories(&order.item)
-                    - order.being_crafted()
-                    <= 0
-                {
+                if self.orderboard.total_missing(order) > 0 {
                     return None;
                 }
                 let quantity = min(
                     self.max_craftable_items(&order.item),
-                    order.missing()
-                        - order.being_crafted()
-                        - self.account.available_in_inventories(&order.item),
+                    self.orderboard.total_missing(order),
                 );
                 if quantity <= 0 {
                     return None;
                 }
-                order.inc_being_crafted(quantity);
+                order.inc_in_progress(quantity);
                 let crafted = self.craft_from_bank(&order.item, quantity, PostCraftAction::None);
-                order.dec_being_crafted(quantity);
+                order.dec_in_progress(quantity);
                 crafted.ok().map(|craft| craft.amount_of(&order.item))
             }
             Err(e) => {
@@ -368,9 +362,7 @@ impl Character {
                 };
                 if !self.order_missing_mats(
                     &order.item,
-                    order.missing()
-                        - self.account.available_in_inventories(&order.item)
-                        - order.being_crafted(),
+                    self.orderboard.total_missing(order),
                     order.purpose.clone(),
                 ) {
                     return None;
@@ -383,20 +375,16 @@ impl Character {
     fn progress_task_reward_order(&self, order: &Order) -> Option<i32> {
         match self.can_exchange_task() {
             Ok(()) => {
-                if order.worked_by() > 0 {
+                if order.in_progress() > 0 {
                     return None;
                 }
-                order.inc_worked_by(1);
+                order.inc_in_progress(1);
                 let exchanged = self.exchange_task().map(|r| r.amount_of(&order.item)).ok();
-                order.dec_worked_by(1);
+                order.dec_in_progress(1);
                 exchanged
             }
             Err(e) => {
-                if order.missing()
-                    - order.worked_by()
-                    - self.account.available_in_inventories(&order.item)
-                    <= 0
-                {
+                if self.orderboard.total_missing(order) <= 0 {
                     return None;
                 }
                 if let CharacterError::NotEnoughCoin = e {
@@ -473,7 +461,11 @@ impl Character {
             return false;
         }
         if self
-            .deposit_item(&order.item, min(q, order.missing()), order.owner.clone())
+            .deposit_item(
+                &order.item,
+                min(q, order.not_deposited()),
+                order.owner.clone(),
+            )
             .is_ok()
         {
             order.inc_deposited(q);

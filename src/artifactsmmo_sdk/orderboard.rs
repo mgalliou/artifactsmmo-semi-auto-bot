@@ -126,8 +126,14 @@ impl OrderBoard {
 
     pub fn should_be_turned_in(&self, order: &Order) -> bool {
         !order.turned_in()
-            && self.account.available_in_inventories(&order.item) + order.being_crafted()
-                >= order.missing()
+            && self.account.available_in_inventories(&order.item) + order.in_progress()
+                >= order.not_deposited()
+    }
+
+    pub fn total_missing(&self, order: &Order) -> i32 {
+        order.not_deposited()
+            - self.account.available_in_inventories(&order.item)
+            - order.in_progress()
     }
 }
 
@@ -137,8 +143,7 @@ pub struct Order {
     pub item: String,
     pub quantity: RwLock<i32>,
     pub purpose: Purpose,
-    pub worked_by: RwLock<i32>,
-    pub being_crafted: RwLock<i32>,
+    pub in_progress: RwLock<i32>,
     // Number of item deposited into the bank
     pub deposited: RwLock<i32>,
 }
@@ -150,8 +155,7 @@ impl Order {
             item: item.to_owned(),
             quantity: RwLock::new(quantity),
             purpose,
-            worked_by: RwLock::new(0),
-            being_crafted: RwLock::new(0),
+            in_progress: RwLock::new(0),
             deposited: RwLock::new(0),
         }
     }
@@ -160,16 +164,12 @@ impl Order {
         self.item == other.item && self.owner == other.owner && self.purpose == other.purpose
     }
 
-    pub fn worked_by(&self) -> i32 {
-        *self.worked_by.read().unwrap()
+    pub fn in_progress(&self) -> i32 {
+        *self.in_progress.read().unwrap()
     }
 
     pub fn turned_in(&self) -> bool {
         self.deposited() >= self.quantity()
-    }
-
-    pub fn being_crafted(&self) -> i32 {
-        *self.being_crafted.read().unwrap()
     }
 
     pub fn deposited(&self) -> i32 {
@@ -180,7 +180,7 @@ impl Order {
         *self.quantity.read().unwrap()
     }
 
-    pub fn missing(&self) -> i32 {
+    pub fn not_deposited(&self) -> i32 {
         self.quantity() - self.deposited()
     }
 
@@ -188,20 +188,12 @@ impl Order {
         *self.deposited.write().unwrap() += n;
     }
 
-    pub fn inc_being_crafted(&self, n: i32) {
-        *self.being_crafted.write().unwrap() += n;
+    pub fn inc_in_progress(&self, n: i32) {
+        *self.in_progress.write().unwrap() += n;
     }
 
-    pub fn dec_being_crafted(&self, n: i32) {
-        *self.being_crafted.write().unwrap() -= n;
-    }
-
-    pub fn inc_worked_by(&self, n: i32) {
-        *self.worked_by.write().unwrap() += n
-    }
-
-    pub fn dec_worked_by(&self, n: i32) {
-        *self.worked_by.write().unwrap() -= n
+    pub fn dec_in_progress(&self, n: i32) {
+        *self.in_progress.write().unwrap() -= n;
     }
 }
 
