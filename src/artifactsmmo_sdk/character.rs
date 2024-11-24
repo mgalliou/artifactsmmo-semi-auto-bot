@@ -815,6 +815,9 @@ impl Character {
         if self.inventory.is_full() {
             return Err(CharacterError::InventoryFull);
         }
+        if self.maps.with_monster(&monster.code).is_empty() {
+            return Err(CharacterError::MapNotFound);
+        }
         let available = self
             .gear_finder
             .best_against(self, monster, Filter::Available);
