@@ -123,6 +123,12 @@ impl Inventory {
             Ok(())
         } else if self.quantity_not_reserved(item) >= quantity - res.quantity() {
             res.inc_quantity(quantity - res.quantity());
+            info!(
+                "{}: increased quantity of inventory reservation by '{}': [{}]",
+                self.data.read().unwrap().name,
+                quantity,
+                res
+            );
             Ok(())
         } else {
             Err(CharacterError::QuantityUnavailable(quantity))
@@ -150,7 +156,8 @@ impl Inventory {
             quantity: RwLock::new(quantity),
         });
         self.reservations.write().unwrap().push(res.clone());
-        info!("added reservation to bank: {}", res);
+        info!("{}: added reservation to inventory: {}", 
+            self.data.read().unwrap().name, res);
     }
 
     pub fn decrease_reservation(&self, item: &str, quantity: i32) {
@@ -158,7 +165,13 @@ impl Inventory {
             if quantity >= *res.quantity.read().unwrap() {
                 self.remove_reservation(&res)
             } else {
-                res.dec_quantity(quantity)
+                res.dec_quantity(quantity);
+                info!(
+                    "{}: decreased quantity of inventory reservation by '{}': [{}]",
+                    self.data.read().unwrap().name,
+                    quantity,
+                    res
+                );
             }
         }
     }
@@ -168,7 +181,11 @@ impl Inventory {
             .write()
             .unwrap()
             .retain(|r| **r != *reservation);
-        info!("removed reservation from bank: {}", reservation);
+        info!(
+            "{}: removed reservation from inventory: {}",
+            self.data.read().unwrap().name,
+            reservation
+        );
     }
 }
 
@@ -181,12 +198,10 @@ pub struct InventoryReservation {
 impl InventoryReservation {
     pub fn inc_quantity(&self, i: i32) {
         *self.quantity.write().unwrap() += i;
-        info!("increased quantity of reservation by '{}': [{}]", i, self);
     }
 
     pub fn dec_quantity(&self, i: i32) {
         *self.quantity.write().unwrap() -= i;
-        info!("decreased quantity of reservation by '{}': [{}]", i, self);
     }
 
     pub fn quantity(&self) -> i32 {
