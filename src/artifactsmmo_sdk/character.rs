@@ -341,7 +341,7 @@ impl Character {
     fn progress_crafting_order(&self, order: &Order) -> Option<i32> {
         match self.can_craft(&order.item) {
             Ok(()) => {
-                if self.orderboard.total_missing(order) > 0 {
+                if self.orderboard.total_missing(order) <= 0 {
                     return None;
                 }
                 let quantity = min(
