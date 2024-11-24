@@ -422,26 +422,29 @@ impl Character {
                     if let Err(e) = self.accept_task(r#type) {
                         error!("{} error while accepting new task: {:?}", self.name, e)
                     }
-                    return Some(0);
-                } else if let CharacterError::TaskNotFinished = e {
-                    match self.progress_task() {
-                        Ok(_) => return Some(0),
-                        Err(CharacterError::MissingItems { item, quantity }) => {
-                            if self.orderboard.add(Order::new(
-                                Some(&self.name),
-                                &item,
-                                quantity,
-                                Purpose::Task {
-                                    char: self.name.to_owned(),
-                                },
-                            )) {
-                                return Some(0);
-                            }
-                        }
-                        _ => {}
-                    };
+                    return Some(0)
                 }
-                None
+                let CharacterError::TaskNotFinished = e else {
+                    return None;
+                };
+                match self.progress_task() {
+                    Ok(_) => Some(0),
+                    Err(CharacterError::MissingItems { item, quantity }) => {
+                        if self.orderboard.add(Order::new(
+                            Some(&self.name),
+                            &item,
+                            quantity,
+                            Purpose::Task {
+                                char: self.name.to_owned(),
+                            },
+                        )) {
+                            Some(0)
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
+                }
             }
         }
     }
