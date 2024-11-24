@@ -422,7 +422,7 @@ impl Character {
                     if let Err(e) = self.accept_task(r#type) {
                         error!("{} error while accepting new task: {:?}", self.name, e)
                     }
-                    return Some(0)
+                    return Some(0);
                 }
                 let CharacterError::TaskNotFinished = e else {
                     return None;
