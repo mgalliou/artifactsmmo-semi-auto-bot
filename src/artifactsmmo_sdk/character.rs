@@ -596,6 +596,17 @@ impl Character {
         if !self.skill_enabled(Skill::Combat) {
             return Err(CharacterError::SkillDisabled);
         }
+        if let Ok(_) | Err(CharacterError::NoTask) = self.complete_task() {
+            if let Err(e) = self.accept_task(TaskType::Monsters) {
+                error!("{} error while accepting new task: {:?}", self.name, e)
+            }
+        }
+        if let Some(task_monster) = self.monsters.get(&self.task()) {
+            if self.can_kill(task_monster).is_ok() {
+                self.kill_monster(task_monster, None)?;
+                return Ok(());
+            }
+        }
         let Some(monster) = self
             .monsters
             .data
@@ -605,20 +616,6 @@ impl Character {
         else {
             return Err(CharacterError::MonsterNotFound);
         };
-        match self.complete_task() {
-            Ok(_) | Err(CharacterError::NoTask) => {
-                if let Err(e) = self.accept_task(TaskType::Monsters) {
-                    error!("{} error while accepting new task: {:?}", self.name, e)
-                }
-            }
-            _ => (),
-        }
-        if let Some(task_monster) = self.monsters.get(&self.task()) {
-            if self.can_kill(task_monster).is_ok() {
-                self.kill_monster(task_monster, None)?;
-                return Ok(());
-            }
-        }
         self.kill_monster(monster, None)?;
         Ok(())
     }
