@@ -156,23 +156,27 @@ impl Inventory {
             quantity: RwLock::new(quantity),
         });
         self.reservations.write().unwrap().push(res.clone());
-        info!("{}: added reservation to inventory: {}", 
-            self.data.read().unwrap().name, res);
+        info!(
+            "{}: added reservation to inventory: {}",
+            self.data.read().unwrap().name,
+            res
+        );
     }
 
     pub fn decrease_reservation(&self, item: &str, quantity: i32) {
-        if let Some(res) = self.get_reservation(item) {
-            if quantity >= *res.quantity.read().unwrap() {
-                self.remove_reservation(&res)
-            } else {
-                res.dec_quantity(quantity);
-                info!(
-                    "{}: decreased quantity of inventory reservation by '{}': [{}]",
-                    self.data.read().unwrap().name,
-                    quantity,
-                    res
-                );
-            }
+        let Some(res) = self.get_reservation(item) else {
+            return;
+        };
+        if quantity >= *res.quantity.read().unwrap() {
+            self.remove_reservation(&res)
+        } else {
+            res.dec_quantity(quantity);
+            info!(
+                "{}: decreased quantity of inventory reservation by '{}': [{}]",
+                self.data.read().unwrap().name,
+                quantity,
+                res
+            );
         }
     }
 

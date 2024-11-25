@@ -23,7 +23,7 @@ use actions::{PostCraftAction, RequestError};
 use artifactsmmo_openapi::models::{
     CharacterSchema, FightResult, FightSchema, ItemSchema, MapContentSchema, MapSchema,
     MonsterSchema, RecyclingItemsSchema, ResourceSchema, SimpleItemSchema, SkillDataSchema,
-    SkillInfoSchema, TaskRewardsSchema, TaskSchema, TaskType,
+    SkillInfoSchema, TaskRewardsSchema, TaskSchema, TaskTradeSchema, TaskType,
 };
 use itertools::Itertools;
 use log::{error, info, warn};
@@ -486,10 +486,10 @@ impl Character {
                 return Ok(());
             }
         }
-        self.trade_task()
+        self.trade_task().map(|_| ())
     }
 
-    fn trade_task(&self) -> Result<(), CharacterError> {
+    fn trade_task(&self) -> Result<TaskTradeSchema, CharacterError> {
         if !self.task_type().is_some_and(|tt| tt == TaskType::Items) {
             return Err(CharacterError::InvalidTaskType);
         }
@@ -516,9 +516,12 @@ impl Character {
             error!("{}: error while withdrawing {:?}", self.name, e);
             self.bank.decrease_reservation(&self.task(), q, &self.name);
         };
-        self.move_to_closest_taskmaster(self.task_type())?;
-        self.action_task_trade(&self.task(), q)?;
-        Ok(())
+        if let Err(e) = self.move_to_closest_taskmaster(self.task_type()) {
+            error!("{}: error while moving to taskmaster: {:?}", self.name, e);
+        };
+        let res = self.action_task_trade(&self.task(), q);
+        self.inventory.decrease_reservation(&self.task(), q);
+        Ok(res?)
     }
 
     fn accept_task(&self, r#type: TaskType) -> Result<TaskSchema, CharacterError> {
@@ -555,13 +558,11 @@ impl Character {
         }
         self.deposit_all();
         self.withdraw_item("tasks_coin", 6)?;
-        if let Err(e) = self.inventory.reserv_items_if_not("tasks_coin", 6) {
-            error!("{}: error while reserving 'tasks_coin': {:?}", self.name, e);
-        }
-        self.move_to_closest_taskmaster(self.task_type())?;
-        let res = self.action_task_exchange().map_err(|e| e.into());
+        if let Err(e) = self.move_to_closest_taskmaster(self.task_type()) {
+            error!("{}: error while moving to taskmaster: {:?}", self.name, e);
+        };
         self.inventory.decrease_reservation("tasks_coin", 6);
-        res
+        self.action_task_exchange().map_err(|e| e.into())
     }
 
     fn handle_events(&self) -> bool {
@@ -987,19 +988,13 @@ impl Character {
         });
         self.deposit_all();
         let mats = self.withdraw_mats_for(item, quantity)?;
-        mats.iter().for_each(|m| {
-            if let Err(e) = self.inventory.reserv_items_if_not(&m.code, m.quantity) {
-                error!(
-                    "{}: error while reserving mats for crafting from inventory: {:?}",
-                    self.name, e
-                )
-            }
-        });
-        self.move_to_craft(item)?;
-        let craft = self.action_craft(item, quantity)?;
+        if let Err(e) = self.move_to_craft(item) {
+            error!("{}: error while moving to craft: {:?}", self.name, e);
+        };
         mats.iter().for_each(|m| {
             self.inventory.decrease_reservation(&m.code, m.quantity);
         });
+        let craft = self.action_craft(item, quantity)?;
         match post_action {
             PostCraftAction::Deposit => {
                 if let Err(e) = self.deposit_item(item, quantity, None) {
@@ -1043,6 +1038,7 @@ impl Character {
         self.deposit_all();
         self.withdraw_item(item, quantity)?;
         self.move_to_craft(item)?;
+        self.inventory.decrease_reservation(&self.task(), quantity);
         Ok(self.action_recycle(item, quantity)?)
     }
 
@@ -1089,6 +1085,12 @@ impl Character {
         self.move_to_closest_map_of_type("bank")?;
         let deposit = self.action_withdraw(item, quantity);
         if deposit.is_ok() {
+            if let Err(e) = self.inventory.reserv_items_if_not(item, quantity) {
+                error!(
+                    "{}: failed to reserv withdrawed item '{}'x{}: {:?}",
+                    self.name, item, quantity, e
+                );
+            }
             self.bank.decrease_reservation(item, quantity, &self.name);
         }
         Ok(deposit?)
@@ -1155,6 +1157,7 @@ impl Character {
                         self.name, e
                     )
                 }
+                self.inventory.decrease_reservation(&i.code, quantity);
                 if let Err(e) = self.action_delete(&i.code, quantity) {
                     error!(
                         "{} error while delete item during bank emptying: {:?}",
@@ -1371,6 +1374,7 @@ impl Character {
             }
             self.action_unequip(slot, self.quantity_in_slot(slot))?;
         }
+        self.inventory.decrease_reservation(item, quantity);
         self.action_equip(item, slot, quantity)?;
         Ok(())
     }
