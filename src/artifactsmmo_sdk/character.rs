@@ -1369,7 +1369,9 @@ impl Character {
         // TODO: add check from inventory space
         if let Some(equiped) = self.equiped_in(slot) {
             if equiped.health() >= self.health() {
-                // TODO: eat food if possible
+                self.eat_food();
+            }
+            if equiped.health() >= self.health() {
                 self.rest()?;
             }
             self.action_unequip(slot, self.quantity_in_slot(slot))?;
