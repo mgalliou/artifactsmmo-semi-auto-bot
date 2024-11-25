@@ -130,7 +130,7 @@ impl OrderBoard {
                 >= order.not_deposited()
     }
 
-    pub fn total_missing(&self, order: &Order) -> i32 {
+    pub fn total_missing_for(&self, order: &Order) -> i32 {
         order.not_deposited()
             - self.account.available_in_inventories(&order.item)
             - order.in_progress()

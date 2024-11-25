@@ -248,7 +248,7 @@ impl Character {
                     // NOTE: Maybe ordering missing mats should be done elsewhere
                     self.order_missing_mats(
                         &order.item,
-                        self.orderboard.total_missing(order),
+                        self.orderboard.total_missing_for(order),
                         order.purpose.clone(),
                     );
                 };
@@ -342,12 +342,12 @@ impl Character {
     fn progress_crafting_order(&self, order: &Order) -> Option<i32> {
         match self.can_craft(&order.item) {
             Ok(()) => {
-                if self.orderboard.total_missing(order) <= 0 {
+                if self.orderboard.total_missing_for(order) <= 0 {
                     return None;
                 }
                 let quantity = min(
                     self.max_craftable_items(&order.item),
-                    self.orderboard.total_missing(order),
+                    self.orderboard.total_missing_for(order),
                 );
                 if quantity <= 0 {
                     return None;
@@ -363,7 +363,7 @@ impl Character {
                 };
                 if !self.order_missing_mats(
                     &order.item,
-                    self.orderboard.total_missing(order),
+                    self.orderboard.total_missing_for(order),
                     order.purpose.clone(),
                 ) {
                     return None;
@@ -385,7 +385,7 @@ impl Character {
                 exchanged
             }
             Err(e) => {
-                if self.orderboard.total_missing(order) <= 0 {
+                if self.orderboard.total_missing_for(order) <= 0 {
                     return None;
                 }
                 if let CharacterError::NotEnoughCoin = e {
@@ -435,9 +435,7 @@ impl Character {
                             Some(&self.name),
                             &item,
                             quantity,
-                            Purpose::Task {
-                                char: self.name.to_owned(),
-                            },
+                            order.purpose.clone(),
                         )) {
                             Some(0)
                         } else {
