@@ -1422,11 +1422,13 @@ impl Character {
             {
                 self.deposit_order(o);
             }
-            if let Err(e) = self.deposit_item(&i.code, self.inventory.contains(&i.code), None) {
-                error!(
-                    "{} failed to deposit previously equiped item: {:?}",
-                    self.name, e
-                );
+            if self.inventory.contains(&i.code) > 0 {
+                if let Err(e) = self.deposit_item(&i.code, self.inventory.contains(&i.code), None) {
+                    error!(
+                        "{} failed to deposit previously equiped item: {:?}",
+                        self.name, e
+                    );
+                }
             }
         }
     }
