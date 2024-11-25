@@ -649,11 +649,6 @@ impl Character {
                 error!("{} error while accepting new task: {:?}", self.name, e)
             }
         }
-        if let Some(map) = map {
-            self.action_move(map.x, map.y)?;
-        } else if let Some(map) = self.closest_map_with_content_code(&monster.code) {
-            self.action_move(map.x, map.y)?;
-        }
         if self
             .fight_simulator
             .simulate(self.level(), self.missing_hp(), &self.gear(), monster)
@@ -671,6 +666,11 @@ impl Character {
             if let Err(e) = self.rest() {
                 error!("{} failed to rest: {:?}", self.name, e)
             }
+        }
+        if let Some(map) = map {
+            self.action_move(map.x, map.y)?;
+        } else if let Some(map) = self.closest_map_with_content_code(&monster.code) {
+            self.action_move(map.x, map.y)?;
         }
         Ok(self.action_fight()?)
     }
