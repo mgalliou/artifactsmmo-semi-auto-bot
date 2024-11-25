@@ -61,33 +61,18 @@ impl Items {
         self.data.get(code)
     }
 
-    /// Takes an item `code` and return its type.
-    pub fn r#type(&self, code: &str) -> Option<Type> {
-        Type::from_str(&self.get(code)?.r#type).ok()
-    }
-
-    /// Checks an item `code` is of a certain `type`.
-    pub fn is_of_type(&self, code: &str, r#type: Type) -> bool {
-        self.get(code).is_some_and(|i| i.is_of_type(r#type))
-    }
-
-    /// Takes an item `code` and returns the skill required to craft it.
-    pub fn skill_to_craft(&self, code: &str) -> Option<Skill> {
-        self.get(code)?.skill_to_craft()
-    }
-
     /// Takes an item `code` and return the mats required to craft it.
-    pub fn mats(&self, code: &str) -> Vec<SimpleItemSchema> {
+    pub fn mats_of(&self, code: &str) -> Vec<SimpleItemSchema> {
         self.get(code).iter().flat_map(|i| i.mats()).collect_vec()
     }
 
     /// Takes an item `code` and returns the mats down to the raw materials
     /// required to craft it.
-    pub fn base_mats(&self, code: &str) -> Vec<SimpleItemSchema> {
-        self.mats(code)
+    pub fn base_mats_of(&self, code: &str) -> Vec<SimpleItemSchema> {
+        self.mats_of(code)
             .iter()
             .flat_map(|mat| {
-                self.base_mats(&mat.code)
+                self.base_mats_of(&mat.code)
                     .iter()
                     .map(|b| SimpleItemSchema {
                         code: b.code.clone(),
@@ -98,11 +83,11 @@ impl Items {
             .collect_vec()
     }
 
-    /// Takes an resource `code` and returns the items that can be crafted
+    /// Takes an `resource` code and returns the items that can be crafted
     /// from the base mats it drops.
-    pub fn crafted_from_resource(&self, code: &str) -> Vec<&ItemSchema> {
+    pub fn crafted_from_resource(&self, resource: &str) -> Vec<&ItemSchema> {
         self.resources
-            .get(code)
+            .get(resource)
             .map(|r| &r.drops)
             .into_iter()
             .flatten()
@@ -139,12 +124,12 @@ impl Items {
     /// Takes an item `code` and checks if it is crafted with `mat` as a base
     /// material.
     pub fn is_crafted_with_base_mat(&self, code: &str, mat: &str) -> bool {
-        self.base_mats(code).iter().any(|m| m.code == mat)
+        self.base_mats_of(code).iter().any(|m| m.code == mat)
     }
 
     pub fn mats_mob_average_lvl(&self, code: &str) -> i32 {
         let mob_mats = self
-            .mats(code)
+            .mats_of(code)
             .iter()
             .filter_map(|i| self.get(&i.code))
             .filter(|i| i.subtype == SubType::Mob)
@@ -157,7 +142,7 @@ impl Items {
     }
 
     pub fn mats_mob_max_lvl(&self, code: &str) -> i32 {
-        self.mats(code)
+        self.mats_of(code)
             .iter()
             .filter_map(|i| self.get(&i.code))
             .filter(|i| i.subtype == SubType::Mob)
@@ -168,7 +153,7 @@ impl Items {
     /// Takes an item `code` and returns the amount of inventory space the mats
     /// required to craft it are taking.
     pub fn mats_quantity_for(&self, code: &str) -> i32 {
-        self.mats(code).iter().map(|mat| mat.quantity).sum()
+        self.mats_of(code).iter().map(|mat| mat.quantity).sum()
     }
 
     /// Takes an item `code` and returns the best (lowest value) drop rate from
@@ -200,7 +185,7 @@ impl Items {
     /// Takes an item `code` and aggregate the drop rates of its base materials
     /// to cumpute an average drop rate.
     pub fn base_mats_drop_rate(&self, code: &str) -> f32 {
-        let base_mats = self.base_mats(code);
+        let base_mats = self.base_mats_of(code);
         if base_mats.is_empty() {
             return 0.0;
         }
@@ -387,7 +372,7 @@ impl Items {
                 ItemSource::Resource(_) => 20,
                 ItemSource::Monster(m) => m.level * self.drop_rate(item),
                 ItemSource::Craft => self
-                    .mats(item)
+                    .mats_of(item)
                     .iter()
                     .map(|m| self.time_to_get(&m.code).unwrap_or(10000) * m.quantity)
                     .sum(),
@@ -430,8 +415,8 @@ impl ItemSchemaExt for ItemSchema {
         self.r#type == r#type
     }
 
-    fn is_crafted_with(&self, code: &str) -> bool {
-        self.mats().iter().any(|m| m.code == code)
+    fn is_crafted_with(&self, item: &str) -> bool {
+        self.mats().iter().any(|m| m.code == item)
     }
 
     fn mats(&self) -> Vec<SimpleItemSchema> {

@@ -1,7 +1,7 @@
 use super::Character;
 use crate::artifactsmmo_sdk::{
-    gear::Slot, ApiErrorResponseSchema, FightSchemaExt, MapSchemaExt,
-    ResponseSchema, SkillInfoSchemaExt, SkillSchemaExt, TaskRewardsSchemaExt,
+    gear::Slot, ApiErrorResponseSchema, FightSchemaExt, MapSchemaExt, ResponseSchema,
+    SkillInfoSchemaExt, SkillSchemaExt, TaskRewardsSchemaExt,
 };
 use artifactsmmo_openapi::{
     apis::Error,
@@ -9,11 +9,11 @@ use artifactsmmo_openapi::{
         ActionType, BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema,
         BankItemTransactionResponseSchema, BankSchema, CharacterFightResponseSchema,
         CharacterMovementResponseSchema, CharacterRestResponseSchema, CharacterSchema,
-        DeleteItemResponseSchema, DropSchema, EquipmentResponseSchema, FightResult, FightSchema, MapSchema, RecyclingItemsSchema, RecyclingResponseSchema,
-        SimpleItemSchema, SkillDataSchema, SkillInfoSchema, SkillResponseSchema,
-        TaskCancelledResponseSchema, TaskResponseSchema, TaskRewardsSchema, TaskSchema,
-        TaskTradeResponseSchema, TaskTradeSchema, TasksRewardDataResponseSchema,
-        UseItemResponseSchema,
+        DeleteItemResponseSchema, DropSchema, EquipmentResponseSchema, FightResult, FightSchema,
+        MapSchema, RecyclingItemsSchema, RecyclingResponseSchema, SimpleItemSchema,
+        SkillDataSchema, SkillInfoSchema, SkillResponseSchema, TaskCancelledResponseSchema,
+        TaskResponseSchema, TaskRewardsSchema, TaskSchema, TaskTradeResponseSchema,
+        TaskTradeSchema, TasksRewardDataResponseSchema, UseItemResponseSchema,
     },
 };
 use chrono::{DateTime, Utc};
@@ -59,9 +59,9 @@ impl Character {
                 .rest(&self.name)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
-            Action::UseItem { code, quantity } => self
+            Action::UseItem { item, quantity } => self
                 .my_api
-                .use_item(&self.name, code, quantity)
+                .use_item(&self.name, item, quantity)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
             Action::Gather => self
@@ -69,24 +69,24 @@ impl Character {
                 .gather(&self.name)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
-            Action::Craft { code, quantity } => self
+            Action::Craft { item, quantity } => self
                 .my_api
-                .craft(&self.name, code, quantity)
+                .craft(&self.name, item, quantity)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
-            Action::Delete { code, quantity } => self
+            Action::Delete { item, quantity } => self
                 .my_api
-                .delete(&self.name, code, quantity)
+                .delete(&self.name, item, quantity)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
-            Action::Deposit { code, quantity } => self
+            Action::Deposit { item, quantity } => self
                 .my_api
-                .deposit(&self.name, code, quantity)
+                .deposit(&self.name, item, quantity)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
-            Action::Withdraw { code, quantity } => self
+            Action::Withdraw { item, quantity } => self
                 .my_api
-                .withdraw(&self.name, code, quantity)
+                .withdraw(&self.name, item, quantity)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
             Action::DepositGold { quantity } => self
@@ -104,18 +104,18 @@ impl Character {
                 .expand_bank(&self.name)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
-            Action::Recycle { code, quantity } => self
+            Action::Recycle { item, quantity } => self
                 .my_api
-                .recycle(&self.name, code, quantity)
+                .recycle(&self.name, item, quantity)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
             Action::Equip {
-                code,
+                item,
                 slot,
                 quantity,
             } => self
                 .my_api
-                .equip(&self.name, code, slot.into(), Some(quantity))
+                .equip(&self.name, item, slot.into(), Some(quantity))
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
             Action::Unequip { slot, quantity } => {
@@ -138,9 +138,9 @@ impl Character {
                 .cancel_task(&self.name)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
-            Action::TaskTrade { code, quantity } => self
+            Action::TaskTrade { item, quantity } => self
                 .my_api
-                .trade_task(&self.name, code, quantity)
+                .trade_task(&self.name, item, quantity)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
             Action::TaskExchange => self
@@ -209,9 +209,12 @@ impl Character {
             .map(|s| s.data.hp_restored)
     }
 
-    pub fn action_use_item(&self, code: &str, quantity: i32) -> Result<(), RequestError> {
-        self.perform_action(Action::UseItem { code, quantity })
-            .map(|_| ())
+    pub fn action_use_item(&self, item: &str, quantity: i32) -> Result<(), RequestError> {
+        self.perform_action(Action::UseItem {
+            item,
+            quantity,
+        })
+        .map(|_| ())
     }
 
     pub fn action_gather(&self) -> Result<SkillDataSchema, RequestError> {
@@ -225,24 +228,27 @@ impl Character {
 
     pub fn action_deposit(
         &self,
-        code: &str,
+        item: &str,
         quantity: i32,
     ) -> Result<SimpleItemSchema, RequestError> {
-        self.perform_action(Action::Deposit { code, quantity })
-            .map(|_| SimpleItemSchema {
-                code: code.to_owned(),
-                quantity,
-            })
+        self.perform_action(Action::Deposit {
+            item,
+            quantity,
+        })
+        .map(|_| SimpleItemSchema {
+            code: item.to_owned(),
+            quantity,
+        })
     }
 
     pub fn action_withdraw(
         &self,
-        code: &str,
+        item: &str,
         quantity: i32,
     ) -> Result<SimpleItemSchema, RequestError> {
-        self.perform_action(Action::Withdraw { code, quantity })
+        self.perform_action(Action::Withdraw { item, quantity })
             .map(|_| SimpleItemSchema {
-                code: code.to_owned(),
+                code: item.to_owned(),
                 quantity,
             })
     }
@@ -274,44 +280,53 @@ impl Character {
             .map(|s| s.data.transaction.price)
     }
 
-    pub fn action_craft(&self, code: &str, quantity: i32) -> Result<SkillInfoSchema, RequestError> {
-        self.perform_action(Action::Craft { code, quantity })
-            .and_then(|r| {
-                r.downcast::<SkillResponseSchema>()
-                    .map_err(|_| RequestError::DowncastError)
-            })
-            .map(|s| *s.data.details)
+    pub fn action_craft(&self, item: &str, quantity: i32) -> Result<SkillInfoSchema, RequestError> {
+        self.perform_action(Action::Craft {
+            item,
+            quantity,
+        })
+        .and_then(|r| {
+            r.downcast::<SkillResponseSchema>()
+                .map_err(|_| RequestError::DowncastError)
+        })
+        .map(|s| *s.data.details)
     }
 
     pub fn action_delete(
         &self,
-        code: &str,
+        item: &str,
         quantity: i32,
     ) -> Result<SimpleItemSchema, RequestError> {
-        self.perform_action(Action::Delete { code, quantity })
-            .and_then(|r| {
-                r.downcast::<DeleteItemResponseSchema>()
-                    .map_err(|_| RequestError::DowncastError)
-            })
-            .map(|s| *s.data.item)
+        self.perform_action(Action::Delete {
+            item,
+            quantity,
+        })
+        .and_then(|r| {
+            r.downcast::<DeleteItemResponseSchema>()
+                .map_err(|_| RequestError::DowncastError)
+        })
+        .map(|s| *s.data.item)
     }
 
     pub fn action_recycle(
         &self,
-        code: &str,
+        item: &str,
         quantity: i32,
     ) -> Result<RecyclingItemsSchema, RequestError> {
-        self.perform_action(Action::Recycle { code, quantity })
-            .and_then(|r| {
-                r.downcast::<RecyclingResponseSchema>()
-                    .map_err(|_| RequestError::DowncastError)
-            })
-            .map(|s| *s.data.details)
+        self.perform_action(Action::Recycle {
+            item,
+            quantity,
+        })
+        .and_then(|r| {
+            r.downcast::<RecyclingResponseSchema>()
+                .map_err(|_| RequestError::DowncastError)
+        })
+        .map(|s| *s.data.details)
     }
 
-    pub fn action_equip(&self, code: &str, slot: Slot, quantity: i32) -> Result<(), RequestError> {
+    pub fn action_equip(&self, item: &str, slot: Slot, quantity: i32) -> Result<(), RequestError> {
         self.perform_action(Action::Equip {
-            code,
+            item,
             slot,
             quantity,
         })
@@ -347,10 +362,10 @@ impl Character {
 
     pub fn action_task_trade(
         &self,
-        code: &str,
+        item: &str,
         quantity: i32,
     ) -> Result<TaskTradeSchema, RequestError> {
-        self.perform_action(Action::TaskTrade { code, quantity })
+        self.perform_action(Action::TaskTrade { item, quantity })
             .and_then(|r| {
                 r.downcast::<TaskTradeResponseSchema>()
                     .map_err(|_| RequestError::DowncastError)
@@ -451,19 +466,19 @@ pub enum Action<'a> {
     Fight,
     Gather,
     Craft {
-        code: &'a str,
+        item: &'a str,
         quantity: i32,
     },
     Delete {
-        code: &'a str,
+        item: &'a str,
         quantity: i32,
     },
     Deposit {
-        code: &'a str,
+        item: &'a str,
         quantity: i32,
     },
     Withdraw {
-        code: &'a str,
+        item: &'a str,
         quantity: i32,
     },
     DepositGold {
@@ -474,11 +489,11 @@ pub enum Action<'a> {
     },
     ExpandBank,
     Recycle {
-        code: &'a str,
+        item: &'a str,
         quantity: i32,
     },
     Equip {
-        code: &'a str,
+        item: &'a str,
         slot: Slot,
         quantity: i32,
     },
@@ -490,13 +505,13 @@ pub enum Action<'a> {
     CompleteTask,
     CancelTask,
     TaskTrade {
-        code: &'a str,
+        item: &'a str,
         quantity: i32,
     },
     TaskExchange,
     Rest,
     UseItem {
-        code: &'a str,
+        item: &'a str,
         quantity: i32,
     },
 }
@@ -811,38 +826,38 @@ impl<'a> Display for DropSchemas<'a> {
 }
 
 impl FightSchemaExt for FightSchema {
-    fn amount_of(&self, code: &str) -> i32 {
+    fn amount_of(&self, item: &str) -> i32 {
         self.drops
             .iter()
-            .find(|i| i.code == code)
+            .find(|i| i.code == item)
             .map_or(0, |i| i.quantity)
     }
 }
 
 impl SkillSchemaExt for SkillDataSchema {
-    fn amount_of(&self, code: &str) -> i32 {
+    fn amount_of(&self, item: &str) -> i32 {
         self.details
             .items
             .iter()
-            .find(|i| i.code == code)
+            .find(|i| i.code == item)
             .map_or(0, |i| i.quantity)
     }
 }
 
 impl SkillInfoSchemaExt for SkillInfoSchema {
-    fn amount_of(&self, code: &str) -> i32 {
+    fn amount_of(&self, item: &str) -> i32 {
         self.items
             .iter()
-            .find(|i| i.code == code)
+            .find(|i| i.code == item)
             .map_or(0, |i| i.quantity)
     }
 }
 
 impl TaskRewardsSchemaExt for TaskRewardsSchema {
-    fn amount_of(&self, code: &str) -> i32 {
+    fn amount_of(&self, item: &str) -> i32 {
         self.items
             .iter()
-            .find(|i| i.code == code)
+            .find(|i| i.code == item)
             .map_or(0, |i| i.quantity)
     }
 }

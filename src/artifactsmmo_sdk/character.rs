@@ -164,7 +164,7 @@ impl Character {
             .resources
             .highest_providing_exp(self.skill_level(*skill), *skill)
         else {
-            return Err(CharacterError::RessourceNotFound);
+            return Err(CharacterError::ResourceNotFound);
         };
         self.gather_resource(resource, None)?;
         Ok(())
@@ -264,7 +264,7 @@ impl Character {
     fn order_missing_mats(&self, item: &str, quantity: i32, purpose: Purpose) -> bool {
         let mut ordered: bool = false;
         self.items
-            .mats(item)
+            .mats_of(item)
             .into_iter()
             .filter(|m| self.bank.has_item(&m.code, Some(&self.name)) < m.quantity * quantity)
             .update(|m| {
@@ -738,7 +738,7 @@ impl Character {
             }
         }
         if let Some(available) = available {
-            self.equip_item_from_bank_or_inventory(Slot::Weapon, &available.code);
+            self.equip_item_from_bank_or_inventory(&available.code, Slot::Weapon);
         }
     }
 
@@ -789,7 +789,7 @@ impl Character {
                     .map(|time| time * self.items.drop_rate(item)),
                 ItemSource::Craft => Some(
                     self.items
-                        .mats(item)
+                        .mats_of(item)
                         .iter()
                         .map(|m| self.time_to_get(&m.code).unwrap_or(1000) * m.quantity)
                         .sum(),
@@ -850,8 +850,8 @@ impl Character {
     }
 
     // Checks that the `Character` has the required skill level to craft the given item `code`
-    pub fn can_craft(&self, code: &str) -> Result<(), CharacterError> {
-        let Some(item) = self.items.get(code) else {
+    pub fn can_craft(&self, item: &str) -> Result<(), CharacterError> {
+        let Some(item) = self.items.get(item) else {
             return Err(CharacterError::ItemNotFound);
         };
         let Some(skill) = item.skill_to_craft() else {
@@ -914,27 +914,27 @@ impl Character {
 
     /// Withdraw the materials for, craft, then deposit the item `code` until
     /// the given quantity is crafted.
-    pub fn craft_items(&self, code: &str, quantity: i32) -> i32 {
-        if let Err(e) = self.can_craft(code) {
+    pub fn craft_items(&self, item: &str, quantity: i32) -> i32 {
+        if let Err(e) = self.can_craft(item) {
             error!("{}: {:?}", self.name, e);
             return 0;
         }
         let mut crafted = 0;
-        let mut craftable = self.bank.has_mats_for(code, Some(&self.name));
-        info!("{}: is going to craft '{}'x{}", self.name, code, quantity);
+        let mut craftable = self.bank.has_mats_for(item, Some(&self.name));
+        info!("{}: is going to craft '{}'x{}", self.name, item, quantity);
         while crafted < quantity && craftable > 0 {
             self.deposit_all();
             crafted += self
                 .craft_from_bank(
-                    code,
-                    min(self.max_current_craftable_items(code), quantity - crafted),
+                    item,
+                    min(self.max_current_craftable_items(item), quantity - crafted),
                     PostCraftAction::Deposit,
                 )
-                .map_or(0, |s| s.amount_of(code));
-            craftable = self.bank.has_mats_for(code, Some(&self.name));
-            info!("{}: crafted {}/{} '{}", self.name, crafted, quantity, code)
+                .map_or(0, |s| s.amount_of(item));
+            craftable = self.bank.has_mats_for(item, Some(&self.name));
+            info!("{}: crafted {}/{} '{}", self.name, crafted, quantity, item)
         }
-        if crafted == 0 && self.bank.has_mats_for(code, Some(&self.name)) < quantity {
+        if crafted == 0 && self.bank.has_mats_for(item, Some(&self.name)) < quantity {
             return 0;
         }
         quantity
@@ -944,11 +944,11 @@ impl Character {
     /// materials available in bank, then deposit the crafted items.
     pub fn craft_max_from_bank(
         &self,
-        code: &str,
+        item: &str,
         post_action: PostCraftAction,
     ) -> Result<SkillInfoSchema, CharacterError> {
-        let max = self.max_craftable_items_from_bank(code);
-        self.craft_from_bank(code, max, post_action)
+        let max = self.max_craftable_items_from_bank(item);
+        self.craft_from_bank(item, max, post_action)
     }
 
     /// Crafts the given `quantity` of the given item `code` if the required
@@ -956,28 +956,28 @@ impl Character {
     /// items into the bank.
     pub fn craft_from_bank(
         &self,
-        code: &str,
+        item: &str,
         quantity: i32,
         post_action: PostCraftAction,
     ) -> Result<SkillInfoSchema, CharacterError> {
-        self.can_craft(code)?;
-        self.craft_from_bank_unchecked(code, quantity, post_action)
+        self.can_craft(item)?;
+        self.craft_from_bank_unchecked(item, quantity, post_action)
     }
 
     pub fn craft_from_bank_unchecked(
         &self,
-        code: &str,
+        item: &str,
         quantity: i32,
         post_action: PostCraftAction,
     ) -> Result<SkillInfoSchema, CharacterError> {
-        if self.max_craftable_items_from_bank(code) < quantity {
+        if self.max_craftable_items_from_bank(item) < quantity {
             return Err(CharacterError::InsuffisientMaterials);
         }
         info!(
             "{}: going to craft '{}'x{} from bank.",
-            self.name, code, quantity
+            self.name, item, quantity
         );
-        self.items.mats(code).iter().for_each(|m| {
+        self.items.mats_of(item).iter().for_each(|m| {
             if let Err(e) = self
                 .bank
                 .reserv_if_not(&m.code, m.quantity * quantity, &self.name)
@@ -989,7 +989,7 @@ impl Character {
             }
         });
         self.deposit_all();
-        let mats = self.withdraw_mats_for(code, quantity)?;
+        let mats = self.withdraw_mats_for(item, quantity)?;
         mats.iter().for_each(|m| {
             if let Err(e) = self.inventory.reserv_items_if_not(&m.code, m.quantity) {
                 error!(
@@ -998,14 +998,14 @@ impl Character {
                 )
             }
         });
-        self.move_to_craft(code)?;
-        let craft = self.action_craft(code, quantity)?;
+        self.move_to_craft(item)?;
+        let craft = self.action_craft(item, quantity)?;
         mats.iter().for_each(|m| {
             self.inventory.decrease_reservation(&m.code, m.quantity);
         });
         match post_action {
             PostCraftAction::Deposit => {
-                if let Err(e) = self.deposit_item(code, quantity, None) {
+                if let Err(e) = self.deposit_item(item, quantity, None) {
                     error!(
                         "{}: error while depositing items after crafting from bank: {:?}",
                         self.name, e
@@ -1013,12 +1013,12 @@ impl Character {
                 }
             }
             PostCraftAction::Recycle => {
-                if let Err(e) = self.move_to_craft(code) {
+                if let Err(e) = self.move_to_craft(item) {
                     error!(
                         "{}: failed to move before recycling items after crafting from bank: {:?}",
                         self.name, e
                     )
-                } else if let Err(e) = self.action_recycle(code, quantity) {
+                } else if let Err(e) = self.action_recycle(item, quantity) {
                     error!(
                         "{}: error while recycling items after crafting from bank: {:?}",
                         self.name, e
@@ -1032,21 +1032,21 @@ impl Character {
 
     pub fn recycle_from_bank(
         &self,
-        code: &str,
+        item: &str,
         quantity: i32,
     ) -> Result<RecyclingItemsSchema, CharacterError> {
-        self.can_craft(code)?;
-        if self.bank.has_item(code, Some(&self.name)) < quantity {
+        self.can_craft(item)?;
+        if self.bank.has_item(item, Some(&self.name)) < quantity {
             return Err(CharacterError::ItemNotFound);
         }
-        info!("{}: going to recycle '{}x{}'.", self.name, code, quantity);
-        if let Err(e) = self.bank.reserv_if_not(code, quantity, &self.name) {
-            error!("{}: error while reserving '{}': {:?}", self.name, code, e);
+        info!("{}: going to recycle '{}x{}'.", self.name, item, quantity);
+        if let Err(e) = self.bank.reserv_if_not(item, quantity, &self.name) {
+            error!("{}: error while reserving '{}': {:?}", self.name, item, e);
         }
         self.deposit_all();
-        self.withdraw_item(code, quantity)?;
-        self.move_to_craft(code)?;
-        Ok(self.action_recycle(code, quantity)?)
+        self.withdraw_item(item, quantity)?;
+        self.move_to_craft(item)?;
+        Ok(self.action_recycle(item, quantity)?)
     }
 
     pub fn deposit_item(
@@ -1179,23 +1179,23 @@ impl Character {
     // TODO: add check on `inventory_max_items`
     fn withdraw_mats_for(
         &self,
-        code: &str,
+        item: &str,
         quantity: i32,
     ) -> Result<Vec<SimpleItemSchema>, CharacterError> {
         let mats = self
             .items
-            .mats(code)
+            .mats_of(item)
             .into_iter()
             .update(|m| m.quantity *= quantity)
             .collect_vec();
         for mat in &mats {
             if self.bank.has_item(&mat.code, Some(&self.name)) < mat.quantity {
-                warn!("{}: not enough materials in bank to withdraw the materials required to craft '{code}'x{quantity}", self.name);
+                warn!("{}: not enough materials in bank to withdraw the materials required to craft '{item}'x{quantity}", self.name);
                 return Err(CharacterError::InsuffisientMaterials);
             }
         }
         info!(
-            "{}: going to withdraw materials for '{code}'x{quantity}.",
+            "{}: going to withdraw materials for '{item}'x{quantity}.",
             self.name
         );
         for mat in &mats {
@@ -1206,38 +1206,38 @@ impl Character {
 
     /// Calculates the maximum number of items that can be crafted in one go based on
     /// inventory max items
-    fn max_craftable_items(&self, code: &str) -> i32 {
-        self.inventory.max_items() / self.items.mats_quantity_for(code)
+    fn max_craftable_items(&self, item: &str) -> i32 {
+        self.inventory.max_items() / self.items.mats_quantity_for(item)
     }
 
     /// Calculates the maximum number of items that can be crafted in one go based on available
     /// inventory max items and bank materials.
-    fn max_craftable_items_from_bank(&self, code: &str) -> i32 {
+    fn max_craftable_items_from_bank(&self, item: &str) -> i32 {
         min(
-            self.bank.has_mats_for(code, Some(&self.name)),
-            self.inventory.max_items() / self.items.mats_quantity_for(code),
+            self.bank.has_mats_for(item, Some(&self.name)),
+            self.inventory.max_items() / self.items.mats_quantity_for(item),
         )
     }
 
     /// Calculates the maximum number of items that can be crafted in one go based on available
     /// inventory free space and bank materials.
-    fn max_current_craftable_items(&self, code: &str) -> i32 {
+    fn max_current_craftable_items(&self, item: &str) -> i32 {
         min(
-            self.bank.has_mats_for(code, Some(&self.name)),
-            self.inventory.free_space() / self.items.mats_quantity_for(code),
+            self.bank.has_mats_for(item, Some(&self.name)),
+            self.inventory.free_space() / self.items.mats_quantity_for(item),
         )
     }
 
     /// Reycle the maximum amount of the item `code` with the items  currently
     /// available in the character inventory and returns the amount recycled.
-    pub fn recycle_all(&self, code: &str) -> i32 {
-        let n = self.inventory.contains(code);
+    pub fn recycle_all(&self, item: &str) -> i32 {
+        let n = self.inventory.contains(item);
         if n > 0 {
-            info!("{}: recycling all '{}'.", self.name, code);
-            if let Err(e) = self.action_recycle(code, n) {
+            info!("{}: recycling all '{}'.", self.name, item);
+            if let Err(e) = self.action_recycle(item, n) {
                 error!(
                     "{}: error while recycling all '{}': {:?}",
-                    self.name, code, e
+                    self.name, item, e
                 )
             }
         }
@@ -1314,7 +1314,7 @@ impl Character {
     /// Returns the closest map from the `Character` containing the given
     /// content `code`.
     fn closest_map_with_content_code(&self, code: &str) -> Option<Arc<MapSchema>> {
-        let maps = self.maps.with_ressource(code);
+        let maps = self.maps.with_resource(code);
         if maps.is_empty() {
             return None;
         }
@@ -1351,12 +1351,11 @@ impl Character {
 
     /// Moves the `Character` to the crafting station corresponding to the skill
     /// required to craft the given item `code`.
-    fn move_to_craft(&self, code: &str) -> Result<(), CharacterError> {
-        let Some(dest) = self
-            .items
-            .skill_to_craft(code)
-            .and_then(|s| self.maps.to_craft(s))
-        else {
+    fn move_to_craft(&self, item: &str) -> Result<(), CharacterError> {
+        let Some(skill) = self.items.get(item).and_then(|i| i.skill_to_craft()) else {
+            return Err(CharacterError::ItemNotCraftable);
+        };
+        let Some(dest) = self.maps.to_craft(skill) else {
             return Err(CharacterError::MapNotFound);
         };
         self.action_move(dest.x, dest.y)?;
@@ -1366,7 +1365,7 @@ impl Character {
     fn equip_gear(&self, gear: &Gear) {
         Slot::iter().for_each(|s| {
             if let Some(item) = gear.slot(s) {
-                self.equip_item_from_bank_or_inventory(s, &item.code);
+                self.equip_item_from_bank_or_inventory(&item.code, s);
             }
         })
     }
@@ -1384,7 +1383,7 @@ impl Character {
         Ok(())
     }
 
-    fn equip_item_from_bank_or_inventory(&self, slot: Slot, item: &str) {
+    fn equip_item_from_bank_or_inventory(&self, item: &str, slot: Slot) {
         let prev_equiped = self.equiped_in(slot);
         if prev_equiped.is_some_and(|e| e.code == item) {
             return;
@@ -1422,8 +1421,8 @@ impl Character {
         }
     }
 
-    fn best_tool_for_resource(&self, code: &str) -> Option<&ItemSchema> {
-        match self.resources.get(code) {
+    fn best_tool_for_resource(&self, item: &str) -> Option<&ItemSchema> {
+        match self.resources.get(item) {
             //TODO improve filtering
             Some(resource) => self
                 .items
@@ -1436,19 +1435,19 @@ impl Character {
     }
 
     /// Returns the amount of the given item `code` available in bank and inventory.
-    fn has_in_bank_or_inv(&self, code: &str) -> i32 {
-        self.bank.has_item(code, Some(&self.name)) + self.inventory.contains(code)
+    fn has_in_bank_or_inv(&self, item: &str) -> i32 {
+        self.bank.has_item(item, Some(&self.name)) + self.inventory.contains(item)
     }
 
     /// Returns the amount of the given item `code` available in bank, inventory and gear.
-    pub fn has_available(&self, code: &str) -> i32 {
-        self.has_in_bank_or_inv(code) + self.has_equiped(code) as i32
+    pub fn has_available(&self, item: &str) -> i32 {
+        self.has_in_bank_or_inv(item) + self.has_equiped(item) as i32
     }
 
     /// Checks if the given item `code` is equiped.
-    fn has_equiped(&self, code: &str) -> usize {
+    fn has_equiped(&self, item: &str) -> usize {
         Slot::iter()
-            .filter(|s| self.equiped_in(*s).is_some_and(|e| e.code == code))
+            .filter(|s| self.equiped_in(*s).is_some_and(|e| e.code == item))
             .count()
     }
 
@@ -1849,7 +1848,7 @@ pub enum CharacterError {
     InsuffisientGold,
     BankUnavailable,
     InventoryFull,
-    RessourceNotFound,
+    ResourceNotFound,
     MonsterNotFound,
     EventNotFound,
     NoOrderFullfilable,

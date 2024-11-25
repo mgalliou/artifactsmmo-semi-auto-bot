@@ -36,10 +36,10 @@ impl Monsters {
         self.data.iter().find(|m| m.code == code)
     }
 
-    pub fn dropping(&self, code: &str) -> Vec<&MonsterSchema> {
+    pub fn dropping(&self, item: &str) -> Vec<&MonsterSchema> {
         self.data
             .iter()
-            .filter(|m| m.drops.iter().any(|d| d.code == code))
+            .filter(|m| m.drops.iter().any(|d| d.code == item))
             .collect::<Vec<_>>()
     }
 

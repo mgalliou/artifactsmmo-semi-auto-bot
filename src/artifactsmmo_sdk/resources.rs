@@ -24,7 +24,7 @@ impl Resources {
                 .all(None, None, None, None)
                 .expect("items to be retrieved from API.");
             if let Err(e) = persist_data(&data, path) {
-                error!("failed to persist ressources data: {}", e);
+                error!("failed to persist resources data: {}", e);
             }
             data
         };
@@ -38,10 +38,10 @@ impl Resources {
         self.data.iter().find(|m| m.code == code)
     }
 
-    pub fn dropping(&self, code: &str) -> Vec<&ResourceSchema> {
+    pub fn dropping(&self, item: &str) -> Vec<&ResourceSchema> {
         self.data
             .iter()
-            .filter(|r| r.drops.iter().any(|d| d.code == code))
+            .filter(|r| r.drops.iter().any(|d| d.code == item))
             .collect::<Vec<_>>()
     }
 

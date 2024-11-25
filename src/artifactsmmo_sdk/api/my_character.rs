@@ -179,7 +179,7 @@ impl MyCharacterApi {
     pub fn deposit(
         &self,
         name: &str,
-        item_code: &str,
+        code: &str,
         quantity: i32,
     ) -> Result<
         BankItemTransactionResponseSchema,
@@ -188,14 +188,14 @@ impl MyCharacterApi {
         action_deposit_bank_my_name_action_bank_deposit_post(
             &self.configuration,
             name,
-            SimpleItemSchema::new(item_code.to_owned(), quantity),
+            SimpleItemSchema::new(code.to_owned(), quantity),
         )
     }
 
     pub fn withdraw(
         &self,
         name: &str,
-        item_code: &str,
+        code: &str,
         quantity: i32,
     ) -> Result<
         BankItemTransactionResponseSchema,
@@ -204,7 +204,7 @@ impl MyCharacterApi {
         action_withdraw_bank_my_name_action_bank_withdraw_post(
             &self.configuration,
             name,
-            SimpleItemSchema::new(item_code.to_owned(), quantity),
+            SimpleItemSchema::new(code.to_owned(), quantity),
         )
     }
 
@@ -274,13 +274,13 @@ impl MyCharacterApi {
     pub fn trade_task(
         &self,
         name: &str,
-        item_code: &str,
+        code: &str,
         quantity: i32,
     ) -> Result<TaskTradeResponseSchema, Error<ActionTaskTradeMyNameActionTaskTradePostError>> {
         action_task_trade_my_name_action_task_trade_post(
             &self.configuration,
             name,
-            SimpleItemSchema::new(item_code.to_owned(), quantity),
+            SimpleItemSchema::new(code.to_owned(), quantity),
         )
     }
 

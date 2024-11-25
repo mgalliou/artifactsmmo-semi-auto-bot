@@ -33,7 +33,7 @@ trait ItemSchemaExt {
     fn name(&self) -> String;
     fn is_raw_mat(&self) -> bool;
     fn is_of_type(&self, r#type: Type) -> bool;
-    fn is_crafted_with(&self, code: &str) -> bool;
+    fn is_crafted_with(&self, item: &str) -> bool;
     fn mats(&self) -> Vec<SimpleItemSchema>;
     fn craft_schema(&self) -> Option<CraftSchema>;
     fn skill_to_craft(&self) -> Option<Skill>;
@@ -77,19 +77,19 @@ pub trait ResponseSchema: Downcast {
 impl_downcast!(ResponseSchema);
 
 trait FightSchemaExt {
-    fn amount_of(&self, code: &str) -> i32;
+    fn amount_of(&self, item: &str) -> i32;
 }
 
 trait SkillSchemaExt {
-    fn amount_of(&self, code: &str) -> i32;
+    fn amount_of(&self, item: &str) -> i32;
 }
 
 trait SkillInfoSchemaExt {
-    fn amount_of(&self, code: &str) -> i32;
+    fn amount_of(&self, item: &str) -> i32;
 }
 
 trait TaskRewardsSchemaExt {
-    fn amount_of(&self, code: &str) -> i32;
+    fn amount_of(&self, item: &str) -> i32;
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]

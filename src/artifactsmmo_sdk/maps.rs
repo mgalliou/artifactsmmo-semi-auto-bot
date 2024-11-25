@@ -51,20 +51,20 @@ impl Maps {
             .collect_vec()
     }
 
-    pub fn with_ressource(&self, code: &str) -> Vec<Arc<MapSchema>> {
+    pub fn with_resource(&self, resource: &str) -> Vec<Arc<MapSchema>> {
         self.data
             .iter()
             .chain(self.events.maps().iter())
-            .filter(|m| m.content.as_ref().is_some_and(|c| c.code == code))
+            .filter(|m| m.content.as_ref().is_some_and(|c| c.code == resource))
             .cloned()
             .collect_vec()
     }
 
-    pub fn with_monster(&self, code: &str) -> Vec<Arc<MapSchema>> {
+    pub fn with_monster(&self, monster: &str) -> Vec<Arc<MapSchema>> {
         self.data
             .iter()
             .chain(self.events.maps().iter())
-            .filter(|m| m.content.as_ref().is_some_and(|c| c.code == code))
+            .filter(|m| m.content.as_ref().is_some_and(|c| c.code == monster))
             .cloned()
             .collect_vec()
     }

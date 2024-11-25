@@ -71,20 +71,20 @@ impl Inventory {
     }
 
     /// Returns the amount of the given item `code` in the `Character` inventory.
-    pub fn contains(&self, code: &str) -> i32 {
+    pub fn contains(&self, item: &str) -> i32 {
         self.data
             .read()
             .unwrap()
             .inventory
             .iter()
             .flatten()
-            .find(|i| i.code == code)
+            .find(|i| i.code == item)
             .map_or(0, |i| i.quantity)
     }
 
     /// Returns the amount not reserved of the given item `code` in the `Character` inventory.
-    pub fn has_available(&self, code: &str) -> i32 {
-        self.contains(code) - self.quantity_reserved(code)
+    pub fn has_available(&self, item: &str) -> i32 {
+        self.contains(item) - self.quantity_reserved(item)
     }
 
     pub fn quantity_reserved(&self, item: &str) -> i32 {

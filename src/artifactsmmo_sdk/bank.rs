@@ -74,35 +74,35 @@ impl Bank {
 
     /// Returns the `quantity` of the given item `code` available to the given `owner`.
     /// If no owner is given returns the quantity not reserved.
-    pub fn has_item(&self, code: &str, owner: Option<&str>) -> i32 {
+    pub fn has_item(&self, item: &str, owner: Option<&str>) -> i32 {
         if let Some(owner) = owner {
-            self.quantity_allowed(code, owner)
+            self.quantity_allowed(item, owner)
         } else {
-            self.quantity_not_reserved(code)
+            self.quantity_not_reserved(item)
         }
     }
 
-    /// Returns the `quantity` of the given item `code` reserved to the given `owner`.
-    pub fn has_item_reserved(&self, code: &str, owner: &str) -> i32 {
-        self.quantity_allowed(code, owner) - self.quantity_not_reserved(code)
+    /// Returns the quantity of the given item reserved to the given `owner`.
+    pub fn has_item_reserved(&self, item: &str, owner: &str) -> i32 {
+        self.quantity_allowed(item, owner) - self.quantity_not_reserved(item)
     }
 
     /// Returns the quantity the given `owner` can withdraw from the bank.
-    fn quantity_allowed(&self, code: &str, owner: &str) -> i32 {
+    fn quantity_allowed(&self, item: &str, owner: &str) -> i32 {
         max(
             0,
-            self.total_of(code) - self.quantity_not_allowed(code, owner),
+            self.total_of(item) - self.quantity_not_allowed(item, owner),
         )
     }
 
     /// Returns the quantity of the given item `code` that is reserved to a different character
     /// than the given `owner`.
-    fn quantity_not_allowed(&self, code: &str, owner: &str) -> i32 {
+    fn quantity_not_allowed(&self, item: &str, owner: &str) -> i32 {
         self.reservations
             .read()
             .unwrap()
             .iter()
-            .filter(|r| r.owner != owner && r.item == code)
+            .filter(|r| r.owner != owner && r.item == item)
             .map(|r| r.quantity())
             .sum()
     }
@@ -135,9 +135,9 @@ impl Bank {
     /// for the given `owner`.
     //  NOTE: this should maybe return a Option to indicate that the item is not craftable and
     //  return None in this case
-    pub fn has_mats_for(&self, code: &str, owner: Option<&str>) -> i32 {
+    pub fn has_mats_for(&self, item: &str, owner: Option<&str>) -> i32 {
         self.items
-            .mats(code)
+            .mats_of(item)
             .iter()
             .map(|mat| self.has_item(&mat.code, owner) / mat.quantity)
             .min()
@@ -148,12 +148,12 @@ impl Bank {
     /// for the given `owner`.
     pub fn missing_mats_for(
         &self,
-        code: &str,
+        item: &str,
         quantity: i32,
         owner: Option<&str>,
     ) -> Vec<SimpleItemSchema> {
         self.items
-            .mats(code)
+            .mats_of(item)
             .into_iter()
             .filter(|m| self.has_item(&m.code, owner) < m.quantity * quantity)
             .update(|m| m.quantity = m.quantity * quantity - self.has_item(&m.code, owner))
@@ -162,8 +162,8 @@ impl Bank {
 
     /// Returns the total quantity of the missing materials required to craft the `quantity` of the
     /// item `code` for the given `owner`
-    pub fn missing_mats_quantity(&self, code: &str, quantity: i32, owner: Option<&str>) -> i32 {
-        self.missing_mats_for(code, quantity, owner)
+    pub fn missing_mats_quantity(&self, item: &str, quantity: i32, owner: Option<&str>) -> i32 {
+        self.missing_mats_for(item, quantity, owner)
             .iter()
             .map(|m| m.quantity)
             .sum()

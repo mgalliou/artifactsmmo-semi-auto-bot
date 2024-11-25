@@ -82,22 +82,22 @@ impl Account {
             .cloned()
     }
 
-    pub fn available_in_inventories(&self, code: &str) -> i32 {
+    pub fn available_in_inventories(&self, item: &str) -> i32 {
         self.characters
             .read()
             .unwrap()
             .iter()
             .cloned()
-            .map(|c| c.inventory.has_available(code))
+            .map(|c| c.inventory.has_available(item))
             .sum()
     }
 
-    pub fn can_craft(&self, code: &str) -> bool {
+    pub fn can_craft(&self, item: &str) -> bool {
         self.characters
             .read()
             .unwrap()
             .iter()
-            .any(|c| c.can_craft(code).is_ok())
+            .any(|c| c.can_craft(item).is_ok())
     }
 
     pub fn max_skill_level(&self, skill: Skill) -> i32 {
