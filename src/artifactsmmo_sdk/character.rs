@@ -1069,12 +1069,7 @@ impl Character {
                     error!("{}: failed to reserv deposited item: {:?}", self.name, e)
                 }
             }
-            if let Some(res) = self.inventory.get_reservation(item) {
-                res.dec_quantity(quantity);
-                if res.quantity() <= 0 {
-                    self.inventory.remove_reservation(&res);
-                }
-            }
+            self.inventory.decrease_reservation(item, quantity);
         }
         if let Err(e) = self.deposit_all_gold() {
             error!("{}: failed to deposit gold to the bank: {:?}", self.name, e)
@@ -1791,12 +1786,7 @@ impl Character {
                     if let Err(e) = self.action_use_item(&f.code, quantity) {
                         error!("{} failed to use food: {:?}", self.name, e)
                     }
-                    if let Some(res) = self.inventory.get_reservation(&f.code) {
-                        res.dec_quantity(quantity);
-                        if res.quantity() <= 0 {
-                            self.inventory.remove_reservation(&res);
-                        }
-                    }
+                    self.inventory.decrease_reservation(&f.code, quantity);
                 }
             });
     }
