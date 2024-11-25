@@ -16,7 +16,8 @@ use super::{
     orderboard::{Order, OrderBoard, Purpose},
     resources::Resources,
     skill::Skill,
-    ActiveEventSchemaExt, FightSchemaExt, ItemSchemaExt, SkillSchemaExt, TaskRewardsSchemaExt,
+    ActiveEventSchemaExt, FightSchemaExt, ItemSchemaExt, MapSchemaExt, SkillSchemaExt,
+    TaskRewardsSchemaExt,
 };
 use crate::artifactsmmo_sdk::{char_config::Goal, SkillInfoSchemaExt};
 use actions::{PostCraftAction, RequestError};
@@ -1732,7 +1733,7 @@ impl Character {
             };
         });
         self.order_food();
-        if !self.food_in_inventory().is_empty() {
+        if !self.food_in_inventory().is_empty() && !self.map().content_is("bank") {
             return;
         }
         let Some(food) = self
@@ -1754,6 +1755,7 @@ impl Character {
             error!("{} failed to reserv food: {:?}", self.name, e)
         };
         drop(_browsed);
+        // TODO: only deposit what is necessary, food already in inventory should be kept
         self.deposit_all();
         if let Err(e) = self.withdraw_item(&food.code, quantity) {
             error!("{} failed to withdraw food: {:?}", self.name, e)
