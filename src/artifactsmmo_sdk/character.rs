@@ -459,7 +459,7 @@ impl Character {
     }
 
     fn deposit_order(&self, order: &Order) -> bool {
-        let q = self.inventory.contains(&order.item);
+        let q = self.inventory.has_available(&order.item);
         if q <= 0 {
             return false;
         }
