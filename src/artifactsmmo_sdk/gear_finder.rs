@@ -1,23 +1,27 @@
 use super::{
     character::Character,
+    fight_simulator::FightSimulator,
     gear::Gear,
     items::{Items, Type},
     skill::Skill,
     ItemSchemaExt,
 };
-use artifactsmmo_openapi::models::{ItemSchema, MonsterSchema};
+use artifactsmmo_openapi::models::{FightResult, ItemSchema, MonsterSchema};
 use itertools::{Itertools, PeekingNext};
 use ordered_float::OrderedFloat;
+use rayon::iter::{ParallelBridge, ParallelIterator};
 use std::sync::Arc;
 
 pub struct GearFinder {
     items: Arc<Items>,
+    fight_simulator: FightSimulator,
 }
 
 impl GearFinder {
     pub fn new(items: &Arc<Items>) -> Self {
         Self {
             items: items.clone(),
+            fight_simulator: FightSimulator::new(),
         }
     }
 
@@ -30,7 +34,17 @@ impl GearFinder {
         if let Some(gear) = self
             .bests_against(char, monster, filter)
             .into_iter()
-            .max_by_key(|e| OrderedFloat(e.attack_damage_against(monster)))
+            .filter(|g| {
+                self.fight_simulator
+                    .simulate(char.level(), 0, g, monster)
+                    .result
+                    == FightResult::Win
+            })
+            .max_by_key(|g| {
+                self.fight_simulator
+                    .simulate(char.level(), 0, g, monster)
+                    .hp
+            })
         {
             gear
         } else {
@@ -108,6 +122,7 @@ impl GearFinder {
         items
             .into_iter()
             .multi_cartesian_product()
+            .par_bridge()
             .map(|items| {
                 let mut iter = items.into_iter().peekable();
                 Gear {
@@ -127,7 +142,7 @@ impl GearFinder {
                     utility2: iter.peeking_next(|i| i.is_of_type(Type::Utility)),
                 }
             })
-            .collect_vec()
+            .collect::<Vec<_>>()
     }
 
     fn best_armors_against_with_weapon(

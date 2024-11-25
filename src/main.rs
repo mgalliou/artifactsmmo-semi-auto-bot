@@ -2,7 +2,9 @@ use artifactsmmo_playground::artifactsmmo_sdk::{
     account::Account,
     bank::Bank,
     character::Character,
+    fight_simulator::{Fight, FightSimulator},
     game::Game,
+    gear_finder::{Filter, GearFinder},
     items::Items,
     orderboard::{Order, OrderBoard, Purpose},
     skill::Skill,
@@ -65,7 +67,7 @@ fn handle_cmd_line(line: String, game: &Game) {
     if let Some(cmd) = args.first() {
         match *cmd {
             "items" => handle_items(&args[1..], &game.items),
-            "char" => handle_char(&args[1..], &game.account),
+            "char" => handle_char(&args[1..], &game),
             "orderboard" => handle_orderboard(&args[1..], &game.orderboard),
             "bank" => handle_bank(&args[1..], &game.account.bank),
             _ => println!("error"),
@@ -86,9 +88,10 @@ fn handle_bank(args: &[&str], bank: &Bank) {
     }
 }
 
-fn handle_char(args: &[&str], account: &Account) {
+fn handle_char(args: &[&str], game: &Game) {
+    let gear_finder = GearFinder::new(&game.items);
     if let (Some(verb), Some(name)) = (args.first(), args.get(1)) {
-        match account.get_character_by_name(name) {
+        match game.account.get_character_by_name(name) {
             Some(char) => match *verb {
                 "idle" => char.toggle_idle(),
                 "fight" => {
@@ -115,6 +118,34 @@ fn handle_char(args: &[&str], account: &Account) {
                 "unequip_all" => char.unequip_and_deposit_all(),
                 "deposit_all" => char.deposit_all(),
                 "empty_bank" => char.empty_bank(),
+                "gear" => match args.get(2) {
+                    Some(monster) => println!(
+                        "{}",
+                        gear_finder.best_against(
+                            &char,
+                            game.monsters.get(monster).unwrap(),
+                            Filter::Available,
+                        )
+                    ),
+                    None => eprintln!("missing monster"),
+                },
+                "simulate" => match args.get(2) {
+                    Some(monster) => {
+                        let gear = gear_finder.best_against(
+                            &char,
+                            game.monsters.get(monster).unwrap(),
+                            Filter::Available,
+                        );
+                        let fight = FightSimulator::new().simulate(
+                            char.level(),
+                            0,
+                            &gear,
+                            game.monsters.get(monster).unwrap(),
+                        );
+                        println!("{:?}", fight)
+                    }
+                    None => eprintln!("missing monster"),
+                },
                 _ => eprintln!("invalid verb"),
             },
             _ => eprintln!("character not found: {}", name),

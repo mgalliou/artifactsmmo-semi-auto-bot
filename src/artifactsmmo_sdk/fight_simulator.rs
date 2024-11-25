@@ -54,7 +54,8 @@ impl FightSimulator {
         }
         Fight {
             turns,
-            hp_left: hp,
+            hp,
+            monster_hp,
             result: if hp > 0 {
                 FightResult::Win
             } else {
@@ -72,15 +73,18 @@ impl FightSimulator {
     }
 }
 
+#[derive(Debug)]
 pub struct Fight {
     pub turns: i32,
-    pub hp_left: i32,
+    pub hp: i32,
+    pub monster_hp: i32,
     pub result: FightResult,
     pub cd: i32,
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::artifactsmmo_sdk::game::Game;
     use super::*;
 
     #[test]
@@ -88,5 +92,30 @@ mod tests {
         let simulator = FightSimulator::new();
 
         assert_eq!(simulator.gather(17, 1, -10,), 21);
+    }
+
+    #[test]
+    fn kill_deathnight() {
+        let simulator = FightSimulator::new();
+        let game = Game::new();
+        let gear = Gear {
+            weapon: game.items.get("skull_staff"),
+            shield: game.items.get("steel_shield"),
+            helmet: game.items.get("piggy_helmet"),
+            body_armor: game.items.get("bandit_armor"),
+            leg_armor: game.items.get("piggy_pants"),
+            boots: game.items.get("adventurer_boots"),
+            ring1: game.items.get("skull_ring"),
+            ring2: game.items.get("skull_ring"),
+            amulet: game.items.get("ruby_amulet"),
+            artifact1: None,
+            artifact2: None,
+            artifact3: None,
+            utility1: None,
+            utility2: None,
+        };
+        let fight = simulator.simulate(30, 0, &gear, game.monsters.get("death_knight").unwrap());
+        println!("{:?}", fight);
+        assert_eq!(fight.result, FightResult::Win);
     }
 }
