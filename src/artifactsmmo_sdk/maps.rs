@@ -51,30 +51,13 @@ impl Maps {
             .collect_vec()
     }
 
-    pub fn with_resource(&self, resource: &str) -> Vec<Arc<MapSchema>> {
+    pub fn with_content_code(&self, code: &str) -> Vec<Arc<MapSchema>> {
         self.data
             .iter()
             .chain(self.events.maps().iter())
-            .filter(|m| m.content.as_ref().is_some_and(|c| c.code == resource))
+            .filter(|m| m.content_is(code))
             .cloned()
             .collect_vec()
-    }
-
-    pub fn with_monster(&self, monster: &str) -> Vec<Arc<MapSchema>> {
-        self.data
-            .iter()
-            .chain(self.events.maps().iter())
-            .filter(|m| m.content.as_ref().is_some_and(|c| c.code == monster))
-            .cloned()
-            .collect_vec()
-    }
-
-    pub fn with_content_code(&self, code: &str) -> Option<Arc<MapSchema>> {
-        self.data
-            .iter()
-            .chain(self.events.maps().iter())
-            .find(|m| m.content_is(code))
-            .cloned()
     }
 
     pub fn with_content_schema(&self, schema: &MapContentSchema) -> Vec<Arc<MapSchema>> {
@@ -88,13 +71,13 @@ impl Maps {
 
     pub fn to_craft(&self, skill: Skill) -> Option<Arc<MapSchema>> {
         match skill {
-            Skill::Weaponcrafting => self.with_content_code("weaponcrafting"),
-            Skill::Gearcrafting => self.with_content_code("gearcrafting"),
-            Skill::Jewelrycrafting => self.with_content_code("jewelrycrafting"),
-            Skill::Cooking => self.with_content_code("cooking"),
-            Skill::Woodcutting => self.with_content_code("woodcutting"),
-            Skill::Mining => self.with_content_code("mining"),
-            Skill::Alchemy => self.with_content_code("alchemy"),
+            Skill::Weaponcrafting => self.with_content_code("weaponcrafting").first().cloned(),
+            Skill::Gearcrafting => self.with_content_code("gearcrafting").first().cloned(),
+            Skill::Jewelrycrafting => self.with_content_code("jewelrycrafting").first().cloned(),
+            Skill::Cooking => self.with_content_code("cooking").first().cloned(),
+            Skill::Woodcutting => self.with_content_code("woodcutting").first().cloned(),
+            Skill::Mining => self.with_content_code("mining").first().cloned(),
+            Skill::Alchemy => self.with_content_code("alchemy").first().cloned(),
             Skill::Combat => None,
             Skill::Fishing => None,
         }

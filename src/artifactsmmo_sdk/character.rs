@@ -809,7 +809,7 @@ impl Character {
         if self.inventory.is_full() {
             return Err(CharacterError::InventoryFull);
         }
-        if self.maps.with_monster(&monster.code).is_empty() {
+        if self.maps.with_content_code(&monster.code).is_empty() {
             return Err(CharacterError::MapNotFound);
         }
         let available = self
@@ -1314,7 +1314,7 @@ impl Character {
     /// Returns the closest map from the `Character` containing the given
     /// content `code`.
     fn closest_map_with_content_code(&self, code: &str) -> Option<Arc<MapSchema>> {
-        let maps = self.maps.with_resource(code);
+        let maps = self.maps.with_content_code(code);
         if maps.is_empty() {
             return None;
         }
