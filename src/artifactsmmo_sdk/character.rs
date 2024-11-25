@@ -571,8 +571,9 @@ impl Character {
         if let Err(e) = self.move_to_closest_taskmaster(self.task_type()) {
             error!("{}: error while moving to taskmaster: {:?}", self.name, e);
         };
+        let result = self.action_task_exchange().map_err(|e| e.into());
         self.inventory.decrease_reservation("tasks_coin", 6);
-        self.action_task_exchange().map_err(|e| e.into())
+        result
     }
 
     fn handle_events(&self) -> bool {
@@ -1001,10 +1002,10 @@ impl Character {
         if let Err(e) = self.move_to_craft(item) {
             error!("{}: error while moving to craft: {:?}", self.name, e);
         };
+        let craft = self.action_craft(item, quantity);
         mats.iter().for_each(|m| {
             self.inventory.decrease_reservation(&m.code, m.quantity);
         });
-        let craft = self.action_craft(item, quantity)?;
         match post_action {
             PostCraftAction::Deposit => {
                 if let Err(e) = self.deposit_item(item, quantity, None) {
@@ -1029,7 +1030,7 @@ impl Character {
             }
             PostCraftAction::None => (),
         };
-        Ok(craft)
+        Ok(craft?)
     }
 
     pub fn recycle_item(
@@ -1053,8 +1054,9 @@ impl Character {
             self.withdraw_item(item, missing_quantity)?;
         }
         self.move_to_craft(item)?;
+        let result = self.action_recycle(item, quantity);
         self.inventory.decrease_reservation(&self.task(), quantity);
-        Ok(self.action_recycle(item, quantity)?)
+        Ok(result?)
     }
 
     pub fn deposit_item(
@@ -1100,13 +1102,13 @@ impl Character {
         self.move_to_closest_map_of_type("bank")?;
         let deposit = self.action_withdraw(item, quantity);
         if deposit.is_ok() {
+            self.bank.decrease_reservation(item, quantity, &self.name);
             if let Err(e) = self.inventory.reserv_items_if_not(item, quantity) {
                 error!(
                     "{}: failed to reserv withdrawed item '{}'x{}: {:?}",
                     self.name, item, quantity, e
                 );
             }
-            self.bank.decrease_reservation(item, quantity, &self.name);
         }
         Ok(deposit?)
     }
@@ -1172,13 +1174,13 @@ impl Character {
                         self.name, e
                     )
                 }
-                self.inventory.decrease_reservation(&i.code, quantity);
                 if let Err(e) = self.action_delete(&i.code, quantity) {
                     error!(
                         "{} error while delete item during bank emptying: {:?}",
                         self.name, e
                     )
                 }
+                self.inventory.decrease_reservation(&i.code, quantity);
                 remain -= quantity;
             }
         });
@@ -1391,8 +1393,13 @@ impl Character {
             }
             self.action_unequip(slot, self.quantity_in_slot(slot))?;
         }
+        if let Err(e) = self.action_equip(item, slot, quantity) {
+            error!(
+                "{}: failed to equip '{}'x{} in the '{:?}' slot: {:?}",
+                self.name, item, quantity, slot, e
+            );
+        }
         self.inventory.decrease_reservation(item, quantity);
-        self.action_equip(item, slot, quantity)?;
         Ok(())
     }
 
