@@ -2,6 +2,7 @@ use super::{
     character::Character,
     gear::Gear,
     items::{Items, Type},
+    skill::Skill,
     ItemSchemaExt,
 };
 use artifactsmmo_openapi::models::{ItemSchema, MonsterSchema};
@@ -187,32 +188,45 @@ impl GearFinder {
         upgrades
     }
 
-    fn is_eligible(i: &ItemSchema, filter: Filter, char: &Character) -> bool {
-            match filter {
-                Filter::All => {
-                    i.code != "lizard_skin_armor"
-                        && i.code != "lizard_skin_legs_armor"
-                        && i.code != "piggy_armor"
-                        && i.code != "piggy_pants"
-                        && i.code != "serpent_skin_armor"
-                        && i.code != "serpent_skin_legs_armor"
-                        && i.code != "stormforged_armor"
-                        && i.code != "stormforged_pants"
-                }
+    pub fn best_tool(&self, char: &Character, skill: Skill, filter: Filter) -> Option<&ItemSchema> {
+        self.items
+            .equipable_at_level(char.level(), Type::Weapon)
+            .into_iter()
+            .filter(|i| match filter {
+                Filter::All => true,
                 Filter::Available => char.has_available(&i.code) > 0,
-                Filter::Craftable => {
-                    (i.craft_schema().is_none() || char.account.can_craft(&i.code))
-                        && i.code != "lizard_skin_armor"
-                        && i.code != "lizard_skin_legs_armor"
-                        && i.code != "piggy_armor"
-                        && i.code != "piggy_pants"
-                        && i.code != "serpent_skin_armor"
-                        && i.code != "serpent_skin_legs_armor"
-                        && i.code != "stormforged_armor"
-                        && i.code != "stormforged_pants"
-                }
+                Filter::Craftable => char.account.can_craft(&i.code),
                 Filter::Farmable => todo!(),
+            })
+            .min_by_key(|i| i.skill_cooldown_reduction(skill))
+    }
+
+    fn is_eligible(i: &ItemSchema, filter: Filter, char: &Character) -> bool {
+        match filter {
+            Filter::All => {
+                i.code != "lizard_skin_armor"
+                    && i.code != "lizard_skin_legs_armor"
+                    && i.code != "piggy_armor"
+                    && i.code != "piggy_pants"
+                    && i.code != "serpent_skin_armor"
+                    && i.code != "serpent_skin_legs_armor"
+                    && i.code != "stormforged_armor"
+                    && i.code != "stormforged_pants"
             }
+            Filter::Available => char.has_available(&i.code) > 0,
+            Filter::Craftable => {
+                (i.craft_schema().is_none() || char.account.can_craft(&i.code))
+                    && i.code != "lizard_skin_armor"
+                    && i.code != "lizard_skin_legs_armor"
+                    && i.code != "piggy_armor"
+                    && i.code != "piggy_pants"
+                    && i.code != "serpent_skin_armor"
+                    && i.code != "serpent_skin_legs_armor"
+                    && i.code != "stormforged_armor"
+                    && i.code != "stormforged_pants"
+            }
+            Filter::Farmable => todo!(),
+        }
     }
 }
 

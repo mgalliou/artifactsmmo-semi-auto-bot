@@ -700,12 +700,21 @@ impl Character {
         Ok(self.action_gather()?)
     }
 
-    /// TODO: handle available tool versus best craftable
     fn check_for_tool(&self, resource: &ResourceSchema) {
+        let mut available: Option<&ItemSchema> = None;
         let prev_equiped = self.equiped_in(Slot::Weapon);
-        let tool = self.best_tool_for_resource(&resource.code);
+        if let Ok(_browsed) = self.bank.browsed.write() {
+            if let Some(tool) =
+                self.gear_finder
+                    .best_tool(self, resource.skill.into(), Filter::Available)
+            {
+                available = Some(tool);
+                self.reserv_if_needed_and_available(Slot::Weapon, tool, 1);
+            }
+            self.order_best_tool(resource.skill.into());
+        }
         if let Some(prev_equiped) = prev_equiped {
-            if tool.is_none() || tool.is_some_and(|t| t.code != prev_equiped.code) {
+            if available.is_none() || available.is_some_and(|t| t.code != prev_equiped.code) {
                 if let Err(e) = self.action_unequip(Slot::Weapon, 1) {
                     error!(
                         "{}: failed to unequip previously equiped weapon: {:?}",
@@ -728,29 +737,14 @@ impl Character {
                 }
             }
         }
-        let Some(tool) = tool else {
-            return;
-        };
-        let Ok(_browsed) = self.bank.browsed.write() else {
-            return;
-        };
-        if self.has_available(&tool.code) > 0 {
-            self.reserv_if_needed_and_available(Slot::Weapon, tool, 1);
-        } else {
-            self.orderboard.add(Order::new(
-                Some(&self.name),
-                &tool.code,
-                1,
-                Purpose::Gather {
-                    char: self.name.to_owned(),
-                    skill: resource.skill.into(),
-                    item_code: tool.code.to_owned(),
-                },
-            ));
+        if let Some(available) = available {
+            self.equip_item_from_bank_or_inventory(Slot::Weapon, available);
         }
-        drop(_browsed);
-        if self.has_available(&tool.code) > 0 {
-            self.equip_item_from_bank_or_inventory(Slot::Weapon, tool);
+    }
+
+    fn order_best_tool(&self, skill: Skill) {
+        if let Some(best) = self.gear_finder.best_tool(self, skill, Filter::Craftable) {
+            self.order_if_needed(Slot::Weapon, best, 1);
         }
     }
 
@@ -1774,9 +1768,7 @@ impl Character {
                     .missing_mats_quantity(&i.code, self.inventory.max_items() - 30, None)
             })
         {
-            if self.bank.has_item(&best_food.code, Some(&self.name))
-                < 300
-            {
+            if self.bank.has_item(&best_food.code, Some(&self.name)) < 300 {
                 self.orderboard.add_or_reset(Order::new(
                     Some(&self.name),
                     &best_food.code,
