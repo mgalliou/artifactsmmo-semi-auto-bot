@@ -1032,21 +1032,26 @@ impl Character {
         Ok(craft)
     }
 
-    pub fn recycle_from_bank(
+    pub fn recycle_item(
         &self,
         item: &str,
         quantity: i32,
     ) -> Result<RecyclingItemsSchema, CharacterError> {
         self.can_craft(item)?;
-        if self.bank.has_item(item, Some(&self.name)) < quantity {
+        let quantity_available =
+            self.inventory.has_available(item) + self.bank.has_item(item, Some(&self.name));
+        if quantity_available < quantity {
             return Err(CharacterError::ItemNotFound);
         }
         info!("{}: going to recycle '{}x{}'.", self.name, item, quantity);
-        if let Err(e) = self.bank.reserv_if_not(item, quantity, &self.name) {
-            error!("{}: error while reserving '{}': {:?}", self.name, item, e);
+        if self.inventory.has_available(item) < quantity {
+            let missing_quantity = quantity - self.inventory.has_available(item);
+            if let Err(e) = self.bank.reserv_if_not(item, missing_quantity, &self.name) {
+                error!("{}: error while reserving '{}': {:?}", self.name, item, e);
+            }
+            self.deposit_all();
+            self.withdraw_item(item, missing_quantity)?;
         }
-        self.deposit_all();
-        self.withdraw_item(item, quantity)?;
         self.move_to_craft(item)?;
         self.inventory.decrease_reservation(&self.task(), quantity);
         Ok(self.action_recycle(item, quantity)?)
