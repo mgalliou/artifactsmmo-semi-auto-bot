@@ -491,20 +491,7 @@ impl Character {
     }
 
     fn trade_task(&self) -> Result<TaskTradeSchema, CharacterError> {
-        if !self.task_type().is_some_and(|tt| tt == TaskType::Items) {
-            return Err(CharacterError::InvalidTaskType);
-        }
-        if self.task_missing()
-            > self.bank.has_item(&self.task(), Some(&self.name))
-                + self.inventory.contains(&self.task())
-        {
-            return Err(CharacterError::MissingItems {
-                item: self.task().to_owned(),
-                quantity: self.task_missing()
-                    - self.bank.has_item(&self.task(), Some(&self.name))
-                    - self.inventory.contains(&self.task()),
-            });
-        }
+        self.can_trade_task()?;
         let q = min(self.task_missing(), self.inventory.max_items());
         if let Err(e) = self.bank.reserv_if_not(&self.task(), q, &self.name) {
             error!(
@@ -523,6 +510,30 @@ impl Character {
         let res = self.action_task_trade(&self.task(), q);
         self.inventory.decrease_reservation(&self.task(), q);
         Ok(res?)
+    }
+
+    fn can_trade_task(&self) -> Result<(), CharacterError> {
+        if self.task().is_empty() {
+            return Err(CharacterError::NoTask);
+        }
+        if !self.task_type().is_some_and(|tt| tt == TaskType::Items) {
+            return Err(CharacterError::InvalidTaskType);
+        }
+        if self.task_missing() <= 0 {
+            return Err(CharacterError::TaskAlreadyCompleted);
+        }
+        if self.task_missing()
+            > self.bank.has_item(&self.task(), Some(&self.name))
+                + self.inventory.contains(&self.task())
+        {
+            return Err(CharacterError::MissingItems {
+                item: self.task().to_owned(),
+                quantity: self.task_missing()
+                    - self.bank.has_item(&self.task(), Some(&self.name))
+                    - self.inventory.contains(&self.task()),
+            });
+        }
+        Ok(())
     }
 
     fn accept_task(&self, r#type: TaskType) -> Result<TaskSchema, CharacterError> {
@@ -1863,6 +1874,7 @@ pub enum CharacterError {
     InvalidTaskType,
     MissingItems { item: String, quantity: i32 },
     QuantityUnavailable(i32),
+    TaskAlreadyCompleted,
 }
 
 impl From<RequestError> for CharacterError {
