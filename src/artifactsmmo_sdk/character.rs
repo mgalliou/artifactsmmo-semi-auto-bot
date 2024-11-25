@@ -1779,15 +1779,14 @@ impl Character {
             .sorted_by_key(|i| i.heal())
             .for_each(|f| {
                 // TODO: improve logic to eat different foods to restore more hp
-                let mut quantity = min(
-                    self.missing_hp() / f.heal(),
-                    self.inventory.contains(&f.code),
-                );
+                let mut quantity = self.missing_hp() / f.heal();
                 if (self.missing_hp() % f.heal()) as f32 > f.heal() as f32 / 1.5 {
                     quantity += 1;
                 };
                 if quantity > 0 {
-                    if let Err(e) = self.action_use_item(&f.code, quantity) {
+                    if let Err(e) = self
+                        .action_use_item(&f.code, min(quantity, self.inventory.contains(&f.code)))
+                    {
                         error!("{} failed to use food: {:?}", self.name, e)
                     }
                     self.inventory.decrease_reservation(&f.code, quantity);
