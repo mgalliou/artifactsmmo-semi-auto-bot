@@ -709,7 +709,7 @@ impl Character {
                     .best_tool(self, resource.skill.into(), Filter::Available)
             {
                 available = Some(tool);
-                self.reserv_if_needed_and_available(Slot::Weapon, tool, 1);
+                self.reserv_if_needed_and_available(Slot::Weapon, &tool.code, 1);
             }
             self.order_best_tool(resource.skill.into());
         }
@@ -738,13 +738,13 @@ impl Character {
             }
         }
         if let Some(available) = available {
-            self.equip_item_from_bank_or_inventory(Slot::Weapon, available);
+            self.equip_item_from_bank_or_inventory(Slot::Weapon, &available.code);
         }
     }
 
     fn order_best_tool(&self, skill: Skill) {
         if let Some(best) = self.gear_finder.best_tool(self, skill, Filter::Craftable) {
-            self.order_if_needed(Slot::Weapon, best, 1);
+            self.order_if_needed(Slot::Weapon, &best.code, 1);
         }
     }
 
@@ -1366,7 +1366,7 @@ impl Character {
     fn equip_gear(&self, gear: &Gear) {
         Slot::iter().for_each(|s| {
             if let Some(item) = gear.slot(s) {
-                self.equip_item_from_bank_or_inventory(s, item);
+                self.equip_item_from_bank_or_inventory(s, &item.code);
             }
         })
     }
@@ -1384,23 +1384,21 @@ impl Character {
         Ok(())
     }
 
-    fn equip_item_from_bank_or_inventory(&self, slot: Slot, item: &ItemSchema) {
+    fn equip_item_from_bank_or_inventory(&self, slot: Slot, item: &str) {
         let prev_equiped = self.equiped_in(slot);
-        if prev_equiped.is_some_and(|e| e.code == item.code) {
+        if prev_equiped.is_some_and(|e| e.code == item) {
             return;
         }
-        if self.inventory.contains(&item.code) <= 0
-            && self.bank.has_item(&item.code, Some(&self.name)) > 0
-        {
+        if self.inventory.contains(item) <= 0 && self.bank.has_item(item, Some(&self.name)) > 0 {
             self.deposit_all();
-            if let Err(e) = self.withdraw_item(&item.code, 1) {
+            if let Err(e) = self.withdraw_item(item, 1) {
                 error!(
                     "{} failed withdraw item from bank or inventory: {:?}",
                     self.name, e
                 );
             }
         }
-        if let Err(e) = self.equip_item(&item.code, slot, 1) {
+        if let Err(e) = self.equip_item(item, slot, 1) {
             error!(
                 "{} failed to equip item from bank or inventory: {:?}",
                 self.name, e
@@ -1579,39 +1577,39 @@ impl Character {
                     } else {
                         1
                     };
-                    self.order_if_needed(s, item, quantity);
+                    self.order_if_needed(s, &item.code, quantity);
                 }
             }
         });
         if gear.ring1.is_some() && gear.ring1 == gear.ring2 {
-            self.order_if_needed(Slot::Ring1, gear.ring1.unwrap(), 2);
+            self.order_if_needed(Slot::Ring1, &gear.ring1.unwrap().code, 2);
         } else {
             if let Some(ring1) = gear.ring1 {
-                self.order_if_needed(Slot::Ring1, ring1, 1);
+                self.order_if_needed(Slot::Ring1, &ring1.code, 1);
             }
             if let Some(ring2) = gear.ring1 {
-                self.order_if_needed(Slot::Ring2, ring2, 1);
+                self.order_if_needed(Slot::Ring2, &ring2.code, 1);
             }
         }
     }
 
-    fn order_if_needed(&self, slot: Slot, item: &ItemSchema, quantity: i32) -> bool {
+    fn order_if_needed(&self, slot: Slot, item: &str, quantity: i32) -> bool {
         if (self.equiped_in(slot).is_none()
             || self
                 .equiped_in(slot)
-                .is_some_and(|equiped| item.code != equiped.code))
-            && self.has_in_bank_or_inv(&item.code) < quantity
+                .is_some_and(|equiped| item != equiped.code))
+            && self.has_in_bank_or_inv(item) < quantity
         {
-            let quantity = quantity - self.has_available(&item.code);
+            let quantity = quantity - self.has_available(item);
             if quantity > 0 {
                 self.orderboard.add(Order::new(
                     None,
-                    &item.code,
+                    item,
                     quantity,
                     Purpose::Gear {
                         char: self.name.to_owned(),
                         slot,
-                        item_code: item.code.to_owned(),
+                        item_code: item.to_owned(),
                     },
                 ));
                 return true;
@@ -1629,36 +1627,35 @@ impl Character {
                     } else {
                         1
                     };
-                    self.reserv_if_needed_and_available(s, item, quantity);
+                    self.reserv_if_needed_and_available(s, &item.code, quantity);
                 }
             }
         });
         if gear.ring1.is_some() && gear.ring1 == gear.ring2 {
-            self.reserv_if_needed_and_available(Slot::Ring1, gear.ring1.unwrap(), 2);
+            self.reserv_if_needed_and_available(Slot::Ring1, &gear.ring1.unwrap().code, 2);
         } else {
             if let Some(ring1) = gear.ring1 {
-                self.reserv_if_needed_and_available(Slot::Ring1, ring1, 1);
+                self.reserv_if_needed_and_available(Slot::Ring1, &ring1.code, 1);
             }
             if let Some(ring2) = gear.ring2 {
-                self.reserv_if_needed_and_available(Slot::Ring2, ring2, 1);
+                self.reserv_if_needed_and_available(Slot::Ring2, &ring2.code, 1);
             }
         }
     }
 
     /// Reserves the given `quantity` of the `item` if needed and available.
-    fn reserv_if_needed_and_available(&self, s: Slot, item: &ItemSchema, quantity: i32) {
+    fn reserv_if_needed_and_available(&self, s: Slot, item: &str, quantity: i32) {
         if (self.equiped_in(s).is_none()
             || self
                 .equiped_in(s)
-                .is_some_and(|equiped| item.code != equiped.code))
-            && self.inventory.contains(&item.code) < quantity
+                .is_some_and(|equiped| item != equiped.code))
+            && self.inventory.contains(item) < quantity
         {
-            if let Err(e) = self.bank.reserv_if_not(
-                &item.code,
-                quantity - self.inventory.contains(&item.code),
-                &self.name,
-            ) {
-                error!("{} failed to reserv '{}': {:?}", self.name, item.code, e)
+            if let Err(e) =
+                self.bank
+                    .reserv_if_not(item, quantity - self.inventory.contains(item), &self.name)
+            {
+                error!("{} failed to reserv '{}': {:?}", self.name, item, e)
             }
         }
     }
