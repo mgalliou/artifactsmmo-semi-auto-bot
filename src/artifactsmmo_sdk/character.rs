@@ -1366,7 +1366,7 @@ impl Character {
     }
 
     fn equip_item(&self, item: &str, slot: Slot, quantity: i32) -> Result<(), CharacterError> {
-        // TODO: add check from inventory space
+        // TODO: add check for inventory space
         if let Some(equiped) = self.equiped_in(slot) {
             if equiped.health() >= self.health() {
                 self.eat_food();
@@ -1387,15 +1387,25 @@ impl Character {
             return;
         }
         if self.inventory.contains(item) <= 0 && self.bank.has_item(item, Some(&self.name)) > 0 {
-            self.deposit_all();
-            if let Err(e) = self.withdraw_item(item, 1) {
+            let q = min(
+                slot.max_quantity(),
+                self.bank.has_item(item, Some(&self.name)),
+            );
+            if self.inventory.free_space() < q {
+                self.deposit_all();
+            }
+            if let Err(e) = self.withdraw_item(item, q) {
                 error!(
                     "{} failed withdraw item from bank or inventory: {:?}",
                     self.name, e
                 );
             }
         }
-        if let Err(e) = self.equip_item(item, slot, 1) {
+        if let Err(e) = self.equip_item(
+            item,
+            slot,
+            min(slot.max_quantity(), self.inventory.contains(item)),
+        ) {
             error!(
                 "{} failed to equip item from bank or inventory: {:?}",
                 self.name, e
@@ -1410,7 +1420,8 @@ impl Character {
                 .find(|o| o.item == i.code)
             {
                 self.deposit_order(o);
-            } else if let Err(e) = self.deposit_item(&i.code, 1, None) {
+            }
+            if let Err(e) = self.deposit_item(&i.code, self.inventory.contains(&i.code), None) {
                 error!(
                     "{} failed to deposit previously equiped item: {:?}",
                     self.name, e

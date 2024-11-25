@@ -209,6 +209,27 @@ pub enum Slot {
     Utility2,
 }
 
+impl Slot {
+    pub fn max_quantity(&self) -> i32 {
+        match self {
+            Slot::Weapon
+            | Slot::Shield
+            | Slot::Helmet
+            | Slot::BodyArmor
+            | Slot::LegArmor
+            | Slot::Boots
+            | Slot::Ring1
+            | Slot::Ring2
+            | Slot::Amulet
+            | Slot::Artifact1
+            | Slot::Artifact2
+            | Slot::Artifact3 => 1,
+            Slot::Utility1 => 100,
+            Slot::Utility2 => 100,
+        }
+    }
+}
+
 impl From<ItemSlot> for Slot {
     fn from(value: ItemSlot) -> Self {
         match value {
