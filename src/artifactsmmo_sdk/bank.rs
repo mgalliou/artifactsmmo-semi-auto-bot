@@ -40,6 +40,10 @@ impl Bank {
         }
     }
 
+    pub fn update_content(&self, content: &Vec<SimpleItemSchema>) {
+        self.content.write().unwrap().clone_from(content)
+    }
+
     pub fn is_full(&self) -> bool {
         self.free_slots() <= 0
     }
@@ -72,9 +76,63 @@ impl Bank {
             .unwrap_or(0)
     }
 
+    /// Returns the quantity of the given item `code` that can be crafted with the mats available in bank
+    /// for the given `owner`.
+    //  NOTE: this should maybe return a Option to indicate that the item is not craftable and
+    //  return None in this case
+    pub fn has_mats_for(&self, item: &str, owner: Option<&str>) -> i32 {
+        self.items
+            .mats_of(item)
+            .iter()
+            .map(|mat| self.has_available(&mat.code, owner) / mat.quantity)
+            .min()
+            .unwrap_or(0)
+    }
+
+    /// Returns the quantity of each of the missing materials required to craft the `quantity` of the  item `code`
+    /// for the given `owner`.
+    pub fn missing_mats_for(
+        &self,
+        item: &str,
+        quantity: i32,
+        owner: Option<&str>,
+    ) -> Vec<SimpleItemSchema> {
+        self.items
+            .mats_of(item)
+            .into_iter()
+            .filter(|m| self.has_available(&m.code, owner) < m.quantity * quantity)
+            .update(|m| m.quantity = m.quantity * quantity - self.has_available(&m.code, owner))
+            .collect_vec()
+    }
+
+    /// Returns the total quantity of the missing materials required to craft the `quantity` of the
+    /// item `code` for the given `owner`
+    pub fn missing_mats_quantity(&self, item: &str, quantity: i32, owner: Option<&str>) -> i32 {
+        self.missing_mats_for(item, quantity, owner)
+            .iter()
+            .map(|m| m.quantity)
+            .sum()
+    }
+
+    pub fn food(&self) -> Vec<&ItemSchema> {
+        self.content
+            .read()
+            .unwrap()
+            .iter()
+            .filter_map(|i| {
+                self.items.get(&i.code).filter(|&i| {
+                    i.is_of_type(Type::Consumable)
+                        && i.heal() > 0
+                        && i.code != "apple"
+                        && i.code != "egg"
+                })
+            })
+            .collect_vec()
+    }
+
     /// Returns the `quantity` of the given item `code` available to the given `owner`.
     /// If no owner is given returns the quantity not reserved.
-    pub fn has_item(&self, item: &str, owner: Option<&str>) -> i32 {
+    pub fn has_available(&self, item: &str, owner: Option<&str>) -> i32 {
         if let Some(owner) = owner {
             self.quantity_allowed(item, owner)
         } else {
@@ -82,9 +140,89 @@ impl Bank {
         }
     }
 
-    /// Returns the quantity of the given item reserved to the given `owner`.
-    pub fn has_item_reserved(&self, item: &str, owner: &str) -> i32 {
-        self.quantity_allowed(item, owner) - self.quantity_not_reserved(item)
+    /// Make sure that the `quantity` of `item` is reserved to the `owner`.
+    /// Create the reservation if possible. Increase the reservation quantity if
+    /// necessary and possible.
+    pub fn reserv(&self, item: &str, quantity: i32, owner: &str) -> Result<(), BankError> {
+        let Some(res) = self.get_reservation(item, owner) else {
+            return self.increase_reservation(item, quantity, owner);
+        };
+        if res.quantity() >= quantity {
+            Ok(())
+        } else if self.quantity_not_reserved(item) >= quantity - res.quantity() {
+            res.inc_quantity(quantity - res.quantity());
+            info!(
+                "bank: increased reservation quantity by '{}': [{}]",
+                quantity, res
+            );
+            Ok(())
+        } else {
+            Err(BankError::QuantityUnavailable(quantity))
+        }
+    }
+
+    /// Request the `quantity` of the given `item` to be added to exising reservation for the the given `owner`.
+    /// Create the reservation if it does not exist.
+    pub fn increase_reservation(
+        &self,
+        item: &str,
+        quantity: i32,
+        owner: &str,
+    ) -> Result<(), BankError> {
+        let Some(res) = self.get_reservation(owner, item) else {
+            if quantity > self.has_available(item, Some(owner)) {
+                return Err(BankError::QuantityUnavailable(quantity));
+            }
+            self.add_reservation(item, quantity, owner);
+            return Ok(());
+        };
+        if quantity > self.quantity_not_reserved(item) {
+            return Err(BankError::QuantityUnavailable(quantity));
+        }
+        res.inc_quantity(quantity);
+        Ok(())
+    }
+
+    pub fn decrease_reservation(&self, item: &str, quantity: i32, owner: &str) {
+        let Some(res) = self.get_reservation(owner, item) else {
+            return;
+        };
+        if quantity >= *res.quantity.read().unwrap() {
+            self.remove_reservation(&res)
+        } else {
+            res.dec_quantity(quantity);
+            info!(
+                "bank: decreased reservation quantity by '{}': [{}]",
+                quantity, res
+            );
+        }
+    }
+
+    fn add_reservation(&self, item: &str, quantity: i32, owner: &str) {
+        let res = Arc::new(Reservation {
+            item: item.to_owned(),
+            quantity: RwLock::new(quantity),
+            owner: owner.to_owned(),
+        });
+        self.reservations.write().unwrap().push(res.clone());
+        info!("bank: added reservation to bank: {}", res);
+    }
+
+    fn remove_reservation(&self, reservation: &Reservation) {
+        self.reservations
+            .write()
+            .unwrap()
+            .retain(|r| **r != *reservation);
+        info!("bank: removed reservation: {}", reservation);
+    }
+
+    pub fn reservations(&self) -> Vec<Arc<Reservation>> {
+        self.reservations
+            .read()
+            .unwrap()
+            .iter()
+            .cloned()
+            .collect_vec()
     }
 
     /// Returns the quantity the given `owner` can withdraw from the bank.
@@ -125,148 +263,7 @@ impl Bank {
         self.total_of(item) - self.quantity_reserved(item)
     }
 
-    pub fn is_reserved(&self, item: &str, quantity: i32, owner: &str) -> bool {
-        self.reservations()
-            .iter()
-            .any(|r| r.item == item && r.owner == owner && r.quantity() >= quantity)
-    }
-
-    /// Returns the quantity of the given item `code` that can be crafted with the mats available in bank
-    /// for the given `owner`.
-    //  NOTE: this should maybe return a Option to indicate that the item is not craftable and
-    //  return None in this case
-    pub fn has_mats_for(&self, item: &str, owner: Option<&str>) -> i32 {
-        self.items
-            .mats_of(item)
-            .iter()
-            .map(|mat| self.has_item(&mat.code, owner) / mat.quantity)
-            .min()
-            .unwrap_or(0)
-    }
-
-    /// Returns the quantity of each of the missing materials required to craft the `quantity` of the  item `code`
-    /// for the given `owner`.
-    pub fn missing_mats_for(
-        &self,
-        item: &str,
-        quantity: i32,
-        owner: Option<&str>,
-    ) -> Vec<SimpleItemSchema> {
-        self.items
-            .mats_of(item)
-            .into_iter()
-            .filter(|m| self.has_item(&m.code, owner) < m.quantity * quantity)
-            .update(|m| m.quantity = m.quantity * quantity - self.has_item(&m.code, owner))
-            .collect_vec()
-    }
-
-    /// Returns the total quantity of the missing materials required to craft the `quantity` of the
-    /// item `code` for the given `owner`
-    pub fn missing_mats_quantity(&self, item: &str, quantity: i32, owner: Option<&str>) -> i32 {
-        self.missing_mats_for(item, quantity, owner)
-            .iter()
-            .map(|m| m.quantity)
-            .sum()
-    }
-
-    pub fn food(&self) -> Vec<&ItemSchema> {
-        self.content
-            .read()
-            .unwrap()
-            .iter()
-            .filter_map(|i| {
-                self.items.get(&i.code).filter(|&i| {
-                    i.is_of_type(Type::Consumable)
-                        && i.heal() > 0
-                        && i.code != "apple"
-                        && i.code != "egg"
-                })
-            })
-            .collect_vec()
-    }
-
-    pub fn update_content(&self, content: &Vec<SimpleItemSchema>) {
-        self.content.write().unwrap().clone_from(content)
-    }
-
-    /// Make sure that the `quantity` of `item` is reserved to the `owner`.
-    /// Create the reservation if possible. Increase the reservation quantity if
-    /// necessary and possible.
-    pub fn reserv_if_not(&self, item: &str, quantity: i32, owner: &str) -> Result<(), BankError> {
-        let Some(res) = self.get_reservation(owner, item) else {
-            return self.reserv(item, quantity, owner);
-        };
-        if res.quantity() >= quantity {
-            Ok(())
-        } else if self.quantity_not_reserved(item) >= quantity - res.quantity() {
-            res.inc_quantity(quantity - res.quantity());
-            Ok(())
-        } else {
-            Err(BankError::QuantityUnavailable(quantity))
-        }
-    }
-
-    /// Request the `quantity` of the given `item` to be added to exising reservation for the the given `owner`.
-    /// Create the reservation if it does not exist.
-    pub fn reserv(&self, item: &str, quantity: i32, owner: &str) -> Result<(), BankError> {
-        let Some(res) = self.get_reservation(owner, item) else {
-            if quantity > self.has_item(item, Some(owner)) {
-                return Err(BankError::QuantityUnavailable(quantity));
-            }
-            self.add_reservation(item, quantity, owner);
-            return Ok(());
-        };
-        if quantity > self.quantity_not_reserved(item) {
-            return Err(BankError::QuantityUnavailable(quantity));
-        }
-        res.inc_quantity(quantity);
-        Ok(())
-    }
-
-    fn add_reservation(&self, item: &str, quantity: i32, owner: &str) {
-        let res = Arc::new(Reservation {
-            item: item.to_owned(),
-            quantity: RwLock::new(quantity),
-            owner: owner.to_owned(),
-        });
-        self.reservations.write().unwrap().push(res.clone());
-        info!("added reservation to bank: {}", res);
-    }
-
-    pub fn decrease_reservation(&self, item: &str, quantity: i32, owner: &str) {
-        if let Some(res) = self.get_reservation(owner, item) {
-            if quantity >= *res.quantity.read().unwrap() {
-                self.remove_reservation(&res)
-            } else {
-                res.dec_quantity(quantity)
-            }
-        }
-    }
-
-    pub fn increase_reservation(&self, item: &str, quantity: i32, owner: &str) {
-        if let Some(res) = self.get_reservation(owner, item) {
-            res.inc_quantity(quantity)
-        }
-    }
-
-    pub fn remove_reservation(&self, reservation: &Reservation) {
-        self.reservations
-            .write()
-            .unwrap()
-            .retain(|r| **r != *reservation);
-        info!("removed reservation from bank: {}", reservation);
-    }
-
-    pub fn reservations(&self) -> Vec<Arc<Reservation>> {
-        self.reservations
-            .read()
-            .unwrap()
-            .iter()
-            .cloned()
-            .collect_vec()
-    }
-
-    pub fn get_reservation(&self, owner: &str, item: &str) -> Option<Arc<Reservation>> {
+    fn get_reservation(&self, item: &str, owner: &str) -> Option<Arc<Reservation>> {
         self.reservations
             .read()
             .unwrap()
@@ -292,12 +289,10 @@ pub struct Reservation {
 impl Reservation {
     pub fn inc_quantity(&self, i: i32) {
         *self.quantity.write().unwrap() += i;
-        info!("increased quantity of reservation by '{}': [{}]", i, self);
     }
 
     pub fn dec_quantity(&self, i: i32) {
         *self.quantity.write().unwrap() -= i;
-        info!("decreased quantity of reservation by '{}': [{}]", i, self);
     }
 
     pub fn quantity(&self) -> i32 {
@@ -342,7 +337,7 @@ mod tests {
     #[test]
     fn reserv_with_not_item() {
         let bank = Bank::new();
-        let result = bank.reserv("copper_ore", 50, "char1");
+        let result = bank.increase_reservation("copper_ore", 50, "char1");
         assert_eq!(Err(BankError::QuantityUnavailable(50)), result);
     }
 
@@ -354,9 +349,9 @@ mod tests {
             code: "copper_ore".to_owned(),
             quantity: 100,
         });
-        let _ = bank.reserv("copper_ore", 50, "char1");
-        let _ = bank.reserv("copper_ore", 50, "char1");
-        assert_eq!(100, bank.has_item("copper_ore", Some("char1")))
+        let _ = bank.increase_reservation("copper_ore", 50, "char1");
+        let _ = bank.increase_reservation("copper_ore", 50, "char1");
+        assert_eq!(100, bank.has_available("copper_ore", Some("char1")))
     }
 
     #[test]
@@ -367,9 +362,9 @@ mod tests {
             code: "copper_ore".to_owned(),
             quantity: 100,
         });
-        let _ = bank.reserv_if_not("copper_ore", 50, "char1");
-        let _ = bank.reserv_if_not("copper_ore", 50, "char1");
-        assert_eq!(100, bank.has_item("copper_ore", Some("char1")));
-        assert_eq!(50, bank.has_item_reserved("copper_ore", "char1"))
+        let _ = bank.reserv("copper_ore", 50, "char1");
+        let _ = bank.reserv("copper_ore", 50, "char1");
+        assert_eq!(100, bank.has_available("copper_ore", Some("char1")));
+        assert_eq!(50, bank.quantity_reserved("copper_ore"))
     }
 }

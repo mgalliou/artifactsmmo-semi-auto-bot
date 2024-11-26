@@ -1,8 +1,7 @@
 use artifactsmmo_playground::artifactsmmo_sdk::{
-    account::Account,
     bank::Bank,
     character::Character,
-    fight_simulator::{Fight, FightSimulator},
+    fight_simulator::FightSimulator,
     game::Game,
     gear_finder::{Filter, GearFinder},
     items::Items,
@@ -67,7 +66,7 @@ fn handle_cmd_line(line: String, game: &Game) {
     if let Some(cmd) = args.first() {
         match *cmd {
             "items" => handle_items(&args[1..], &game.items),
-            "char" => handle_char(&args[1..], &game),
+            "char" => handle_char(&args[1..], game),
             "orderboard" => handle_orderboard(&args[1..], &game.orderboard),
             "bank" => handle_bank(&args[1..], &game.account.bank),
             _ => println!("error"),

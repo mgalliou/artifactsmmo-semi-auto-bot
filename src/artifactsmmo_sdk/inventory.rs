@@ -35,7 +35,7 @@ impl Inventory {
     }
 
     /// Returns the amount of item in the `Character` inventory.
-    pub fn total(&self) -> i32 {
+    pub fn total_items(&self) -> i32 {
         self.data
             .read()
             .unwrap()
@@ -53,13 +53,13 @@ impl Inventory {
 
     /// Returns the free spaces in the `Character` inventory.
     pub fn free_space(&self) -> i32 {
-        self.max_items() - self.total()
+        self.max_items() - self.total_items()
     }
 
     /// Checks if the `Character` inventory is full (all slots are occupied or
     /// `inventory_max_items` is reached).
     pub fn is_full(&self) -> bool {
-        self.total() >= self.max_items()
+        self.total_items() >= self.max_items()
             || self
                 .data
                 .read()
@@ -71,7 +71,7 @@ impl Inventory {
     }
 
     /// Returns the amount of the given item `code` in the `Character` inventory.
-    pub fn contains(&self, item: &str) -> i32 {
+    pub fn total_of(&self, item: &str) -> i32 {
         self.data
             .read()
             .unwrap()
@@ -84,47 +84,19 @@ impl Inventory {
 
     /// Returns the amount not reserved of the given item `code` in the `Character` inventory.
     pub fn has_available(&self, item: &str) -> i32 {
-        self.contains(item) - self.quantity_reserved(item)
+        self.total_of(item) - self.quantity_reserved(item)
     }
 
-    pub fn quantity_reserved(&self, item: &str) -> i32 {
-        self.reservations
-            .read()
-            .unwrap()
-            .iter()
-            .filter_map(|r| {
-                if r.item == item {
-                    Some(r.quantity())
-                } else {
-                    None
-                }
-            })
-            .sum()
-    }
-
-    pub fn quantity_not_reserved(&self, item: &str) -> i32 {
-        self.contains(item) - self.quantity_reserved(item)
-    }
-
-    pub fn get_reservation(&self, item: &str) -> Option<Arc<InventoryReservation>> {
-        self.reservations
-            .read()
-            .unwrap()
-            .iter()
-            .find(|r| r.item == item)
-            .cloned()
-    }
-
-    pub fn reserv_if_not(&self, item: &str, quantity: i32) -> Result<(), CharacterError> {
+    pub fn reserv(&self, item: &str, quantity: i32) -> Result<(), CharacterError> {
         let Some(res) = self.get_reservation(item) else {
-            return self.reserv(item, quantity);
+            return self.increase_reservation(item, quantity);
         };
         if res.quantity() >= quantity {
             Ok(())
         } else if self.quantity_not_reserved(item) >= quantity - res.quantity() {
             res.inc_quantity(quantity - res.quantity());
             info!(
-                "{}: increased quantity of inventory reservation by '{}': [{}]",
+                "inventory({}): increased reservation quantity by '{}': [{}]",
                 self.data.read().unwrap().name,
                 quantity,
                 res
@@ -135,9 +107,9 @@ impl Inventory {
         }
     }
 
-    fn reserv(&self, item: &str, quantity: i32) -> Result<(), CharacterError> {
+    fn increase_reservation(&self, item: &str, quantity: i32) -> Result<(), CharacterError> {
         let Some(res) = self.get_reservation(item) else {
-            if quantity > self.contains(item) {
+            if quantity > self.total_of(item) {
                 return Err(CharacterError::QuantityUnavailable(quantity));
             }
             self.add_reservation(item, quantity);
@@ -148,6 +120,23 @@ impl Inventory {
         }
         res.inc_quantity(quantity);
         Ok(())
+    }
+
+    pub fn decrease_reservation(&self, item: &str, quantity: i32) {
+        let Some(res) = self.get_reservation(item) else {
+            return;
+        };
+        if quantity >= *res.quantity.read().unwrap() {
+            self.remove_reservation(&res)
+        } else {
+            res.dec_quantity(quantity);
+            info!(
+                "inventory({}): decreased reservation quantity by '{}': [{}]",
+                self.data.read().unwrap().name,
+                quantity,
+                res
+            );
+        }
     }
 
     fn add_reservation(&self, item: &str, quantity: i32) {
@@ -163,33 +152,44 @@ impl Inventory {
         );
     }
 
-    pub fn decrease_reservation(&self, item: &str, quantity: i32) {
-        let Some(res) = self.get_reservation(item) else {
-            return;
-        };
-        if quantity >= *res.quantity.read().unwrap() {
-            self.remove_reservation(&res)
-        } else {
-            res.dec_quantity(quantity);
-            info!(
-                "{}: decreased quantity of inventory reservation by '{}': [{}]",
-                self.data.read().unwrap().name,
-                quantity,
-                res
-            );
-        }
-    }
-
     pub fn remove_reservation(&self, reservation: &InventoryReservation) {
         self.reservations
             .write()
             .unwrap()
             .retain(|r| **r != *reservation);
         info!(
-            "{}: removed reservation from inventory: {}",
+            "inventory({}): removed reservation: {}",
             self.data.read().unwrap().name,
             reservation
         );
+    }
+
+    fn quantity_reserved(&self, item: &str) -> i32 {
+        self.reservations
+            .read()
+            .unwrap()
+            .iter()
+            .filter_map(|r| {
+                if r.item == item {
+                    Some(r.quantity())
+                } else {
+                    None
+                }
+            })
+            .sum()
+    }
+
+    fn quantity_not_reserved(&self, item: &str) -> i32 {
+        self.total_of(item) - self.quantity_reserved(item)
+    }
+
+    fn get_reservation(&self, item: &str) -> Option<Arc<InventoryReservation>> {
+        self.reservations
+            .read()
+            .unwrap()
+            .iter()
+            .find(|r| r.item == item)
+            .cloned()
     }
 }
 

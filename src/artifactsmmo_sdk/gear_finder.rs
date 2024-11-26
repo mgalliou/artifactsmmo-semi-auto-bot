@@ -9,8 +9,7 @@ use super::{
 use artifactsmmo_openapi::models::{FightResult, ItemSchema, MonsterSchema};
 use itertools::{Itertools, PeekingNext};
 use ordered_float::OrderedFloat;
-use rayon::iter::{ParallelBridge, ParallelIterator};
-use std::{sync::Arc, vec};
+use std::sync::Arc;
 
 pub struct GearFinder {
     items: Arc<Items>,
