@@ -115,7 +115,7 @@ impl Inventory {
             .cloned()
     }
 
-    pub fn reserv_items_if_not(&self, item: &str, quantity: i32) -> Result<(), CharacterError> {
+    pub fn reserv_if_not(&self, item: &str, quantity: i32) -> Result<(), CharacterError> {
         let Some(res) = self.get_reservation(item) else {
             return self.reserv(item, quantity);
         };

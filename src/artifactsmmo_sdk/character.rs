@@ -1103,7 +1103,7 @@ impl Character {
         let deposit = self.action_withdraw(item, quantity);
         if deposit.is_ok() {
             self.bank.decrease_reservation(item, quantity, &self.name);
-            if let Err(e) = self.inventory.reserv_items_if_not(item, quantity) {
+            if let Err(e) = self.inventory.reserv_if_not(item, quantity) {
                 error!(
                     "{}: failed to reserv withdrawed item '{}'x{}: {:?}",
                     self.name, item, quantity, e
@@ -1746,7 +1746,7 @@ impl Character {
             if self.inventory.get_reservation(&f.code).is_none() {
                 if let Err(e) = self
                     .inventory
-                    .reserv_items_if_not(&f.code, self.inventory.contains(&f.code))
+                    .reserv_if_not(&f.code, self.inventory.contains(&f.code))
                 {
                     error!(
                         "{} failed to reserv food currently in inventory: {:?}",
@@ -1783,7 +1783,7 @@ impl Character {
         if let Err(e) = self.withdraw_item(&food.code, quantity) {
             error!("{} failed to withdraw food: {:?}", self.name, e)
         }
-        if let Err(e) = self.inventory.reserv_items_if_not(&food.code, quantity) {
+        if let Err(e) = self.inventory.reserv_if_not(&food.code, quantity) {
             error!("{} failed to reserv food: {:?}", self.name, e)
         };
     }

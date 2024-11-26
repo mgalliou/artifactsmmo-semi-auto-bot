@@ -108,10 +108,10 @@ fn handle_char(args: &[&str], game: &Game) {
                 },
                 "recycle" => match (args.get(2), args.get(3)) {
                     (Some(code), Some(quantity)) => {
-                        let _ = char.recycle_from_bank(code, quantity.parse::<i32>().unwrap_or(1));
+                        let _ = char.recycle_item(code, quantity.parse::<i32>().unwrap_or(1));
                     }
                     (Some(code), None) => {
-                        let _ = char.recycle_from_bank(code, 1);
+                        let _ = char.recycle_item(code, 1);
                     }
                     _ => eprint!("missing args"),
                 },
