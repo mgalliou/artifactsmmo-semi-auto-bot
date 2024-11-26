@@ -34,7 +34,8 @@ impl FightSimulator {
         gear: &Gear,
         monster: &MonsterSchema,
     ) -> Fight {
-        let mut hp = 115 + 5 * level + gear.health_increase() - missing_hp;
+        let starting_hp = 115 + 5 * level + gear.health_increase() - missing_hp;
+        let mut hp = starting_hp;
         let mut monster_hp = monster.hp;
         let mut turns = 1;
 
@@ -56,6 +57,7 @@ impl FightSimulator {
             turns,
             hp,
             monster_hp,
+            hp_lost: starting_hp - hp,
             result: if hp > 0 {
                 FightResult::Win
             } else {
@@ -78,6 +80,7 @@ pub struct Fight {
     pub turns: i32,
     pub hp: i32,
     pub monster_hp: i32,
+    pub hp_lost: i32,
     pub result: FightResult,
     pub cd: i32,
 }

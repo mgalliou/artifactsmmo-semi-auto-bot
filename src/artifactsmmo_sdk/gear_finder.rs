@@ -10,7 +10,7 @@ use artifactsmmo_openapi::models::{FightResult, ItemSchema, MonsterSchema};
 use itertools::{Itertools, PeekingNext};
 use ordered_float::OrderedFloat;
 use rayon::iter::{ParallelBridge, ParallelIterator};
-use std::sync::Arc;
+use std::{sync::Arc, vec};
 
 pub struct GearFinder {
     items: Arc<Items>,
@@ -40,10 +40,16 @@ impl GearFinder {
                     .result
                     == FightResult::Win
             })
-            .max_by_key(|g| {
+            .min_set_by_key(|g| {
                 self.fight_simulator
                     .simulate(char.level(), 0, g, monster)
-                    .hp
+                    .turns
+            })
+            .into_iter()
+            .min_by_key(|g| {
+                self.fight_simulator
+                    .simulate(char.level(), 0, g, monster)
+                    .hp_lost
             })
         {
             gear
@@ -73,23 +79,75 @@ impl GearFinder {
         filter: Filter,
         weapon: &'a ItemSchema,
     ) -> Vec<Gear> {
-        let helmets =
-            self.best_armors_against_with_weapon(char, monster, filter, weapon, Type::Helmet);
-        let shields =
-            self.best_armors_against_with_weapon(char, monster, filter, weapon, Type::Shield);
-        let body_armor =
-            self.best_armors_against_with_weapon(char, monster, filter, weapon, Type::BodyArmor);
-        let leg_armor =
-            self.best_armors_against_with_weapon(char, monster, filter, weapon, Type::LegArmor);
-        let boots =
-            self.best_armors_against_with_weapon(char, monster, filter, weapon, Type::Boots);
-        let rings = self.best_armors_against_with_weapon(char, monster, filter, weapon, Type::Ring);
-        let mut rings2 = rings.clone();
-        if filter == Filter::Available {
-            rings2.retain(|i| char.has_available(&i.code) > 1);
-        }
-        let amulets =
-            self.best_armors_against_with_weapon(char, monster, filter, weapon, Type::Amulet);
+        let helmets = self.best_armors_against_with_weapon(
+            char,
+            monster,
+            weapon,
+            Type::Helmet,
+            filter,
+            vec![],
+        );
+        let shields = self.best_armors_against_with_weapon(
+            char,
+            monster,
+            weapon,
+            Type::Shield,
+            filter,
+            vec![],
+        );
+        let body_armor = self.best_armors_against_with_weapon(
+            char,
+            monster,
+            weapon,
+            Type::BodyArmor,
+            filter,
+            vec![],
+        );
+        let leg_armor = self.best_armors_against_with_weapon(
+            char,
+            monster,
+            weapon,
+            Type::LegArmor,
+            filter,
+            vec![],
+        );
+        let boots = self.best_armors_against_with_weapon(
+            char,
+            monster,
+            weapon,
+            Type::Boots,
+            filter,
+            vec![],
+        );
+        let rings =
+            self.best_armors_against_with_weapon(char, monster, weapon, Type::Ring, filter, vec![]);
+        let ring2_black_list = rings
+            .iter()
+            .filter(|i| {
+                if filter == Filter::Available {
+                    char.has_available(&i.code) <= 1
+                } else {
+                    true
+                }
+            })
+            .map(|i| i.code.as_str())
+            .collect_vec();
+        let rings2 = self.best_armors_against_with_weapon(
+            char,
+            monster,
+            weapon,
+            Type::Ring,
+            filter,
+            ring2_black_list,
+        );
+        let amulets = self.best_armors_against_with_weapon(
+            char,
+            monster,
+            weapon,
+            Type::Amulet,
+            filter,
+            vec![],
+        );
         // TODO: handle artifacts and consumables
         //let artifacts = self.best_armors_against_with_weapon(char, monster, weapon, Type::Artifact);
         //let consumables =
@@ -122,7 +180,6 @@ impl GearFinder {
         items
             .into_iter()
             .multi_cartesian_product()
-            .par_bridge()
             .map(|items| {
                 let mut iter = items.into_iter().peekable();
                 Gear {
@@ -149,9 +206,10 @@ impl GearFinder {
         &self,
         char: &Character,
         monster: &MonsterSchema,
-        filter: Filter,
         weapon: &ItemSchema,
         r#type: Type,
+        filter: Filter,
+        black_list: Vec<&str>,
     ) -> Vec<&ItemSchema> {
         let mut upgrades: Vec<&ItemSchema> = vec![];
         let equipables = self
@@ -159,6 +217,7 @@ impl GearFinder {
             .equipable_at_level(char.level(), r#type)
             .into_iter()
             .filter(|i| Self::is_eligible(i, filter, char))
+            .filter(|i| !black_list.contains(&i.code.as_str()))
             .collect_vec();
         let damage_increases = equipables
             .iter()
@@ -169,24 +228,20 @@ impl GearFinder {
             .iter()
             .cloned()
             .max_by_key(|i| OrderedFloat(i.damage_increase_against_with(monster, weapon)));
+        let damage_reductions = equipables
+            .iter()
+            .cloned()
+            .filter(|i| i.damage_reduction_against(monster) > 0.0)
+            .collect_vec();
+        let best_reduction = damage_reductions
+            .iter()
+            .cloned()
+            .max_by_key(|i| OrderedFloat(i.damage_reduction_against(monster)));
         if let Some(best_for_damage) = best_for_damage {
             upgrades.push(best_for_damage);
         }
-        let best_for_resistance = {
-            if best_for_damage.is_some() {
-                damage_increases
-                    .iter()
-                    .cloned()
-                    .max_by_key(|i| OrderedFloat(i.damage_reduction_against(monster)))
-            } else {
-                equipables
-                    .iter()
-                    .cloned()
-                    .max_by_key(|i| OrderedFloat(i.damage_reduction_against(monster)))
-            }
-        };
-        if let Some(best_for_resistance) = best_for_resistance {
-            upgrades.push(best_for_resistance);
+        if let Some(best_reduction) = best_reduction {
+            upgrades.push(best_reduction);
         }
         //let best_for_health = {
         //    if best_for_damage.is_some() {
@@ -231,6 +286,7 @@ impl GearFinder {
             Filter::Available => char.has_available(&i.code) > 0,
             Filter::Craftable => {
                 (i.craft_schema().is_none() || char.account.can_craft(&i.code))
+                    && !i.is_crafted_with("jasper_crystal")
                     && i.code != "lizard_skin_armor"
                     && i.code != "lizard_skin_legs_armor"
                     && i.code != "piggy_armor"
