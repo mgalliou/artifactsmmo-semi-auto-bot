@@ -169,7 +169,7 @@ impl Bank {
         quantity: i32,
         owner: &str,
     ) -> Result<(), BankError> {
-        let Some(res) = self.get_reservation(owner, item) else {
+        let Some(res) = self.get_reservation(item, owner) else {
             if quantity > self.has_available(item, Some(owner)) {
                 return Err(BankError::QuantityUnavailable(quantity));
             }
@@ -184,7 +184,7 @@ impl Bank {
     }
 
     pub fn decrease_reservation(&self, item: &str, quantity: i32, owner: &str) {
-        let Some(res) = self.get_reservation(owner, item) else {
+        let Some(res) = self.get_reservation(item, owner) else {
             return;
         };
         if quantity >= *res.quantity.read().unwrap() {
