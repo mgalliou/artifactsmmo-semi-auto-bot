@@ -63,6 +63,6 @@ impl Resources {
     }
 
     pub fn is_event(&self, code: &str) -> bool {
-        self.events.data.iter().any(|e| e.code == code)
+        self.events.data.iter().any(|e| e.content.code == code)
     }
 }
