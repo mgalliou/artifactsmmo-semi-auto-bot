@@ -197,11 +197,14 @@ fn respond(line: String, game: &Game) -> Result<bool, String> {
                     .remove(&Order::new(None, item, *quantity, Purpose::Cli));
             }
             None => {
-                println!("orders (by priority)");
-                game.orderboard
-                    .orders_by_priority()
-                    .iter()
-                    .for_each(|o| println!("{}", o));
+                println!("orders (by priority):");
+                game.orderboard.orders_by_priority().iter().for_each(|o| {
+                    println!(
+                        "{}, in inventory: {}",
+                        o,
+                        game.account.available_in_inventories(&o.item)
+                    )
+                });
             }
             _ => {
                 unreachable!("error");
