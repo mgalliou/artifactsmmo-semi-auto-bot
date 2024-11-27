@@ -1,5 +1,11 @@
 use super::{
-    api::{characters::CharactersApi, my_character::MyCharacterApi}, bank::Bank, character::Character, game::Game, game_config::GameConfig, items::Items, skill::Skill
+    api::{characters::CharactersApi, my_character::MyCharacterApi},
+    bank::Bank,
+    character::Character,
+    game::Game,
+    game_config::GameConfig,
+    items::Items,
+    skill::Skill,
 };
 use crate::artifactsmmo_sdk::char_config::CharConfig;
 use artifactsmmo_openapi::{
@@ -59,18 +65,8 @@ impl Account {
         }
     }
 
-    pub fn get_character(
-        &self,
-        index: usize,
-    ) -> Result<CharacterSchema, Error<GetMyCharactersMyCharactersGetError>> {
-        let chars = match self.my_characters_api.all() {
-            Ok(c) => Ok(c.data),
-            Err(e) => Err(e),
-        };
-        match chars {
-            Ok(c) => Ok(c[index - 1].clone()),
-            Err(e) => Err(e),
-        }
+    pub fn get_character(&self, index: usize) -> Option<Arc<Character>> {
+        self.characters.read().unwrap().get(index).cloned()
     }
 
     pub fn get_character_by_name(&self, name: &str) -> Option<Arc<Character>> {

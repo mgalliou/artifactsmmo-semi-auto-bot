@@ -1,19 +1,17 @@
 use artifactsmmo_playground::artifactsmmo_sdk::{
-    bank::Bank,
     character::Character,
     fight_simulator::FightSimulator,
     game::Game,
     gear_finder::{Filter, GearFinder},
-    items::Items,
-    orderboard::{Order, OrderBoard, Purpose},
-    skill::Skill,
+    orderboard::{Order, Purpose},
 };
+use clap::{arg, value_parser, Command};
 use itertools::Itertools;
 use log::LevelFilter;
-use rustyline::{error::ReadlineError, DefaultEditor, Result};
-use std::{str::FromStr, sync::Arc, thread::sleep, time::Duration};
+use rustyline::{error::ReadlineError, DefaultEditor};
+use std::{sync::Arc, thread::sleep, time::Duration};
 
-fn main() -> Result<()> {
+fn main() -> rustyline::Result<()> {
     let _ = simple_logging::log_to_file("artifactsmmo.log", LevelFilter::Info);
     let game = Game::new();
     game.init();
@@ -35,14 +33,15 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn run_cli(game: &Game) -> Result<()> {
+fn run_cli(game: &Game) -> rustyline::Result<()> {
     let mut rl = DefaultEditor::new()?;
     loop {
         let readline = rl.readline(">> ");
         match readline {
-            Ok(line) => {
-                handle_cmd_line(line, game);
-            }
+            Ok(line) => match respond(line, game) {
+                Ok(_) => {}
+                Err(e) => eprintln!("{}", e),
+            },
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");
                 break;
@@ -60,139 +59,260 @@ fn run_cli(game: &Game) -> Result<()> {
     Ok(())
 }
 
-fn handle_cmd_line(line: String, game: &Game) {
-    let args = line.split_whitespace().collect_vec();
-    if let Some(cmd) = args.first() {
-        match *cmd {
-            "items" => handle_items(&args[1..], &game.items),
-            "char" => handle_char(&args[1..], game),
-            "orderboard" => handle_orderboard(&args[1..], &game.orderboard),
-            "bank" => handle_bank(&args[1..], &game.account.bank),
-            _ => println!("error"),
-        }
-    }
-}
-
-fn handle_bank(args: &[&str], bank: &Bank) {
-    match args.first() {
-        Some(verb) => match *verb {
-            "res" => {
-                println!("reservations:");
-                bank.reservations().iter().for_each(|r| println!("{}", r));
-            }
-            _ => println!("invalid verb"),
-        },
-        None => eprint!("missing verb"),
-    }
-}
-
-fn handle_char(args: &[&str], game: &Game) {
-    let gear_finder = GearFinder::new(&game.items);
-    if let (Some(verb), Some(name)) = (args.first(), args.get(1)) {
-        match game.account.get_character_by_name(name) {
-            Some(char) => match *verb {
-                "idle" => char.toggle_idle(),
-                "fight" => {
-                    let _ = char.action_fight();
-                }
-                "craft" => match (args.get(2), args.get(3)) {
-                    (Some(code), Some(quantity)) => {
-                        char.craft_items(code, quantity.parse::<i32>().unwrap_or(0));
-                    }
-                    (Some(code), None) => {
-                        char.craft_items(code, 1);
-                    }
-                    _ => eprint!("missing args"),
-                },
-                "recycle" => match (args.get(2), args.get(3)) {
-                    (Some(code), Some(quantity)) => {
-                        let _ = char.recycle_item(code, quantity.parse::<i32>().unwrap_or(1));
-                    }
-                    (Some(code), None) => {
-                        let _ = char.recycle_item(code, 1);
-                    }
-                    _ => eprint!("missing args"),
-                },
-                "unequip_all" => char.unequip_and_deposit_all(),
-                "deposit_all" => char.deposit_all(),
-                "empty_bank" => char.empty_bank(),
-                "gear" => match args.get(2) {
-                    Some(monster) => println!(
-                        "{}",
-                        gear_finder.best_against(
-                            &char,
-                            game.monsters.get(monster).unwrap(),
-                            Filter::Available,
+fn cli() -> Command {
+    const PARSER_TEMPLATE: &str = "\
+        {all-args}
+    ";
+    // strip out name/version
+    const APPLET_TEMPLATE: &str = "\
+        {about-with-newline}\n\
+        {usage-heading}\n    {usage}\n\
+        \n\
+        {all-args}{after-help}\
+    ";
+    Command::new("artifactsmmo-playground")
+        .multicall(true)
+        .arg_required_else_help(true)
+        .subcommand_required(true)
+        .subcommand_value_name("ARTIFACTS_MMO")
+        .subcommand_help_heading("ARTIFACTS_MMO")
+        .help_template(PARSER_TEMPLATE)
+        .subcommand(
+            Command::new("orderboard")
+                .alias("ob")
+                .subcommand(
+                    Command::new("add")
+                        .arg_required_else_help(true)
+                        .arg(arg!(item: [ITEM]))
+                        .arg(
+                            arg!(quantity: [QUANTITY])
+                                .default_value("1")
+                                .value_parser(value_parser!(i32)),
                         )
-                    ),
-                    None => eprintln!("missing monster"),
-                },
-                "simulate" => match args.get(2) {
-                    Some(monster) => {
-                        let gear = gear_finder.best_against(
-                            &char,
-                            game.monsters.get(monster).unwrap(),
-                            Filter::Available,
-                        );
-                        let fight = FightSimulator::new().simulate(
-                            char.level(),
-                            0,
-                            &gear,
-                            game.monsters.get(monster).unwrap(),
-                        );
-                        println!("{:?}", fight)
-                    }
-                    None => eprintln!("missing monster"),
-                },
-                _ => eprintln!("invalid verb"),
-            },
-            _ => eprintln!("character not found: {}", name),
+                        .help_template(APPLET_TEMPLATE),
+                )
+                .subcommand(
+                    Command::new("remove")
+                        .alias("rm")
+                        .arg_required_else_help(true)
+                        .arg(arg!(item: [ITEM]))
+                        .arg(
+                            arg!(quantity: [QUANTITY])
+                                .default_value("1")
+                                .value_parser(value_parser!(i32)),
+                        )
+                        .help_template(APPLET_TEMPLATE),
+                ),
+        )
+        .subcommand(
+            Command::new("bank")
+                .subcommand(
+                    Command::new("reservations")
+                        .alias("res")
+                        .help_template(APPLET_TEMPLATE),
+                )
+                .subcommand(Command::new("empty").help_template(APPLET_TEMPLATE)),
+        )
+        .subcommand(
+            Command::new("char")
+                .arg(arg!(i: [INDEX]).value_parser(value_parser!(i32)))
+                .help_template(APPLET_TEMPLATE),
+        )
+        .subcommand(Command::new("status").help_template(APPLET_TEMPLATE))
+        .subcommand(Command::new("idle").help_template(APPLET_TEMPLATE))
+        .subcommand(
+            Command::new("craft")
+                .arg(arg!(item: [ITEM]))
+                .arg(
+                    arg!(quantity: [QUANTITY])
+                        .default_value("1")
+                        .value_parser(value_parser!(i32)),
+                )
+                .help_template(APPLET_TEMPLATE),
+        )
+        .subcommand(
+            Command::new("recycle")
+                .arg(arg!(item: [ITEM]))
+                .arg(
+                    arg!(quantity: [QUANTITY])
+                        .default_value("1")
+                        .value_parser(value_parser!(i32)),
+                )
+                .help_template(APPLET_TEMPLATE),
+        )
+        .subcommand(Command::new("gear").arg(arg!(monster: [MONSTER])))
+        .subcommand(
+            Command::new("simulate")
+                .alias("sim")
+                .arg(arg!(monster: [MONSTER]))
+                .help_template(APPLET_TEMPLATE),
+        )
+        .subcommand(
+            Command::new("deposit")
+                .arg(arg!(item: [ITEM]))
+                .arg(
+                    arg!(quantity: [QUANTITY])
+                        .default_value("1")
+                        .value_parser(value_parser!(i32)),
+                )
+                .help_template(APPLET_TEMPLATE),
+        )
+        .subcommand(
+            Command::new("unequip")
+                .arg(arg!(slot: [SLOT]))
+                .arg(
+                    arg!(quantity: [QUANTITY])
+                        .default_value("1")
+                        .value_parser(value_parser!(i32)),
+                )
+                .help_template(APPLET_TEMPLATE),
+        )
+}
+
+fn respond(line: String, game: &Game) -> Result<bool, String> {
+    let args = line.split_whitespace().collect_vec();
+    let gear_finder = GearFinder::new(&game.items);
+    let mut char: Option<Arc<Character>> = None;
+    let matches = cli()
+        .try_get_matches_from(args)
+        .map_err(|err| format!("{}", err))?;
+    match matches.subcommand() {
+        Some(("orderboard", ob_matches)) => match ob_matches.subcommand() {
+            Some(("add", add_matches)) => {
+                let item = add_matches
+                    .get_one::<String>("item")
+                    .map(|s| s.as_str())
+                    .unwrap_or("none");
+                let quantity = add_matches.get_one::<i32>("quantity").unwrap_or(&1);
+                game.orderboard
+                    .add(Order::new(None, item, *quantity, Purpose::Cli));
+            }
+            Some(("remove", _remove_matches)) => {
+                println!("not yet implemented");
+            }
+            None => {
+                println!("orders (by priority)");
+                game.orderboard
+                    .orders_by_priority()
+                    .iter()
+                    .for_each(|o| println!("{}", o));
+            }
+            _ => {
+                unreachable!("error");
+            }
+        },
+        Some(("bank", _matches)) => match _matches.subcommand() {
+            Some(("reservations", _matches)) => {
+                println!("reservations:");
+                game.account
+                    .bank
+                    .reservations()
+                    .iter()
+                    .for_each(|r| println!("{}", r));
+            }
+            Some(("empty", _matches)) => {
+                println!("not yet implemented");
+            }
+            None => game
+                .account
+                .bank
+                .content
+                .read()
+                .unwrap()
+                .iter()
+                .for_each(|i| println!("{}: {}", i.code, i.quantity)),
+            _ => {
+                unreachable!("error");
+            }
+        },
+        Some(("char", char_matches)) => {
+            let index = *char_matches.get_one::<i32>("i").unwrap_or(&0);
+            char = game.account.get_character(index as usize);
+            if let Some(c) = char {
+                println!("character '{}' selected", c.name);
+            } else {
+                println!("character not found");
+            }
+        }
+        Some(("idle", _m)) => {
+            if let Some(char) = char {
+                char.toggle_idle();
+            } else {
+                println!("no character selected");
+            }
+        }
+        Some(("craft", char_matches)) => {
+            let item = char_matches
+                .get_one::<String>("item")
+                .map(|s| s.as_str())
+                .unwrap_or("none");
+            let quantity = char_matches.get_one::<i32>("quantity").unwrap_or(&1);
+            if let Some(char) = char {
+                char.craft_items(item, *quantity);
+            } else {
+                println!("no character selected");
+            }
+        }
+        Some(("recycle", char_matches)) => {
+            let item = char_matches
+                .get_one::<String>("item")
+                .map(|s| s.as_str())
+                .unwrap_or("none");
+            let quantity = char_matches.get_one::<i32>("quantity").unwrap_or(&1);
+            if let Some(char) = char {
+                char.recycle_item(item, *quantity)
+                    .map_err(|e| e.to_string())?;
+            } else {
+                println!("no character selected");
+            }
+        }
+        Some(("gear", gear_matches)) => {
+            let monster = gear_matches
+                .get_one::<String>("monster")
+                .map(|s| s.as_str())
+                .unwrap_or("none");
+            if let Some(char) = char {
+                if let Some(monster) = game.monsters.get(monster) {
+                    println!(
+                        "{}",
+                        gear_finder.best_against(&char, monster, Filter::Available)
+                    );
+                } else {
+                    println!("monster not found");
+                }
+            } else {
+                println!("no character selected");
+            }
+        }
+        Some(("simulate", sim_matches)) => {
+            let monster = sim_matches
+                .get_one::<String>("monster")
+                .map(|s| s.as_str())
+                .unwrap_or("none");
+            if let Some(char) = char {
+                if let Some(monster) = game.monsters.get(monster) {
+                    let gear = gear_finder.best_against(&char, monster, Filter::Available);
+                    let fight = FightSimulator::new().simulate(char.level(), 0, &gear, monster);
+                    println!("{:?}", fight)
+                } else {
+                    println!("monster not found");
+                }
+            } else {
+                println!("no character selected");
+            }
+        }
+        Some(("deposit", _matches)) => {
+            println!("not yet implemented");
+        }
+        Some(("unequip", _matches)) => {
+            println!("not yet implemented");
+        }
+        Some((cmd, _matches)) => {
+            println!("unknown command: {}", cmd);
+        }
+        None => {
+            unreachable!("error");
         }
     }
-}
-
-fn handle_items(args: &[&str], items: &Arc<Items>) {
-    if let Some(verb) = args.first() {
-        match (*verb, args.get(1), args.get(2)) {
-            ("bfl", Some(lvl), Some(skill)) => println!(
-                "{:#?}",
-                items.best_for_leveling(lvl.parse().unwrap(), Skill::from_str(skill).unwrap())
-            ),
-            _ => println!("error"),
-        };
-    }
-}
-
-fn handle_orderboard(args: &[&str], orderboard: &Arc<OrderBoard>) {
-    match args.first() {
-        Some(verb) => match *verb {
-            "request" => match (args.get(1), args.get(2)) {
-                (Some(item), Some(quantity)) => {
-                    orderboard.add(Order::new(
-                        None,
-                        item,
-                        quantity.parse::<i32>().unwrap_or(0),
-                        Purpose::Cli,
-                    ));
-                }
-                _ => eprintln!("missings args"),
-            },
-            "orders" => {
-                println!("orders:");
-                orderboard
-                    .orders_by_priority()
-                    .iter()
-                    .for_each(|o| println!("{}", o));
-            }
-            "prio" => {
-                println!("orders:");
-                orderboard
-                    .orders_by_priority()
-                    .iter()
-                    .for_each(|o| println!("{}", o));
-            }
-            _ => println!("invalid verb"),
-        },
-        None => eprint!("missing verb"),
-    }
+    Ok(true)
 }

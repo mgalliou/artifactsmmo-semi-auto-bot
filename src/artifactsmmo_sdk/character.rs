@@ -38,7 +38,7 @@ use std::{
     vec::Vec,
 };
 use strum::IntoEnumIterator;
-use strum_macros::EnumIs;
+use strum_macros::{Display, EnumIs};
 mod actions;
 
 pub struct Character {
@@ -1847,7 +1847,7 @@ impl Role {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Display)]
 pub enum CharacterError {
     InsuffisientSkillLevel(Skill, i32),
     InsuffisientMaterials,
