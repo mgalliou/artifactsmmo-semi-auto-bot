@@ -749,6 +749,7 @@ impl Character {
                 }
             }
         }
+        self.unequip_and_deposit_all_for_gathering();
         if let Some(available) = available {
             self.equip_item_from_bank_or_inventory(&available.code, Slot::Weapon);
         }
@@ -1707,6 +1708,27 @@ impl Character {
                         "{}: failed to deposit '{}'x{} during `unequip_and_deposit_all`: {:?}",
                         self.name, &item.code, quantity, e
                     )
+                }
+            }
+        })
+    }
+
+    pub fn unequip_and_deposit_all_for_gathering(&self) {
+        Slot::iter().for_each(|s| {
+            if !s.is_weapon() {
+                if let Some(item) = self.equiped_in(s) {
+                    let quantity = self.quantity_in_slot(s);
+                    if let Err(e) = self.action_unequip(s, quantity) {
+                        error!(
+                            "{}: failed to unequip '{}'x{} during unequip_and_deposit_all: {:?}",
+                            self.name, &item.code, quantity, e
+                        )
+                    } else if let Err(e) = self.deposit_item(&item.code, quantity, None) {
+                        error!(
+                            "{}: failed to deposit '{}'x{} during `unequip_and_deposit_all`: {:?}",
+                            self.name, &item.code, quantity, e
+                        )
+                    }
                 }
             }
         })
