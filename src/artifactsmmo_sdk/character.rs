@@ -727,7 +727,7 @@ impl Character {
         }
         if let Some(prev_equiped) = prev_equiped {
             if available.is_none() || available.is_some_and(|t| t.code != prev_equiped.code) {
-                if let Err(e) = self.action_unequip(Slot::Weapon, 1) {
+                if let Err(e) = self.unequip_item(Slot::Weapon, 1) {
                     error!(
                         "{}: failed to unequip previously equiped weapon: {:?}",
                         self.name, e
@@ -1384,16 +1384,7 @@ impl Character {
     }
 
     fn equip_item(&self, item: &str, slot: Slot, quantity: i32) -> Result<(), CharacterError> {
-        // TODO: add check for inventory space
-        if let Some(equiped) = self.equiped_in(slot) {
-            if equiped.health() >= self.health() {
-                self.eat_food();
-            }
-            if equiped.health() >= self.health() {
-                self.rest()?;
-            }
-            self.action_unequip(slot, self.quantity_in_slot(slot))?;
-        }
+        self.unequip_item(slot, self.quantity_in_slot(slot))?;
         if let Err(e) = self.action_equip(item, slot, quantity) {
             error!(
                 "{}: failed to equip '{}'x{} in the '{:?}' slot: {:?}",
@@ -1402,6 +1393,20 @@ impl Character {
         }
         self.inventory.decrease_reservation(item, quantity);
         Ok(())
+    }
+
+    fn unequip_item(&self, slot: Slot, quantity: i32) -> Result<(), CharacterError> {
+        // TODO: add check for inventory space
+        let Some(equiped) = self.equiped_in(slot) else {
+            return Ok(());
+        };
+        if equiped.health() >= self.health() {
+            self.eat_food();
+        }
+        if equiped.health() >= self.health() {
+            self.rest()?;
+        }
+        Ok(self.action_unequip(slot, quantity)?)
     }
 
     fn equip_item_from_bank_or_inventory(&self, item: &str, slot: Slot) {
@@ -1698,7 +1703,7 @@ impl Character {
         Slot::iter().for_each(|s| {
             if let Some(item) = self.equiped_in(s) {
                 let quantity = self.quantity_in_slot(s);
-                if let Err(e) = self.action_unequip(s, quantity) {
+                if let Err(e) = self.unequip_item(s, quantity) {
                     error!(
                         "{}: failed to unequip '{}'x{} during unequip_and_deposit_all: {:?}",
                         self.name, &item.code, quantity, e
@@ -1718,7 +1723,7 @@ impl Character {
             if !s.is_weapon() {
                 if let Some(item) = self.equiped_in(s) {
                     let quantity = self.quantity_in_slot(s);
-                    if let Err(e) = self.action_unequip(s, quantity) {
+                    if let Err(e) = self.unequip_item(s, quantity) {
                         error!(
                             "{}: failed to unequip '{}'x{} during unequip_and_deposit_all: {:?}",
                             self.name, &item.code, quantity, e
