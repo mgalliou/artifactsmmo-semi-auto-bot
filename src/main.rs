@@ -187,8 +187,14 @@ fn respond(line: String, game: &Game) -> Result<bool, String> {
                 game.orderboard
                     .add(Order::new(None, item, *quantity, Purpose::Cli));
             }
-            Some(("remove", _remove_matches)) => {
-                println!("not yet implemented");
+            Some(("remove", remove_matches)) => {
+                let item = remove_matches
+                    .get_one::<String>("item")
+                    .map(|s| s.as_str())
+                    .unwrap_or("none");
+                let quantity = remove_matches.get_one::<i32>("quantity").unwrap_or(&1);
+                game.orderboard
+                    .remove(&Order::new(None, item, *quantity, Purpose::Cli));
             }
             None => {
                 println!("orders (by priority)");

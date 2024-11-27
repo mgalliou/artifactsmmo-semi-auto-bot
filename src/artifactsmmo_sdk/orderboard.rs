@@ -82,9 +82,9 @@ impl OrderBoard {
     }
 
     pub fn remove(&self, order: &Order) {
-        let mut queue = self.orders.write().unwrap();
-        if queue.iter().any(|r| r.is_similar(order)) {
-            queue.retain(|r| !r.is_similar(order));
+        let mut orders = self.orders.write().unwrap();
+        if orders.iter().any(|r| r.is_similar(order)) {
+            orders.retain(|r| !r.is_similar(order));
             info!("orderboard: removed: {}.", order)
         }
     }
