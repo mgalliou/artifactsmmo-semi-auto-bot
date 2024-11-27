@@ -304,6 +304,9 @@ impl Character {
     }
 
     fn handle_order(&self, order: Arc<Order>) -> bool {
+        if self.orderboard.total_missing_for(&order) <= 0 {
+            return false;
+        }
         let Some(progress) = self.progress_order(&order) else {
             return false;
         };
@@ -325,26 +328,33 @@ impl Character {
             .sources_of(&order.item)
             .iter()
             .find_map(|s| match s {
-                ItemSource::Resource(r) => self
-                    .gather_resource(r, None)
-                    .ok()
-                    .map(|gather| gather.amount_of(&order.item)),
-                ItemSource::Monster(m) => self
-                    .kill_monster(m, None)
-                    .ok()
-                    .map(|fight| fight.amount_of(&order.item)),
+                ItemSource::Resource(r) => self.progress_resource_order(order, r),
+                ItemSource::Monster(m) => self.progress_monster_order(order, m),
                 ItemSource::Craft => self.progress_crafting_order(order),
                 ItemSource::TaskReward => self.progress_task_reward_order(order),
                 ItemSource::Task => self.progress_task_order(order),
             })
     }
 
+    fn progress_resource_order(&self, order: &Order, r: &ResourceSchema) -> Option<i32> {
+        order.inc_in_progress(1);
+        let result = self
+            .gather_resource(r, None)
+            .ok()
+            .map(|gather| gather.amount_of(&order.item));
+        order.dec_in_progress(1);
+        result
+    }
+
+    fn progress_monster_order(&self, order: &Order, m: &MonsterSchema) -> Option<i32> {
+        self.kill_monster(m, None)
+            .ok()
+            .map(|fight| fight.amount_of(&order.item))
+    }
+
     fn progress_crafting_order(&self, order: &Order) -> Option<i32> {
         match self.can_craft(&order.item) {
             Ok(()) => {
-                if self.orderboard.total_missing_for(order) <= 0 {
-                    return None;
-                }
                 let quantity = min(
                     self.max_craftable_items(&order.item),
                     self.orderboard.total_missing_for(order),
@@ -376,9 +386,6 @@ impl Character {
     fn progress_task_reward_order(&self, order: &Order) -> Option<i32> {
         match self.can_exchange_task() {
             Ok(()) => {
-                if order.in_progress() > 0 {
-                    return None;
-                }
                 order.inc_in_progress(1);
                 let exchanged = self.exchange_task().map(|r| r.amount_of(&order.item)).ok();
                 order.dec_in_progress(1);
