@@ -10,8 +10,7 @@ use artifactsmmo_playground::artifactsmmo_sdk::{
 };
 use itertools::Itertools;
 use log::LevelFilter;
-use rustyline::Result;
-use rustyline::{error::ReadlineError, DefaultEditor};
+use rustyline::{error::ReadlineError, DefaultEditor, Result};
 use std::{str::FromStr, sync::Arc, thread::sleep, time::Duration};
 
 fn main() -> Result<()> {

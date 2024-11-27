@@ -2,6 +2,7 @@ use itertools::Itertools;
 use log::{debug, info};
 use std::{
     fmt::Display,
+    mem::discriminant,
     sync::{Arc, RwLock},
 };
 use strum::IntoEnumIterator;
@@ -42,33 +43,10 @@ impl OrderBoard {
 
     pub fn orders_by_priority(&self) -> Vec<Arc<Order>> {
         let mut orders: Vec<Arc<Order>> = vec![];
-        Purpose::iter().for_each(|p| match p {
-            Purpose::Cli => {
-                orders.extend(self.orders_filtered(|o| o.purpose.is_cli()));
-            }
-            Purpose::Task { char: _ } => {
-                orders.extend(self.orders_filtered(|o| o.purpose.is_task()));
-            }
-            Purpose::Gather {
-                char: _,
-                skill: _,
-                item_code: _,
-            } => {
-                orders.extend(self.orders_filtered(|o| o.purpose.is_gather()));
-            }
-            Purpose::Food { char: _ } => {
-                orders.extend(self.orders_filtered(|o| o.purpose.is_food()));
-            }
-            Purpose::Gear {
-                char: _,
-                slot: _,
-                item_code: _,
-            } => {
-                orders.extend(self.orders_filtered(|o| o.purpose.is_gear()));
-            }
-            Purpose::Leveling { char: _, skill: _ } => {
-                orders.extend(self.orders_filtered(|o| o.purpose.is_leveling()));
-            }
+        Purpose::iter().for_each(|p| {
+            let filtered = self.orders_filtered(|o| discriminant(&o.purpose) == discriminant(&p));
+            // TODO: add sorting, by date/purpose
+            orders.extend(filtered);
         });
         orders.sort_by_key(|o| !self.items.is_from_event(&o.item));
         orders
