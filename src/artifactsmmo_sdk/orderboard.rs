@@ -70,7 +70,7 @@ impl OrderBoard {
                 orders.extend(self.orders_filtered(|o| o.purpose.is_leveling()));
             }
         });
-        orders.sort_by_key(|o| self.items.is_from_event(&o.item));
+        orders.sort_by_key(|o| !self.items.is_from_event(&o.item));
         orders
     }
 
@@ -217,14 +217,14 @@ impl Display for Order {
 
 #[derive(Debug, PartialEq, Clone, EnumIs, EnumIter)]
 pub enum Purpose {
+    Food {
+        char: String,
+    },
     Cli,
     Gather {
         char: String,
         skill: Skill,
         item_code: String,
-    },
-    Food {
-        char: String,
     },
     Gear {
         char: String,
