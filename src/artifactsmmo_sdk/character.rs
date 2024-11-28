@@ -343,34 +343,27 @@ impl Character {
     }
 
     fn progress_crafting_order(&self, order: &Order) -> Option<i32> {
-        match self.can_craft(&order.item) {
-            Ok(()) => {
-                let quantity = min(
-                    self.max_craftable_items(&order.item),
-                    self.orderboard.total_missing_for(order),
-                );
-                if quantity <= 0 {
-                    return None;
-                }
-                order.inc_in_progress(quantity);
-                let crafted = self.craft_from_bank(&order.item, quantity, PostCraftAction::None);
-                order.dec_in_progress(quantity);
-                crafted.ok().map(|craft| craft.amount_of(&order.item))
-            }
-            Err(e) => {
-                let CharacterError::InsuffisientMaterials = e else {
-                    return None;
-                };
-                if !self.order_missing_mats(
-                    &order.item,
-                    self.orderboard.total_missing_for(order),
-                    order.purpose.clone(),
-                ) {
-                    return None;
-                }
-                Some(0)
-            }
+        if self.can_craft(&order.item).is_err() {
+            return None;
         }
+        if self.order_missing_mats(
+            &order.item,
+            self.orderboard.total_missing_for(order),
+            order.purpose.clone(),
+        ) {
+            return Some(0);
+        }
+        let quantity = min(
+            self.max_craftable_items(&order.item),
+            self.orderboard.total_missing_for(order),
+        );
+        if quantity <= 0 {
+            return None;
+        }
+        order.inc_in_progress(quantity);
+        let crafted = self.craft_from_bank(&order.item, quantity, PostCraftAction::None);
+        order.dec_in_progress(quantity);
+        crafted.ok().map(|craft| craft.amount_of(&order.item))
     }
 
     fn progress_task_reward_order(&self, order: &Order) -> Option<i32> {
