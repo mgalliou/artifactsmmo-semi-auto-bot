@@ -276,6 +276,11 @@ impl Items {
                     && !i.is_crafted_with("jasper_crystal")
                     && !i.is_crafted_with("magical_cure")
             })
+            .filter(|i| {
+                i.mats()
+                    .iter()
+                    .all(|m| self.get(&m.code).unwrap().level <= level)
+            })
             .max_set_by_key(|i| i.level)
             .into_iter()
             .collect_vec()
