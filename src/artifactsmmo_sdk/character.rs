@@ -243,17 +243,7 @@ impl Character {
         self.items.sources_of(&order.item).iter().any(|s| match s {
             ItemSource::Resource(r) => self.can_gather(r).is_ok(),
             ItemSource::Monster(m) => self.can_kill(m).is_ok(),
-            ItemSource::Craft => self.can_craft(&order.item).is_ok_and(|_| {
-                if order.in_progress() <= 0 {
-                    // NOTE: Maybe ordering missing mats should be done elsewhere
-                    self.order_missing_mats(
-                        &order.item,
-                        self.orderboard.total_missing_for(order),
-                        order.purpose.clone(),
-                    );
-                };
-                true
-            }),
+            ItemSource::Craft => self.can_craft(&order.item).is_ok(),
             ItemSource::TaskReward => order.in_progress() <= 0,
             ItemSource::Task => true,
         })
