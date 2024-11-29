@@ -169,10 +169,11 @@ fn cli() -> Command {
         )
 }
 
+static mut CHAR: Option<Arc<Character>> = None;
+
 fn respond(line: String, game: &Game) -> Result<bool, String> {
     let args = line.split_whitespace().collect_vec();
     let gear_finder = GearFinder::new(&game.items);
-    let mut char: Option<Arc<Character>> = None;
     let matches = cli()
         .try_get_matches_from(args)
         .map_err(|err| format!("{}", err))?;
@@ -236,15 +237,15 @@ fn respond(line: String, game: &Game) -> Result<bool, String> {
         },
         Some(("char", char_matches)) => {
             let index = *char_matches.get_one::<i32>("i").unwrap_or(&0);
-            char = game.account.get_character(index as usize);
-            if let Some(c) = char {
-                println!("character '{}' selected", c.name);
+            unsafe { CHAR = game.account.get_character(index as usize) };
+            if let Some(char) = unsafe { CHAR.clone() } {
+                println!("character '{}' selected", char.name);
             } else {
                 println!("character not found");
             }
         }
         Some(("idle", _m)) => {
-            if let Some(char) = char {
+            if let Some(char) = unsafe { CHAR.clone() } {
                 char.toggle_idle();
             } else {
                 println!("no character selected");
@@ -256,7 +257,7 @@ fn respond(line: String, game: &Game) -> Result<bool, String> {
                 .map(|s| s.as_str())
                 .unwrap_or("none");
             let quantity = char_matches.get_one::<i32>("quantity").unwrap_or(&1);
-            if let Some(char) = char {
+            if let Some(char) = unsafe { CHAR.clone() } {
                 char.craft_items(item, *quantity);
             } else {
                 println!("no character selected");
@@ -268,7 +269,7 @@ fn respond(line: String, game: &Game) -> Result<bool, String> {
                 .map(|s| s.as_str())
                 .unwrap_or("none");
             let quantity = char_matches.get_one::<i32>("quantity").unwrap_or(&1);
-            if let Some(char) = char {
+            if let Some(char) = unsafe { CHAR.clone() } {
                 char.recycle_item(item, *quantity)
                     .map_err(|e| e.to_string())?;
             } else {
@@ -280,7 +281,7 @@ fn respond(line: String, game: &Game) -> Result<bool, String> {
                 .get_one::<String>("monster")
                 .map(|s| s.as_str())
                 .unwrap_or("none");
-            if let Some(char) = char {
+            if let Some(char) = unsafe { CHAR.clone() } {
                 if let Some(monster) = game.monsters.get(monster) {
                     println!(
                         "{}",
@@ -298,7 +299,7 @@ fn respond(line: String, game: &Game) -> Result<bool, String> {
                 .get_one::<String>("monster")
                 .map(|s| s.as_str())
                 .unwrap_or("none");
-            if let Some(char) = char {
+            if let Some(char) = unsafe { CHAR.clone() } {
                 if let Some(monster) = game.monsters.get(monster) {
                     let gear = gear_finder.best_against(&char, monster, Filter::Available);
                     let fight = FightSimulator::new().simulate(char.level(), 0, &gear, monster);

@@ -30,31 +30,18 @@ impl GearFinder {
         monster: &'a MonsterSchema,
         filter: Filter,
     ) -> Gear<'_> {
-        if let Some(gear) = self
-            .bests_against(char, monster, filter)
+        self.bests_against(char, monster, filter)
             .into_iter()
-            .filter(|g| {
-                self.fight_simulator
-                    .simulate(char.level(), 0, g, monster)
-                    .result
-                    == FightResult::Win
+            .map(|g| {
+                (
+                    g,
+                    self.fight_simulator.simulate(char.level(), 0, &g, monster),
+                )
             })
-            .min_set_by_key(|g| {
-                self.fight_simulator
-                    .simulate(char.level(), 0, g, monster)
-                    .turns
-            })
-            .into_iter()
-            .min_by_key(|g| {
-                self.fight_simulator
-                    .simulate(char.level(), 0, g, monster)
-                    .hp_lost
-            })
-        {
-            gear
-        } else {
-            Default::default()
-        }
+            .filter(|(_g, f)| f.result == FightResult::Win)
+            .min_by_key(|(_g, f)| f.cd + f.hp_lost / 5 + if f.hp_lost % 5 > 0 { 1 } else { 0 })
+            .map(|(g, _f)| g)
+            .unwrap_or_default()
     }
 
     pub fn bests_against<'a>(
@@ -272,9 +259,7 @@ impl GearFinder {
 
     fn is_eligible(i: &ItemSchema, filter: Filter, char: &Character) -> bool {
         match filter {
-            Filter::All => {
-                true
-            }
+            Filter::All => true,
             Filter::Available => char.has_available(&i.code) > 0,
             Filter::Craftable => {
                 (i.craft_schema().is_none() || char.account.can_craft(&i.code))
