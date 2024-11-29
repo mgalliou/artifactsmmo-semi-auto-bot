@@ -9,7 +9,7 @@ use clap::{arg, value_parser, Command};
 use itertools::Itertools;
 use log::LevelFilter;
 use rustyline::{error::ReadlineError, DefaultEditor};
-use std::{sync::Arc, thread::sleep, time::Duration};
+use std::{str::FromStr, sync::Arc, thread::sleep, time::Duration};
 
 fn main() -> rustyline::Result<()> {
     let _ = simple_logging::log_to_file("artifactsmmo.log", LevelFilter::Info);
@@ -140,7 +140,15 @@ fn cli() -> Command {
                 )
                 .help_template(APPLET_TEMPLATE),
         )
-        .subcommand(Command::new("gear").arg(arg!(monster: [MONSTER])))
+        .subcommand(
+            Command::new("gear")
+                .arg(
+                    arg!(-f --filter <FILTER>)
+                        .value_parser(["all", "available", "craftable", "farmable"])
+                        .default_value("all"),
+                )
+                .arg(arg!(monster: [MONSTER])),
+        )
         .subcommand(
             Command::new("simulate")
                 .alias("sim")
@@ -281,11 +289,15 @@ fn respond(line: String, game: &Game) -> Result<bool, String> {
                 .get_one::<String>("monster")
                 .map(|s| s.as_str())
                 .unwrap_or("none");
+            let filter = gear_matches
+                .get_one::<String>("filter")
+                .map(|s| s.as_str())
+                .unwrap_or("all");
             if let Some(char) = unsafe { CHAR.clone() } {
                 if let Some(monster) = game.monsters.get(monster) {
                     println!(
                         "{}",
-                        gear_finder.best_against(&char, monster, Filter::Available)
+                        gear_finder.best_against(&char, monster, Filter::from_str(filter).unwrap())
                     );
                 } else {
                     println!("monster not found");

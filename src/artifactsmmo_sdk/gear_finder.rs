@@ -10,6 +10,7 @@ use artifactsmmo_openapi::models::{FightResult, ItemSchema, MonsterSchema};
 use itertools::{Itertools, PeekingNext};
 use ordered_float::OrderedFloat;
 use std::sync::Arc;
+use strum_macros::EnumString;
 
 pub struct GearFinder {
     items: Arc<Items>,
@@ -283,7 +284,8 @@ impl GearFinder {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, EnumString)]
+#[strum(serialize_all = "snake_case")]
 pub enum Filter {
     All,
     Available,
