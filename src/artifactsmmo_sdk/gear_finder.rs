@@ -113,7 +113,7 @@ impl GearFinder {
                 if filter == Filter::Available {
                     char.has_available(&i.code) <= 1
                 } else {
-                    true
+                    false
                 }
             })
             .map(|i| i.code.as_str())
