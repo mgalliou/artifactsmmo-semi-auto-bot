@@ -41,6 +41,11 @@ use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIs};
 mod actions;
 
+const TASKS_COIN: &str = "tasks_coin";
+const EXCHANGE_PRICE: i32 = 6;
+const CANCEL_PRICE: i32 = 6;
+const MIN_COIN_THRESHOLD: i32 = 4;
+
 pub struct Character {
     pub name: String,
     my_api: MyCharacterApi,
@@ -379,15 +384,16 @@ impl Character {
                     return None;
                 }
                 if let CharacterError::NotEnoughCoin = e {
-                    let q = 6 - if self.orderboard.is_ordered("tasks_coin") {
-                        0
-                    } else {
-                        self.has_in_bank_or_inv("tasks_coin")
-                    };
+                    let q = EXCHANGE_PRICE + MIN_COIN_THRESHOLD
+                        - if self.orderboard.is_ordered(TASKS_COIN) {
+                            0
+                        } else {
+                            self.has_in_bank_or_inv(TASKS_COIN)
+                        };
                     if q > 0
                         && self.orderboard.add(Order::new(
                             None,
-                            "tasks_coin",
+                            TASKS_COIN,
                             q,
                             order.purpose.to_owned(),
                         ))
@@ -471,7 +477,8 @@ impl Character {
 
     fn progress_task(&self) -> Result<(), CharacterError> {
         if let Some(monster) = self.monsters.get(&self.task()) {
-            if self.kill_monster(monster, None).is_ok() {
+            if let Err(CharacterError::GearTooWeak) = self.kill_monster(monster, None) {
+                self.cancel_task()?;
                 return Ok(());
             }
         }
@@ -541,7 +548,9 @@ impl Character {
     }
 
     fn can_exchange_task(&self) -> Result<(), CharacterError> {
-        if self.bank.has_available("tasks_coin", Some(&self.name)) < 6 {
+        if self.bank.has_available(TASKS_COIN, Some(&self.name))
+            < EXCHANGE_PRICE + MIN_COIN_THRESHOLD
+        {
             return Err(CharacterError::NotEnoughCoin);
         }
         Ok(())
@@ -549,16 +558,47 @@ impl Character {
 
     fn exchange_task(&self) -> Result<TaskRewardsSchema, CharacterError> {
         self.can_exchange_task()?;
-        if self.bank.reserv("tasks_coin", 6, &self.name).is_err() {
+        if self
+            .bank
+            .reserv(TASKS_COIN, EXCHANGE_PRICE, &self.name)
+            .is_err()
+        {
             return Err(CharacterError::NotEnoughCoin);
         }
         self.deposit_all();
-        self.withdraw_item("tasks_coin", 6)?;
+        self.withdraw_item(TASKS_COIN, EXCHANGE_PRICE)?;
         if let Err(e) = self.move_to_closest_taskmaster(self.task_type()) {
             error!("{}: error while moving to taskmaster: {:?}", self.name, e);
         };
         let result = self.action_task_exchange().map_err(|e| e.into());
-        self.inventory.decrease_reservation("tasks_coin", 6);
+        self.inventory
+            .decrease_reservation(TASKS_COIN, EXCHANGE_PRICE);
+        result
+    }
+
+    fn cancel_task(&self) -> Result<(), CharacterError> {
+        if self.bank.has_available(TASKS_COIN, Some(&self.name))
+            < EXCHANGE_PRICE + MIN_COIN_THRESHOLD
+        {
+            return Err(CharacterError::NotEnoughCoin);
+        }
+        if self.inventory.has_available(TASKS_COIN) <= 0 {
+            if self
+                .bank
+                .reserv("tasks_coin", CANCEL_PRICE, &self.name)
+                .is_err()
+            {
+                return Err(CharacterError::NotEnoughCoin);
+            }
+            self.deposit_all();
+            self.withdraw_item(TASKS_COIN, CANCEL_PRICE)?;
+        }
+        if let Err(e) = self.move_to_closest_taskmaster(self.task_type()) {
+            error!("{}: error while moving to taskmaster: {:?}", self.name, e);
+        };
+        let result = self.action_cancel_task().map_err(|e| e.into());
+        self.inventory
+            .decrease_reservation("tasks_coin", CANCEL_PRICE);
         result
     }
 
