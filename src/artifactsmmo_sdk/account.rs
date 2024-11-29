@@ -107,7 +107,7 @@ impl Account {
             .unwrap()
             .iter()
             .map(|c| c.time_to_get(item))
-            .max()?
+            .min()?
     }
 }
 

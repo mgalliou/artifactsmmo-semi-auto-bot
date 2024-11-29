@@ -216,20 +216,14 @@ impl Items {
                     return self.best_for_leveling(level, skill);
                 } else if level >= 10 {
                     vec![self.get("iron_helm")]
-                } else if level >= 5 {
-                    vec![self.get("copper_legs_armor")]
+                //} else if level >= 5 {
+                //    vec![self.get("copper_legs_armor")]
                 } else {
                     vec![self.get("wooden_shield")]
                 }
             }
             Skill::Weaponcrafting => {
-                if level >= 20 {
-                    return self.best_for_leveling(level, skill);
-                } else if level >= 10 {
-                    vec![self.get("iron_dagger")]
-                } else {
-                    vec![self.get("copper_dagger")]
-                }
+                return self.best_for_leveling(level, skill);
             }
             Skill::Jewelrycrafting => {
                 if level >= 30 {

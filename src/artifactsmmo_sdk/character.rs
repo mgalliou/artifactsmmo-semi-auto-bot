@@ -181,13 +181,7 @@ impl Character {
             .items
             .best_for_leveling_hc(self.skill_level(skill), skill)
             .into_iter()
-            .min_by_key(|i| {
-                self.bank.missing_mats_quantity(
-                    &i.code,
-                    self.max_craftable_items(&i.code),
-                    Some(&self.name),
-                )
-            })
+            .min_by_key(|i| self.account.time_to_get(&i.code))
         else {
             return Err(CharacterError::ItemNotFound);
         };
@@ -790,11 +784,7 @@ impl Character {
                 let fight = self
                     .fight_simulator
                     .simulate(self.level(), 0, &gear, monster);
-                if fight.result == FightResult::Win {
-                    Some(fight.cd)
-                } else {
-                    None
-                }
+                Some(fight.cd + fight.hp_lost / 5 + if fight.hp_lost % 5 > 0 { 1 } else { 0 })
             }
             Err(_) => None,
         }
@@ -830,8 +820,8 @@ impl Character {
                         .map(|m| self.time_to_get(&m.code).unwrap_or(1000) * m.quantity)
                         .sum(),
                 ),
-                ItemSource::TaskReward => Some(1500),
-                ItemSource::Task => Some(1500),
+                ItemSource::TaskReward => Some(2000),
+                ItemSource::Task => Some(2000),
             })
             .min()
     }

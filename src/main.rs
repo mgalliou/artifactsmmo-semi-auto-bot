@@ -271,9 +271,7 @@ enum BankAction {
 }
 
 #[derive(Subcommand)]
-#[command(alias = "ttg")]
 enum ItemsAction {
-    TimeToGet {
-        item: String,
-    },
+    #[command(alias = "ttg")]
+    TimeToGet { item: String },
 }
