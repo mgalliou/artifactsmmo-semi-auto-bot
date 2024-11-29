@@ -100,6 +100,15 @@ impl Account {
             .max()
             .unwrap_or(1)
     }
+
+    pub fn time_to_get(&self, item: &str) -> Option<i32> {
+        self.characters
+            .read()
+            .unwrap()
+            .iter()
+            .map(|c| c.time_to_get(item))
+            .max()?
+    }
 }
 
 fn init_char_conf(confs: &[CharConfig]) -> Vec<Arc<RwLock<CharConfig>>> {

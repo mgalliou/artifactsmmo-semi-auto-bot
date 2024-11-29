@@ -814,7 +814,7 @@ impl Character {
     }
 
     #[allow(dead_code)]
-    fn time_to_get(&self, item: &str) -> Option<i32> {
+    pub fn time_to_get(&self, item: &str) -> Option<i32> {
         self.items
             .sources_of(item)
             .iter()

@@ -5,7 +5,7 @@ use artifactsmmo_playground::artifactsmmo_sdk::{
     gear_finder::{Filter, GearFinder},
     orderboard::{Order, Purpose},
 };
-use clap::{arg, value_parser, Command};
+use clap::{value_parser, Parser, Subcommand};
 use itertools::Itertools;
 use log::LevelFilter;
 use rustyline::{error::ReadlineError, DefaultEditor};
@@ -59,153 +59,23 @@ fn run_cli(game: &Game) -> rustyline::Result<()> {
     Ok(())
 }
 
-fn cli() -> Command {
-    const PARSER_TEMPLATE: &str = "\
-        {all-args}
-    ";
-    // strip out name/version
-    const APPLET_TEMPLATE: &str = "\
-        {about-with-newline}\n\
-        {usage-heading}\n    {usage}\n\
-        \n\
-        {all-args}{after-help}\
-    ";
-    Command::new("artifactsmmo-playground")
-        .multicall(true)
-        .arg_required_else_help(true)
-        .subcommand_required(true)
-        .subcommand_value_name("ARTIFACTS_MMO")
-        .subcommand_help_heading("ARTIFACTS_MMO")
-        .help_template(PARSER_TEMPLATE)
-        .subcommand(
-            Command::new("orderboard")
-                .alias("ob")
-                .subcommand(
-                    Command::new("add")
-                        .arg_required_else_help(true)
-                        .arg(arg!(item: [ITEM]))
-                        .arg(
-                            arg!(quantity: [QUANTITY])
-                                .default_value("1")
-                                .value_parser(value_parser!(i32)),
-                        )
-                        .help_template(APPLET_TEMPLATE),
-                )
-                .subcommand(
-                    Command::new("remove")
-                        .alias("rm")
-                        .arg_required_else_help(true)
-                        .arg(arg!(item: [ITEM]))
-                        .arg(
-                            arg!(quantity: [QUANTITY])
-                                .default_value("1")
-                                .value_parser(value_parser!(i32)),
-                        )
-                        .help_template(APPLET_TEMPLATE),
-                ),
-        )
-        .subcommand(
-            Command::new("bank")
-                .subcommand(
-                    Command::new("reservations")
-                        .alias("res")
-                        .help_template(APPLET_TEMPLATE),
-                )
-                .subcommand(Command::new("empty").help_template(APPLET_TEMPLATE)),
-        )
-        .subcommand(
-            Command::new("char")
-                .arg(arg!(i: [INDEX]).value_parser(value_parser!(i32)))
-                .help_template(APPLET_TEMPLATE),
-        )
-        .subcommand(Command::new("status").help_template(APPLET_TEMPLATE))
-        .subcommand(Command::new("idle").help_template(APPLET_TEMPLATE))
-        .subcommand(
-            Command::new("craft")
-                .arg(arg!(item: [ITEM]))
-                .arg(
-                    arg!(quantity: [QUANTITY])
-                        .default_value("1")
-                        .value_parser(value_parser!(i32)),
-                )
-                .help_template(APPLET_TEMPLATE),
-        )
-        .subcommand(
-            Command::new("recycle")
-                .arg(arg!(item: [ITEM]))
-                .arg(
-                    arg!(quantity: [QUANTITY])
-                        .default_value("1")
-                        .value_parser(value_parser!(i32)),
-                )
-                .help_template(APPLET_TEMPLATE),
-        )
-        .subcommand(
-            Command::new("gear")
-                .arg(
-                    arg!(-f --filter <FILTER>)
-                        .value_parser(["all", "available", "craftable", "farmable"])
-                        .default_value("all"),
-                )
-                .arg(arg!(monster: [MONSTER])),
-        )
-        .subcommand(
-            Command::new("simulate")
-                .alias("sim")
-                .arg(arg!(monster: [MONSTER]))
-                .help_template(APPLET_TEMPLATE),
-        )
-        .subcommand(
-            Command::new("deposit")
-                .arg(arg!(item: [ITEM]))
-                .arg(
-                    arg!(quantity: [QUANTITY])
-                        .default_value("1")
-                        .value_parser(value_parser!(i32)),
-                )
-                .help_template(APPLET_TEMPLATE),
-        )
-        .subcommand(
-            Command::new("unequip")
-                .arg(arg!(slot: [SLOT]))
-                .arg(
-                    arg!(quantity: [QUANTITY])
-                        .default_value("1")
-                        .value_parser(value_parser!(i32)),
-                )
-                .help_template(APPLET_TEMPLATE),
-        )
-}
-
 static mut CHAR: Option<Arc<Character>> = None;
 
 fn respond(line: String, game: &Game) -> Result<bool, String> {
     let args = line.split_whitespace().collect_vec();
     let gear_finder = GearFinder::new(&game.items);
-    let matches = cli()
-        .try_get_matches_from(args)
-        .map_err(|err| format!("{}", err))?;
-    match matches.subcommand() {
-        Some(("orderboard", ob_matches)) => match ob_matches.subcommand() {
-            Some(("add", add_matches)) => {
-                let item = add_matches
-                    .get_one::<String>("item")
-                    .map(|s| s.as_str())
-                    .unwrap_or("none");
-                let quantity = add_matches.get_one::<i32>("quantity").unwrap_or(&1);
+    let cli = Cli::try_parse_from(args).map_err(|err| format!("{}", err))?;
+    match cli.command {
+        Commands::Orderboard { action } => match action {
+            OrderboardAction::Add { item, quantity } => {
                 game.orderboard
-                    .add(Order::new(None, item, *quantity, Purpose::Cli));
+                    .add(Order::new(None, &item, quantity, Purpose::Cli));
             }
-            Some(("remove", remove_matches)) => {
-                let item = remove_matches
-                    .get_one::<String>("item")
-                    .map(|s| s.as_str())
-                    .unwrap_or("none");
-                let quantity = remove_matches.get_one::<i32>("quantity").unwrap_or(&1);
+            OrderboardAction::Remove { item, quantity } => {
                 game.orderboard
-                    .remove(&Order::new(None, item, *quantity, Purpose::Cli));
+                    .remove(&Order::new(None, &item, quantity, Purpose::Cli));
             }
-            None => {
+            OrderboardAction::List => {
                 println!("orders (by priority):");
                 game.orderboard.orders_by_priority().iter().for_each(|o| {
                     println!(
@@ -215,12 +85,9 @@ fn respond(line: String, game: &Game) -> Result<bool, String> {
                     )
                 });
             }
-            _ => {
-                unreachable!("error");
-            }
         },
-        Some(("bank", _matches)) => match _matches.subcommand() {
-            Some(("reservations", _matches)) => {
+        Commands::Bank { action } => match action {
+            BankAction::Reservations => {
                 println!("reservations:");
                 game.account
                     .bank
@@ -228,76 +95,63 @@ fn respond(line: String, game: &Game) -> Result<bool, String> {
                     .iter()
                     .for_each(|r| println!("{}", r));
             }
-            Some(("empty", _matches)) => {
+            BankAction::List => {
+                game.account
+                    .bank
+                    .content
+                    .read()
+                    .unwrap()
+                    .iter()
+                    .for_each(|i| println!("{}: {}", i.code, i.quantity));
+            }
+            BankAction::Empty => {
                 println!("not yet implemented");
             }
-            None => game
-                .account
-                .bank
-                .content
-                .read()
-                .unwrap()
-                .iter()
-                .for_each(|i| println!("{}: {}", i.code, i.quantity)),
-            _ => {
-                unreachable!("error");
-            }
         },
-        Some(("char", char_matches)) => {
-            let index = *char_matches.get_one::<i32>("i").unwrap_or(&0);
-            unsafe { CHAR = game.account.get_character(index as usize) };
+        Commands::Items { action } => match action {
+            ItemsAction::TimeToGet { item } => println!("{:?}", game.account.time_to_get(&item)),
+        },
+        Commands::Char { i } => {
+            unsafe { CHAR = game.account.get_character(i as usize) };
             if let Some(char) = unsafe { CHAR.clone() } {
                 println!("character '{}' selected", char.name);
             } else {
                 println!("character not found");
             }
         }
-        Some(("idle", _m)) => {
+        Commands::Status => todo!(),
+        Commands::Idle => {
             if let Some(char) = unsafe { CHAR.clone() } {
                 char.toggle_idle();
             } else {
                 println!("no character selected");
             }
         }
-        Some(("craft", char_matches)) => {
-            let item = char_matches
-                .get_one::<String>("item")
-                .map(|s| s.as_str())
-                .unwrap_or("none");
-            let quantity = char_matches.get_one::<i32>("quantity").unwrap_or(&1);
+        Commands::Craft { item, quantity } => {
             if let Some(char) = unsafe { CHAR.clone() } {
-                char.craft_items(item, *quantity);
+                char.craft_items(&item, quantity);
             } else {
                 println!("no character selected");
             }
         }
-        Some(("recycle", char_matches)) => {
-            let item = char_matches
-                .get_one::<String>("item")
-                .map(|s| s.as_str())
-                .unwrap_or("none");
-            let quantity = char_matches.get_one::<i32>("quantity").unwrap_or(&1);
+        Commands::Recycle { item, quantity } => {
             if let Some(char) = unsafe { CHAR.clone() } {
-                char.recycle_item(item, *quantity)
+                char.recycle_item(&item, quantity)
                     .map_err(|e| e.to_string())?;
             } else {
                 println!("no character selected");
             }
         }
-        Some(("gear", gear_matches)) => {
-            let monster = gear_matches
-                .get_one::<String>("monster")
-                .map(|s| s.as_str())
-                .unwrap_or("none");
-            let filter = gear_matches
-                .get_one::<String>("filter")
-                .map(|s| s.as_str())
-                .unwrap_or("all");
+        Commands::Gear { filter, monster } => {
             if let Some(char) = unsafe { CHAR.clone() } {
-                if let Some(monster) = game.monsters.get(monster) {
+                if let Some(monster) = game.monsters.get(&monster) {
                     println!(
                         "{}",
-                        gear_finder.best_against(&char, monster, Filter::from_str(filter).unwrap())
+                        gear_finder.best_against(
+                            &char,
+                            monster,
+                            Filter::from_str(&filter).unwrap()
+                        )
                     );
                 } else {
                     println!("monster not found");
@@ -306,13 +160,9 @@ fn respond(line: String, game: &Game) -> Result<bool, String> {
                 println!("no character selected");
             }
         }
-        Some(("simulate", sim_matches)) => {
-            let monster = sim_matches
-                .get_one::<String>("monster")
-                .map(|s| s.as_str())
-                .unwrap_or("none");
+        Commands::Simulate { monster } => {
             if let Some(char) = unsafe { CHAR.clone() } {
-                if let Some(monster) = game.monsters.get(monster) {
+                if let Some(monster) = game.monsters.get(&monster) {
                     let gear = gear_finder.best_against(&char, monster, Filter::Available);
                     let fight = FightSimulator::new().simulate(char.level(), 0, &gear, monster);
                     println!("{:?}", fight)
@@ -323,18 +173,107 @@ fn respond(line: String, game: &Game) -> Result<bool, String> {
                 println!("no character selected");
             }
         }
-        Some(("deposit", _matches)) => {
-            println!("not yet implemented");
-        }
-        Some(("unequip", _matches)) => {
-            println!("not yet implemented");
-        }
-        Some((cmd, _matches)) => {
-            println!("unknown command: {}", cmd);
-        }
-        None => {
-            unreachable!("error");
-        }
+        Commands::Deposit {
+            item: _,
+            quantity: _,
+        } => println!("not yet implemented"),
+        Commands::Unequip {
+            slot: _,
+            quantity: _,
+        } => println!("not yet implemented"),
     }
     Ok(true)
+}
+
+#[derive(Parser)]
+#[command(
+    version,
+    subcommand_required = true,
+    subcommand_value_name = "ARTIFACTS_MMO",
+    multicall = true
+)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    Orderboard {
+        #[command(subcommand)]
+        action: OrderboardAction,
+    },
+    Bank {
+        #[command(subcommand)]
+        action: BankAction,
+    },
+    Items {
+        #[command(subcommand)]
+        action: ItemsAction,
+    },
+    Char {
+        #[arg(value_parser = value_parser!(i32), default_value = "1")]
+        i: i32,
+    },
+    Status,
+    Idle,
+    Craft {
+        item: String,
+        #[arg(default_value_t = 1)]
+        quantity: i32,
+    },
+    Recycle {
+        item: String,
+        #[arg(default_value_t = 1)]
+        quantity: i32,
+    },
+    Gear {
+        #[arg(short = 'f', long = "filter", value_parser = value_parser!(String), default_value = "all")]
+        filter: String,
+        monster: String,
+    },
+    Simulate {
+        monster: String,
+    },
+    Deposit {
+        item: String,
+        #[arg(default_value_t = 1)]
+        quantity: i32,
+    },
+    Unequip {
+        slot: String,
+        #[arg(default_value_t = 1)]
+        quantity: i32,
+    },
+}
+
+#[derive(Subcommand)]
+#[command(alias = "ob")]
+enum OrderboardAction {
+    Add {
+        item: String,
+        #[arg(default_value_t = 1)]
+        quantity: i32,
+    },
+    Remove {
+        item: String,
+        #[arg(default_value_t = 1)]
+        quantity: i32,
+    },
+    List,
+}
+
+#[derive(Subcommand)]
+enum BankAction {
+    Reservations,
+    Empty,
+    List,
+}
+
+#[derive(Subcommand)]
+#[command(alias = "ttg")]
+enum ItemsAction {
+    TimeToGet {
+        item: String,
+    },
 }
