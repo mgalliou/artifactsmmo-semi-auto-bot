@@ -44,8 +44,19 @@ impl OrderBoard {
     pub fn orders_by_priority(&self) -> Vec<Arc<Order>> {
         let mut orders: Vec<Arc<Order>> = vec![];
         Purpose::iter().for_each(|p| {
-            let filtered = self.orders_filtered(|o| discriminant(&o.purpose) == discriminant(&p));
-            // TODO: add sorting, by date/purpose
+            let filtered = self
+                .orders_filtered(|o| discriminant(&o.purpose) == discriminant(&p))
+                .iter()
+                .cloned()
+                .chunk_by(|o| o.purpose.clone())
+                .into_iter()
+                .flat_map(|(_, chunk)| {
+                    chunk
+                        .sorted_by_key(|o| self.items.get(&o.item).map(|i| i.level).unwrap_or(1))
+                        .rev()
+                        .collect_vec()
+                })
+                .collect_vec();
             orders.extend(filtered);
         });
         orders.sort_by_key(|o| !self.items.is_from_event(&o.item));
