@@ -631,7 +631,7 @@ pub enum DamageType {
     Water,
 }
 
-#[derive(Clone, EnumIs)]
+#[derive(Debug, Clone, EnumIs)]
 pub enum ItemSource<'a> {
     Resource(&'a ResourceSchema),
     Monster(&'a MonsterSchema),

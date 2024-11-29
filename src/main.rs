@@ -110,6 +110,11 @@ fn respond(line: String, game: &Game) -> Result<bool, String> {
         },
         Commands::Items { action } => match action {
             ItemsAction::TimeToGet { item } => println!("{:?}", game.account.time_to_get(&item)),
+            ItemsAction::Sources { item } => game
+                .items
+                .sources_of(&item)
+                .iter()
+                .for_each(|s| println!("{:?}", s)),
         },
         Commands::Char { i } => {
             unsafe { CHAR = game.account.get_character(i as usize) };
@@ -265,6 +270,7 @@ enum OrderboardAction {
 
 #[derive(Subcommand)]
 enum BankAction {
+    #[command(alias = "res")]
     Reservations,
     Empty,
     List,
@@ -273,5 +279,10 @@ enum BankAction {
 #[derive(Subcommand)]
 enum ItemsAction {
     #[command(alias = "ttg")]
-    TimeToGet { item: String },
+    TimeToGet {
+        item: String,
+    },
+    Sources {
+        item: String,
+    },
 }
