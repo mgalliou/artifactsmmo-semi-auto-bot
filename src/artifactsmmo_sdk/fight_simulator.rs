@@ -11,6 +11,10 @@ impl Default for FightSimulator {
     }
 }
 
+const MAX_TURN: i32 = 100;
+const BASE_HP: i32 = 115;
+const HP_PER_LEVEL: i32 = 5;
+
 impl FightSimulator {
     pub fn new() -> Self {
         Self {}
@@ -36,12 +40,12 @@ impl FightSimulator {
         gear: &Gear,
         monster: &MonsterSchema,
     ) -> Fight {
-        let starting_hp = 115 + 5 * level + gear.health_increase() - missing_hp;
+        let starting_hp = BASE_HP + HP_PER_LEVEL * level + gear.health_increase() - missing_hp;
         let mut hp = starting_hp;
         let mut monster_hp = monster.hp;
         let mut turns = 1;
 
-        while turns <= 100 {
+        while turns <= MAX_TURN {
             if turns % 2 == 1 {
                 monster_hp -= gear.attack_damage_against(monster).round() as i32;
                 if monster_hp <= 0 {
@@ -60,16 +64,20 @@ impl FightSimulator {
             hp,
             monster_hp,
             hp_lost: starting_hp - hp,
-            result: if hp <= 0 || turns > 100 {
+            result: if hp <= 0 || turns > MAX_TURN {
                 FightResult::Loss
             } else {
                 FightResult::Win
             },
-            cd: max(
-                5,
-                ((turns * 2) as f32 - (gear.haste() as f32 * 0.01) * (turns * 2) as f32) as i32,
-            ),
+            cd: Self::compute_cd(gear.haste(), turns),
         }
+    }
+
+    pub fn compute_cd(haste: i32, turns: i32) -> i32 {
+        max(
+            5,
+            ((turns * 2) as f32 - (haste as f32 * 0.01) * (turns * 2) as f32) as i32,
+        )
     }
 
     pub fn gather(&self, skill_level: i32, resource_level: i32, cooldown_reduction: i32) -> i32 {
