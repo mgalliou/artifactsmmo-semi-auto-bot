@@ -1,3 +1,5 @@
+use std::cmp::{max, min};
+
 use super::gear::Gear;
 use artifactsmmo_openapi::models::{FightResult, MonsterSchema};
 
@@ -58,13 +60,15 @@ impl FightSimulator {
             hp,
             monster_hp,
             hp_lost: starting_hp - hp,
-            result: if hp > 0 {
-                FightResult::Win
-            } else {
+            result: if hp <= 0 || turns > 100 {
                 FightResult::Loss
+            } else {
+                FightResult::Win
             },
-            cd: ((turns * 2) as f32 - (gear.haste() as f32 * 0.01) * (turns * 2) as f32).ceil()
-                as i32,
+            cd: max(
+                5,
+                ((turns * 2) as f32 - (gear.haste() as f32 * 0.01) * (turns * 2) as f32) as i32,
+            ),
         }
     }
 
@@ -87,8 +91,8 @@ pub struct Fight {
 
 #[cfg(test)]
 mod tests {
-    use crate::artifactsmmo_sdk::game::Game;
     use super::*;
+    use crate::artifactsmmo_sdk::game::Game;
 
     #[test]
     fn gather() {
