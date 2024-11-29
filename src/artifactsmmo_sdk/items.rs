@@ -159,6 +159,7 @@ impl Items {
     /// Takes an item `code` and returns the best (lowest value) drop rate from
     /// `Monsters` or `Resources`
     pub fn drop_rate(&self, code: &str) -> i32 {
+        // TODO: use sources_of
         self.get(code)
             .iter()
             .flat_map(|i| {
@@ -179,7 +180,7 @@ impl Items {
                 }
             })
             .find(|d| d.code == code)
-            .map_or(0, |d| d.rate)
+            .map_or(0, |d| (d.rate as f32 * (d.min_quantity + d.min_quantity) as f32 / 2.0) as i32)
     }
 
     /// Takes an item `code` and aggregate the drop rates of its base materials
