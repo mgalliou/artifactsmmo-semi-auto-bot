@@ -1,7 +1,7 @@
 use super::{
     api::maps::MapsApi, events::Events, game_config::GameConfig, skill::Skill, MapSchemaExt,
 };
-use artifactsmmo_openapi::models::{MapContentSchema, MapSchema, ResourceSchema};
+use artifactsmmo_openapi::models::{MapContentSchema, MapSchema};
 use itertools::Itertools;
 use std::sync::Arc;
 
@@ -85,12 +85,6 @@ impl Maps {
 }
 
 impl MapSchemaExt for MapSchema {
-    fn has_one_of_resource(&self, resources: &[&ResourceSchema]) -> bool {
-        self.content
-            .as_ref()
-            .is_some_and(|c| resources.iter().any(|r| r.code == c.code))
-    }
-
     fn content(&self) -> Option<MapContentSchema> {
         self.content.clone().map(|c| *c)
     }

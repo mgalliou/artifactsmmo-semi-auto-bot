@@ -1,6 +1,6 @@
 use artifactsmmo_openapi::models::{
     CharacterSchema, CraftSchema, ItemEffectSchema, ItemSchema, MapContentSchema, MonsterSchema,
-    ResourceSchema, SimpleItemSchema,
+    SimpleItemSchema,
 };
 use downcast_rs::{impl_downcast, Downcast};
 use fs_extra::file::{read_to_string, write_all};
@@ -14,13 +14,13 @@ pub mod api;
 pub mod bank;
 pub mod char_config;
 pub mod character;
-pub mod inventory;
 pub mod events;
 pub mod fight_simulator;
 pub mod game;
 pub mod game_config;
 pub mod gear;
 pub mod gear_finder;
+pub mod inventory;
 pub mod items;
 pub mod maps;
 pub mod monsters;
@@ -31,21 +31,17 @@ pub mod tasks;
 
 trait ItemSchemaExt {
     fn name(&self) -> String;
-    fn is_raw_mat(&self) -> bool;
+    fn r#type(&self) -> Type;
     fn is_of_type(&self, r#type: Type) -> bool;
     fn is_crafted_with(&self, item: &str) -> bool;
     fn mats(&self) -> Vec<SimpleItemSchema>;
     fn craft_schema(&self) -> Option<CraftSchema>;
     fn skill_to_craft(&self) -> Option<Skill>;
     fn effects(&self) -> Vec<&ItemEffectSchema>;
-    fn total_attack_damage(&self) -> i32;
     fn attack_damage(&self, r#type: DamageType) -> i32;
     fn attack_damage_against(&self, monster: &MonsterSchema) -> f32;
-    fn total_damage_increase(&self) -> i32;
     fn damage_increase(&self, r#type: DamageType) -> i32;
-    fn damage_from(&self, monster: &MonsterSchema) -> f32;
     fn resistance(&self, r#type: DamageType) -> i32;
-    fn total_resistance(&self) -> i32;
     fn health(&self) -> i32;
     fn haste(&self) -> i32;
     fn skill_cooldown_reduction(&self, skijll: Skill) -> i32;
@@ -55,15 +51,19 @@ trait ItemSchemaExt {
 }
 
 trait MapSchemaExt {
-    fn has_one_of_resource(&self, resources: &[&ResourceSchema]) -> bool;
     fn content(&self) -> Option<MapContentSchema>;
     fn content_is(&self, code: &str) -> bool;
     fn pretty(&self) -> String;
 }
 
+trait ResourceSchemaExt {
+    fn drop_rate(&self, item: &str) -> Option<i32>;
+}
+
 trait MonsterSchemaExt {
     fn resistance(&self, r#type: DamageType) -> i32;
     fn attack_damage(&self, r#type: DamageType) -> i32;
+    fn drop_rate(&self, item: &str) -> Option<i32>;
 }
 
 trait ActiveEventSchemaExt {

@@ -81,4 +81,8 @@ impl MonsterSchemaExt for MonsterSchema {
             DamageType::Water => self.res_water,
         }
     }
+
+    fn drop_rate(&self, item: &str) -> Option<i32> {
+        self.drops.iter().find(|i| i.code == item).map(|i| i.rate)
+    }
 }

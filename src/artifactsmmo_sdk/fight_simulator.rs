@@ -1,4 +1,4 @@
-use std::cmp::{max, min};
+use std::cmp::max;
 
 use super::gear::Gear;
 use artifactsmmo_openapi::models::{FightResult, MonsterSchema};

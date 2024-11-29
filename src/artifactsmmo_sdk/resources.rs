@@ -1,6 +1,6 @@
 use super::{
     api::resources::ResourcesApi, events::Events, game_config::GameConfig, persist_data,
-    skill::Skill,
+    skill::Skill, ResourceSchemaExt,
 };
 use artifactsmmo_openapi::models::ResourceSchema;
 use log::error;
@@ -64,5 +64,11 @@ impl Resources {
 
     pub fn is_event(&self, code: &str) -> bool {
         self.events.data.iter().any(|e| e.content.code == code)
+    }
+}
+
+impl ResourceSchemaExt for ResourceSchema {
+    fn drop_rate(&self, item: &str) -> Option<i32> {
+        self.drops.iter().find(|i| i.code == item).map(|i| i.rate)
     }
 }

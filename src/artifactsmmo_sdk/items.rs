@@ -4,7 +4,7 @@ use super::gear::Slot;
 use super::skill::Skill;
 use super::tasks::Tasks;
 use super::{api::items::ItemsApi, monsters::Monsters, resources::Resources};
-use super::{persist_data, retreive_data, ItemSchemaExt, MonsterSchemaExt};
+use super::{persist_data, retreive_data, ItemSchemaExt, MonsterSchemaExt, ResourceSchemaExt};
 use artifactsmmo_openapi::models::{CraftSchema, ItemEffectSchema, ItemSchema, SimpleItemSchema};
 use artifactsmmo_openapi::models::{MonsterSchema, ResourceSchema};
 use itertools::Itertools;
@@ -344,6 +344,34 @@ impl Items {
             .collect_vec()
     }
 
+    /// NOTE: WIP: there is a lot of edge cases here:
+    /// if all sources are resources or monsters, then the lowest drop rate source should be returned,
+    /// if the drop rate sources is the same for all sources (algea), either the sources also
+    /// containing other item ordereds should be returned, otherwise the one with the higest(lowest
+    /// for speed?) level, or time to kill
+    /// (or archivment maybe).
+    /// All this logic should probably be done elsewhere since it can be related to the orderboard
+    /// or the character level/skill_level/gear.
+    pub fn best_source_of(&self, code: &str) -> Option<ItemSource> {
+        if self
+            .sources_of(code)
+            .iter()
+            .all(|s| s.is_resource() || s.is_monster())
+        {
+            let bests = self.sources_of(code).into_iter().min_set_by_key(|s| {
+                if let ItemSource::Resource(r) = s {
+                    r.drop_rate(code)
+                } else if let ItemSource::Monster(m) = s {
+                    m.drop_rate(code)
+                } else {
+                    None
+                }
+            });
+            return bests.first().cloned();
+        }
+        None
+    }
+
     pub fn sources_of(&self, code: &str) -> Vec<ItemSource> {
         let mut sources = self
             .resources
@@ -405,15 +433,8 @@ impl ItemSchemaExt for ItemSchema {
         self.name.to_owned()
     }
 
-    fn is_raw_mat(&self) -> bool {
-        self.r#type == "resource"
-            && matches!(
-                SubType::from_str(&self.subtype),
-                Ok(SubType::Mining)
-                    | Ok(SubType::Woodcutting)
-                    | Ok(SubType::Fishing)
-                    | Ok(SubType::Food)
-            )
+    fn r#type(&self) -> Type {
+        Type::from_str(&self.r#type).expect("type to be valid")
     }
 
     fn is_of_type(&self, r#type: Type) -> bool {
@@ -446,14 +467,6 @@ impl ItemSchemaExt for ItemSchema {
         self.effects.iter().flatten().collect_vec()
     }
 
-    fn total_attack_damage(&self) -> i32 {
-        self.effects()
-            .iter()
-            .filter(|e| e.name.starts_with("attack_"))
-            .map(|e| e.value)
-            .sum()
-    }
-
     fn attack_damage(&self, r#type: DamageType) -> i32 {
         self.effects()
             .iter()
@@ -470,23 +483,9 @@ impl ItemSchemaExt for ItemSchema {
             .unwrap_or(0)
     }
 
-    fn total_damage_increase(&self) -> i32 {
-        self.effects()
-            .iter()
-            .filter(|e| e.name.starts_with("dmg_"))
-            .map(|e| e.value)
-            .sum()
-    }
-
     fn attack_damage_against(&self, monster: &MonsterSchema) -> f32 {
         DamageType::iter()
             .map(|t| FightSimulator::average_dmg(self.attack_damage(t), 0, monster.resistance(t)))
-            .sum()
-    }
-
-    fn damage_from(&self, monster: &MonsterSchema) -> f32 {
-        DamageType::iter()
-            .map(|t| FightSimulator::average_dmg(monster.attack_damage(t), 0, self.resistance(t)))
             .sum()
     }
 
@@ -499,14 +498,6 @@ impl ItemSchemaExt for ItemSchema {
             })
             .map(|e| e.value)
             .unwrap_or(0)
-    }
-
-    fn total_resistance(&self) -> i32 {
-        self.effects()
-            .iter()
-            .filter(|e| e.name.starts_with("res_"))
-            .map(|e| e.value)
-            .sum()
     }
 
     fn health(&self) -> i32 {
@@ -646,7 +637,7 @@ pub enum DamageType {
     Water,
 }
 
-#[derive(EnumIs)]
+#[derive(Clone, EnumIs)]
 pub enum ItemSource<'a> {
     Resource(&'a ResourceSchema),
     Monster(&'a MonsterSchema),

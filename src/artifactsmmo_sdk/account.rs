@@ -8,12 +8,7 @@ use super::{
     skill::Skill,
 };
 use crate::artifactsmmo_sdk::char_config::CharConfig;
-use artifactsmmo_openapi::{
-    apis::{
-        configuration::Configuration, my_characters_api::GetMyCharactersMyCharactersGetError, Error,
-    },
-    models::CharacterSchema,
-};
+use artifactsmmo_openapi::{apis::configuration::Configuration, models::CharacterSchema};
 use itertools::Itertools;
 use std::sync::Arc;
 use std::sync::RwLock;
