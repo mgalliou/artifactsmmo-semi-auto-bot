@@ -3,7 +3,7 @@ use artifactsmmo_playground::artifactsmmo_sdk::{
     fight_simulator::FightSimulator,
     game::Game,
     gear_finder::{Filter, GearFinder},
-    orderboard::{Order, Purpose},
+    orderboard::Purpose,
 };
 use clap::{value_parser, Parser, Subcommand};
 use itertools::Itertools;
@@ -68,12 +68,16 @@ fn respond(line: String, game: &Game) -> Result<bool, String> {
     match cli.command {
         Commands::Orderboard { action } => match action {
             OrderboardAction::Add { item, quantity } => {
-                game.orderboard
-                    .add(Order::new(None, &item, quantity, Purpose::Cli));
+                if let Err(e) = game.orderboard.add(None, &item, quantity, Purpose::Cli) {
+                    println!("failed to add order: {:?}", e);
+                }
             }
-            OrderboardAction::Remove { item, quantity } => {
-                game.orderboard
-                    .remove(&Order::new(None, &item, quantity, Purpose::Cli));
+            OrderboardAction::Remove { item } => {
+                if let Some(o) = game.orderboard.get(None, &item, &Purpose::Cli) {
+                    if let Err(e) = game.orderboard.remove(&o) {
+                        println!("failed to remove order: {:?}", e);
+                    }
+                }
             }
             OrderboardAction::List => {
                 println!("orders (by priority):");
@@ -262,8 +266,6 @@ enum OrderboardAction {
     },
     Remove {
         item: String,
-        #[arg(default_value_t = 1)]
-        quantity: i32,
     },
     List,
 }

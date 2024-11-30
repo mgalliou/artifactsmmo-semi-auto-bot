@@ -253,6 +253,9 @@ impl Character {
     /// `purpose`. Returns true if an order has been made.
     fn order_missing_mats(&self, item: &str, quantity: i32, purpose: Purpose) -> bool {
         let mut ordered: bool = false;
+        if quantity <= 0 {
+            return false;
+        }
         self.items
             .mats_of(item)
             .into_iter()
@@ -266,10 +269,10 @@ impl Character {
                     }
             })
             .for_each(|m| {
-                if quantity > 0
-                    && self
-                        .orderboard
-                        .add(Order::new(None, &m.code, m.quantity, purpose.clone()))
+                if self
+                    .orderboard
+                    .add(None, &m.code, m.quantity, purpose.clone())
+                    .is_ok()
                 {
                     ordered = true
                 }
@@ -346,10 +349,11 @@ impl Character {
         if self.can_craft(&order.item).is_err() {
             return None;
         }
-        let missing_quantity = self.orderboard.total_missing_for(order);
-        if missing_quantity > 0
-            && self.order_missing_mats(&order.item, missing_quantity, order.purpose.clone())
-        {
+        if self.order_missing_mats(
+            &order.item,
+            self.orderboard.total_missing_for(order),
+            order.purpose.clone(),
+        ) {
             return Some(0);
         }
         let quantity = min(
@@ -384,16 +388,11 @@ impl Character {
                         } else {
                             self.has_in_bank_or_inv(TASKS_COIN)
                         };
-                    if q > 0
-                        && self.orderboard.add(Order::new(
-                            None,
-                            TASKS_COIN,
-                            q,
-                            order.purpose.to_owned(),
-                        ))
-                    {
-                        return Some(0);
-                    }
+                    return self
+                        .orderboard
+                        .add(None, TASKS_COIN, q, order.purpose.to_owned())
+                        .ok()
+                        .map(|_| 0);
                 }
                 None
             }
@@ -420,18 +419,11 @@ impl Character {
                 };
                 match self.progress_task() {
                     Ok(_) => Some(0),
-                    Err(CharacterError::MissingItems { item, quantity }) => {
-                        if self.orderboard.add(Order::new(
-                            Some(&self.name),
-                            &item,
-                            quantity,
-                            order.purpose.clone(),
-                        )) {
-                            Some(0)
-                        } else {
-                            None
-                        }
-                    }
+                    Err(CharacterError::MissingItems { item, quantity }) => self
+                        .orderboard
+                        .add(Some(&self.name), &item, quantity, order.purpose.clone())
+                        .ok()
+                        .map(|_| 0),
                     _ => None,
                 }
             }
@@ -460,11 +452,14 @@ impl Character {
             )
             .is_ok()
         {
-            order.inc_deposited(q);
-            if order.turned_in() {
-                self.orderboard.remove(order);
+            if let Err(e) = self.orderboard.register_deposit(
+                &order.owner,
+                &order.item,
+                order.quantity(),
+                &order.purpose,
+            ) {
+                error!("{} failed to register deposit: {:?}", self.name, e);
             }
-            return true;
         }
         false
     }
@@ -1652,20 +1647,19 @@ impl Character {
                 .is_some_and(|equiped| item != equiped.code))
             && self.has_in_bank_or_inv(item) < quantity
         {
-            let quantity = quantity - self.has_available(item);
-            if quantity > 0 {
-                self.orderboard.add(Order::new(
+            return self
+                .orderboard
+                .add(
                     None,
                     item,
-                    quantity,
+                    quantity - self.has_available(item),
                     Purpose::Gear {
                         char: self.name.to_owned(),
                         slot,
                         item_code: item.to_owned(),
                     },
-                ));
-                return true;
-            }
+                )
+                .is_ok();
         }
         false
     }
@@ -1838,14 +1832,16 @@ impl Character {
             })
         {
             if self.bank.has_available(&best_food.code, Some(&self.name)) < 300 {
-                self.orderboard.add_or_reset(Order::new(
+                if let Err(e) = self.orderboard.add_or_reset(
                     Some(&self.name),
                     &best_food.code,
                     self.inventory.max_items() - 30,
                     Purpose::Food {
                         char: self.name.to_owned(),
                     },
-                ));
+                ) {
+                    error!("{} failed to add or reset food order: {:?}", self.name, e)
+                }
             }
         }
     }

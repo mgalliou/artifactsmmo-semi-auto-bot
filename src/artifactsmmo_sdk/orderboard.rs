@@ -26,6 +26,17 @@ impl OrderBoard {
         }
     }
 
+    pub fn get(&self, owner: Option<&str>, item: &str, purpose: &Purpose) -> Option<Arc<Order>> {
+        self.orders
+            .read()
+            .unwrap()
+            .iter()
+            .find(|o| {
+                o.owner == owner.map(str::to_string) && o.item == item && o.purpose == *purpose
+            })
+            .cloned()
+    }
+
     pub fn orders(&self) -> Vec<Arc<Order>> {
         self.orders.read().unwrap().iter().cloned().collect_vec()
     }
@@ -63,53 +74,64 @@ impl OrderBoard {
         orders
     }
 
-    pub fn add(&self, order: Order) -> bool {
-        if !self.has_similar(&order) {
-            let arc = Arc::new(order);
-            self.orders.write().unwrap().push(arc.clone());
-            info!("orderboard: added: {}.", arc);
-            return true;
+    pub fn add(
+        &self,
+        owner: Option<&str>,
+        item: &str,
+        quantity: i32,
+        purpose: Purpose,
+    ) -> Result<(), OrderError> {
+        if self.get(owner, item, &purpose).is_some() {
+            return Err(OrderError::AlreadyExists);
         }
-        false
+        let order = Order::new(owner, item, quantity, purpose)?;
+        let arc = Arc::new(order);
+        self.orders.write().unwrap().push(arc.clone());
+        info!("orderboard: added: {}.", arc);
+        Ok(())
     }
 
-    pub fn add_or_reset(&self, order: Order) -> bool {
-        if let Some(o) = self.orders().iter().find(|o| o.is_similar(&order)) {
+    pub fn add_or_reset(
+        &self,
+        owner: Option<&str>,
+        item: &str,
+        quantity: i32,
+        purpose: Purpose,
+    ) -> Result<(), OrderError> {
+        if let Some(o) = self.get(owner, item, &purpose) {
             *o.deposited.write().unwrap() = 0;
-            debug!("orderboard: reset: {}.", order);
-            true
+            debug!("orderboard: reset: {}.", o);
+            Ok(())
         } else {
-            self.add(order)
+            self.add(owner, item, quantity, purpose)
         }
     }
 
-    pub fn update(&self, order: Order) {
-        if let Some(o) = self.orders().iter().find(|o| o.is_similar(&order)) {
-            *o.quantity.write().unwrap() = order.quantity();
-            debug!("orderboard: updated: {}.", order)
-        } else {
-            self.add(order);
+    pub fn register_deposit(
+        &self,
+        owner: &Option<String>,
+        item: &str,
+        quantity: i32,
+        purpose: &Purpose,
+    ) -> Result<(), OrderError> {
+        let Some(order) = self.get(owner.as_deref(), item, purpose) else {
+            return Err(OrderError::NotFound);
+        };
+        order.inc_deposited(quantity);
+        if order.turned_in() {
+            self.remove(&order)?;
         }
+        Ok(())
     }
 
-    pub fn remove(&self, order: &Order) {
+    pub fn remove(&self, order: &Order) -> Result<(), OrderError> {
         let mut orders = self.orders.write().unwrap();
         if orders.iter().any(|r| r.is_similar(order)) {
             orders.retain(|r| !r.is_similar(order));
-            info!("orderboard: removed: {}.", order)
-        }
-    }
-
-    pub fn has_similar(&self, other: &Order) -> bool {
-        self.orders().iter().any(|o| o.is_similar(other))
-    }
-
-    pub fn notify_deposit(&self, code: &str, quantity: i32) {
-        if let Some(order) = self.orders().iter().find(|o| o.item == code) {
-            order.inc_deposited(quantity);
-            if order.turned_in() {
-                self.remove(order);
-            }
+            info!("orderboard: removed: {}.", order);
+            Ok(())
+        } else {
+            Err(OrderError::NotFound)
         }
     }
 
@@ -138,15 +160,23 @@ pub struct Order {
 }
 
 impl Order {
-    pub fn new(owner: Option<&str>, item: &str, quantity: i32, purpose: Purpose) -> Self {
-        Order {
+    pub fn new(
+        owner: Option<&str>,
+        item: &str,
+        quantity: i32,
+        purpose: Purpose,
+    ) -> Result<Order, OrderError> {
+        if quantity <= 0 {
+            return Err(OrderError::InvalidQuantity);
+        }
+        Ok(Order {
             owner: owner.map(|o| o.to_owned()),
             item: item.to_owned(),
             quantity: RwLock::new(quantity),
             purpose,
             in_progress: RwLock::new(0),
             deposited: RwLock::new(0),
-        }
+        })
     }
 
     fn is_similar(&self, other: &Order) -> bool {
@@ -202,6 +232,13 @@ impl Display for Order {
             self.purpose,
         )
     }
+}
+
+#[derive(Debug)]
+pub enum OrderError {
+    InvalidQuantity,
+    NotFound,
+    AlreadyExists,
 }
 
 #[derive(Debug, PartialEq, Clone, EnumIs, EnumIter)]
