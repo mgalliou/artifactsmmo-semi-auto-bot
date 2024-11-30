@@ -266,9 +266,10 @@ impl Character {
                     }
             })
             .for_each(|m| {
-                if self
-                    .orderboard
-                    .add(Order::new(None, &m.code, m.quantity, purpose.clone()))
+                if quantity > 0
+                    && self
+                        .orderboard
+                        .add(Order::new(None, &m.code, m.quantity, purpose.clone()))
                 {
                     ordered = true
                 }
@@ -345,11 +346,10 @@ impl Character {
         if self.can_craft(&order.item).is_err() {
             return None;
         }
-        if self.order_missing_mats(
-            &order.item,
-            self.orderboard.total_missing_for(order),
-            order.purpose.clone(),
-        ) {
+        let missing_quantity = self.orderboard.total_missing_for(order);
+        if missing_quantity > 0
+            && self.order_missing_mats(&order.item, missing_quantity, order.purpose.clone())
+        {
             return Some(0);
         }
         let quantity = min(
