@@ -455,7 +455,7 @@ impl Character {
             if let Err(e) = self.orderboard.register_deposit(
                 &order.owner,
                 &order.item,
-                order.quantity(),
+                min(q, order.not_deposited()),
                 &order.purpose,
             ) {
                 error!("{} failed to register deposit: {:?}", self.name, e);
