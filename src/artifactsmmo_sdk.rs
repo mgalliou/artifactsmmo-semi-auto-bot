@@ -46,6 +46,7 @@ trait ItemSchemaExt {
     fn haste(&self) -> i32;
     fn skill_cooldown_reduction(&self, skijll: Skill) -> i32;
     fn heal(&self) -> i32;
+    fn restore(&self) -> i32;
     fn damage_increase_against_with(&self, monster: &MonsterSchema, weapon: &ItemSchema) -> f32;
     fn damage_reduction_against(&self, monster: &MonsterSchema) -> f32;
 }

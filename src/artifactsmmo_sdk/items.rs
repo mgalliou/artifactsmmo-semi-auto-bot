@@ -180,7 +180,9 @@ impl Items {
                 }
             })
             .find(|d| d.code == code)
-            .map_or(0, |d| (d.rate as f32 * (d.min_quantity + d.min_quantity) as f32 / 2.0) as i32)
+            .map_or(0, |d| {
+                (d.rate as f32 * (d.min_quantity + d.min_quantity) as f32 / 2.0) as i32
+            })
     }
 
     /// Takes an item `code` and aggregate the drop rates of its base materials
@@ -286,10 +288,18 @@ impl Items {
             .values()
             .filter(|i| {
                 i.is_of_type(Type::Consumable)
+                    && i.heal() > 0
                     && i.level >= level - level % 10
                     && i.level <= level
                     && i.code != "apple_pie"
             })
+            .collect_vec()
+    }
+
+    pub fn restoring_utilities(&self, level: i32) -> Vec<&ItemSchema> {
+        self.data
+            .values()
+            .filter(|i| i.r#type().is_utility() && i.restore() > 0 && i.level >= level)
             .collect_vec()
     }
 
@@ -522,6 +532,13 @@ impl ItemSchemaExt for ItemSchema {
         self.effects()
             .iter()
             .find_map(|e| (e.name == "heal").then_some(e.value))
+            .unwrap_or(0)
+    }
+
+    fn restore(&self) -> i32 {
+        self.effects()
+            .iter()
+            .find_map(|e| (e.name == "restore").then_some(e.value))
             .unwrap_or(0)
     }
 
