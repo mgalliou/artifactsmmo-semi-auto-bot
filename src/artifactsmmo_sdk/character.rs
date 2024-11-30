@@ -115,47 +115,54 @@ impl Character {
                 continue;
             }
             self.events.refresh();
-            // TODO: improve the way ReachSkillLevel is handled
-            let first_level_goal_not_reached = self.conf().goals.into_iter().find(|g| {
-                if let Goal::ReachSkillLevel { skill, level } = g {
-                    self.skill_level(*skill) < *level
-                } else {
-                    false
-                }
-            });
-            if self
-                .conf()
-                .goals
-                .iter()
-                .filter(|g| {
-                    g.is_reach_skill_level()
-                        && first_level_goal_not_reached.is_some_and(|gnr| **g == gnr)
-                        || !g.is_reach_skill_level()
-                })
-                .any(|g| match g {
-                    Goal::Events => self.handle_events(),
-                    Goal::Orders => self.handle_orderboard(),
-                    Goal::ReachSkillLevel { skill, level } if self.skill_level(*skill) < *level => {
-                        self.level_skill_up(*skill)
-                    }
-                    Goal::FollowMaxSkillLevel {
-                        skill,
-                        skill_to_follow,
-                    } if self.skill_level(*skill)
-                        < min(1 + self.account.max_skill_level(*skill_to_follow), 40) =>
-                    {
-                        self.level_skill_up(*skill)
-                    }
-                    _ => false,
-                })
-            {
+            if self.handle_goals() {
                 continue;
             }
             // TODO: improve fallback
-            if let Err(e) = self.level_combat() {
-                error!("{} failed to level combat: {:?}", self.name, e);
+            if let Err(e) = self.progress_task() {
+                error!("{} failed to progress task: {:?}", self.name, e);
+            };
+            for s in self.conf().skills.iter() {
+                if self.level_skill_up(*s) {
+                    continue;
+                }
             }
         }
+    }
+
+    fn handle_goals(&self) -> bool {
+        let first_level_goal_not_reached = self.conf().goals.into_iter().find(|g| {
+            if let Goal::ReachSkillLevel { skill, level } = g {
+                self.skill_level(*skill) < *level
+            } else {
+                false
+            }
+        });
+        // TODO: improve the way ReachSkillLevel is handled
+        self.conf()
+            .goals
+            .iter()
+            .filter(|g| {
+                g.is_reach_skill_level()
+                    && first_level_goal_not_reached.is_some_and(|gnr| **g == gnr)
+                    || !g.is_reach_skill_level()
+            })
+            .any(|g| match g {
+                Goal::Events => self.handle_events(),
+                Goal::Orders => self.handle_orderboard(),
+                Goal::ReachSkillLevel { skill, level } if self.skill_level(*skill) < *level => {
+                    self.level_skill_up(*skill)
+                }
+                Goal::FollowMaxSkillLevel {
+                    skill,
+                    skill_to_follow,
+                } if self.skill_level(*skill)
+                    < min(1 + self.account.max_skill_level(*skill_to_follow), 40) =>
+                {
+                    self.level_skill_up(*skill)
+                }
+                _ => false,
+            })
     }
 
     fn level_skill_up(&self, skill: Skill) -> bool {
