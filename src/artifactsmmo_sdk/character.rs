@@ -45,6 +45,7 @@ const TASKS_COIN: &str = "tasks_coin";
 const EXCHANGE_PRICE: i32 = 6;
 const CANCEL_PRICE: i32 = 6;
 const MIN_COIN_THRESHOLD: i32 = 4;
+const MAX_LEVEL: i32 = 40;
 
 pub struct Character {
     pub name: String,
@@ -157,7 +158,7 @@ impl Character {
                     skill,
                     skill_to_follow,
                 } if self.skill_level(*skill)
-                    < min(1 + self.account.max_skill_level(*skill_to_follow), 40) =>
+                    < min(1 + self.account.max_skill_level(*skill_to_follow), MAX_LEVEL) =>
                 {
                     self.level_skill_up(*skill)
                 }
@@ -166,6 +167,9 @@ impl Character {
     }
 
     fn level_skill_up(&self, skill: Skill) -> bool {
+        if self.skill_level(skill) >= MAX_LEVEL {
+            return false;
+        };
         if skill.is_combat() {
             return self.level_combat().is_ok();
         }
