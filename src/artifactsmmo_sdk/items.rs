@@ -17,6 +17,8 @@ use std::{sync::Arc, vec::Vec};
 use strum::IntoEnumIterator;
 use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
 
+pub const TASKS_COIN: &str = "tasks_coin";
+pub const GIFT: &str = "gift";
 pub const FOOD_BLACK_LIST: &[&str] = &["apple", "apple_pie", "egg", "carrot"];
 
 #[derive(Default)]
@@ -404,7 +406,7 @@ impl Items {
         if self.tasks.rewards.iter().any(|r| r.code == code) {
             sources.push(ItemSource::TaskReward);
         }
-        if code == "tasks_coin" {
+        if code == TASKS_COIN {
             sources.push(ItemSource::Task);
         }
         if [

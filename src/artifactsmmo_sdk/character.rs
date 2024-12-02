@@ -10,7 +10,7 @@ use super::{
     gear::{Gear, Slot},
     gear_finder::{Filter, GearFinder},
     inventory::Inventory,
-    items::{ItemSource, Items, Type},
+    items::{ItemSource, Items, Type, GIFT, TASKS_COIN},
     maps::Maps,
     monsters::Monsters,
     orderboard::{Order, OrderBoard, Purpose},
@@ -41,8 +41,6 @@ use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumIs};
 mod actions;
 
-const TASKS_COIN: &str = "tasks_coin";
-const GIFT: &str = "gift";
 const EXCHANGE_PRICE: i32 = 6;
 const CANCEL_PRICE: i32 = 6;
 const MIN_COIN_THRESHOLD: i32 = 4;
@@ -676,7 +674,7 @@ impl Character {
         };
         let result = self.action_cancel_task().map_err(|e| e.into());
         self.inventory
-            .decrease_reservation("tasks_coin", CANCEL_PRICE);
+            .decrease_reservation(TASKS_COIN, CANCEL_PRICE);
         result
     }
 
