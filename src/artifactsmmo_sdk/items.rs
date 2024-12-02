@@ -267,9 +267,16 @@ impl Items {
         self.providing_exp(level, skill)
             .into_iter()
             .filter(|i| {
-                i.code != "wooden_staff"
-                    && i.code != "life_amulet"
-                    && i.code != "feather_coat"
+                ![
+                    "wooden_staff",
+                    "life_amulet",
+                    "feather_coat",
+                    "ruby",
+                    "emerald",
+                    "sapphire",
+                    "topaz",
+                ]
+                .contains(&i.code.as_str())
                     && !i.is_crafted_with("jasper_crystal")
                     && !i.is_crafted_with("magical_cure")
             })
