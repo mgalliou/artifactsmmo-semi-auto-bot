@@ -89,7 +89,7 @@ trait SkillInfoSchemaExt {
     fn amount_of(&self, item: &str) -> i32;
 }
 
-trait TaskRewardsSchemaExt {
+trait RewardsSchemaExt {
     fn amount_of(&self, item: &str) -> i32;
 }
 

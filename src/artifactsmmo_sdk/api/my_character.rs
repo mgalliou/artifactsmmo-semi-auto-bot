@@ -40,14 +40,7 @@ use artifactsmmo_openapi::{
         Error,
     },
     models::{
-        BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema,
-        BankItemTransactionResponseSchema, CharacterFightResponseSchema,
-        CharacterMovementResponseSchema, CharacterRestResponseSchema, CraftingSchema,
-        DeleteItemResponseSchema, DepositWithdrawGoldSchema, DestinationSchema, EquipSchema,
-        EquipmentResponseSchema, ItemSlot, MyCharactersListSchema, RecyclingResponseSchema,
-        RecyclingSchema, SimpleItemSchema, SkillResponseSchema, TaskCancelledResponseSchema,
-        TaskResponseSchema, TaskTradeResponseSchema, TasksRewardDataResponseSchema, UnequipSchema,
-        UseItemResponseSchema,
+        BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema, BankItemTransactionResponseSchema, CharacterFightResponseSchema, CharacterMovementResponseSchema, CharacterRestResponseSchema, CraftingSchema, DeleteItemResponseSchema, DepositWithdrawGoldSchema, DestinationSchema, EquipSchema, EquipmentResponseSchema, ItemSlot, MyCharactersListSchema, RecyclingResponseSchema, RecyclingSchema, RewardDataResponseSchema, SimpleItemSchema, SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema, TaskTradeResponseSchema, UnequipSchema, UseItemResponseSchema
     },
 };
 
@@ -257,7 +250,7 @@ impl MyCharacterApi {
         &self,
         name: &str,
     ) -> Result<
-        TasksRewardDataResponseSchema,
+        RewardDataResponseSchema,
         Error<ActionCompleteTaskMyNameActionTaskCompletePostError>,
     > {
         action_complete_task_my_name_action_task_complete_post(&self.configuration, name)
@@ -288,7 +281,7 @@ impl MyCharacterApi {
         &self,
         name: &str,
     ) -> Result<
-        TasksRewardDataResponseSchema,
+        RewardDataResponseSchema,
         Error<ActionTaskExchangeMyNameActionTaskExchangePostError>,
     > {
         action_task_exchange_my_name_action_task_exchange_post(&self.configuration, name)

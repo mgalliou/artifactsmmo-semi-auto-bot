@@ -17,14 +17,14 @@ use super::{
     resources::Resources,
     skill::Skill,
     ActiveEventSchemaExt, FightSchemaExt, ItemSchemaExt, MapSchemaExt, SkillSchemaExt,
-    TaskRewardsSchemaExt,
+    RewardsSchemaExt,
 };
 use crate::artifactsmmo_sdk::{char_config::Goal, SkillInfoSchemaExt};
 use actions::{PostCraftAction, RequestError};
 use artifactsmmo_openapi::models::{
     CharacterSchema, FightResult, FightSchema, ItemSchema, MapContentSchema, MapSchema,
     MonsterSchema, RecyclingItemsSchema, ResourceSchema, SimpleItemSchema, SkillDataSchema,
-    SkillInfoSchema, TaskRewardsSchema, TaskSchema, TaskTradeSchema, TaskType,
+    SkillInfoSchema, RewardsSchema, TaskSchema, TaskTradeSchema, TaskType,
 };
 use itertools::Itertools;
 use log::{error, info, warn};
@@ -536,7 +536,7 @@ impl Character {
         Ok(self.action_accept_task()?)
     }
 
-    fn complete_task(&self) -> Result<TaskRewardsSchema, CharacterError> {
+    fn complete_task(&self) -> Result<RewardsSchema, CharacterError> {
         if self.task().is_empty() {
             return Err(CharacterError::NoTask);
         }
@@ -556,7 +556,7 @@ impl Character {
         Ok(())
     }
 
-    fn exchange_task(&self) -> Result<TaskRewardsSchema, CharacterError> {
+    fn exchange_task(&self) -> Result<RewardsSchema, CharacterError> {
         self.can_exchange_task()?;
         if self
             .bank
