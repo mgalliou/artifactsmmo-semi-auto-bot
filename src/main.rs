@@ -8,7 +8,7 @@ use artifactsmmo_playground::artifactsmmo_sdk::{
 use clap::{value_parser, Parser, Subcommand};
 use itertools::Itertools;
 use log::LevelFilter;
-use rustyline::{error::ReadlineError, DefaultEditor};
+use rustyline::{error::ReadlineError, Cmd, DefaultEditor, Event, KeyCode, KeyEvent, Modifiers};
 use std::{str::FromStr, sync::Arc, thread::sleep, time::Duration};
 
 fn main() -> rustyline::Result<()> {
@@ -38,8 +38,12 @@ fn run_cli(game: &Game) -> rustyline::Result<()> {
     loop {
         let readline = rl.readline(">> ");
         match readline {
-            Ok(line) => match respond(line, game) {
-                Ok(_) => {}
+            Ok(line) => match respond(&line, game) {
+                Ok(_) => {
+                    if let Err(e) = rl.add_history_entry(line.as_str()) {
+                        eprintln!("failed to add history entry: {}", e);
+                    }
+                }
                 Err(e) => eprintln!("{}", e),
             },
             Err(ReadlineError::Interrupted) => {
@@ -61,7 +65,7 @@ fn run_cli(game: &Game) -> rustyline::Result<()> {
 
 static mut CHAR: Option<Arc<Character>> = None;
 
-fn respond(line: String, game: &Game) -> Result<bool, String> {
+fn respond(line: &str, game: &Game) -> Result<bool, String> {
     let args = line.split_whitespace().collect_vec();
     let gear_finder = GearFinder::new(&game.items);
     let cli = Cli::try_parse_from(args).map_err(|err| format!("{}", err))?;
@@ -221,7 +225,7 @@ enum Commands {
         action: ItemsAction,
     },
     Char {
-        #[arg(value_parser = value_parser!(i32), default_value = "1")]
+        #[arg(value_parser = value_parser!(i32), default_value = "0")]
         i: i32,
     },
     Status,
@@ -241,6 +245,7 @@ enum Commands {
         filter: String,
         monster: String,
     },
+    #[command(alias = "sim")]
     Simulate {
         monster: String,
     },
@@ -264,9 +269,11 @@ enum OrderboardAction {
         #[arg(default_value_t = 1)]
         quantity: i32,
     },
+    #[command(alias = "rm")]
     Remove {
         item: String,
     },
+    #[command(alias = "l")]
     List,
 }
 
