@@ -599,15 +599,24 @@ impl Character {
 
     fn exchange_task(&self) -> Result<RewardsSchema, CharacterError> {
         self.can_exchange_task()?;
-        if self
-            .bank
-            .reserv(TASKS_COIN, EXCHANGE_PRICE, &self.name)
-            .is_err()
-        {
-            return Err(CharacterError::NotEnoughCoin);
+        if self.inventory.has_available(TASKS_COIN) >= EXCHANGE_PRICE {
+            if let Err(e) = self.inventory.reserv(TASKS_COIN, EXCHANGE_PRICE) {
+                error!(
+                    "{}: error while reserving tasks coin inventory: {}",
+                    self.name, e
+                );
+            }
+        } else {
+            if self
+                .bank
+                .reserv(TASKS_COIN, EXCHANGE_PRICE, &self.name)
+                .is_err()
+            {
+                return Err(CharacterError::NotEnoughCoin);
+            }
+            self.deposit_all();
+            self.withdraw_item(TASKS_COIN, EXCHANGE_PRICE)?;
         }
-        self.deposit_all();
-        self.withdraw_item(TASKS_COIN, EXCHANGE_PRICE)?;
         if let Err(e) = self.move_to_closest_taskmaster(self.task_type()) {
             error!("{}: error while moving to taskmaster: {:?}", self.name, e);
         };
@@ -626,11 +635,17 @@ impl Character {
 
     fn exchange_gift(&self) -> Result<RewardsSchema, CharacterError> {
         self.can_exchange_gift()?;
-        if self.bank.reserv(GIFT, 1, &self.name).is_err() {
-            return Err(CharacterError::NotEnoughGift);
+        if self.inventory.has_available(GIFT) >= 1 {
+            if let Err(e) = self.inventory.reserv(GIFT, 1) {
+                error!("{}: error while reserving gift inventory: {}", self.name, e);
+            }
+        } else {
+            if self.bank.reserv(GIFT, 1, &self.name).is_err() {
+                return Err(CharacterError::NotEnoughGift);
+            }
+            self.deposit_all();
+            self.withdraw_item(GIFT, 1)?;
         }
-        self.deposit_all();
-        self.withdraw_item(GIFT, 1)?;
         if let Err(e) = self.move_to_closest_map_of_type("santa_claus") {
             error!("{}: error while moving to santa claus: {:?}", self.name, e);
         };
