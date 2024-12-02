@@ -16,15 +16,15 @@ use super::{
     orderboard::{Order, OrderBoard, Purpose},
     resources::Resources,
     skill::Skill,
-    ActiveEventSchemaExt, FightSchemaExt, ItemSchemaExt, MapSchemaExt, SkillSchemaExt,
-    RewardsSchemaExt,
+    ActiveEventSchemaExt, FightSchemaExt, ItemSchemaExt, MapSchemaExt, RewardsSchemaExt,
+    SkillSchemaExt,
 };
 use crate::artifactsmmo_sdk::{char_config::Goal, SkillInfoSchemaExt};
 use actions::{PostCraftAction, RequestError};
 use artifactsmmo_openapi::models::{
     CharacterSchema, FightResult, FightSchema, ItemSchema, MapContentSchema, MapSchema,
-    MonsterSchema, RecyclingItemsSchema, ResourceSchema, SimpleItemSchema, SkillDataSchema,
-    SkillInfoSchema, RewardsSchema, TaskSchema, TaskTradeSchema, TaskType,
+    MonsterSchema, RecyclingItemsSchema, ResourceSchema, RewardsSchema, SimpleItemSchema,
+    SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
 };
 use itertools::Itertools;
 use log::{error, info, warn};
@@ -42,6 +42,7 @@ use strum_macros::{Display, EnumIs};
 mod actions;
 
 const TASKS_COIN: &str = "tasks_coin";
+const GIFT: &str = "gift";
 const EXCHANGE_PRICE: i32 = 6;
 const CANCEL_PRICE: i32 = 6;
 const MIN_COIN_THRESHOLD: i32 = 4;
@@ -158,7 +159,10 @@ impl Character {
                     skill,
                     skill_to_follow,
                 } if self.skill_level(*skill)
-                    < min(1 + self.account.max_skill_level(*skill_to_follow), MAX_LEVEL) =>
+                    < min(
+                        1 + self.account.max_skill_level(*skill_to_follow),
+                        MAX_LEVEL,
+                    ) =>
                 {
                     self.level_skill_up(*skill)
                 }
@@ -250,12 +254,13 @@ impl Character {
     }
 
     fn can_progress(&self, order: &Order) -> bool {
-        self.items.sources_of(&order.item).iter().any(|s| match s {
+        self.items.best_source_of(&order.item).iter().any(|s| match s {
             ItemSource::Resource(r) => self.can_gather(r).is_ok(),
             ItemSource::Monster(m) => self.can_kill(m).is_ok(),
             ItemSource::Craft => self.can_craft(&order.item).is_ok(),
             ItemSource::TaskReward => order.in_progress() <= 0,
             ItemSource::Task => true,
+            ItemSource::Gift => true,
         })
     }
 
@@ -292,7 +297,7 @@ impl Character {
     }
 
     fn can_complete(&self, order: &Order) -> bool {
-        self.items.sources_of(&order.item).iter().any(|s| match s {
+        self.items.best_source_of(&order.item).iter().any(|s| match s {
             ItemSource::Resource(_) => false,
             ItemSource::Monster(_) => false,
             ItemSource::Craft => {
@@ -302,8 +307,9 @@ impl Character {
                         .missing_mats_for(&order.item, order.quantity(), Some(&self.name))
                         .is_empty()
             }
-            ItemSource::TaskReward => self.has_available("tasks_coin") >= 6,
+            ItemSource::TaskReward => self.has_available(TASKS_COIN) >= 6,
             ItemSource::Task => self.has_available(&self.task()) >= self.task_missing(),
+            ItemSource::Gift => self.has_available(GIFT) >= 1,
         })
     }
 
@@ -329,7 +335,7 @@ impl Character {
 
     fn progress_order(&self, order: &Order) -> Option<i32> {
         self.items
-            .sources_of(&order.item)
+            .best_source_of(&order.item)
             .iter()
             .find_map(|s| match s {
                 ItemSource::Resource(r) => self.progress_resource_order(order, r),
@@ -337,6 +343,7 @@ impl Character {
                 ItemSource::Craft => self.progress_crafting_order(order),
                 ItemSource::TaskReward => self.progress_task_reward_order(order),
                 ItemSource::Task => self.progress_task_order(order),
+                ItemSource::Gift => self.progress_gift_order(order),
             })
     }
 
@@ -437,6 +444,35 @@ impl Character {
                         .map(|_| 0),
                     _ => None,
                 }
+            }
+        }
+    }
+
+    fn progress_gift_order(&self, order: &Order) -> Option<i32> {
+        match self.can_exchange_gift() {
+            Ok(()) => {
+                order.inc_in_progress(1);
+                let exchanged = self.exchange_gift().map(|r| r.amount_of(&order.item)).ok();
+                order.dec_in_progress(1);
+                exchanged
+            }
+            Err(e) => {
+                if self.orderboard.total_missing_for(order) <= 0 {
+                    return None;
+                }
+                if let CharacterError::NotEnoughGift = e {
+                    let q = 1 - if self.orderboard.is_ordered(GIFT) {
+                        0
+                    } else {
+                        self.has_in_bank_or_inv(GIFT)
+                    };
+                    return self
+                        .orderboard
+                        .add(None, GIFT, q, order.purpose.to_owned())
+                        .ok()
+                        .map(|_| 0);
+                }
+                None
             }
         }
     }
@@ -573,6 +609,28 @@ impl Character {
         let result = self.action_task_exchange().map_err(|e| e.into());
         self.inventory
             .decrease_reservation(TASKS_COIN, EXCHANGE_PRICE);
+        result
+    }
+
+    fn can_exchange_gift(&self) -> Result<(), CharacterError> {
+        if self.bank.has_available(GIFT, Some(&self.name)) < 1 {
+            return Err(CharacterError::NotEnoughGift);
+        }
+        Ok(())
+    }
+
+    fn exchange_gift(&self) -> Result<RewardsSchema, CharacterError> {
+        self.can_exchange_gift()?;
+        if self.bank.reserv(GIFT, 1, &self.name).is_err() {
+            return Err(CharacterError::NotEnoughGift);
+        }
+        self.deposit_all();
+        self.withdraw_item(GIFT, 1)?;
+        if let Err(e) = self.move_to_closest_map_of_type("santa_claus") {
+            error!("{}: error while moving to santa claus: {:?}", self.name, e);
+        };
+        let result = self.action_gift_exchange().map_err(|e| e.into());
+        self.inventory.decrease_reservation(GIFT, 1);
         result
     }
 
@@ -812,7 +870,7 @@ impl Character {
     #[allow(dead_code)]
     pub fn time_to_get(&self, item: &str) -> Option<i32> {
         self.items
-            .sources_of(item)
+            .best_source_of(item)
             .iter()
             .filter_map(|s| match s {
                 ItemSource::Resource(r) => self.time_to_gather(r),
@@ -828,6 +886,7 @@ impl Character {
                 ),
                 ItemSource::TaskReward => Some(2000),
                 ItemSource::Task => Some(2000),
+                ItemSource::Gift => Some(1000),
             })
             .min()
     }
@@ -1931,6 +1990,7 @@ pub enum CharacterError {
     MissingItems { item: String, quantity: i32 },
     QuantityUnavailable(i32),
     TaskAlreadyCompleted,
+    NotEnoughGift,
 }
 
 impl From<RequestError> for CharacterError {

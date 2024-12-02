@@ -292,6 +292,7 @@ impl Items {
                     && i.level >= level - level % 10
                     && i.level <= level
                     && i.code != "apple_pie"
+                    && i.code != "carrot"
             })
             .collect_vec()
     }
@@ -358,11 +359,8 @@ impl Items {
     /// All this logic should probably be done elsewhere since it can be related to the orderboard
     /// or the character level/skill_level/gear.
     pub fn best_source_of(&self, code: &str) -> Option<ItemSource> {
-        if self
-            .sources_of(code)
-            .iter()
-            .all(|s| s.is_resource() || s.is_monster())
-        {
+        let sources = self.sources_of(code);
+        if sources.iter().all(|s| s.is_resource() || s.is_monster()) {
             let bests = self.sources_of(code).into_iter().min_set_by_key(|s| {
                 if let ItemSource::Resource(r) = s {
                     r.drop_rate(code)
@@ -373,8 +371,9 @@ impl Items {
                 }
             });
             return bests.first().cloned();
+        } else {
+            return sources.first().cloned();
         }
-        None
     }
 
     pub fn sources_of(&self, code: &str) -> Vec<ItemSource> {
@@ -400,6 +399,22 @@ impl Items {
         if code == "tasks_coin" {
             sources.push(ItemSource::Task);
         }
+        if [
+            "blue_candy",
+            "green_candy",
+            "red_candy",
+            "yellow_candy",
+            "christmas_cane",
+            "christmas_star",
+            "frozen_gloves",
+            "frozen_axe",
+            "frozen_fishing_rode",
+            "frozen_pickaxe",
+        ]
+        .contains(&code)
+        {
+            sources.push(ItemSource::Gift);
+        }
         sources
     }
 
@@ -416,6 +431,7 @@ impl Items {
                     .sum(),
                 ItemSource::TaskReward => 1500,
                 ItemSource::Task => 1500,
+                ItemSource::Gift => 1500,
             })
             .min()
     }
@@ -428,6 +444,7 @@ impl Items {
                 ItemSource::Craft => false,
                 ItemSource::TaskReward => false,
                 ItemSource::Task => false,
+                ItemSource::Gift => false,
             })
         })
     }
@@ -649,20 +666,21 @@ pub enum DamageType {
     Water,
 }
 
-#[derive(Debug, Clone, EnumIs)]
+#[derive(Debug, Clone, PartialEq, EnumIs)]
 pub enum ItemSource<'a> {
     Resource(&'a ResourceSchema),
     Monster(&'a MonsterSchema),
     Craft,
     TaskReward,
     Task,
+    Gift,
 }
 
 #[cfg(test)]
 mod tests {
     use crate::artifactsmmo_sdk::{
-        game_config::GameConfig, monsters::Monsters, resources::Resources, tasks::Tasks,
-        ItemSchemaExt,
+        game_config::GameConfig, items::ItemSource, monsters::Monsters, resources::Resources,
+        tasks::Tasks, ItemSchemaExt,
     };
     use figment::{
         providers::{Format, Toml},
@@ -803,6 +821,28 @@ mod tests {
                 .unwrap()
                 .damage_reduction_against(monsters.get("ogre").unwrap()),
             4.0
+        );
+    }
+
+    #[test]
+    fn gift_source() {
+        let config: GameConfig = Figment::new()
+            .merge(Toml::file_exact("ArtifactsMMO.toml"))
+            .extract()
+            .unwrap();
+        let events = Default::default();
+        let resources = Arc::new(Resources::new(&config, &events));
+        let monsters = Arc::new(Monsters::new(&config, &events));
+        let tasks = Arc::new(Tasks::new(&config));
+        let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
+
+        assert_eq!(
+            items.sources_of("christmas_star").first(),
+            Some(&ItemSource::Gift)
+        );
+        assert_eq!(
+            items.best_source_of("gift"),
+            Some(&ItemSource::Monster(monsters.get("krampus").unwrap())).cloned()
         );
     }
 }

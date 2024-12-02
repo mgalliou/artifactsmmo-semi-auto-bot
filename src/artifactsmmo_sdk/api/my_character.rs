@@ -4,6 +4,7 @@ use artifactsmmo_openapi::{
         my_characters_api::{
             action_accept_new_task_my_name_action_task_new_post,
             action_buy_bank_expansion_my_name_action_bank_buy_expansion_post,
+            action_christmas_exchange_my_name_action_christmas_exchange_post,
             action_complete_task_my_name_action_task_complete_post,
             action_crafting_my_name_action_crafting_post,
             action_delete_item_my_name_action_delete_post,
@@ -21,6 +22,7 @@ use artifactsmmo_openapi::{
             action_withdraw_bank_my_name_action_bank_withdraw_post,
             get_my_characters_my_characters_get, ActionAcceptNewTaskMyNameActionTaskNewPostError,
             ActionBuyBankExpansionMyNameActionBankBuyExpansionPostError,
+            ActionChristmasExchangeMyNameActionChristmasExchangePostError,
             ActionCompleteTaskMyNameActionTaskCompletePostError,
             ActionCraftingMyNameActionCraftingPostError,
             ActionDeleteItemMyNameActionDeletePostError,
@@ -40,7 +42,14 @@ use artifactsmmo_openapi::{
         Error,
     },
     models::{
-        BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema, BankItemTransactionResponseSchema, CharacterFightResponseSchema, CharacterMovementResponseSchema, CharacterRestResponseSchema, CraftingSchema, DeleteItemResponseSchema, DepositWithdrawGoldSchema, DestinationSchema, EquipSchema, EquipmentResponseSchema, ItemSlot, MyCharactersListSchema, RecyclingResponseSchema, RecyclingSchema, RewardDataResponseSchema, SimpleItemSchema, SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema, TaskTradeResponseSchema, UnequipSchema, UseItemResponseSchema
+        BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema,
+        BankItemTransactionResponseSchema, CharacterFightResponseSchema,
+        CharacterMovementResponseSchema, CharacterRestResponseSchema, CraftingSchema,
+        DeleteItemResponseSchema, DepositWithdrawGoldSchema, DestinationSchema, EquipSchema,
+        EquipmentResponseSchema, ItemSlot, MyCharactersListSchema, RecyclingResponseSchema,
+        RecyclingSchema, RewardDataResponseSchema, SimpleItemSchema, SkillResponseSchema,
+        TaskCancelledResponseSchema, TaskResponseSchema, TaskTradeResponseSchema, UnequipSchema,
+        UseItemResponseSchema,
     },
 };
 
@@ -249,10 +258,8 @@ impl MyCharacterApi {
     pub fn complete_task(
         &self,
         name: &str,
-    ) -> Result<
-        RewardDataResponseSchema,
-        Error<ActionCompleteTaskMyNameActionTaskCompletePostError>,
-    > {
+    ) -> Result<RewardDataResponseSchema, Error<ActionCompleteTaskMyNameActionTaskCompletePostError>>
+    {
         action_complete_task_my_name_action_task_complete_post(&self.configuration, name)
     }
 
@@ -280,11 +287,19 @@ impl MyCharacterApi {
     pub fn task_exchange(
         &self,
         name: &str,
+    ) -> Result<RewardDataResponseSchema, Error<ActionTaskExchangeMyNameActionTaskExchangePostError>>
+    {
+        action_task_exchange_my_name_action_task_exchange_post(&self.configuration, name)
+    }
+
+    pub fn christmas_exchange(
+        &self,
+        name: &str,
     ) -> Result<
         RewardDataResponseSchema,
-        Error<ActionTaskExchangeMyNameActionTaskExchangePostError>,
+        Error<ActionChristmasExchangeMyNameActionChristmasExchangePostError>,
     > {
-        action_task_exchange_my_name_action_task_exchange_post(&self.configuration, name)
+        action_christmas_exchange_my_name_action_christmas_exchange_post(&self.configuration, name)
     }
 
     pub fn all(

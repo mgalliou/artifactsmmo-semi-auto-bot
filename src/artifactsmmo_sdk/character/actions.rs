@@ -140,6 +140,11 @@ impl Character {
                 .task_exchange(&self.name)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
+            Action::ChristmasExchange => self
+                .my_api
+                .christmas_exchange(&self.name)
+                .map(|r| r.into())
+                .map_err(|e| e.into()),
         };
         match res {
             Ok(res) => {
@@ -359,6 +364,15 @@ impl Character {
             .map(|s| *s.data.rewards)
     }
 
+    pub fn action_gift_exchange(&self) -> Result<RewardsSchema, RequestError> {
+        self.perform_action(Action::ChristmasExchange)
+            .and_then(|r| {
+                r.downcast::<RewardDataResponseSchema>()
+                    .map_err(|_| RequestError::DowncastError)
+            })
+            .map(|s| *s.data.rewards)
+    }
+
     fn handle_action_error(
         &self,
         action: Action,
@@ -486,6 +500,7 @@ pub enum Action<'a> {
         quantity: i32,
     },
     TaskExchange,
+    ChristmasExchange,
     Rest,
     UseItem {
         item: &'a str,
