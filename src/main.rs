@@ -8,13 +8,16 @@ use artifactsmmo_playground::artifactsmmo_sdk::{
 use clap::{value_parser, Parser, Subcommand};
 use itertools::Itertools;
 use log::LevelFilter;
-use rustyline::{error::ReadlineError, Cmd, DefaultEditor, Event, KeyCode, KeyEvent, Modifiers};
+use rustyline::{error::ReadlineError, DefaultEditor};
 use std::{str::FromStr, sync::Arc, thread::sleep, time::Duration};
 
 fn main() -> rustyline::Result<()> {
     let _ = simple_logging::log_to_file("artifactsmmo.log", LevelFilter::Info);
     let game = Game::new();
     game.init();
+    game.orderboard.add(None, "snowman_hat", 5, Purpose::Cli);
+    game.orderboard.add(None, "lizard_skin", 200, Purpose::Cli);
+    game.orderboard.add(None, "demon_horn", 200, Purpose::Cli);
     let handles = game
         .account
         .characters
@@ -270,9 +273,7 @@ enum OrderboardAction {
         quantity: i32,
     },
     #[command(alias = "rm")]
-    Remove {
-        item: String,
-    },
+    Remove { item: String },
     #[command(alias = "l")]
     List,
 }

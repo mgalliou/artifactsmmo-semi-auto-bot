@@ -27,8 +27,14 @@ pub struct CharConfig {
 #[serde(rename_all(deserialize = "snake_case"))]
 pub enum Goal {
     Orders,
-    ReachSkillLevel { skill: Skill, level: i32 },
-    FollowMaxSkillLevel { skill: Skill, skill_to_follow: Skill },
+    ReachSkillLevel {
+        skill: Skill,
+        level: i32,
+    },
+    FollowMaxSkillLevel {
+        skill: Skill,
+        skill_to_follow: Skill,
+    },
     Events,
 }
 

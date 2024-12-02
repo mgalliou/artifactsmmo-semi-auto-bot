@@ -2,7 +2,8 @@ use artifactsmmo_openapi::{
     apis::{
         configuration::Configuration,
         events_api::{
-            get_all_active_events_events_active_get, get_all_events_events_get, GetAllActiveEventsEventsActiveGetError, GetAllEventsEventsGetError
+            get_all_active_events_events_active_get, get_all_events_events_get,
+            GetAllActiveEventsEventsActiveGetError, GetAllEventsEventsGetError,
         },
         Error,
     },
@@ -21,18 +22,13 @@ impl EventsApi {
         EventsApi { configuration }
     }
 
-    pub fn all(
-        &self,
-    ) -> Result<Vec<EventSchema>, Error<GetAllEventsEventsGetError>> {
+    pub fn all(&self) -> Result<Vec<EventSchema>, Error<GetAllEventsEventsGetError>> {
         let mut events: Vec<EventSchema> = vec![];
         let mut current_page = 1;
         let mut finished = false;
         while !finished {
-            let resp = get_all_events_events_get(
-                &self.configuration,
-                Some(current_page),
-                Some(100),
-            );
+            let resp =
+                get_all_events_events_get(&self.configuration, Some(current_page), Some(100));
             match resp {
                 Ok(resp) => {
                     events.extend(resp.data);

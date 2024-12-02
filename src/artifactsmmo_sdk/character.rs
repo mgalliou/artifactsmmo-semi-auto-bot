@@ -210,14 +210,14 @@ impl Character {
             },
         );
         if let Err(CharacterError::InsuffisientMaterials) = craft {
-                self.order_missing_mats(
-                    &item.code,
-                    self.max_craftable_items(&item.code),
-                    Purpose::Leveling {
-                        char: self.name.to_owned(),
-                        skill,
-                    },
-                );
+            self.order_missing_mats(
+                &item.code,
+                self.max_craftable_items(&item.code),
+                Purpose::Leveling {
+                    char: self.name.to_owned(),
+                    skill,
+                },
+            );
             {
                 return Ok(());
             }
@@ -253,14 +253,17 @@ impl Character {
     }
 
     fn can_progress(&self, order: &Order) -> bool {
-        self.items.best_source_of(&order.item).iter().any(|s| match s {
-            ItemSource::Resource(r) => self.can_gather(r).is_ok(),
-            ItemSource::Monster(m) => self.can_kill(m).is_ok(),
-            ItemSource::Craft => self.can_craft(&order.item).is_ok(),
-            ItemSource::TaskReward => order.in_progress() <= 0,
-            ItemSource::Task => true,
-            ItemSource::Gift => true,
-        })
+        self.items
+            .best_source_of(&order.item)
+            .iter()
+            .any(|s| match s {
+                ItemSource::Resource(r) => self.can_gather(r).is_ok(),
+                ItemSource::Monster(m) => self.can_kill(m).is_ok(),
+                ItemSource::Craft => self.can_craft(&order.item).is_ok(),
+                ItemSource::TaskReward => order.in_progress() <= 0,
+                ItemSource::Task => true,
+                ItemSource::Gift => true,
+            })
     }
 
     /// Creates orders based on the missing (not available in bank) materials requiered to craft
@@ -296,20 +299,23 @@ impl Character {
     }
 
     fn can_complete(&self, order: &Order) -> bool {
-        self.items.best_source_of(&order.item).iter().any(|s| match s {
-            ItemSource::Resource(_) => false,
-            ItemSource::Monster(_) => false,
-            ItemSource::Craft => {
-                self.can_craft(&order.item).is_ok()
-                    && self
-                        .bank
-                        .missing_mats_for(&order.item, order.quantity(), Some(&self.name))
-                        .is_empty()
-            }
-            ItemSource::TaskReward => self.has_available(TASKS_COIN) >= 6,
-            ItemSource::Task => self.has_available(&self.task()) >= self.task_missing(),
-            ItemSource::Gift => self.has_available(GIFT) >= 1,
-        })
+        self.items
+            .best_source_of(&order.item)
+            .iter()
+            .any(|s| match s {
+                ItemSource::Resource(_) => false,
+                ItemSource::Monster(_) => false,
+                ItemSource::Craft => {
+                    self.can_craft(&order.item).is_ok()
+                        && self
+                            .bank
+                            .missing_mats_for(&order.item, order.quantity(), Some(&self.name))
+                            .is_empty()
+                }
+                ItemSource::TaskReward => self.has_available(TASKS_COIN) >= 6,
+                ItemSource::Task => self.has_available(&self.task()) >= self.task_missing(),
+                ItemSource::Gift => self.has_available(GIFT) >= 1,
+            })
     }
 
     fn handle_order(&self, order: Arc<Order>) -> bool {
