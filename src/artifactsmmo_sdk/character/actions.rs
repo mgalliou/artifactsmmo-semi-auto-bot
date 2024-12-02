@@ -186,7 +186,7 @@ impl Character {
 
     pub fn action_move(&self, x: i32, y: i32) -> Result<MapSchema, RequestError> {
         if self.position() == (x, y) {
-            return Ok((*self.map()).clone());
+            return Ok((self.map()).clone());
         }
         self.perform_action(Action::Move { x, y })
             .and_then(|r| {

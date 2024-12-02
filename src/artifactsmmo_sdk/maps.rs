@@ -1,14 +1,19 @@
 use super::{
     api::maps::MapsApi, events::Events, game_config::GameConfig, skill::Skill, MapSchemaExt,
 };
-use artifactsmmo_openapi::models::{MapContentSchema, MapSchema};
-use itertools::Itertools;
-use std::sync::Arc;
+use artifactsmmo_openapi::models::{ActiveEventSchema, MapContentSchema, MapSchema};
+use chrono::{DateTime, Utc};
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock},
+};
 
 #[derive(Default)]
 pub struct Maps {
-    data: Vec<Arc<MapSchema>>,
+    api: MapsApi,
+    data: HashMap<(i32, i32), RwLock<MapSchema>>,
     events: Arc<Events>,
+    active_events: Arc<RwLock<Vec<ActiveEventSchema>>>,
 }
 
 impl Maps {
@@ -19,57 +24,74 @@ impl Maps {
                 .all(None, None)
                 .expect("maps to be retrieved from API.")
                 .into_iter()
-                .map(Arc::new)
-                .collect_vec(),
+                .map(|m| ((m.x, m.y), RwLock::new(m)))
+                .collect(),
+            api,
             events: events.clone(),
+            active_events: events.active.clone(),
         }
     }
 
-    pub fn get(&self, x: i32, y: i32) -> Option<Arc<MapSchema>> {
-        self.events
-            .maps()
-            .into_iter()
-            .find(|m| m.x == x && m.y == y)
-            .or_else(|| self.data.iter().find(|m| m.x == x && m.y == y).cloned())
+    pub fn refresh(&self) {
+        self.active_events.read().unwrap().iter().for_each(|e| {
+            if DateTime::parse_from_rfc3339(&e.expiration).unwrap() < Utc::now() {
+                if let Some(map) = self.data.get(&(e.map.x, e.map.y)) {
+                    map.write().unwrap().content = None;
+                    map.write().unwrap().skin = e.previous_skin.clone();
+                }
+            }
+        });
+        self.events.refresh();
+        self.active_events.read().unwrap().iter().for_each(|e| {
+            if DateTime::parse_from_rfc3339(&e.expiration).unwrap() > Utc::now() {
+                if let Some(map) = self.data.get(&(e.map.x, e.map.y)) {
+                    map.write().unwrap().content = e.map.content.clone();
+                    map.write().unwrap().skin = e.map.skin.clone();
+                }
+            }
+        });
     }
 
-    pub fn closest_from_amoung(
-        x: i32,
-        y: i32,
-        maps: Vec<Arc<MapSchema>>,
-    ) -> Option<Arc<MapSchema>> {
+    pub fn get(&self, x: i32, y: i32) -> Option<MapSchema> {
+        Some(self.data.get(&(x, y))?.read().unwrap().clone())
+    }
+
+    pub fn closest_from_amoung(x: i32, y: i32, maps: Vec<MapSchema>) -> Option<MapSchema> {
         maps.into_iter()
             .min_by_key(|m| i32::abs(m.x - x) + i32::abs(m.y - y))
     }
 
-    pub fn of_type(&self, r#type: &str) -> Vec<Arc<MapSchema>> {
+    pub fn of_type(&self, r#type: &str) -> Vec<MapSchema> {
         self.data
-            .iter()
-            .chain(self.events.maps().iter())
-            .filter(|m| m.content.as_ref().is_some_and(|c| c.r#type == r#type))
-            .cloned()
-            .collect_vec()
+            .values()
+            .filter(|m| {
+                m.read()
+                    .unwrap()
+                    .content
+                    .as_ref()
+                    .is_some_and(|c| c.r#type == r#type)
+            })
+            .map(|m| m.read().unwrap().clone())
+            .collect()
     }
 
-    pub fn with_content_code(&self, code: &str) -> Vec<Arc<MapSchema>> {
+    pub fn with_content_code(&self, code: &str) -> Vec<MapSchema> {
         self.data
-            .iter()
-            .chain(self.events.maps().iter())
-            .filter(|m| m.content_is(code))
-            .cloned()
-            .collect_vec()
+            .values()
+            .filter(|m| m.read().unwrap().content_is(code))
+            .map(|m| m.read().unwrap().clone())
+            .collect()
     }
 
-    pub fn with_content_schema(&self, schema: &MapContentSchema) -> Vec<Arc<MapSchema>> {
+    pub fn with_content_schema(&self, schema: &MapContentSchema) -> Vec<MapSchema> {
         self.data
-            .iter()
-            .chain(self.events.maps().iter())
-            .filter(|m| m.content().is_some_and(|c| c == *schema))
-            .cloned()
-            .collect_vec()
+            .values()
+            .filter(|m| m.read().unwrap().content().is_some_and(|c| c == *schema))
+            .map(|m| m.read().unwrap().clone())
+            .collect()
     }
 
-    pub fn to_craft(&self, skill: Skill) -> Option<Arc<MapSchema>> {
+    pub fn to_craft(&self, skill: Skill) -> Option<MapSchema> {
         match skill {
             Skill::Weaponcrafting => self.with_content_code("weaponcrafting").first().cloned(),
             Skill::Gearcrafting => self.with_content_code("gearcrafting").first().cloned(),

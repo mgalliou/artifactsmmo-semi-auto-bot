@@ -114,7 +114,7 @@ impl Character {
                 self.deposit_all();
                 continue;
             }
-            self.events.refresh();
+            self.maps.refresh();
             if self.handle_goals() {
                 continue;
             }
@@ -483,7 +483,7 @@ impl Character {
     /// Deposit items requiered by the given `order` if needed.
     /// Returns true if items has be deposited.
     fn turn_in_order(&self, order: Arc<Order>) -> bool {
-        if self.orderboard.should_be_turned_in(&order) || self.inventory.is_full() {
+        if self.orderboard.should_be_turned_in(&order) {
             return self.deposit_order(&order);
         }
         false
@@ -1393,7 +1393,7 @@ impl Character {
 
     /// Returns the closest map from the `Character` containing the given
     /// content `type`.
-    fn closest_map_of_type(&self, r#type: &str) -> Option<Arc<MapSchema>> {
+    fn closest_map_of_type(&self, r#type: &str) -> Option<MapSchema> {
         let maps = self.maps.of_type(r#type);
         if maps.is_empty() {
             return None;
@@ -1403,7 +1403,7 @@ impl Character {
 
     /// Returns the closest map from the `Character` containing the given
     /// content `code`.
-    fn closest_map_with_content_code(&self, code: &str) -> Option<Arc<MapSchema>> {
+    fn closest_map_with_content_code(&self, code: &str) -> Option<MapSchema> {
         let maps = self.maps.with_content_code(code);
         if maps.is_empty() {
             return None;
@@ -1413,7 +1413,7 @@ impl Character {
 
     /// Returns the closest map from the `Character` containing the given
     /// content schema.
-    fn closest_map_with_content_schema(&self, schema: &MapContentSchema) -> Option<Arc<MapSchema>> {
+    fn closest_map_with_content_schema(&self, schema: &MapContentSchema) -> Option<MapSchema> {
         let maps = self.maps.with_content_schema(schema);
         if maps.is_empty() {
             return None;
@@ -1422,7 +1422,7 @@ impl Character {
     }
 
     /// Returns the closest map from the `Character` among the `maps` given.
-    fn closest_map_among(&self, maps: Vec<Arc<MapSchema>>) -> Option<Arc<MapSchema>> {
+    fn closest_map_among(&self, maps: Vec<MapSchema>) -> Option<MapSchema> {
         let (x, y) = self.position();
         Maps::closest_from_amoung(x, y, maps)
     }
@@ -1434,7 +1434,7 @@ impl Character {
         (x, y)
     }
 
-    fn map(&self) -> Arc<MapSchema> {
+    fn map(&self) -> MapSchema {
         let (x, y) = self.position();
         self.maps.get(x, y).unwrap()
     }

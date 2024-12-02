@@ -15,7 +15,7 @@ use std::{
 pub struct Events {
     api: EventsApi,
     pub data: Vec<EventSchema>,
-    active: RwLock<Vec<ActiveEventSchema>>,
+    pub active: Arc<RwLock<Vec<ActiveEventSchema>>>,
     last_refresh: RwLock<DateTime<Utc>>,
 }
 
@@ -35,7 +35,7 @@ impl Events {
         let events = Self {
             api,
             data,
-            active: RwLock::new(vec![]),
+            active: Arc::new(RwLock::new(vec![])),
             last_refresh: RwLock::new(DateTime::<Utc>::MIN_UTC),
         };
         events.refresh();

@@ -10,6 +10,7 @@ use artifactsmmo_openapi::{
     models::{MapContentType, MapResponseSchema, MapSchema},
 };
 
+#[derive(Default)]
 pub struct MapsApi {
     configuration: Configuration,
 }
