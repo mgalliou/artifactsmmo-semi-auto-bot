@@ -1,5 +1,9 @@
-use super::character::CharacterError;
-use artifactsmmo_openapi::models::{CharacterSchema, InventorySlot};
+use super::{
+    character::CharacterError,
+    items::{Items, Type, FOOD_BLACK_LIST},
+    ItemSchemaExt,
+};
+use artifactsmmo_openapi::models::{CharacterSchema, InventorySlot, ItemSchema};
 use core::fmt;
 use itertools::Itertools;
 use log::info;
@@ -9,13 +13,15 @@ use std::{
 };
 
 pub struct Inventory {
+    items: Arc<Items>,
     data: Arc<RwLock<CharacterSchema>>,
     reservations: RwLock<Vec<Arc<InventoryReservation>>>,
 }
 
 impl Inventory {
-    pub fn new(data: &Arc<RwLock<CharacterSchema>>) -> Inventory {
+    pub fn new(data: &Arc<RwLock<CharacterSchema>>, items: &Arc<Items>) -> Self {
         Inventory {
+            items: items.clone(),
             data: data.clone(),
             reservations: RwLock::new(vec![]),
         }
@@ -80,6 +86,24 @@ impl Inventory {
             .flatten()
             .find(|i| i.code == item)
             .map_or(0, |i| i.quantity)
+    }
+
+    pub fn consumable_food(&self) -> Vec<&ItemSchema> {
+        self.data
+            .read()
+            .unwrap()
+            .inventory
+            .iter()
+            .flatten()
+            .filter_map(|i| {
+                self.items.get(&i.code).filter(|&i| {
+                    i.is_of_type(Type::Consumable)
+                        && i.heal() > 0
+                        && i.level <= self.data.read().unwrap().level
+                        && !FOOD_BLACK_LIST.contains(&i.code.as_str())
+                })
+            })
+            .collect_vec()
     }
 
     /// Returns the amount not reserved of the given item `code` in the `Character` inventory.

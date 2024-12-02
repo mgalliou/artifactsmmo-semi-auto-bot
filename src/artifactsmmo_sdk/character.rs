@@ -94,7 +94,7 @@ impl Character {
             fight_simulator: FightSimulator::new(),
             bank: bank.clone(),
             data: data.clone(),
-            inventory: Arc::new(Inventory::new(data)),
+            inventory: Arc::new(Inventory::new(data, &game.items)),
         }
     }
 
@@ -1338,25 +1338,6 @@ impl Character {
         self.data.read().unwrap().gold
     }
 
-    fn food_in_inventory(&self) -> Vec<&ItemSchema> {
-        self.data
-            .read()
-            .unwrap()
-            .inventory
-            .iter()
-            .flatten()
-            .filter_map(|i| {
-                self.items.get(&i.code).filter(|&i| {
-                    i.is_of_type(Type::Consumable)
-                        && i.heal() > 0
-                        && i.level <= self.level()
-                        && i.code != "apple"
-                        && i.code != "egg"
-                })
-            })
-            .collect_vec()
-    }
-
     fn move_to_closest_map_of_type(&self, r#type: &str) -> Result<MapSchema, CharacterError> {
         if let Some(map) = self.closest_map_of_type(r#type) {
             let (x, y) = (map.x, map.y);
@@ -1846,7 +1827,7 @@ impl Character {
         // orders because if the first character orders food and the following character already
         // have it in inventory, they gonna deposit it instead of keeping it for themselves since
         // it is not yet reserved
-        self.food_in_inventory().iter().for_each(|f| {
+        self.inventory.consumable_food().iter().for_each(|f| {
             if let Err(e) = self
                 .inventory
                 .reserv(&f.code, self.inventory.total_of(&f.code))
@@ -1858,12 +1839,12 @@ impl Character {
             }
         });
         self.order_food();
-        if !self.food_in_inventory().is_empty() && !self.map().content_is("bank") {
+        if !self.inventory.consumable_food().is_empty() && !self.map().content_is("bank") {
             return;
         }
         let Some(food) = self
             .bank
-            .food()
+            .consumable_food()
             .into_iter()
             .filter(|f| {
                 f.level <= self.level() && self.bank.has_available(&f.code, Some(&self.name)) > 0
@@ -1893,7 +1874,7 @@ impl Character {
     fn order_food(&self) {
         if let Some(best_food) = self
             .items
-            .consumable_food(self.level())
+            .best_consumable_foods(self.level())
             .iter()
             .min_by_key(|i| {
                 self.bank
@@ -1916,7 +1897,8 @@ impl Character {
     }
 
     fn eat_food(&self) {
-        self.food_in_inventory()
+        self.inventory
+            .consumable_food()
             .iter()
             .sorted_by_key(|i| i.heal())
             .for_each(|f| {

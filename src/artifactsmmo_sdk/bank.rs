@@ -1,7 +1,7 @@
 use super::{
     api::bank::BankApi,
     game_config::GameConfig,
-    items::{Items, Type},
+    items::{Items, Type, FOOD_BLACK_LIST},
     ItemSchemaExt,
 };
 use artifactsmmo_openapi::models::{BankSchema, ItemSchema, SimpleItemSchema};
@@ -114,7 +114,7 @@ impl Bank {
             .sum()
     }
 
-    pub fn food(&self) -> Vec<&ItemSchema> {
+    pub fn consumable_food(&self) -> Vec<&ItemSchema> {
         self.content
             .read()
             .unwrap()
@@ -123,8 +123,7 @@ impl Bank {
                 self.items.get(&i.code).filter(|&i| {
                     i.is_of_type(Type::Consumable)
                         && i.heal() > 0
-                        && i.code != "apple"
-                        && i.code != "egg"
+                        && !FOOD_BLACK_LIST.contains(&i.code.as_str())
                 })
             })
             .collect_vec()

@@ -17,6 +17,8 @@ use std::{sync::Arc, vec::Vec};
 use strum::IntoEnumIterator;
 use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
 
+pub const FOOD_BLACK_LIST: &[&str] = &["apple", "apple_pie", "egg", "carrot"];
+
 #[derive(Default)]
 pub struct Items {
     data: HashMap<String, ItemSchema>,
@@ -290,7 +292,7 @@ impl Items {
             .collect_vec()
     }
 
-    pub fn consumable_food(&self, level: i32) -> Vec<&ItemSchema> {
+    pub fn best_consumable_foods(&self, level: i32) -> Vec<&ItemSchema> {
         self.data
             .values()
             .filter(|i| {
@@ -298,8 +300,7 @@ impl Items {
                     && i.heal() > 0
                     && i.level >= level - level % 10
                     && i.level <= level
-                    && i.code != "apple_pie"
-                    && i.code != "carrot"
+                    && !FOOD_BLACK_LIST.contains(&i.code.as_str())
             })
             .collect_vec()
     }
