@@ -208,14 +208,15 @@ impl Character {
             },
         );
         if let Err(CharacterError::InsuffisientMaterials) = craft {
-            self.order_missing_mats(
-                &item.code,
-                self.max_craftable_items(&item.code),
-                Purpose::Leveling {
-                    char: self.name.to_owned(),
-                    skill,
-                },
-            );
+            if (!skill.is_gathering() || skill.is_alchemy())
+                && self.order_missing_mats(
+                    &item.code,
+                    self.max_craftable_items(&item.code),
+                    Purpose::Leveling {
+                        char: self.name.to_owned(),
+                        skill,
+                    },
+                )
             {
                 return Ok(());
             }
