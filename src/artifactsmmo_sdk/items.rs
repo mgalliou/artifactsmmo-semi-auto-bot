@@ -276,6 +276,7 @@ impl Items {
                     "life_amulet",
                     "feather_coat",
                     "ruby",
+                    "diamond",
                     "emerald",
                     "sapphire",
                     "topaz",
