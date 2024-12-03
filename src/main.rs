@@ -15,9 +15,11 @@ fn main() -> rustyline::Result<()> {
     let _ = simple_logging::log_to_file("artifactsmmo.log", LevelFilter::Info);
     let game = Game::new();
     game.init();
-    game.orderboard.add(None, "snowman_hat", 5, Purpose::Cli);
-    game.orderboard.add(None, "lizard_skin", 200, Purpose::Cli);
-    game.orderboard.add(None, "demon_horn", 200, Purpose::Cli);
+    game.orderboard.add(None, "snowman_hat", 10, Purpose::Cli);
+    game.orderboard.add(None, "lizard_skin", 1000, Purpose::Cli);
+    game.orderboard.add(None, "demon_horn", 1000, Purpose::Cli);
+    game.orderboard.add(None, "diamond", 200, Purpose::Cli);
+    game.orderboard.add(None, "magic_sap", 200, Purpose::Cli);
     let handles = game
         .account
         .characters
