@@ -59,6 +59,7 @@ impl Resources {
             .iter()
             .filter(|r| Skill::from(r.skill) == skill)
             .filter(|r| r.level <= level)
+            .filter(|r| !["magic_tree", "strange_rocks"].contains(&r.code.as_str()))
             .max_by_key(|r| r.level)
     }
 
