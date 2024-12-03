@@ -119,12 +119,12 @@ impl Character {
                 continue;
             }
             // TODO: improve fallback
-            if let Err(e) = self.progress_task() {
-                error!("{} failed to progress task: {:?}", self.name, e);
+            if self.progress_task().is_ok() {
+                continue;
             };
             for s in self.conf().skills.iter() {
                 if self.level_skill_up(*s) {
-                    continue;
+                    break;
                 }
             }
         }
