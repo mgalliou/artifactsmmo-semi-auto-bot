@@ -20,6 +20,7 @@ pub mod game;
 pub mod game_config;
 pub mod gear;
 pub mod gear_finder;
+pub mod leveling_helper;
 pub mod inventory;
 pub mod items;
 pub mod maps;

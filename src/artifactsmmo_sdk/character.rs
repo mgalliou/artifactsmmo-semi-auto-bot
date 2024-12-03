@@ -11,6 +11,7 @@ use super::{
     gear_finder::{Filter, GearFinder},
     inventory::Inventory,
     items::{ItemSource, Items, Type, GIFT, TASKS_COIN},
+    leveling_helper::LevelingHelper,
     maps::Maps,
     monsters::Monsters,
     orderboard::{Order, OrderBoard, Purpose},
@@ -62,6 +63,7 @@ pub struct Character {
     orderboard: Arc<OrderBoard>,
     gear_finder: GearFinder,
     fight_simulator: FightSimulator,
+    leveling_helper: LevelingHelper,
     pub conf: Arc<RwLock<CharConfig>>,
     pub data: Arc<RwLock<CharacterSchema>>,
     pub inventory: Arc<Inventory>,
@@ -91,6 +93,12 @@ impl Character {
             orderboard: game.orderboard.clone(),
             gear_finder: GearFinder::new(&game.items),
             fight_simulator: FightSimulator::new(),
+            leveling_helper: LevelingHelper::new(
+                &game.items,
+                &game.resources,
+                &game.monsters,
+                &game.maps,
+            ),
             bank: bank.clone(),
             data: data.clone(),
             inventory: Arc::new(Inventory::new(data, &game.items)),
@@ -181,8 +189,8 @@ impl Character {
 
     fn level_skill_by_gathering(&self, skill: &Skill) -> Result<(), CharacterError> {
         let Some(resource) = self
-            .resources
-            .highest_providing_exp(self.skill_level(*skill), *skill)
+            .leveling_helper
+            .best_resource(self.skill_level(*skill), *skill)
         else {
             return Err(CharacterError::ResourceNotFound);
         };
@@ -192,8 +200,8 @@ impl Character {
 
     fn level_skill_by_crafting(&self, skill: Skill) -> Result<(), CharacterError> {
         let Some(item) = self
-            .items
-            .best_for_leveling_hc(self.skill_level(skill), skill)
+            .leveling_helper
+            .best_crafts_hardcoded(self.skill_level(skill), skill)
             .into_iter()
             .min_by_key(|i| self.account.time_to_get(&i.code))
         else {

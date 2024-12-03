@@ -23,7 +23,7 @@ pub const FOOD_BLACK_LIST: &[&str] = &["apple", "apple_pie", "egg", "carrot"];
 
 #[derive(Default)]
 pub struct Items {
-    data: HashMap<String, ItemSchema>,
+    pub data: HashMap<String, ItemSchema>,
     resources: Arc<Resources>,
     monsters: Arc<Monsters>,
     tasks: Arc<Tasks>,
@@ -215,86 +215,6 @@ impl Items {
             .collect_vec()
     }
 
-    /// Returns the best items to level the given `skill` at the given `level.
-    pub fn best_for_leveling_hc(&self, level: i32, skill: Skill) -> Vec<&ItemSchema> {
-        match skill {
-            Skill::Gearcrafting => {
-                if level >= 20 {
-                    return self.best_for_leveling(level, skill);
-                } else if level >= 10 {
-                    vec![self.get("iron_helm")]
-                //} else if level >= 5 {
-                //    vec![self.get("copper_legs_armor")]
-                } else {
-                    vec![self.get("wooden_shield")]
-                }
-            }
-            Skill::Weaponcrafting => {
-                return self.best_for_leveling(level, skill);
-            }
-            Skill::Jewelrycrafting => {
-                if level >= 30 {
-                    vec![self.get("gold_ring")]
-                } else if level >= 20 {
-                    vec![self.get("steel_ring")]
-                } else if level >= 15 {
-                    vec![self.get("life_ring")]
-                } else if level >= 10 {
-                    vec![self.get("iron_ring")]
-                } else {
-                    vec![self.get("copper_ring")]
-                }
-            }
-            Skill::Cooking => {
-                if level >= 30 {
-                    vec![self.get("cooked_bass")]
-                } else if level >= 20 {
-                    vec![self.get("cooked_trout")]
-                } else if level >= 10 {
-                    vec![self.get("cooked_shrimp")]
-                } else {
-                    vec![self.get("cooked_gudgeon")]
-                }
-            }
-            Skill::Mining | Skill::Woodcutting | Skill::Alchemy => {
-                return self.best_for_leveling(level, skill)
-            }
-            Skill::Fishing => vec![None],
-            Skill::Combat => vec![None],
-        }
-        .into_iter()
-        .flatten()
-        .collect_vec()
-    }
-
-    pub fn best_for_leveling(&self, level: i32, skill: Skill) -> Vec<&ItemSchema> {
-        self.providing_exp(level, skill)
-            .into_iter()
-            .filter(|i| {
-                ![
-                    "wooden_staff",
-                    "life_amulet",
-                    "feather_coat",
-                    "ruby",
-                    "diamond",
-                    "emerald",
-                    "sapphire",
-                    "topaz",
-                ]
-                .contains(&i.code.as_str())
-                    && !i.is_crafted_with("jasper_crystal")
-                    && !i.is_crafted_with("magical_cure")
-            })
-            .filter(|i| {
-                i.mats()
-                    .iter()
-                    .all(|m| self.get(&m.code).unwrap().level <= level)
-            })
-            .max_set_by_key(|i| i.level)
-            .into_iter()
-            .collect_vec()
-    }
-
     pub fn best_consumable_foods(&self, level: i32) -> Vec<&ItemSchema> {
         self.data
             .values()
@@ -312,39 +232,6 @@ impl Items {
         self.data
             .values()
             .filter(|i| i.r#type().is_utility() && i.restore() > 0 && i.level >= level)
-            .collect_vec()
-    }
-
-    /// Takes a `level` and a `skill` and returns the items providing experince
-    /// when crafted.
-    pub fn providing_exp(&self, level: i32, skill: Skill) -> Vec<&ItemSchema> {
-        let min = if level > 11 { level - 10 } else { 1 };
-        self.data
-            .values()
-            .filter(|i| i.level >= min && i.level <= level)
-            .filter(|i| i.skill_to_craft().is_some_and(|s| s == skill))
-            .collect_vec()
-    }
-
-    /// Takes a `level` and a `skill` and returns the items of the lowest level
-    /// providing experience when crafted.
-    pub fn lowest_providing_exp(&self, level: i32, skill: Skill) -> Vec<&ItemSchema> {
-        self.providing_exp(level, skill)
-            .iter()
-            .min_set_by_key(|i| i.level)
-            .into_iter()
-            .cloned()
-            .collect_vec()
-    }
-
-    /// Takes a `level` and a `skill` and returns the items of the highest level
-    /// providing experience when crafted.
-    pub fn highest_providing_exp(&self, level: i32, skill: Skill) -> Vec<&ItemSchema> {
-        self.providing_exp(level, skill)
-            .iter()
-            .max_set_by_key(|i| i.level)
-            .into_iter()
-            .cloned()
             .collect_vec()
     }
 
