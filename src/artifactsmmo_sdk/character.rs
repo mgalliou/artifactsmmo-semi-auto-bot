@@ -782,6 +782,8 @@ impl Character {
             self.action_move(map.x, map.y)?;
         } else if let Some(map) = self.closest_map_with_content_code(&monster.code) {
             self.action_move(map.x, map.y)?;
+        } else {
+            return Err(CharacterError::MapNotFound);
         }
         Ok(self.action_fight()?)
     }
@@ -807,6 +809,8 @@ impl Character {
             self.action_move(map.x, map.y)?;
         } else if let Some(map) = self.closest_map_with_content_code(&resource.code) {
             self.action_move(map.x, map.y)?;
+        } else {
+            return Err(CharacterError::MapNotFound);
         }
         Ok(self.action_gather()?)
     }
@@ -915,11 +919,11 @@ impl Character {
         if !self.skill_enabled(Skill::Combat) {
             return Err(CharacterError::SkillDisabled);
         }
-        if self.inventory.is_full() {
-            return Err(CharacterError::InventoryFull);
-        }
         if self.maps.with_content_code(&monster.code).is_empty() {
             return Err(CharacterError::MapNotFound);
+        }
+        if self.inventory.is_full() {
+            return Err(CharacterError::InventoryFull);
         }
         let available = self
             .gear_finder
@@ -951,6 +955,9 @@ impl Character {
                 skill,
                 resource.level,
             ));
+        }
+        if self.maps.with_content_code(&resource.code).is_empty() {
+            return Err(CharacterError::MapNotFound);
         }
         if self.inventory.is_full() {
             return Err(CharacterError::InventoryFull);
