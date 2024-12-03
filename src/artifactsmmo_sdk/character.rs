@@ -45,6 +45,7 @@ const EXCHANGE_PRICE: i32 = 6;
 const CANCEL_PRICE: i32 = 6;
 const MIN_COIN_THRESHOLD: i32 = 4;
 const MAX_LEVEL: i32 = 40;
+const MIN_FOOD_THRESHOLD: i32 = 300;
 
 pub struct Character {
     pub name: String,
@@ -1912,11 +1913,11 @@ impl Character {
                     .missing_mats_quantity(&i.code, self.inventory.max_items() - 30, None)
             })
         {
-            if self.bank.has_available(&best_food.code, Some(&self.name)) < 300 {
+            if self.bank.has_available(&best_food.code, Some(&self.name)) < MIN_FOOD_THRESHOLD {
                 if let Err(e) = self.orderboard.add_or_reset(
                     Some(&self.name),
                     &best_food.code,
-                    self.inventory.max_items() - 30,
+                    MIN_FOOD_THRESHOLD - self.bank.has_available(&best_food.code, Some(&self.name)),
                     Purpose::Food {
                         char: self.name.to_owned(),
                     },
