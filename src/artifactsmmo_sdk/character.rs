@@ -516,7 +516,11 @@ impl Character {
 
     fn progress_task(&self) -> Result<(), CharacterError> {
         if let Some(monster) = self.monsters.get(&self.task()) {
-            if let Err(CharacterError::GearTooWeak) = self.kill_monster(monster, None) {
+            let result = self.kill_monster(monster, None);
+            if result.is_ok() {
+                return Ok(());
+            }
+            if let Err(CharacterError::GearTooWeak) = result {
                 self.cancel_task()?;
                 return Ok(());
             }
