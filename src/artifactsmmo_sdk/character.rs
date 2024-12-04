@@ -777,7 +777,7 @@ impl Character {
             self.order_best_gear_against(monster, Filter::Craftable);
         }
         self.order_food();
-        self.equip_gear(&available);
+        self.equip_gear(&mut available);
         self.withdraw_food();
         if let Ok(_) | Err(CharacterError::NoTask) = self.complete_task() {
             if let Err(e) = self.accept_task(TaskType::Monsters) {
@@ -1505,12 +1505,32 @@ impl Character {
         Ok(())
     }
 
-    fn equip_gear(&self, gear: &Gear) {
+    fn equip_gear(&self, gear: &mut Gear) {
+        if gear.ring1 != gear.ring2
+            && (self.equiped_in(Slot::Ring1) == gear.ring2
+                || self.equiped_in(Slot::Ring2) == gear.ring1)
+        {
+            std::mem::swap(&mut gear.ring1, &mut gear.ring2);
+        }
+        if self.equiped_in(Slot::Utility1) == gear.utility2
+            || self.equiped_in(Slot::Utility2) == gear.utility1
+        {
+            std::mem::swap(&mut gear.utility1, &mut gear.utility2);
+        }
+        if self.equiped_in(Slot::Artifact1) == gear.artifact2 {
+            std::mem::swap(&mut gear.artifact1, &mut gear.artifact2);
+        }
+        if self.equiped_in(Slot::Artifact1) == gear.artifact3 {
+            std::mem::swap(&mut gear.artifact1, &mut gear.artifact3);
+        }
+        if self.equiped_in(Slot::Artifact2) == gear.artifact3 {
+            std::mem::swap(&mut gear.artifact2, &mut gear.artifact3);
+        }
         Slot::iter().for_each(|s| {
             if let Some(item) = gear.slot(s) {
                 self.equip_item_from_bank_or_inventory(&item.code, s);
             }
-        })
+        });
     }
 
     fn equip_item(&self, item: &str, slot: Slot, quantity: i32) -> Result<(), CharacterError> {
