@@ -1217,8 +1217,8 @@ impl Character {
             return Err(CharacterError::ItemNotFound);
         }
         self.move_to_closest_map_of_type("bank")?;
-        let deposit = self.action_withdraw(item, quantity);
-        if deposit.is_ok() {
+        let result = self.action_withdraw(item, quantity);
+        if result.is_ok() {
             self.bank.decrease_reservation(item, quantity, &self.name);
             if let Err(e) = self.inventory.reserv(item, quantity) {
                 error!(
@@ -1227,7 +1227,7 @@ impl Character {
                 );
             }
         }
-        Ok(deposit?)
+        Ok(result?)
     }
 
     /// Deposits all the gold and items in the character inventory into the bank.
@@ -1917,6 +1917,7 @@ impl Character {
         else {
             return;
         };
+        // TODO: defined quantity withdrowned depending on the monster drop rate and damages
         let quantity = min(
             self.inventory.max_items() - 30,
             self.bank.has_available(&food.code, Some(&self.name)),
@@ -1930,9 +1931,6 @@ impl Character {
         if let Err(e) = self.withdraw_item(&food.code, quantity) {
             error!("{} failed to withdraw food: {:?}", self.name, e)
         }
-        if let Err(e) = self.inventory.reserv(&food.code, quantity) {
-            error!("{} failed to reserv food: {:?}", self.name, e)
-        };
     }
 
     fn order_food(&self) {
@@ -1959,7 +1957,7 @@ impl Character {
                 if let Err(e) = self.orderboard.add_or_reset(
                     Some(&self.name),
                     &best_food.code,
-                    MIN_FOOD_THRESHOLD - self.bank.has_available(&best_food.code, Some(&self.name)),
+                    self.inventory.max_items() - 30,
                     Purpose::Food {
                         char: self.name.to_owned(),
                     },
