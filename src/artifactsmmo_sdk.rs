@@ -49,6 +49,7 @@ trait ItemSchemaExt {
     fn heal(&self) -> i32;
     fn restore(&self) -> i32;
     fn inventory_space(&self) -> i32;
+    fn is_consumable(&self, level: i32) -> bool;
     fn damage_increase_against_with(&self, monster: &MonsterSchema, weapon: &ItemSchema) -> f32;
     fn damage_reduction_against(&self, monster: &MonsterSchema) -> f32;
 }

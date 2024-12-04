@@ -231,13 +231,7 @@ impl Items {
     pub fn best_consumable_foods(&self, level: i32) -> Vec<&ItemSchema> {
         self.data
             .values()
-            .filter(|i| {
-                i.is_of_type(Type::Consumable)
-                    && i.heal() > 0
-                    && i.level >= level - level % 10
-                    && i.level <= level
-                    && !FOOD_BLACK_LIST.contains(&i.code.as_str())
-            })
+            .filter(|i| i.is_consumable(level))
             .collect_vec()
     }
 
@@ -480,6 +474,14 @@ impl ItemSchemaExt for ItemSchema {
             .iter()
             .find_map(|e| (e.name == "inventory_space").then_some(e.value))
             .unwrap_or(0)
+    }
+
+    fn is_consumable(&self, level: i32) -> bool {
+        self.is_of_type(Type::Consumable)
+            && self.heal() > 0
+            && level - level % 10 <= self.level
+            && self.level <= level
+            && !FOOD_BLACK_LIST.contains(&self.code.as_str())
     }
 
     fn damage_increase_against_with(&self, monster: &MonsterSchema, weapon: &ItemSchema) -> f32 {

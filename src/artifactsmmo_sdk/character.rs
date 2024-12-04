@@ -1920,7 +1920,7 @@ impl Character {
         }
         let Some(food) = self
             .bank
-            .consumable_food()
+            .consumable_food(self.level())
             .into_iter()
             .filter(|f| {
                 f.level <= self.level() && self.bank.has_available(&f.code, Some(&self.name)) > 0
@@ -1948,8 +1948,9 @@ impl Character {
     fn order_food(&self) {
         if self
             .bank
-            .consumable_food()
+            .consumable_food(self.level())
             .iter()
+            .filter(|f| f.level - f.level % 10 <= self.level())
             .map(|f| self.bank.has_available(&f.code, Some(&self.name)))
             .sum::<i32>()
             > MIN_FOOD_THRESHOLD

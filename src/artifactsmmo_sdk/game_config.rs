@@ -1,5 +1,8 @@
 use super::char_config::CharConfig;
-use figment::{providers::{Format, Toml}, Figment};
+use figment::{
+    providers::{Format, Toml},
+    Figment,
+};
 use serde::Deserialize;
 
 #[derive(Debug, Default, Clone, Deserialize)]

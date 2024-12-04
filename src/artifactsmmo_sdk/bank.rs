@@ -114,18 +114,12 @@ impl Bank {
             .sum()
     }
 
-    pub fn consumable_food(&self) -> Vec<&ItemSchema> {
+    pub fn consumable_food(&self, level: i32) -> Vec<&ItemSchema> {
         self.content
             .read()
             .unwrap()
             .iter()
-            .filter_map(|i| {
-                self.items.get(&i.code).filter(|&i| {
-                    i.is_of_type(Type::Consumable)
-                        && i.heal() > 0
-                        && !FOOD_BLACK_LIST.contains(&i.code.as_str())
-                })
-            })
+            .filter_map(|i| self.items.get(&i.code).filter(|&i| i.is_consumable(level)))
             .collect_vec()
     }
 
