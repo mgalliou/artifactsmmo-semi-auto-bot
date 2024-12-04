@@ -2,7 +2,9 @@ use super::{
     character::Character,
     fight_simulator::FightSimulator,
     gear::Gear,
-    items::{Items, Type},
+    items::{
+        Items, Type, ASTRALYTE_CRYSTAL, DIAMOND, ENCHANTED_FABRIC, JASPER_CRYSTAL, MAGICAL_CURE,
+    },
     skill::Skill,
     ItemSchemaExt,
 };
@@ -282,20 +284,25 @@ impl GearFinder {
             Filter::Available => char.has_available(&i.code) > 0,
             Filter::Craftable => {
                 (i.craft_schema().is_none() || char.account.can_craft(&i.code))
-                    && !i.is_crafted_with("jasper_crystal")
-                    && i.code != "obsidian_legs_armor"
-                    && i.code != "obsidian_helmet"
-                    && i.code != "obsidian_armor"
-                    && i.code != "obsidian_battleaxe"
-                    && i.code != "lizard_skin_armor"
-                    && i.code != "lizard_skin_armor"
-                    && i.code != "lizard_skin_legs_armor"
-                    && i.code != "piggy_armor"
-                    && i.code != "piggy_pants"
-                    && i.code != "serpent_skin_armor"
-                    && i.code != "serpent_skin_legs_armor"
-                    && i.code != "stormforged_armor"
-                    && i.code != "stormforged_pants"
+                    && !i.is_crafted_with(JASPER_CRYSTAL)
+                    && !i.is_crafted_with(MAGICAL_CURE)
+                    && !i.is_crafted_with(ENCHANTED_FABRIC)
+                    && !i.is_crafted_with(ASTRALYTE_CRYSTAL)
+                    && !i.is_crafted_with(DIAMOND)
+                    && ![
+                        "lizard_skin_armor",
+                        "lizard_skin_armor",
+                        "lizard_skin_legs_armor",
+                        "piggy_armor",
+                        "piggy_pants",
+                        "serpent_skin_armor",
+                        "serpent_skin_legs_armor",
+                        "stormforged_armor",
+                        "stormforged_pants",
+                        "lich_crown",
+                        "life_crystal",
+                    ]
+                    .contains(&i.code.as_str())
             }
             Filter::Farmable => todo!(),
         }

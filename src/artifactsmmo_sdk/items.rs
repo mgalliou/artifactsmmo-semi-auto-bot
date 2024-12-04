@@ -19,7 +19,20 @@ use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
 
 pub const TASKS_COIN: &str = "tasks_coin";
 pub const GIFT: &str = "gift";
-pub const FOOD_BLACK_LIST: &[&str] = &["apple", "apple_pie", "egg", "carrot"];
+pub const DIAMOND: &str = "diamond";
+pub const JASPER_CRYSTAL: &str = "jasper_crystal";
+pub const MAGICAL_CURE: &str = "magical_cure";
+pub const ENCHANTED_FABRIC: &str = "enchanted_fabric";
+pub const ASTRALYTE_CRYSTAL: &str = "astralyte_crystal";
+pub const FOOD_BLACK_LIST: &[&str] = &[
+    "apple",
+    "apple_pie",
+    "egg",
+    "carrot",
+    "mushroom_soup",
+    "fish_soup",
+    "cooked_hellhound_meat",
+];
 
 #[derive(Default)]
 pub struct Items {
