@@ -744,4 +744,24 @@ mod tests {
             Some(&ItemSource::Monster(monsters.get("gingerbread").unwrap())).cloned()
         );
     }
+
+    #[test]
+    fn best_consumable_foods() {
+        let config = GameConfig::from_file();
+        let events = Default::default();
+        let resources = Arc::new(Resources::new(&config, &events));
+        let monsters = Arc::new(Monsters::new(&config, &events));
+        let tasks = Arc::new(Tasks::new(&config));
+        let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
+
+        assert_eq!(
+            items
+                .best_consumable_foods(29)
+                .iter()
+                .max_by_key(|i| i.heal())
+                .unwrap()
+                .code,
+            "cooked_trout"
+        );
+    }
 }

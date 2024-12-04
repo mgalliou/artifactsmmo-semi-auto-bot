@@ -2032,7 +2032,6 @@ impl Character {
             .items
             .best_consumable_foods(self.level())
             .iter()
-            .filter(|i| i.skill_to_craft().is_some_and(|s| s.is_fishing()))
             .max_by_key(|i| i.heal())
         {
             if self.bank.has_available(&best_food.code, Some(&self.name)) < MIN_FOOD_THRESHOLD {
