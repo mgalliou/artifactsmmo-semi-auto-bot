@@ -320,7 +320,9 @@ impl Character {
                             .missing_mats_for(&order.item, order.quantity(), Some(&self.name))
                             .is_empty()
                 }
-                ItemSource::TaskReward => self.has_available(TASKS_COIN) >= 6,
+                ItemSource::TaskReward => {
+                    self.has_available(TASKS_COIN) >= EXCHANGE_PRICE + MIN_COIN_THRESHOLD
+                }
                 ItemSource::Task => self.has_available(&self.task()) >= self.task_missing(),
                 ItemSource::Gift => self.has_available(GIFT) >= 1,
             })
@@ -601,9 +603,7 @@ impl Character {
     }
 
     fn can_exchange_task(&self) -> Result<(), CharacterError> {
-        if self.bank.has_available(TASKS_COIN, Some(&self.name))
-            < EXCHANGE_PRICE + MIN_COIN_THRESHOLD
-        {
+        if self.has_available(TASKS_COIN) < EXCHANGE_PRICE + MIN_COIN_THRESHOLD {
             return Err(CharacterError::NotEnoughCoin);
         }
         Ok(())
