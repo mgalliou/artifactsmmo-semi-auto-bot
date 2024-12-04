@@ -601,25 +601,17 @@ pub enum ItemSource<'a> {
 
 #[cfg(test)]
 mod tests {
+    use super::Items;
     use crate::artifactsmmo_sdk::{
         game_config::GameConfig, items::ItemSource, monsters::Monsters, resources::Resources,
         tasks::Tasks, ItemSchemaExt,
     };
-    use figment::{
-        providers::{Format, Toml},
-        Figment,
-    };
     use itertools::Itertools;
     use std::sync::Arc;
 
-    use super::Items;
-
     #[test]
     fn potential_upgrade() {
-        let config: GameConfig = Figment::new()
-            .merge(Toml::file_exact("ArtifactsMMO.toml"))
-            .extract()
-            .unwrap();
+        let config = GameConfig::from_file();
         let events = Default::default();
         let resources = Arc::new(Resources::new(&config, &events));
         let monsters = Arc::new(Monsters::new(&config, &events));
@@ -644,10 +636,7 @@ mod tests {
 
     #[test]
     fn item_damage_against() {
-        let config: GameConfig = Figment::new()
-            .merge(Toml::file_exact("ArtifactsMMO.toml"))
-            .extract()
-            .unwrap();
+        let config = GameConfig::from_file();
         let events = Default::default();
         let resources = Arc::new(Resources::new(&config, &events));
         let monsters = Arc::new(Monsters::new(&config, &events));
@@ -672,10 +661,7 @@ mod tests {
 
     #[test]
     fn damage_increase() {
-        let config: GameConfig = Figment::new()
-            .merge(Toml::file_exact("ArtifactsMMO.toml"))
-            .extract()
-            .unwrap();
+        let config = GameConfig::from_file();
         let events = Default::default();
         let resources = Arc::new(Resources::new(&config, &events));
         let monsters = Arc::new(Monsters::new(&config, &events));
@@ -693,10 +679,7 @@ mod tests {
 
     #[test]
     fn damage_increase_against() {
-        let config: GameConfig = Figment::new()
-            .merge(Toml::file_exact("ArtifactsMMO.toml"))
-            .extract()
-            .unwrap();
+        let config = GameConfig::from_file();
         let events = Default::default();
         let resources = Arc::new(Resources::new(&config, &events));
         let monsters = Arc::new(Monsters::new(&config, &events));
@@ -728,10 +711,7 @@ mod tests {
 
     #[test]
     fn damage_reduction_against() {
-        let config: GameConfig = Figment::new()
-            .merge(Toml::file_exact("ArtifactsMMO.toml"))
-            .extract()
-            .unwrap();
+        let config = GameConfig::from_file();
         let events = Default::default();
         let resources = Arc::new(Resources::new(&config, &events));
         let monsters = Arc::new(Monsters::new(&config, &events));
@@ -749,10 +729,7 @@ mod tests {
 
     #[test]
     fn gift_source() {
-        let config: GameConfig = Figment::new()
-            .merge(Toml::file_exact("ArtifactsMMO.toml"))
-            .extract()
-            .unwrap();
+        let config = GameConfig::from_file();
         let events = Default::default();
         let resources = Arc::new(Resources::new(&config, &events));
         let monsters = Arc::new(Monsters::new(&config, &events));

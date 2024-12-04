@@ -10,7 +10,6 @@ use std::{
 
 #[derive(Default)]
 pub struct Maps {
-    api: MapsApi,
     data: HashMap<(i32, i32), RwLock<MapSchema>>,
     events: Arc<Events>,
     active_events: Arc<RwLock<Vec<ActiveEventSchema>>>,
@@ -18,15 +17,13 @@ pub struct Maps {
 
 impl Maps {
     pub fn new(config: &GameConfig, events: &Arc<Events>) -> Maps {
-        let api = MapsApi::new(&config.base_url);
         Maps {
-            data: api
+            data: MapsApi::new(&config.base_url)
                 .all(None, None)
                 .expect("maps to be retrieved from API.")
                 .into_iter()
                 .map(|m| ((m.x, m.y), RwLock::new(m)))
                 .collect(),
-            api,
             events: events.clone(),
             active_events: events.active.clone(),
         }

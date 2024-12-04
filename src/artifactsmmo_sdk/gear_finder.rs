@@ -198,6 +198,12 @@ impl GearFinder {
             items.push(rings2);
         }
         if !artifacts.is_empty() {
+            items.push(artifacts.clone());
+        }
+        if !artifacts.is_empty() {
+            items.push(artifacts.clone());
+        }
+        if !artifacts.is_empty() {
             items.push(artifacts);
         }
         // TODO: handle artifacts and consumables

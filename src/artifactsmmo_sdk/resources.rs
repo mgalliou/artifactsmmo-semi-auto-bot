@@ -1,6 +1,6 @@
 use super::{
     api::resources::ResourcesApi, events::Events, game_config::GameConfig, persist_data,
-    skill::Skill, ResourceSchemaExt,
+    ResourceSchemaExt,
 };
 use artifactsmmo_openapi::models::ResourceSchema;
 use log::error;
