@@ -477,7 +477,6 @@ impl ItemSchemaExt for ItemSchema {
     fn is_consumable(&self, level: i32) -> bool {
         self.is_of_type(Type::Consumable)
             && self.heal() > 0
-            && level - level % 10 <= self.level
             && self.level <= level
             && !FOOD_BLACK_LIST.contains(&self.code.as_str())
     }

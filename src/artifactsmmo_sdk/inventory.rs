@@ -1,8 +1,4 @@
-use super::{
-    character::CharacterError,
-    items::{Items, Type, FOOD_BLACK_LIST},
-    ItemSchemaExt,
-};
+use super::{character::CharacterError, items::Items, ItemSchemaExt};
 use artifactsmmo_openapi::models::{CharacterSchema, InventorySlot, ItemSchema};
 use core::fmt;
 use itertools::Itertools;
@@ -97,12 +93,9 @@ impl Inventory {
             .iter()
             .flatten()
             .filter_map(|i| {
-                self.items.get(&i.code).filter(|&i| {
-                    i.is_of_type(Type::Consumable)
-                        && i.heal() > 0
-                        && i.level <= self.data.read().unwrap().level
-                        && !FOOD_BLACK_LIST.contains(&i.code.as_str())
-                })
+                self.items
+                    .get(&i.code)
+                    .filter(|&i| i.is_consumable(self.data.read().unwrap().level))
             })
             .collect_vec()
     }

@@ -776,6 +776,7 @@ impl Character {
             }
             self.order_best_gear_against(monster, Filter::Craftable);
         }
+        self.order_food();
         self.equip_gear(&available);
         self.withdraw_food();
         if let Ok(_) | Err(CharacterError::NoTask) = self.complete_task() {
@@ -1944,7 +1945,6 @@ impl Character {
                 )
             }
         });
-        self.order_food();
         if !self.inventory.consumable_food().is_empty() && !self.map().content_is("bank") {
             return;
         }
@@ -1952,9 +1952,7 @@ impl Character {
             .bank
             .consumable_food(self.level())
             .into_iter()
-            .filter(|f| {
-                f.level <= self.level() && self.bank.has_available(&f.code, Some(&self.name)) > 0
-            })
+            .filter(|f| self.bank.has_available(&f.code, Some(&self.name)) > 0)
             .max_by_key(|f| f.heal())
         else {
             return;
@@ -1980,7 +1978,6 @@ impl Character {
             .bank
             .consumable_food(self.level())
             .iter()
-            .filter(|f| f.level - f.level % 10 <= self.level())
             .map(|f| self.bank.has_available(&f.code, Some(&self.name)))
             .sum::<i32>()
             > MIN_FOOD_THRESHOLD
@@ -1991,10 +1988,8 @@ impl Character {
             .items
             .best_consumable_foods(self.level())
             .iter()
-            .min_by_key(|i| {
-                self.bank
-                    .missing_mats_quantity(&i.code, self.inventory.max_items() - 30, None)
-            })
+            .filter(|i| i.skill_to_craft().is_some_and(|s| s.is_fishing()))
+            .max_by_key(|i| i.heal())
         {
             if self.bank.has_available(&best_food.code, Some(&self.name)) < MIN_FOOD_THRESHOLD {
                 if let Err(e) = self.orderboard.add_or_reset(
