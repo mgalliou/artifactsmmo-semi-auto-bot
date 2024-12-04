@@ -1,11 +1,10 @@
-use std::sync::Arc;
-
-use artifactsmmo_openapi::models::{ItemSchema, ResourceSchema};
-use itertools::Itertools;
-
 use super::{
-    items::Items, maps::Maps, monsters::Monsters, resources::Resources, skill::Skill, ItemSchemaExt,
+    character::Character, items::Items, maps::Maps, monsters::Monsters, resources::Resources,
+    skill::Skill, ItemSchemaExt,
 };
+use artifactsmmo_openapi::models::{ItemSchema, MonsterSchema, ResourceSchema};
+use itertools::Itertools;
+use std::sync::Arc;
 
 pub struct LevelingHelper {
     items: Arc<Items>,
@@ -153,5 +152,13 @@ impl LevelingHelper {
                     && !self.maps.with_content_code(&r.code).is_empty()
             })
             .max_by_key(|r| r.level)
+    }
+
+    pub fn best_monster(&self, char: &Character) -> Option<&MonsterSchema> {
+        self.monsters
+            .data
+            .iter()
+            .filter(|m| char.level() >= m.level && m.code != "imp")
+            .max_by_key(|m| if char.can_kill(m).is_ok() { m.level } else { 0 })
     }
 }

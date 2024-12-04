@@ -739,13 +739,7 @@ impl Character {
                 return Ok(());
             }
         }
-        let Some(monster) = self
-            .monsters
-            .data
-            .iter()
-            .filter(|m| m.level <= self.level())
-            .max_by_key(|m| if self.can_kill(m).is_ok() { m.level } else { 0 })
-        else {
+        let Some(monster) = self.leveling_helper.best_monster(self) else {
             return Err(CharacterError::MonsterNotFound);
         };
         self.kill_monster(monster, None)?;
@@ -933,7 +927,7 @@ impl Character {
 
     /// Checks if the `Character` is able to kill the given monster and returns
     /// the best available gear to do so.
-    fn can_kill<'a>(&'a self, monster: &'a MonsterSchema) -> Result<Gear<'_>, CharacterError> {
+    pub fn can_kill<'a>(&'a self, monster: &'a MonsterSchema) -> Result<Gear<'_>, CharacterError> {
         if !self.skill_enabled(Skill::Combat) {
             return Err(CharacterError::SkillDisabled);
         }
