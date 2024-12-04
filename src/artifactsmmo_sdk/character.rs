@@ -1172,7 +1172,7 @@ impl Character {
         let quantity_available =
             self.inventory.has_available(item) + self.bank.has_available(item, Some(&self.name));
         if quantity_available < quantity {
-            return Err(CharacterError::ItemNotFound);
+            return Err(CharacterError::QuantityUnavailable(quantity));
         }
         info!("{}: going to recycle '{}x{}'.", self.name, item, quantity);
         if self.inventory.has_available(item) < quantity {
@@ -1185,6 +1185,30 @@ impl Character {
         }
         self.move_to_craft(item)?;
         let result = self.action_recycle(item, quantity);
+        self.inventory.decrease_reservation(&self.task(), quantity);
+        Ok(result?)
+    }
+
+    pub fn delete_item(
+        &self,
+        item: &str,
+        quantity: i32,
+    ) -> Result<SimpleItemSchema, CharacterError> {
+        let quantity_available =
+            self.inventory.has_available(item) + self.bank.has_available(item, Some(&self.name));
+        if quantity_available < quantity {
+            return Err(CharacterError::QuantityUnavailable(quantity));
+        }
+        info!("{}: going to delete '{}x{}'.", self.name, item, quantity);
+        if self.inventory.has_available(item) < quantity {
+            let missing_quantity = quantity - self.inventory.has_available(item);
+            if let Err(e) = self.bank.reserv(item, missing_quantity, &self.name) {
+                error!("{}: error while reserving '{}': {:?}", self.name, item, e);
+            }
+            self.deposit_all();
+            self.withdraw_item(item, missing_quantity)?;
+        }
+        let result = self.action_delete(item, quantity);
         self.inventory.decrease_reservation(&self.task(), quantity);
         Ok(result?)
     }

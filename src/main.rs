@@ -168,6 +168,14 @@ fn respond(
                 println!("no character selected");
             }
         }
+        Commands::Delete { item, quantity } => {
+            if let Some(char) = character {
+                char.delete_item(&item, quantity)
+                    .map_err(|e| e.to_string())?;
+            } else {
+                println!("no character selected");
+            }
+        }
         Commands::Gear { filter, monster } => {
             if let Some(char) = character {
                 if let Some(monster) = game.monsters.get(&monster) {
@@ -281,6 +289,11 @@ enum Commands {
         quantity: i32,
     },
     Recycle {
+        item: String,
+        #[arg(default_value_t = 1)]
+        quantity: i32,
+    },
+    Delete {
         item: String,
         #[arg(default_value_t = 1)]
         quantity: i32,
