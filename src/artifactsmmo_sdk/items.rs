@@ -257,6 +257,11 @@ impl Items {
     /// All this logic should probably be done elsewhere since it can be related to the orderboard
     /// or the character level/skill_level/gear.
     pub fn best_source_of(&self, code: &str) -> Option<ItemSource> {
+        if code == "gift" {
+            return Some(ItemSource::Monster(
+                self.monsters.get("gingerbread").unwrap(),
+            ));
+        }
         let sources = self.sources_of(code);
         if sources.iter().all(|s| s.is_resource() || s.is_monster()) {
             let bests = self.sources_of(code).into_iter().min_set_by_key(|s| {
