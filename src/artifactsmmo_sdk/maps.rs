@@ -41,7 +41,7 @@ impl Maps {
                 }
             }
         });
-        self.events.refresh();
+        self.events.refresh_active();
         self.active_events.read().unwrap().iter().for_each(|e| {
             if DateTime::parse_from_rfc3339(&e.expiration).unwrap() > Utc::now() {
                 if let Some(map) = self.data.get(&(e.map.x, e.map.y)) {

@@ -60,7 +60,6 @@ impl Game {
     pub fn init(&self) {
         self.server.update_offset();
         self.account.init_characters(self);
-        self.events.refresh();
     }
 }
 

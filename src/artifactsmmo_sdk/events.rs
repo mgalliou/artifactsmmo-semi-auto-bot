@@ -38,7 +38,7 @@ impl Events {
             active: Arc::new(RwLock::new(vec![])),
             last_refresh: RwLock::new(DateTime::<Utc>::MIN_UTC),
         };
-        events.refresh();
+        events.refresh_active();
         events
     }
 
@@ -51,16 +51,17 @@ impl Events {
             .collect_vec()
     }
 
-    pub fn refresh(&self) {
+    pub fn refresh_active(&self) {
         let now = Utc::now();
-        if Utc::now() - self.last_refresh() > Duration::seconds(30) {
-            // NOTE: keep `events` locked before updating last refresh
-            let mut events = self.active.write().unwrap();
-            self.update_last_refresh(now);
-            if let Ok(new) = self.api.active() {
-                *events = new;
-                debug!("events refreshed.");
-            }
+        if Utc::now() - self.last_refresh() <= Duration::seconds(30) {
+            return;
+        }
+        // NOTE: keep `events` locked before updating last refresh
+        let mut events = self.active.write().unwrap();
+        self.update_last_refresh(now);
+        if let Ok(new) = self.api.active() {
+            *events = new;
+            debug!("events refreshed.");
         }
     }
 
