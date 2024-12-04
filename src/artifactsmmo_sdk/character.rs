@@ -639,7 +639,7 @@ impl Character {
     }
 
     fn can_exchange_gift(&self) -> Result<(), CharacterError> {
-        if self.bank.has_available(GIFT, Some(&self.name)) < 1 {
+        if self.has_available(GIFT) < 1 {
             return Err(CharacterError::NotEnoughGift);
         }
         Ok(())
@@ -647,16 +647,20 @@ impl Character {
 
     fn exchange_gift(&self) -> Result<RewardsSchema, CharacterError> {
         self.can_exchange_gift()?;
+        let quantity = min(
+            self.inventory.max_items() / 2,
+            self.bank.has_available(GIFT, Some(&self.name)),
+        );
         if self.inventory.has_available(GIFT) >= 1 {
             if let Err(e) = self.inventory.reserv(GIFT, 1) {
                 error!("{}: error while reserving gift inventory: {}", self.name, e);
             }
         } else {
-            if self.bank.reserv(GIFT, 1, &self.name).is_err() {
+            if self.bank.reserv(GIFT, quantity, &self.name).is_err() {
                 return Err(CharacterError::NotEnoughGift);
             }
             self.deposit_all();
-            self.withdraw_item(GIFT, 1)?;
+            self.withdraw_item(GIFT, quantity)?;
         }
         if let Err(e) = self.move_to_closest_map_of_type("santa_claus") {
             error!("{}: error while moving to santa claus: {:?}", self.name, e);
