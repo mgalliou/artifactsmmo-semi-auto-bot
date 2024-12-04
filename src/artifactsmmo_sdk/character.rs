@@ -39,7 +39,8 @@ use std::{
     vec::Vec,
 };
 use strum::IntoEnumIterator;
-use strum_macros::{Display, EnumIs};
+use strum_macros::EnumIs;
+use thiserror::Error;
 mod actions;
 
 const EXCHANGE_PRICE: i32 = 6;
@@ -218,7 +219,12 @@ impl Character {
             },
         );
         if let Err(CharacterError::InsuffisientMaterials) = craft {
-            if (!skill.is_gathering() || skill.is_alchemy())
+            if (!skill.is_gathering()
+                || skill.is_alchemy()
+                    && self
+                        .leveling_helper
+                        .best_resource(self.skill_level(skill), skill)
+                        .is_none())
                 && self.order_missing_mats(
                     &item.code,
                     self.max_craftable_items(&item.code),
@@ -528,17 +534,21 @@ impl Character {
     }
 
     fn progress_task(&self) -> Result<(), CharacterError> {
-        if let Some(monster) = self.monsters.get(&self.task()) {
-            let result = self.kill_monster(monster, None);
-            if result.is_ok() {
-                return Ok(());
-            }
-            if let Err(CharacterError::GearTooWeak) = result {
-                self.cancel_task()?;
-                return Ok(());
+        let Some(monster) = self.monsters.get(&self.task()) else {
+            return self.trade_task().map(|_| ());
+        };
+        match self.kill_monster(monster, None) {
+            Ok(_) => Ok(()),
+            Err(e) => {
+                if let CharacterError::GearTooWeak { monster_code: _ } = e {
+                    warn!("{}: {}", self.name, e);
+                    self.cancel_task()?;
+                    Ok(())
+                } else {
+                    Err(e)
+                }
             }
         }
-        self.trade_task().map(|_| ())
     }
 
     fn trade_task(&self) -> Result<TaskTradeSchema, CharacterError> {
@@ -567,7 +577,7 @@ impl Character {
         if self.task().is_empty() {
             return Err(CharacterError::NoTask);
         }
-        if !self.task_type().is_some_and(|tt| tt == TaskType::Items) {
+        if self.task_type().is_none_or(|tt| tt != TaskType::Items) {
             return Err(CharacterError::InvalidTaskType);
         }
         if self.task_missing() <= 0 {
@@ -727,7 +737,7 @@ impl Character {
     /// Find a target and kill it if possible.
     fn level_combat(&self) -> Result<(), CharacterError> {
         if !self.skill_enabled(Skill::Combat) {
-            return Err(CharacterError::SkillDisabled);
+            return Err(CharacterError::SkillDisabled(Skill::Combat));
         }
         if let Ok(_) | Err(CharacterError::NoTask) = self.complete_task() {
             if let Err(e) = self.accept_task(TaskType::Monsters) {
@@ -928,9 +938,9 @@ impl Character {
 
     /// Checks if the `Character` is able to kill the given monster and returns
     /// the best available gear to do so.
-    pub fn can_kill<'a>(&'a self, monster: &'a MonsterSchema) -> Result<Gear<'_>, CharacterError> {
+    pub fn can_kill<'a>(&'a self, monster: &'a MonsterSchema) -> Result<Gear<'a>, CharacterError> {
         if !self.skill_enabled(Skill::Combat) {
-            return Err(CharacterError::SkillDisabled);
+            return Err(CharacterError::SkillDisabled(Skill::Combat));
         }
         if self.maps.with_content_code(&monster.code).is_empty() {
             return Err(CharacterError::MapNotFound);
@@ -944,7 +954,9 @@ impl Character {
         if self.can_kill_with(monster, &available) {
             Ok(available)
         } else {
-            Err(CharacterError::GearTooWeak)
+            Err(CharacterError::GearTooWeak {
+                monster_code: monster.code.to_owned(),
+            })
         }
     }
 
@@ -961,7 +973,7 @@ impl Character {
     fn can_gather(&self, resource: &ResourceSchema) -> Result<(), CharacterError> {
         let skill: Skill = resource.skill.into();
         if !self.skill_enabled(skill) {
-            return Err(CharacterError::SkillDisabled);
+            return Err(CharacterError::SkillDisabled(skill));
         }
         if self.skill_level(skill) < resource.level {
             return Err(CharacterError::InsuffisientSkillLevel(
@@ -987,7 +999,7 @@ impl Character {
             return Err(CharacterError::ItemNotCraftable);
         };
         if !self.skill_enabled(skill) {
-            return Err(CharacterError::SkillDisabled);
+            return Err(CharacterError::SkillDisabled(skill));
         }
         if self.skill_level(skill) < item.level {
             return Err(CharacterError::InsuffisientSkillLevel(skill, item.level));
@@ -2013,37 +2025,58 @@ impl Role {
     }
 }
 
-#[derive(Debug, Display)]
+#[derive(Error, Debug)]
 pub enum CharacterError {
+    #[error("Insuffisient skill level: {0} at level {1}")]
     InsuffisientSkillLevel(Skill, i32),
+    #[error("Insuffisient materials")]
     InsuffisientMaterials,
+    #[error("Invalid quantity")]
     InvalidQuantity,
+    #[error("No gear to kill")]
     NoGearToKill,
+    #[error("Map not found")]
     MapNotFound,
+    #[error("Failed to move")]
     FailedToMove,
-    NothingToDeposit,
-    RequestError(RequestError),
-    SkillDisabled,
-    GearTooWeak,
-    TooLowLevel,
+    #[error("Skill {0} is disabled")]
+    SkillDisabled(Skill),
+    #[error("Available gear is too weak to kill {monster_code}")]
+    GearTooWeak { monster_code: String },
+    #[error("Level insufficient")]
+    LevelInsufficient,
+    #[error("Item not craftable")]
     ItemNotCraftable,
+    #[error("Item not found")]
     ItemNotFound,
+    #[error("Character has no task")]
     NoTask,
+    #[error("Character task is not finished")]
     TaskNotFinished,
+    #[error("Not enough coin is available to the character")]
     NotEnoughCoin,
+    #[error("Not enough gold is available to the character")]
     InsuffisientGold,
+    #[error("Bank is not available")]
     BankUnavailable,
+    #[error("Inventory is full")]
     InventoryFull,
+    #[error("Resource not found")]
     ResourceNotFound,
+    #[error("Monster not found")]
     MonsterNotFound,
-    EventNotFound,
-    NoOrderFullfilable,
-    NotGoalFullfilable,
+    #[error("Invalid task type")]
     InvalidTaskType,
+    #[error("Missing item(s): '{item}'x{quantity}")]
     MissingItems { item: String, quantity: i32 },
+    #[error("Invalid quantity: {0}")]
     QuantityUnavailable(i32),
+    #[error("Task already completed")]
     TaskAlreadyCompleted,
+    #[error("Not enough gift is available to the character")]
     NotEnoughGift,
+    #[error("Request error: {0}")]
+    RequestError(RequestError),
 }
 
 impl From<RequestError> for CharacterError {

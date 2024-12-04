@@ -20,6 +20,7 @@ use chrono::{DateTime, Utc};
 use log::{debug, error, info};
 use std::{cmp::Ordering, fmt::Display, sync::RwLockWriteGuard, thread::sleep, time::Duration};
 use strum_macros::{Display, EnumIs};
+use thiserror::Error;
 
 impl Character {
     fn perform_action(&self, action: Action) -> Result<Box<dyn ResponseSchema>, RequestError> {
@@ -522,12 +523,17 @@ pub enum PostCraftAction {
     None,
 }
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum RequestError {
+    #[error("reqwest error: {0}")]
     Reqwest(reqwest::Error),
+    #[error("serde error: {0}")]
     Serde(serde_json::Error),
+    #[error("io error: {0}")]
     Io(std::io::Error),
+    #[error("response error: {0}")]
     ResponseError(ApiErrorResponseSchema),
+    #[error("downcast error")]
     DowncastError,
 }
 

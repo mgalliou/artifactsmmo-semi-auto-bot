@@ -7,7 +7,7 @@ use fs_extra::file::{read_to_string, write_all};
 use items::{DamageType, Type};
 use serde::{Deserialize, Serialize};
 use skill::Skill;
-use std::path::Path;
+use std::{fmt::Display, path::Path};
 
 pub mod account;
 pub mod api;
@@ -20,9 +20,9 @@ pub mod game;
 pub mod game_config;
 pub mod gear;
 pub mod gear_finder;
-pub mod leveling_helper;
 pub mod inventory;
 pub mod items;
+pub mod leveling_helper;
 pub mod maps;
 pub mod monsters;
 pub mod orderboard;
@@ -98,6 +98,12 @@ trait RewardsSchemaExt {
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ApiErrorResponseSchema {
     error: ApiErrorSchema,
+}
+
+impl Display for ApiErrorResponseSchema {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} ({})", self.error.message, self.error.code)
+    }
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
