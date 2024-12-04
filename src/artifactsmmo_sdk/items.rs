@@ -475,6 +475,13 @@ impl ItemSchemaExt for ItemSchema {
             .unwrap_or(0)
     }
 
+    fn inventory_space(&self) -> i32 {
+        self.effects()
+            .iter()
+            .find_map(|e| (e.name == "inventory_space").then_some(e.value))
+            .unwrap_or(0)
+    }
+
     fn damage_increase_against_with(&self, monster: &MonsterSchema, weapon: &ItemSchema) -> f32 {
         DamageType::iter()
             .map(|t| {

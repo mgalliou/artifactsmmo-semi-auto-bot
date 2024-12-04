@@ -1250,6 +1250,26 @@ impl Character {
         });
     }
 
+    pub fn deposit_all_but(&self, item: &str) {
+        if self.inventory.total_items() <= 0 {
+            return;
+        }
+        info!(
+            "{}: going to deposit all items but '{item}' to the bank.",
+            self.name,
+        );
+        self.orderboard.orders_by_priority().iter().for_each(|o| {
+            self.deposit_order(o);
+        });
+        self.inventory.copy().iter().for_each(|slot| {
+            if slot.quantity > 0 && slot.code != item {
+                if let Err(e) = self.deposit_item(&slot.code, slot.quantity, None) {
+                    error!("{}: error while depositing all to bank: {:?}", self.name, e)
+                }
+            }
+        });
+    }
+
     pub fn deposit_all_gold(&self) -> Result<i32, CharacterError> {
         let gold = self.data.read().unwrap().gold;
         if gold <= 0 {
@@ -1480,6 +1500,11 @@ impl Character {
     }
 
     fn equip_item(&self, item: &str, slot: Slot, quantity: i32) -> Result<(), CharacterError> {
+        if let Some(equiped) = self.equiped_in(slot) {
+            if self.inventory.free_space() + equiped.inventory_space() <= 0 {
+                self.deposit_all_but(item);
+            }
+        }
         self.unequip_item(slot, self.quantity_in_slot(slot))?;
         if let Err(e) = self.action_equip(item, slot, quantity) {
             error!(
