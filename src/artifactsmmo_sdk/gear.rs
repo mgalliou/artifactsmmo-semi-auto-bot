@@ -8,19 +8,19 @@ use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub struct Gear<'a> {
     pub weapon: Option<&'a ItemSchema>,
-    pub shield: Option<&'a ItemSchema>,
     pub helmet: Option<&'a ItemSchema>,
+    pub shield: Option<&'a ItemSchema>,
     pub body_armor: Option<&'a ItemSchema>,
     pub leg_armor: Option<&'a ItemSchema>,
     pub boots: Option<&'a ItemSchema>,
+    pub amulet: Option<&'a ItemSchema>,
     pub ring1: Option<&'a ItemSchema>,
     pub ring2: Option<&'a ItemSchema>,
-    pub amulet: Option<&'a ItemSchema>,
+    pub utility1: Option<&'a ItemSchema>,
+    pub utility2: Option<&'a ItemSchema>,
     pub artifact1: Option<&'a ItemSchema>,
     pub artifact2: Option<&'a ItemSchema>,
     pub artifact3: Option<&'a ItemSchema>,
-    pub utility1: Option<&'a ItemSchema>,
-    pub utility2: Option<&'a ItemSchema>,
 }
 
 impl<'a> Gear<'a> {
