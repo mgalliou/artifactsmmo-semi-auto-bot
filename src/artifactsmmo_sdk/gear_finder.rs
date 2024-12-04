@@ -136,7 +136,14 @@ impl GearFinder {
             vec![],
         );
         // TODO: handle artifacts and consumables
-        //let artifacts = self.best_armors_against_with_weapon(char, monster, weapon, Type::Artifact);
+        let artifacts = self.best_armors_against_with_weapon(
+            char,
+            monster,
+            weapon,
+            Type::Artifact,
+            filter,
+            vec![],
+        );
         //let consumables =
         //    self.best_armors_against_with_weapon(char, monster, weapon, Type::Consumable);
         let mut items = vec![];
@@ -163,6 +170,9 @@ impl GearFinder {
         }
         if !amulets.is_empty() {
             items.push(amulets);
+        }
+        if !artifacts.is_empty() {
+            items.push(artifacts);
         }
         items
             .into_iter()
