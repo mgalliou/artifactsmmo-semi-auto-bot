@@ -33,7 +33,7 @@ impl GearFinder {
         char: &'a Character,
         monster: &'a MonsterSchema,
         filter: Filter,
-    ) -> Gear<'_> {
+    ) -> Gear<'a> {
         self.bests_against(char, monster, filter)
             .into_iter()
             .map(|g| {
@@ -53,7 +53,7 @@ impl GearFinder {
         char: &'a Character,
         monster: &'a MonsterSchema,
         filter: Filter,
-    ) -> Vec<Gear<'_>> {
+    ) -> Vec<Gear<'a>> {
         self.best_weapons_against(char, monster, filter)
             .iter()
             .flat_map(|w| self.bests_against_with_weapon(char, monster, filter, w))
@@ -94,7 +94,7 @@ impl GearFinder {
         monster: &MonsterSchema,
         filter: Filter,
         weapon: &'a ItemSchema,
-    ) -> Vec<Gear> {
+    ) -> Vec<Gear<'a>> {
         let helmets = self.best_armors_against_with_weapon(
             char,
             monster,

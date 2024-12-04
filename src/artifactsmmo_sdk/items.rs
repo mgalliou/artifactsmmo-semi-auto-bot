@@ -181,19 +181,17 @@ impl Items {
             .iter()
             .flat_map(|i| {
                 if i.subtype == "mob" {
-                    return self
-                        .monsters
+                    self.monsters
                         .dropping(code)
                         .iter()
                         .flat_map(|m| &m.drops)
-                        .collect_vec();
+                        .collect_vec()
                 } else {
-                    return self
-                        .resources
+                    self.resources
                         .dropping(code)
                         .iter()
                         .flat_map(|m| &m.drops)
-                        .collect_vec();
+                        .collect_vec()
                 }
             })
             .find(|d| d.code == code)
@@ -280,9 +278,9 @@ impl Items {
                     None
                 }
             });
-            return bests.first().cloned();
+            bests.first().cloned()
         } else {
-            return sources.first().cloned();
+            sources.first().cloned()
         }
     }
 

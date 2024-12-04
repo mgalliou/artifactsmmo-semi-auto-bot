@@ -23,7 +23,7 @@ pub struct Gear<'a> {
     pub artifact3: Option<&'a ItemSchema>,
 }
 
-impl<'a> Gear<'a> {
+impl Gear<'_> {
     pub fn attack_damage_against(&self, monster: &MonsterSchema) -> f32 {
         DamageType::iter()
             .map(|t| {

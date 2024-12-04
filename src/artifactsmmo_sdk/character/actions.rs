@@ -818,7 +818,7 @@ impl<T: ResponseSchema + 'static> From<T> for Box<dyn ResponseSchema> {
 
 struct DropSchemas<'a>(&'a Vec<DropSchema>);
 
-impl<'a> Display for DropSchemas<'a> {
+impl Display for DropSchemas<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut items: String = "".to_string();
         for item in self.0 {
