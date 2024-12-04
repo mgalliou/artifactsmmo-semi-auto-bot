@@ -1707,6 +1707,36 @@ impl Character {
         }
     }
 
+    pub fn skill_xp(&self, skill: Skill) -> i32 {
+        let d = self.data.read().unwrap();
+        match skill {
+            Skill::Combat => d.xp,
+            Skill::Mining => d.mining_xp,
+            Skill::Woodcutting => d.woodcutting_xp,
+            Skill::Fishing => d.fishing_xp,
+            Skill::Weaponcrafting => d.weaponcrafting_xp,
+            Skill::Gearcrafting => d.gearcrafting_xp,
+            Skill::Jewelrycrafting => d.jewelrycrafting_xp,
+            Skill::Cooking => d.cooking_xp,
+            Skill::Alchemy => d.alchemy_xp,
+        }
+    }
+
+    pub fn skill_max_xp(&self, skill: Skill) -> i32 {
+        let d = self.data.read().unwrap();
+        match skill {
+            Skill::Combat => d.max_xp,
+            Skill::Mining => d.mining_max_xp,
+            Skill::Woodcutting => d.woodcutting_max_xp,
+            Skill::Fishing => d.fishing_max_xp,
+            Skill::Weaponcrafting => d.weaponcrafting_max_xp,
+            Skill::Gearcrafting => d.gearcrafting_max_xp,
+            Skill::Jewelrycrafting => d.jewelrycrafting_max_xp,
+            Skill::Cooking => d.cooking_max_xp,
+            Skill::Alchemy => d.alchemy_max_xp,
+        }
+    }
+
     fn conf(&self) -> CharConfig {
         self.conf.read().unwrap().clone()
     }

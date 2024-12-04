@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{collections::HashSet, fmt::Display};
 
 use super::skill::Skill;
 use serde::Deserialize;
@@ -8,7 +8,7 @@ use strum_macros::{AsRefStr, EnumIs, EnumIter, EnumString};
 pub struct CharConfig {
     #[serde(default)]
     pub idle: bool,
-    pub skills: Vec<Skill>,
+    pub skills: HashSet<Skill>,
     pub goals: Vec<Goal>,
     #[serde(default)]
     pub target_monster: Option<String>,

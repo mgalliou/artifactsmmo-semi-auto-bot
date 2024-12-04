@@ -6,6 +6,8 @@ use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
     Debug,
     Clone,
     Copy,
+    Eq,
+    Hash,
     PartialEq,
     Default,
     Deserialize,

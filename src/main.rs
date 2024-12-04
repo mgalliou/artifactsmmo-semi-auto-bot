@@ -4,6 +4,7 @@ use artifactsmmo_playground::artifactsmmo_sdk::{
     game::Game,
     gear_finder::{Filter, GearFinder},
     orderboard::Purpose,
+    skill::Skill,
 };
 use clap::{value_parser, Parser, Subcommand};
 use itertools::Itertools;
@@ -18,7 +19,9 @@ fn main() -> rustyline::Result<()> {
     let _ = game.orderboard.add(None, "snowman_hat", 10, Purpose::Cli);
     let _ = game.orderboard.add(None, "lizard_skin", 1000, Purpose::Cli);
     let _ = game.orderboard.add(None, "demon_horn", 1000, Purpose::Cli);
-    let _ = game.orderboard.add(None, "malefic_cloth", 200, Purpose::Cli);
+    let _ = game
+        .orderboard
+        .add(None, "malefic_cloth", 200, Purpose::Cli);
     let _ = game.orderboard.add(None, "strange_ore", 6000, Purpose::Cli);
     let _ = game.orderboard.add(None, "magic_wood", 6000, Purpose::Cli);
     //let _ = game.orderboard.add(None, "frozen_pickaxe", 5, Purpose::Cli);
@@ -42,10 +45,11 @@ fn main() -> rustyline::Result<()> {
 
 fn run_cli(game: &Game) -> rustyline::Result<()> {
     let mut rl = DefaultEditor::new()?;
+    let mut character: Option<Arc<Character>> = None;
     loop {
         let readline = rl.readline(">> ");
         match readline {
-            Ok(line) => match respond(&line, game) {
+            Ok(line) => match respond(&line, &mut character, game) {
                 Ok(_) => {
                     if let Err(e) = rl.add_history_entry(line.as_str()) {
                         eprintln!("failed to add history entry: {}", e);
@@ -70,9 +74,11 @@ fn run_cli(game: &Game) -> rustyline::Result<()> {
     Ok(())
 }
 
-static mut CHAR: Option<Arc<Character>> = None;
-
-fn respond(line: &str, game: &Game) -> Result<bool, String> {
+fn respond(
+    line: &str,
+    character: &mut Option<Arc<Character>>,
+    game: &Game,
+) -> Result<bool, String> {
     let args = line.split_whitespace().collect_vec();
     let gear_finder = GearFinder::new(&game.items);
     let cli = Cli::try_parse_from(args).map_err(|err| format!("{}", err))?;
@@ -132,8 +138,8 @@ fn respond(line: &str, game: &Game) -> Result<bool, String> {
                 .for_each(|s| println!("{:?}", s)),
         },
         Commands::Char { i } => {
-            unsafe { CHAR = game.account.get_character(i as usize) };
-            if let Some(char) = unsafe { CHAR.clone() } {
+            character.clone_from(&game.account.get_character(i as usize));
+            if let Some(char) = character.clone() {
                 println!("character '{}' selected", char.name);
             } else {
                 println!("character not found");
@@ -141,21 +147,21 @@ fn respond(line: &str, game: &Game) -> Result<bool, String> {
         }
         Commands::Status => todo!(),
         Commands::Idle => {
-            if let Some(char) = unsafe { CHAR.clone() } {
+            if let Some(char) = character {
                 char.toggle_idle();
             } else {
                 println!("no character selected");
             }
         }
         Commands::Craft { item, quantity } => {
-            if let Some(char) = unsafe { CHAR.clone() } {
+            if let Some(char) = character {
                 char.craft_items(&item, quantity);
             } else {
                 println!("no character selected");
             }
         }
         Commands::Recycle { item, quantity } => {
-            if let Some(char) = unsafe { CHAR.clone() } {
+            if let Some(char) = character {
                 char.recycle_item(&item, quantity)
                     .map_err(|e| e.to_string())?;
             } else {
@@ -163,15 +169,11 @@ fn respond(line: &str, game: &Game) -> Result<bool, String> {
             }
         }
         Commands::Gear { filter, monster } => {
-            if let Some(char) = unsafe { CHAR.clone() } {
+            if let Some(char) = character {
                 if let Some(monster) = game.monsters.get(&monster) {
                     println!(
                         "{}",
-                        gear_finder.best_against(
-                            &char,
-                            monster,
-                            Filter::from_str(&filter).unwrap()
-                        )
+                        gear_finder.best_against(char, monster, Filter::from_str(&filter).unwrap())
                     );
                 } else {
                     println!("monster not found");
@@ -181,9 +183,9 @@ fn respond(line: &str, game: &Game) -> Result<bool, String> {
             }
         }
         Commands::Simulate { monster } => {
-            if let Some(char) = unsafe { CHAR.clone() } {
+            if let Some(char) = character {
                 if let Some(monster) = game.monsters.get(&monster) {
-                    let gear = gear_finder.best_against(&char, monster, Filter::Available);
+                    let gear = gear_finder.best_against(char, monster, Filter::Available);
                     let fight = FightSimulator::new().simulate(char.level(), 0, &gear, monster);
                     println!("{:?}", fight)
                 } else {
@@ -201,6 +203,42 @@ fn respond(line: &str, game: &Game) -> Result<bool, String> {
             slot: _,
             quantity: _,
         } => println!("not yet implemented"),
+        Commands::Skill { action } => match action {
+            SkillAction::Add { skill } => {
+                if let Some(char) = character {
+                    char.conf
+                        .write()
+                        .unwrap()
+                        .skills
+                        .insert(Skill::from_str(&skill).unwrap());
+                }
+            }
+            SkillAction::Remove { skill } => {
+                if let Some(char) = character {
+                    char.conf
+                        .write()
+                        .unwrap()
+                        .skills
+                        .remove(&Skill::from_str(&skill).unwrap());
+                }
+            }
+            SkillAction::List => {
+                if let Some(char) = character {
+                    char.conf.read().unwrap().skills.iter().for_each(|s| {
+                        println!(
+                            "{}({}): {}/{} ({}%)",
+                            s,
+                            char.skill_level(*s),
+                            char.skill_xp(*s),
+                            char.skill_max_xp(*s),
+                            (f64::from(char.skill_xp(*s)) / f64::from(char.skill_max_xp(*s))
+                                * 100.0)
+                                .round() as i32
+                        )
+                    });
+                }
+            }
+        },
     }
     Ok(true)
 }
@@ -246,6 +284,10 @@ enum Commands {
         item: String,
         #[arg(default_value_t = 1)]
         quantity: i32,
+    },
+    Skill {
+        #[command(subcommand)]
+        action: SkillAction,
     },
     Gear {
         #[arg(short = 'f', long = "filter", value_parser = value_parser!(String), default_value = "all")]
@@ -299,4 +341,16 @@ enum ItemsAction {
     Sources {
         item: String,
     },
+}
+
+#[derive(Subcommand)]
+enum SkillAction {
+    Add {
+        skill: String,
+    },
+    #[command(alias = "rm")]
+    Remove {
+        skill: String,
+    },
+    List,
 }
