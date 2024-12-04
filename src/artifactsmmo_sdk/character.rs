@@ -48,6 +48,7 @@ const MIN_COIN_THRESHOLD: i32 = 4;
 const MAX_LEVEL: i32 = 40;
 const MIN_FOOD_THRESHOLD: i32 = 300;
 
+#[derive(Default)]
 pub struct Character {
     pub name: String,
     my_api: MyCharacterApi,

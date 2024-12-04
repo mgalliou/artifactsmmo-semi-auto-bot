@@ -12,6 +12,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+#[derive(Default)]
 pub struct Inventory {
     items: Arc<Items>,
     data: Arc<RwLock<CharacterSchema>>,

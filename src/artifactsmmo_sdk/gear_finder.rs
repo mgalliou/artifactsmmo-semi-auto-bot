@@ -14,6 +14,7 @@ use ordered_float::OrderedFloat;
 use std::sync::Arc;
 use strum_macros::EnumString;
 
+#[derive(Default)]
 pub struct GearFinder {
     items: Arc<Items>,
     fight_simulator: FightSimulator,
@@ -53,11 +54,37 @@ impl GearFinder {
         monster: &'a MonsterSchema,
         filter: Filter,
     ) -> Vec<Gear<'_>> {
-        self.items
-            .equipable_at_level(char.level(), Type::Weapon)
+        self.best_weapons_against(char, monster, filter)
             .iter()
-            .filter(|i| Self::is_eligible(i, filter, char))
             .flat_map(|w| self.bests_against_with_weapon(char, monster, filter, w))
+            .collect_vec()
+    }
+
+    pub fn best_weapons_against<'a>(
+        &'a self,
+        char: &'a Character,
+        monster: &'a MonsterSchema,
+        filter: Filter,
+    ) -> Vec<&'a ItemSchema> {
+        let equipables = self
+            .items
+            .equipable_at_level(char.level(), Type::Weapon)
+            .into_iter()
+            .filter(|i| Self::is_eligible(i, filter, char))
+            .collect_vec();
+        let best = equipables
+            .iter()
+            .max_by_key(|i| OrderedFloat(i.attack_damage_against(monster)))
+            .cloned();
+        equipables
+            .into_iter()
+            .filter(|i| {
+                if let Some(best) = best {
+                    i.attack_damage_against(monster) > best.attack_damage_against(monster) * 0.75
+                } else {
+                    false
+                }
+            })
             .collect_vec()
     }
 
@@ -316,4 +343,32 @@ pub enum Filter {
     Available,
     Craftable,
     Farmable,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::artifactsmmo_sdk::{
+        game_config::GameConfig, monsters::Monsters, resources::Resources, tasks::Tasks,
+    };
+
+    #[test]
+    fn best_weapons_against() {
+        let config: Arc<GameConfig> = Arc::new(GameConfig::from_file());
+        let events = Default::default();
+        let resources = Arc::new(Resources::new(&config, &events));
+        let monsters = Arc::new(Monsters::new(&config, &events));
+        let tasks = Arc::new(Tasks::new(&config));
+        let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
+        let gear_finder = GearFinder::new(&items);
+        let char = Character::default();
+        char.data.write().unwrap().level = 30;
+
+        let weapons = gear_finder.best_weapons_against(
+            &char,
+            monsters.get("vampire").unwrap(),
+            Filter::Craftable,
+        );
+        assert_eq!(weapons, vec![items.get("death_knight_sword").unwrap()]);
+    }
 }

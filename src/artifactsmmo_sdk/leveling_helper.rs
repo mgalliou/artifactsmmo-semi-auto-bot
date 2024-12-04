@@ -6,6 +6,7 @@ use artifactsmmo_openapi::models::{ItemSchema, MonsterSchema, ResourceSchema};
 use itertools::Itertools;
 use std::sync::Arc;
 
+#[derive(Default)]
 pub struct LevelingHelper {
     items: Arc<Items>,
     resources: Arc<Resources>,

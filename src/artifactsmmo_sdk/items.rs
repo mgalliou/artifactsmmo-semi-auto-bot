@@ -765,7 +765,7 @@ mod tests {
         );
         assert_eq!(
             items.best_source_of("gift"),
-            Some(&ItemSource::Monster(monsters.get("krampus").unwrap())).cloned()
+            Some(&ItemSource::Monster(monsters.get("gingerbread").unwrap())).cloned()
         );
     }
 }

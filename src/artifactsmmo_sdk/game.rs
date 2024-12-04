@@ -11,10 +11,6 @@ use artifactsmmo_openapi::{
     models::StatusResponseSchema,
 };
 use chrono::{DateTime, TimeDelta, Utc};
-use figment::{
-    providers::{Format, Toml},
-    Figment,
-};
 use log::debug;
 use std::sync::{Arc, RwLock};
 
@@ -32,12 +28,7 @@ pub struct Game {
 
 impl Game {
     pub fn new() -> Self {
-        let config: Arc<GameConfig> = Arc::new(
-            Figment::new()
-                .merge(Toml::file_exact("ArtifactsMMO.toml"))
-                .extract()
-                .unwrap(),
-        );
+        let config: Arc<GameConfig> = Arc::new(GameConfig::from_file());
         let events = Arc::new(Events::new(&config));
         let monsters = Arc::new(Monsters::new(&config, &events));
         let resources = Arc::new(Resources::new(&config, &events));
