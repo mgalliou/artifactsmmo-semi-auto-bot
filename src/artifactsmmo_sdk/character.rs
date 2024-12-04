@@ -1916,6 +1916,16 @@ impl Character {
     }
 
     fn order_food(&self) {
+        if self
+            .bank
+            .consumable_food()
+            .iter()
+            .map(|f| self.bank.has_available(&f.code, Some(&self.name)))
+            .sum::<i32>()
+            > MIN_FOOD_THRESHOLD
+        {
+            return;
+        }
         if let Some(best_food) = self
             .items
             .best_consumable_foods(self.level())
