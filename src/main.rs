@@ -207,10 +207,27 @@ fn respond(
                 println!("no character selected");
             }
         }
-        Commands::Simulate { monster } => {
+        Commands::Simulate {
+            available,
+            can_craft,
+            from_task,
+            from_gift,
+            from_monster,
+            monster,
+        } => {
             if let Some(char) = character {
                 if let Some(monster) = game.monsters.get(&monster) {
-                    let gear = gear_finder.best_against(char, monster, Filter::default());
+                    let gear = gear_finder.best_against(
+                        char,
+                        monster,
+                        Filter {
+                            available,
+                            can_craft,
+                            from_task,
+                            from_monster,
+                            from_gift,
+                        },
+                    );
                     let fight = FightSimulator::new().simulate(char.level(), 0, &gear, monster);
                     println!("{:?}", fight)
                 } else {
@@ -334,6 +351,16 @@ enum Commands {
     },
     #[command(alias = "sim")]
     Simulate {
+        #[arg(short = 'a', long)]
+        available: bool,
+        #[arg(short = 'c', long)]
+        can_craft: bool,
+        #[arg(short = 't', long)]
+        from_task: bool,
+        #[arg(short = 'g', long)]
+        from_gift: bool,
+        #[arg(short = 'm', long)]
+        from_monster: bool,
         monster: String,
     },
     Deposit {
