@@ -32,6 +32,7 @@ pub const FOOD_BLACK_LIST: &[&str] = &[
     "mushroom_soup",
     "fish_soup",
     "cooked_hellhound_meat",
+    "maple_syrup",
 ];
 
 #[derive(Default)]
