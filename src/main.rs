@@ -176,12 +176,29 @@ fn respond(
                 println!("no character selected");
             }
         }
-        Commands::Gear { filter, monster } => {
+        Commands::Gear {
+            can_craft,
+            from_task,
+            from_monster,
+            from_gift,
+            available,
+            monster,
+        } => {
             if let Some(char) = character {
                 if let Some(monster) = game.monsters.get(&monster) {
                     println!(
                         "{}",
-                        gear_finder.best_against(char, monster, Filter::from_str(&filter).unwrap())
+                        gear_finder.best_against(
+                            char,
+                            monster,
+                            Filter {
+                                available,
+                                can_craft,
+                                from_task,
+                                from_monster,
+                                from_gift,
+                            }
+                        )
                     );
                 } else {
                     println!("monster not found");
@@ -193,7 +210,7 @@ fn respond(
         Commands::Simulate { monster } => {
             if let Some(char) = character {
                 if let Some(monster) = game.monsters.get(&monster) {
-                    let gear = gear_finder.best_against(char, monster, Filter::Available);
+                    let gear = gear_finder.best_against(char, monster, Filter::default());
                     let fight = FightSimulator::new().simulate(char.level(), 0, &gear, monster);
                     println!("{:?}", fight)
                 } else {
@@ -303,8 +320,16 @@ enum Commands {
         action: SkillAction,
     },
     Gear {
-        #[arg(short = 'f', long = "filter", value_parser = value_parser!(String), default_value = "all")]
-        filter: String,
+        #[arg(short = 'a', long)]
+        available: bool,
+        #[arg(short = 'c', long)]
+        can_craft: bool,
+        #[arg(short = 't', long)]
+        from_task: bool,
+        #[arg(short = 'g', long)]
+        from_gift: bool,
+        #[arg(short = 'm', long)]
+        from_monster: bool,
         monster: String,
     },
     #[command(alias = "sim")]

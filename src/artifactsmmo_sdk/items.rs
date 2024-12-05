@@ -362,6 +362,14 @@ impl ItemSchemaExt for ItemSchema {
         self.mats().iter().any(|m| m.code == item)
     }
 
+    fn is_crafted_from_task(&self) -> bool {
+        self.is_crafted_with(JASPER_CRYSTAL)
+            || self.is_crafted_with(MAGICAL_CURE)
+            || self.is_crafted_with(ENCHANTED_FABRIC)
+            || self.is_crafted_with(ASTRALYTE_CRYSTAL)
+            || self.is_crafted_with(DIAMOND)
+    }
+
     fn mats(&self) -> Vec<SimpleItemSchema> {
         self.craft_schema()
             .into_iter()

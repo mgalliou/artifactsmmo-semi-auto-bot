@@ -3,7 +3,6 @@ use super::{
     api::{characters::CharactersApi, my_character::MyCharacterApi},
     bank::Bank,
     char_config::CharConfig,
-    events::Events,
     fight_simulator::FightSimulator,
     game::{Game, Server},
     game_config::GameConfig,
@@ -17,8 +16,7 @@ use super::{
     orderboard::{Order, OrderBoard, Purpose},
     resources::Resources,
     skill::Skill,
-    ActiveEventSchemaExt, FightSchemaExt, ItemSchemaExt, MapSchemaExt, RewardsSchemaExt,
-    SkillSchemaExt,
+    FightSchemaExt, ItemSchemaExt, MapSchemaExt, RewardsSchemaExt, SkillSchemaExt,
 };
 use crate::artifactsmmo_sdk::{char_config::Goal, SkillInfoSchemaExt};
 use actions::{PostCraftAction, RequestError};
@@ -61,7 +59,6 @@ pub struct Character {
     resources: Arc<Resources>,
     monsters: Arc<Monsters>,
     items: Arc<Items>,
-    events: Arc<Events>,
     bank: Arc<Bank>,
     orderboard: Arc<OrderBoard>,
     gear_finder: GearFinder,
@@ -92,7 +89,6 @@ impl Character {
             resources: game.resources.clone(),
             monsters: game.monsters.clone(),
             items: game.items.clone(),
-            events: game.events.clone(),
             orderboard: game.orderboard.clone(),
             gear_finder: GearFinder::new(&game.items),
             fight_simulator: FightSimulator::new(),
@@ -774,7 +770,15 @@ impl Character {
                 }
                 Err(e) => return Err(e),
             }
-            self.order_best_gear_against(monster, Filter::Craftable);
+            self.order_best_gear_against(
+                monster,
+                Filter {
+                    can_craft: true,
+                    from_task: false,
+                    from_monster: true,
+                    ..Default::default()
+                },
+            );
         }
         self.order_food();
         self.equip_gear(&mut available);
@@ -821,10 +825,10 @@ impl Character {
         resource: &ResourceSchema,
     ) -> Result<SkillDataSchema, CharacterError> {
         self.can_gather(resource)?;
-        self.check_for_tool(resource);
         let Some(map) = self.closest_map_with_content_code(&resource.code) else {
             return Err(CharacterError::MapNotFound);
         };
+        self.check_for_tool(resource);
         self.action_move(map.x, map.y)?;
         Ok(self.action_gather()?)
     }
@@ -833,10 +837,14 @@ impl Character {
         let mut available: Option<&ItemSchema> = None;
         let prev_equiped = self.equiped_in(Slot::Weapon);
         if let Ok(_browsed) = self.bank.browsed.write() {
-            if let Some(tool) =
-                self.gear_finder
-                    .best_tool(self, resource.skill.into(), Filter::Available)
-            {
+            if let Some(tool) = self.gear_finder.best_tool(
+                self,
+                resource.skill.into(),
+                Filter {
+                    available: true,
+                    ..Default::default()
+                },
+            ) {
                 available = Some(tool);
                 self.reserv_if_needed_and_available(Slot::Weapon, &tool.code, 1);
             }
@@ -873,7 +881,14 @@ impl Character {
     }
 
     fn order_best_tool(&self, skill: Skill) {
-        if let Some(best) = self.gear_finder.best_tool(self, skill, Filter::Craftable) {
+        if let Some(best) = self.gear_finder.best_tool(
+            self,
+            skill,
+            Filter {
+                can_craft: true,
+                ..Default::default()
+            },
+        ) {
             self.order_if_needed(Slot::Weapon, &best.code, 1);
         }
     }
@@ -938,9 +953,14 @@ impl Character {
         if self.inventory.is_full() {
             return Err(CharacterError::InventoryFull);
         }
-        let available = self
-            .gear_finder
-            .best_against(self, monster, Filter::Available);
+        let available = self.gear_finder.best_against(
+            self,
+            monster,
+            Filter {
+                available: true,
+                ..Default::default()
+            },
+        );
         if self.can_kill_with(monster, &available) {
             Ok(available)
         } else {

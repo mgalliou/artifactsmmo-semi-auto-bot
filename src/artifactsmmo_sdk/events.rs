@@ -1,6 +1,5 @@
 use super::{
-    api::events::EventsApi, game_config::GameConfig, persist_data, retreive_data,
-    ActiveEventSchemaExt, MapSchemaExt,
+    api::events::EventsApi, game_config::GameConfig, persist_data, retreive_data, ActiveEventSchemaExt, MapSchemaExt
 };
 use artifactsmmo_openapi::models::{ActiveEventSchema, EventSchema, MapSchema};
 use chrono::{DateTime, Duration, Utc};

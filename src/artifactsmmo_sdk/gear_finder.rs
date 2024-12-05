@@ -2,9 +2,7 @@ use super::{
     character::Character,
     fight_simulator::FightSimulator,
     gear::Gear,
-    items::{
-        Items, Type, ASTRALYTE_CRYSTAL, DIAMOND, ENCHANTED_FABRIC, JASPER_CRYSTAL, MAGICAL_CURE,
-    },
+    items::{Items, Type},
     skill::Skill,
     ItemSchemaExt,
 };
@@ -12,7 +10,6 @@ use artifactsmmo_openapi::models::{FightResult, ItemSchema, MonsterSchema};
 use itertools::{Itertools, PeekingNext};
 use ordered_float::OrderedFloat;
 use std::sync::Arc;
-use strum_macros::EnumString;
 
 #[derive(Default)]
 pub struct GearFinder {
@@ -70,7 +67,7 @@ impl GearFinder {
             .items
             .equipable_at_level(char.level(), Type::Weapon)
             .into_iter()
-            .filter(|i| Self::is_eligible(i, filter, char))
+            .filter(|i| self.is_eligible(i, filter, char))
             .collect_vec();
         let best = equipables
             .iter()
@@ -148,7 +145,7 @@ impl GearFinder {
         let ring2_black_list = rings
             .iter()
             .filter(|i| {
-                if filter == Filter::Available {
+                if filter.available {
                     char.has_available(&i.code) <= 1
                 } else {
                     false
@@ -256,7 +253,7 @@ impl GearFinder {
             .items
             .equipable_at_level(char.level(), r#type)
             .into_iter()
-            .filter(|i| Self::is_eligible(i, filter, char))
+            .filter(|i| self.is_eligible(i, filter, char))
             .filter(|i| !black_list.contains(&i.code.as_str()))
             .collect_vec();
         let damage_increases = equipables
@@ -302,53 +299,62 @@ impl GearFinder {
         self.items
             .equipable_at_level(char.level(), Type::Weapon)
             .into_iter()
-            .filter(|i| match filter {
-                Filter::All => true,
-                Filter::Available => char.has_available(&i.code) > 0,
-                Filter::Craftable => char.account.can_craft(&i.code),
-                Filter::Farmable => todo!(),
-            })
+            .filter(|i| self.is_eligible(i, filter, char))
             .min_by_key(|i| i.skill_cooldown_reduction(skill))
     }
 
-    fn is_eligible(i: &ItemSchema, filter: Filter, char: &Character) -> bool {
-        match filter {
-            Filter::All => true,
-            Filter::Available => char.has_available(&i.code) > 0,
-            Filter::Craftable => {
-                (i.craft_schema().is_none() || char.account.can_craft(&i.code))
-                    && !i.is_crafted_with(JASPER_CRYSTAL)
-                    && !i.is_crafted_with(MAGICAL_CURE)
-                    && !i.is_crafted_with(ENCHANTED_FABRIC)
-                    && !i.is_crafted_with(ASTRALYTE_CRYSTAL)
-                    && !i.is_crafted_with(DIAMOND)
-                    && ![
-                        "lizard_skin_armor",
-                        "lizard_skin_armor",
-                        "lizard_skin_legs_armor",
-                        "piggy_armor",
-                        "piggy_pants",
-                        "serpent_skin_armor",
-                        "serpent_skin_legs_armor",
-                        "stormforged_armor",
-                        "stormforged_pants",
-                        "lich_crown",
-                        "life_crystal",
-                    ]
-                    .contains(&i.code.as_str())
-            }
-            Filter::Farmable => todo!(),
+    fn is_eligible(&self, i: &ItemSchema, filter: Filter, char: &Character) -> bool {
+        if filter.available && char.has_available(&i.code) > 0 {
+            return true;
         }
+        if filter.available && char.has_available(&i.code) <= 0 {
+            return false;
+        }
+        if filter.can_craft && i.craft_schema().is_some() && !char.account.can_craft(&i.code) {
+            return false;
+        }
+        if !filter.from_task && i.is_crafted_from_task() {
+            return false;
+        }
+        if !filter.from_monster
+            && self
+                .items
+                .best_source_of(&i.code)
+                .is_some_and(|s| s.is_monster())
+        {
+            return false;
+        }
+        if !filter.from_gift
+            && self
+                .items
+                .best_source_of(&i.code)
+                .is_some_and(|s| s.is_gift())
+        {
+            return false;
+        }
+        true
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, EnumString)]
-#[strum(serialize_all = "snake_case")]
-pub enum Filter {
-    All,
-    Available,
-    Craftable,
-    Farmable,
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Filter {
+    pub available: bool,
+    pub from_monster: bool,
+    pub from_task: bool,
+    pub can_craft: bool,
+    pub from_gift: bool,
+}
+
+impl Default for Filter {
+    fn default() -> Self {
+        Self {
+            available: false,
+            can_craft: false,
+            from_task: true,
+            from_monster: true,
+            from_gift: false,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -373,7 +379,7 @@ mod tests {
         let weapons = gear_finder.best_weapons_against(
             &char,
             monsters.get("vampire").unwrap(),
-            Filter::Craftable,
+            Default::default(),
         );
         assert_eq!(weapons, vec![items.get("death_knight_sword").unwrap()]);
     }

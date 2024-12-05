@@ -35,6 +35,7 @@ trait ItemSchemaExt {
     fn r#type(&self) -> Type;
     fn is_of_type(&self, r#type: Type) -> bool;
     fn is_crafted_with(&self, item: &str) -> bool;
+    fn is_crafted_from_task(&self) -> bool;
     fn mats(&self) -> Vec<SimpleItemSchema>;
     fn craft_schema(&self) -> Option<CraftSchema>;
     fn skill_to_craft(&self) -> Option<Skill>;
