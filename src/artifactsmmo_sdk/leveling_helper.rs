@@ -150,6 +150,7 @@ impl LevelingHelper {
             .filter(|r| {
                 Skill::from(r.skill) == skill
                     && r.level <= level
+                    && level - r.level <= 10
                     && !self.maps.with_content_code(&r.code).is_empty()
             })
             .max_by_key(|r| r.level)
