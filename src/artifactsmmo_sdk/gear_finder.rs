@@ -77,7 +77,7 @@ impl GearFinder {
             .into_iter()
             .filter(|i| {
                 if let Some(best) = best {
-                    i.attack_damage_against(monster) > best.attack_damage_against(monster) * 0.75
+                    i.attack_damage_against(monster) >= best.attack_damage_against(monster) * 0.90
                 } else {
                     false
                 }
