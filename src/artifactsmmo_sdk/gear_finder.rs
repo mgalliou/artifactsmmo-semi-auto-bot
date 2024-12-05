@@ -144,6 +144,7 @@ impl GearFinder {
             self.best_armors_against_with_weapon(char, monster, weapon, Type::Ring, filter, vec![]);
         let ring2_black_list = rings
             .iter()
+            .flatten()
             .filter(|i| {
                 if filter.available {
                     char.has_available(&i.code) <= 1
@@ -161,7 +162,7 @@ impl GearFinder {
             filter,
             ring2_black_list,
         );
-        let artifacts = self.best_armors_against_with_weapon(
+        let mut artifacts = self.best_armors_against_with_weapon(
             char,
             monster,
             weapon,
@@ -169,6 +170,7 @@ impl GearFinder {
             filter,
             vec![],
         );
+        artifacts.push(None);
         let mut items = vec![];
         if !helmets.is_empty() {
             items.push(helmets);
@@ -211,30 +213,35 @@ impl GearFinder {
             .multi_cartesian_product()
             .filter_map(|items| {
                 let mut iter = items.into_iter().peekable();
-                let utility1 = iter.peeking_next(|i| i.is_of_type(Type::Utility));
-                let utility2 = iter.peeking_next(|i| i.is_of_type(Type::Utility));
-                let artifact2 = iter.peeking_next(|i| i.is_of_type(Type::Artifact));
-                let artifact3 = iter.peeking_next(|i| i.is_of_type(Type::Artifact));
-                if utility1.is_some_and(|u1| utility2.is_some_and(|u2| u1.code == u2.code)) {
-                    None
-                } else {
-                    Some(Gear {
-                        weapon: Some(weapon),
-                        helmet: iter.peeking_next(|i| i.is_of_type(Type::Helmet)),
-                        shield: iter.peeking_next(|i| i.is_of_type(Type::Shield)),
-                        body_armor: iter.peeking_next(|i| i.is_of_type(Type::BodyArmor)),
-                        leg_armor: iter.peeking_next(|i| i.is_of_type(Type::LegArmor)),
-                        boots: iter.peeking_next(|i| i.is_of_type(Type::Boots)),
-                        amulet: iter.peeking_next(|i| i.is_of_type(Type::Amulet)),
-                        ring1: iter.peeking_next(|i| i.is_of_type(Type::Ring)),
-                        ring2: iter.peeking_next(|i| i.is_of_type(Type::Ring)),
-                        utility1,
-                        utility2,
-                        artifact1: iter.peeking_next(|i| i.is_of_type(Type::Artifact)),
-                        artifact2,
-                        artifact3,
-                    })
-                }
+                Gear::new(
+                    Some(weapon),
+                    iter.peeking_next(|i| i.is_some_and(|i| i.is_of_type(Type::Helmet)))
+                        .flatten(),
+                    iter.peeking_next(|i| i.is_some_and(|i| i.is_of_type(Type::Shield)))
+                        .flatten(),
+                    iter.peeking_next(|i| i.is_some_and(|i| i.is_of_type(Type::BodyArmor)))
+                        .flatten(),
+                    iter.peeking_next(|i| i.is_some_and(|i| i.is_of_type(Type::LegArmor)))
+                        .flatten(),
+                    iter.peeking_next(|i| i.is_some_and(|i| i.is_of_type(Type::Boots)))
+                        .flatten(),
+                    iter.peeking_next(|i| i.is_some_and(|i| i.is_of_type(Type::Amulet)))
+                        .flatten(),
+                    iter.peeking_next(|i| i.is_some_and(|i| i.is_of_type(Type::Ring)))
+                        .flatten(),
+                    iter.peeking_next(|i| i.is_some_and(|i| i.is_of_type(Type::Ring)))
+                        .flatten(),
+                    iter.peeking_next(|i| i.is_some_and(|i| i.is_of_type(Type::Utility)))
+                        .flatten(),
+                    iter.peeking_next(|i| i.is_some_and(|i| i.is_of_type(Type::Utility)))
+                        .flatten(),
+                    iter.peeking_next(|i| i.is_some_and(|i| i.is_of_type(Type::Artifact)))
+                        .flatten(),
+                    iter.peeking_next(|i| i.is_some_and(|i| i.is_of_type(Type::Artifact)))
+                        .flatten(),
+                    iter.peeking_next(|i| i.is_some_and(|i| i.is_of_type(Type::Artifact)))
+                        .flatten(),
+                )
             })
             .collect::<Vec<_>>()
     }
@@ -247,7 +254,7 @@ impl GearFinder {
         r#type: Type,
         filter: Filter,
         black_list: Vec<&str>,
-    ) -> Vec<&ItemSchema> {
+    ) -> Vec<Option<&ItemSchema>> {
         let mut upgrades: Vec<&ItemSchema> = vec![];
         let equipables = self
             .items
@@ -274,25 +281,24 @@ impl GearFinder {
             .iter()
             .cloned()
             .max_by_key(|i| OrderedFloat(i.damage_reduction_against(monster)));
+        let health_increases = equipables
+            .iter()
+            .cloned()
+            .filter(|i| i.health() > 0)
+            .collect_vec();
+        let best_health_increase = health_increases.iter().cloned().max_by_key(|i| i.health());
         if let Some(best_for_damage) = best_for_damage {
             upgrades.push(best_for_damage);
         }
         if let Some(best_reduction) = best_reduction {
             upgrades.push(best_reduction);
         }
-        //let best_for_health = {
-        //    if best_for_damage.is_some() {
-        //        damage_increases.into_iter().max_by_key(|i| i.health())
-        //    } else {
-        //        equipables.iter().cloned().max_by_key(|i| i.health())
-        //    }
-        //};
-        //if let Some(best_for_health) = best_for_health {
-        //    upgrades.push(best_for_health);
-        //}
+        if let Some(best_health_increase) = best_health_increase {
+            upgrades.push(best_health_increase);
+        }
         upgrades.sort_by_key(|i| &i.code);
         upgrades.dedup_by_key(|i| &i.code);
-        upgrades
+        upgrades.into_iter().map(Some).collect_vec()
     }
 
     pub fn best_tool(&self, char: &Character, skill: Skill, filter: Filter) -> Option<&ItemSchema> {

@@ -23,7 +23,50 @@ pub struct Gear<'a> {
     pub artifact3: Option<&'a ItemSchema>,
 }
 
-impl Gear<'_> {
+impl<'a> Gear<'a> {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        weapon: Option<&'a ItemSchema>,
+        helmet: Option<&'a ItemSchema>,
+        shield: Option<&'a ItemSchema>,
+        body_armor: Option<&'a ItemSchema>,
+        leg_armor: Option<&'a ItemSchema>,
+        boots: Option<&'a ItemSchema>,
+        amulet: Option<&'a ItemSchema>,
+        ring1: Option<&'a ItemSchema>,
+        ring2: Option<&'a ItemSchema>,
+        utility1: Option<&'a ItemSchema>,
+        utility2: Option<&'a ItemSchema>,
+        artifact1: Option<&'a ItemSchema>,
+        artifact2: Option<&'a ItemSchema>,
+        artifact3: Option<&'a ItemSchema>,
+    ) -> Option<Gear<'a>> {
+        if utility1.is_some_and(|u1| utility2.is_some_and(|u2| u1.code == u2.code))
+            || artifact1.is_some_and(|a1| artifact2.is_some_and(|a2| a1.code == a2.code))
+            || artifact2.is_some_and(|a2| artifact3.is_some_and(|a3| a2.code == a3.code))
+            || artifact1.is_some_and(|a1| artifact3.is_some_and(|a3| a1.code == a3.code))
+        {
+            None
+        } else {
+            Some(Self {
+                weapon,
+                helmet,
+                shield,
+                body_armor,
+                leg_armor,
+                boots,
+                amulet,
+                ring1,
+                ring2,
+                utility1,
+                utility2,
+                artifact1,
+                artifact2,
+                artifact3,
+            })
+        }
+    }
+
     pub fn attack_damage_against(&self, monster: &MonsterSchema) -> f32 {
         DamageType::iter()
             .map(|t| {
