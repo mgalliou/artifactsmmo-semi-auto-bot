@@ -4,11 +4,14 @@ use super::{
     character::Character,
     game::Game,
     game_config::GameConfig,
-    items::Items,
+    items::{ItemSource, Items},
     skill::Skill,
 };
 use crate::artifactsmmo_sdk::char_config::CharConfig;
-use artifactsmmo_openapi::{apis::configuration::Configuration, models::CharacterSchema};
+use artifactsmmo_openapi::{
+    apis::configuration::Configuration,
+    models::{CharacterSchema, SimpleItemSchema},
+};
 use itertools::Itertools;
 use std::sync::Arc;
 use std::sync::RwLock;
@@ -19,6 +22,7 @@ pub struct Account {
     pub config: Arc<GameConfig>,
     pub character_api: CharactersApi,
     pub my_characters_api: MyCharacterApi,
+    pub items: Arc<Items>,
     pub bank: Arc<Bank>,
     pub characters: RwLock<Vec<Arc<Character>>>,
 }
@@ -34,6 +38,7 @@ impl Account {
             config: config.clone(),
             character_api: CharactersApi::new(&config.base_url, &config.token),
             my_characters_api,
+            items: items.clone(),
             bank: Arc::new(Bank::from_api(config, items)),
             characters: RwLock::new(vec![]),
         })
@@ -102,12 +107,51 @@ impl Account {
     }
 
     pub fn time_to_get(&self, item: &str) -> Option<i32> {
-        self.characters
-            .read()
-            .unwrap()
+        self.items
+            .best_source_of(item)
             .iter()
-            .map(|c| c.time_to_get(item))
-            .min()?
+            .filter_map(|s| match s {
+                ItemSource::Resource(r) => self
+                    .characters
+                    .read()
+                    .unwrap()
+                    .iter()
+                    .filter_map(|c| c.time_to_gather(r))
+                    .min(),
+                ItemSource::Monster(m) => self
+                    .characters
+                    .read()
+                    .unwrap()
+                    .iter()
+                    .filter_map(|c| c.time_to_kill(m))
+                    .map(|time| time * self.items.drop_rate(item))
+                    .min(),
+                ItemSource::Craft => {
+                    let mats_wit_ttg = self
+                        .items
+                        .mats_of(item)
+                        .into_iter()
+                        .map(|m| (m.clone(), self.time_to_get(&m.code)))
+                        .collect::<Vec<(SimpleItemSchema, Option<i32>)>>();
+                    if mats_wit_ttg.iter().all(|(_, ttg)| ttg.is_some()) {
+                        Some(
+                            mats_wit_ttg
+                                .iter()
+                                .filter_map(|(m, ttg)| {
+                                    ttg.as_ref()
+                                        .map(|ttg| (ttg * m.quantity) + (5 * m.quantity))
+                                })
+                                .sum::<i32>(),
+                        )
+                    } else {
+                        None
+                    }
+                }
+                ItemSource::TaskReward => Some(2000),
+                ItemSource::Task => Some(2000),
+                ItemSource::Gift => Some(1000),
+            })
+            .min()
     }
 }
 

@@ -48,6 +48,7 @@ const CANCEL_PRICE: i32 = 6;
 const MIN_COIN_THRESHOLD: i32 = 4;
 const MAX_LEVEL: i32 = 40;
 const MIN_FOOD_THRESHOLD: i32 = 300;
+const CRAFT_TIME: i32 = 5;
 
 #[derive(Default)]
 pub struct Character {
@@ -159,7 +160,7 @@ impl Character {
                     || !g.is_reach_skill_level()
             })
             .any(|g| match g {
-                Goal::Events => self.handle_events(),
+                Goal::Events => false,
                 Goal::Orders => self.handle_orderboard(),
                 Goal::ReachSkillLevel { skill, level } if self.skill_level(*skill) < *level => {
                     self.level_skill_up(*skill)
@@ -196,7 +197,7 @@ impl Character {
         else {
             return Err(CharacterError::ResourceNotFound);
         };
-        self.gather_resource(resource, None)?;
+        self.gather_resource(resource)?;
         Ok(())
     }
 
@@ -372,7 +373,7 @@ impl Character {
     fn progress_resource_order(&self, order: &Order, r: &ResourceSchema) -> Option<i32> {
         order.inc_in_progress(1);
         let result = self
-            .gather_resource(r, None)
+            .gather_resource(r)
             .ok()
             .map(|gather| gather.amount_of(&order.item));
         order.dec_in_progress(1);
@@ -380,7 +381,7 @@ impl Character {
     }
 
     fn progress_monster_order(&self, order: &Order, m: &MonsterSchema) -> Option<i32> {
-        self.kill_monster(m, None)
+        self.kill_monster(m)
             .ok()
             .map(|fight| fight.amount_of(&order.item))
     }
@@ -537,7 +538,7 @@ impl Character {
         let Some(monster) = self.monsters.get(&self.task()) else {
             return self.trade_task().map(|_| ());
         };
-        match self.kill_monster(monster, None) {
+        match self.kill_monster(monster) {
             Ok(_) => Ok(()),
             Err(e) => {
                 if let CharacterError::GearTooWeak { monster_code: _ } = e {
@@ -707,32 +708,32 @@ impl Character {
         result
     }
 
-    fn handle_events(&self) -> bool {
-        if self.handle_resource_event() {
-            return true;
-        }
-        if self.handle_monster_event() {
-            return true;
-        }
-        false
-    }
+    //fn handle_events(&self) -> bool {
+    //    if self.handle_resource_event() {
+    //        return true;
+    //    }
+    //    if self.handle_monster_event() {
+    //        return true;
+    //    }
+    //    false
+    //}
 
-    fn handle_resource_event(&self) -> bool {
-        for event in self.events.of_type("resource") {
-            if let Some(resource) = self.resources.get(event.content_code()) {
-                return self.gather_resource(resource, Some(&event.map)).is_ok();
-            }
-        }
-        false
-    }
-
-    fn handle_monster_event(&self) -> bool {
-        self.events.of_type("monster").iter().any(|e| {
-            self.monsters
-                .get(e.content_code())
-                .is_some_and(|m| self.kill_monster(m, Some(&e.map)).is_ok())
-        })
-    }
+    //fn handle_resource_event(&self) -> bool {
+    //    for event in self.events.of_type("resource") {
+    //        if let Some(resource) = self.resources.get(event.content_code()) {
+    //            return self.gather_resource(resource, Some(&event.map)).is_ok();
+    //        }
+    //    }
+    //    false
+    //}
+    //
+    //fn handle_monster_event(&self) -> bool {
+    //    self.events.of_type("monster").iter().any(|e| {
+    //        self.monsters
+    //            .get(e.content_code())
+    //            .is_some_and(|m| self.kill_monster(m, Some(&e.map)).is_ok())
+    //    })
+    //}
 
     /// Find a target and kill it if possible.
     fn level_combat(&self) -> Result<(), CharacterError> {
@@ -746,26 +747,25 @@ impl Character {
         }
         if let Some(task_monster) = self.monsters.get(&self.task()) {
             if self.can_kill(task_monster).is_ok() {
-                self.kill_monster(task_monster, None)?;
+                self.kill_monster(task_monster)?;
                 return Ok(());
             }
         }
         let Some(monster) = self.leveling_helper.best_monster(self) else {
             return Err(CharacterError::MonsterNotFound);
         };
-        self.kill_monster(monster, None)?;
+        self.kill_monster(monster)?;
         Ok(())
     }
 
     /// Checks if an gear making the `Character` able to kill the given
     /// `monster` is available, equip it, then move the `Character` to the given
     /// map or the closest containing the `monster` and fight it.
-    fn kill_monster(
-        &self,
-        monster: &MonsterSchema,
-        map: Option<&MapSchema>,
-    ) -> Result<FightSchema, CharacterError> {
+    fn kill_monster(&self, monster: &MonsterSchema) -> Result<FightSchema, CharacterError> {
         let mut available: Gear = self.gear();
+        let Some(map) = self.closest_map_with_content_code(&monster.code) else {
+            return Err(CharacterError::MapNotFound);
+        };
         if let Ok(_browsed) = self.bank.browsed.write() {
             match self.can_kill(monster) {
                 Ok(gear) => {
@@ -802,13 +802,7 @@ impl Character {
                 error!("{} failed to rest: {:?}", self.name, e)
             }
         }
-        if let Some(map) = map {
-            self.action_move(map.x, map.y)?;
-        } else if let Some(map) = self.closest_map_with_content_code(&monster.code) {
-            self.action_move(map.x, map.y)?;
-        } else {
-            return Err(CharacterError::MapNotFound);
-        }
+        self.action_move(map.x, map.y)?;
         Ok(self.action_fight()?)
     }
 
@@ -825,17 +819,13 @@ impl Character {
     fn gather_resource(
         &self,
         resource: &ResourceSchema,
-        map: Option<&MapSchema>,
     ) -> Result<SkillDataSchema, CharacterError> {
         self.can_gather(resource)?;
         self.check_for_tool(resource);
-        if let Some(map) = map {
-            self.action_move(map.x, map.y)?;
-        } else if let Some(map) = self.closest_map_with_content_code(&resource.code) {
-            self.action_move(map.x, map.y)?;
-        } else {
+        let Some(map) = self.closest_map_with_content_code(&resource.code) else {
             return Err(CharacterError::MapNotFound);
-        }
+        };
+        self.action_move(map.x, map.y)?;
         Ok(self.action_gather()?)
     }
 
@@ -888,19 +878,19 @@ impl Character {
         }
     }
 
-    fn time_to_kill(&self, monster: &MonsterSchema) -> Option<i32> {
+    pub fn time_to_kill(&self, monster: &MonsterSchema) -> Option<i32> {
         match self.can_kill(monster) {
             Ok(gear) => {
                 let fight = self
                     .fight_simulator
                     .simulate(self.level(), 0, &gear, monster);
-                Some(fight.cd + fight.hp_lost / 5 + if fight.hp_lost % 5 > 0 { 1 } else { 0 })
+                Some(fight.cd + (fight.hp_lost / 5 + if fight.hp_lost % 5 > 0 { 1 } else { 0 }))
             }
             Err(_) => None,
         }
     }
 
-    fn time_to_gather(&self, resource: &ResourceSchema) -> Option<i32> {
+    pub fn time_to_gather(&self, resource: &ResourceSchema) -> Option<i32> {
         if self.can_gather(resource).is_err() {
             return None;
         }
@@ -924,11 +914,13 @@ impl Character {
                     .time_to_kill(m)
                     .map(|time| time * self.items.drop_rate(item)),
                 ItemSource::Craft => Some(
-                    self.items
-                        .mats_of(item)
-                        .iter()
-                        .map(|m| self.time_to_get(&m.code).unwrap_or(1000) * m.quantity)
-                        .sum(),
+                    CRAFT_TIME
+                        + self
+                            .items
+                            .mats_of(item)
+                            .iter()
+                            .map(|m| self.time_to_get(&m.code).unwrap_or(1000) * m.quantity)
+                            .sum::<i32>(),
                 ),
                 ItemSource::TaskReward => Some(2000),
                 ItemSource::Task => Some(2000),
@@ -942,9 +934,6 @@ impl Character {
     pub fn can_kill<'a>(&'a self, monster: &'a MonsterSchema) -> Result<Gear<'a>, CharacterError> {
         if !self.skill_enabled(Skill::Combat) {
             return Err(CharacterError::SkillDisabled(Skill::Combat));
-        }
-        if self.maps.with_content_code(&monster.code).is_empty() {
-            return Err(CharacterError::MapNotFound);
         }
         if self.inventory.is_full() {
             return Err(CharacterError::InventoryFull);
@@ -981,9 +970,6 @@ impl Character {
                 skill,
                 resource.level,
             ));
-        }
-        if self.maps.with_content_code(&resource.code).is_empty() {
-            return Err(CharacterError::MapNotFound);
         }
         if self.inventory.is_full() {
             return Err(CharacterError::InventoryFull);

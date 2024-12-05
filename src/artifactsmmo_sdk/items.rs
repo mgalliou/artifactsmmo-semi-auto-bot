@@ -176,27 +176,14 @@ impl Items {
     /// Takes an item `code` and returns the best (lowest value) drop rate from
     /// `Monsters` or `Resources`
     pub fn drop_rate(&self, code: &str) -> i32 {
-        // TODO: use sources_of
-        self.get(code)
+        self.monsters
+            .dropping(code)
             .iter()
-            .flat_map(|i| {
-                if i.subtype == "mob" {
-                    self.monsters
-                        .dropping(code)
-                        .iter()
-                        .flat_map(|m| &m.drops)
-                        .collect_vec()
-                } else {
-                    self.resources
-                        .dropping(code)
-                        .iter()
-                        .flat_map(|m| &m.drops)
-                        .collect_vec()
-                }
-            })
+            .flat_map(|m| &m.drops)
+            .chain(self.resources.dropping(code).iter().flat_map(|m| &m.drops))
             .find(|d| d.code == code)
             .map_or(0, |d| {
-                (d.rate as f32 * (d.min_quantity + d.min_quantity) as f32 / 2.0) as i32
+                (d.rate as f32 * ((d.min_quantity + d.max_quantity) as f32 / 2.0)).round() as i32
             })
     }
 
@@ -763,5 +750,16 @@ mod tests {
                 .code,
             "cooked_trout"
         );
+    }
+
+    #[test]
+    fn drop_rate() {
+        let config = GameConfig::from_file();
+        let events = Default::default();
+        let resources = Arc::new(Resources::new(&config, &events));
+        let monsters = Arc::new(Monsters::new(&config, &events));
+        let tasks = Arc::new(Tasks::new(&config));
+        let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
+        assert_eq!(items.drop_rate("milk_bucket"), 12);
     }
 }
