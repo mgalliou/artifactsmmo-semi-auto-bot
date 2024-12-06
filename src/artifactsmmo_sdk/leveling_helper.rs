@@ -148,16 +148,18 @@ impl LevelingHelper {
         self.best_crafts_hardcoded(level, skill)
             .into_iter()
             .filter_map(|i| {
-                let mut mats_with_ttg = self
+                let mats_with_ttg = self
                     .account
                     .bank
                     .missing_mats_for(&i.code, char.max_craftable_items(&i.code), Some(&char.name))
                     .into_iter()
-                    .map(|m| (m.clone(), self.account.time_to_get(&i.code)));
-                if mats_with_ttg.all(|(_, ttg)| ttg.is_some()) {
+                    .map(|m| (m, self.account.time_to_get(&i.code)))
+                    .collect_vec();
+                if mats_with_ttg.iter().all(|(_, ttg)| ttg.is_some()) {
                     Some((
                         i,
                         mats_with_ttg
+                            .iter()
                             .filter_map(|(m, ttg)| ttg.as_ref().map(|ttg| (ttg * m.quantity)))
                             .sum::<i32>(),
                     ))
