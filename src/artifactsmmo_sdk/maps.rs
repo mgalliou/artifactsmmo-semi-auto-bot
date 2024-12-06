@@ -55,7 +55,7 @@ impl Maps {
 
     pub fn closest_from_amoung(x: i32, y: i32, maps: Vec<MapSchema>) -> Option<MapSchema> {
         maps.into_iter()
-            .min_by_key(|m| i32::abs(m.x - x) + i32::abs(m.y - y))
+            .min_by_key(|m| i32::abs(x - m.x) + i32::abs(y - m.y))
     }
 
     pub fn of_type(&self, r#type: &str) -> Vec<MapSchema> {
