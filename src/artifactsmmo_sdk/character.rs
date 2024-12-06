@@ -773,15 +773,7 @@ impl Character {
                 }
                 Err(e) => return Err(e),
             }
-            self.order_best_gear_against(
-                monster,
-                Filter {
-                    can_craft: true,
-                    from_task: false,
-                    from_monster: true,
-                    ..Default::default()
-                },
-            );
+            self.order_best_gear_against(monster);
         }
         self.order_food();
         self.equip_gear(&mut available);
@@ -1828,8 +1820,17 @@ impl Character {
         }
     }
 
-    fn order_best_gear_against(&self, monster: &MonsterSchema, filter: Filter) {
-        let gear = self.gear_finder.best_against(self, monster, filter);
+    fn order_best_gear_against(&self, monster: &MonsterSchema) {
+        let gear = self.gear_finder.best_against(
+            self,
+            monster,
+            Filter {
+                can_craft: true,
+                from_task: false,
+                from_monster: true,
+                ..Default::default()
+            },
+        );
         if self.can_kill_with(monster, &gear) {
             self.order_gear(gear);
         };
