@@ -1824,7 +1824,12 @@ impl Character {
 
     fn order_gear(&self, gear: Gear<'_>) {
         Slot::iter().for_each(|s| {
-            if !s.is_ring_1() && !s.is_ring_2() {
+            if !s.is_artifact_1()
+                && !s.is_artifact_2()
+                && !s.is_artifact_3()
+                && !s.is_ring_1()
+                && !s.is_ring_2()
+            {
                 if let Some(item) = gear.slot(s) {
                     let quantity = if s.is_utility_1() || s.is_utility_2() {
                         100
