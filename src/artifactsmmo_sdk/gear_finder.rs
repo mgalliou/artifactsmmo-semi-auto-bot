@@ -260,33 +260,20 @@ impl GearFinder {
             .items
             .equipable_at_level(char.level(), r#type)
             .into_iter()
-            .filter(|i| self.is_eligible(i, filter, char))
-            .filter(|i| !black_list.contains(&i.code.as_str()))
+            .filter(|i| !black_list.contains(&i.code.as_str()) && self.is_eligible(i, filter, char))
             .collect_vec();
-        let damage_increases = equipables
+        let best_for_damage = equipables
             .iter()
-            .cloned()
             .filter(|i| i.damage_increase_against_with(monster, weapon) > 0.0)
-            .collect_vec();
-        let best_for_damage = damage_increases
-            .iter()
-            .cloned()
             .max_by_key(|i| OrderedFloat(i.damage_increase_against_with(monster, weapon)));
-        let damage_reductions = equipables
+        let best_reduction = equipables
             .iter()
-            .cloned()
             .filter(|i| i.damage_reduction_against(monster) > 0.0)
-            .collect_vec();
-        let best_reduction = damage_reductions
-            .iter()
-            .cloned()
             .max_by_key(|i| OrderedFloat(i.damage_reduction_against(monster)));
-        let health_increases = equipables
+        let best_health_increase = equipables
             .iter()
-            .cloned()
             .filter(|i| i.health() > 0)
-            .collect_vec();
-        let best_health_increase = health_increases.iter().cloned().max_by_key(|i| i.health());
+            .max_by_key(|i| i.health());
         if let Some(best_for_damage) = best_for_damage {
             upgrades.push(best_for_damage);
         }
