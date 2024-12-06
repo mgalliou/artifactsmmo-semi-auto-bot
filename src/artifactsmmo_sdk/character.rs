@@ -1827,7 +1827,7 @@ impl Character {
             Filter {
                 can_craft: true,
                 from_task: false,
-                from_monster: true,
+                from_monster: false,
                 ..Default::default()
             },
         );
