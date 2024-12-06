@@ -153,7 +153,7 @@ impl LevelingHelper {
                     .bank
                     .missing_mats_for(&i.code, char.max_craftable_items(&i.code), Some(&char.name))
                     .into_iter()
-                    .map(|m| (m, self.account.time_to_get(&i.code)))
+                    .map(|m| (m.clone(), self.account.time_to_get(&m.code)))
                     .collect_vec();
                 if mats_with_ttg.iter().all(|(_, ttg)| ttg.is_some()) {
                     Some((
