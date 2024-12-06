@@ -160,7 +160,7 @@ impl LevelingHelper {
         self.monsters
             .data
             .iter()
-            .filter(|m| char.level() >= m.level && m.code != "imp")
+            .filter(|m| char.level() >= m.level && m.code != "imp" && m.code != "death_knight")
             .max_by_key(|m| if char.can_kill(m).is_ok() { m.level } else { 0 })
     }
 }
