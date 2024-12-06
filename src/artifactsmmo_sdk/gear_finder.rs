@@ -316,6 +316,9 @@ impl GearFinder {
         if filter.available && char.has_available(&i.code) <= 0 {
             return false;
         }
+        if i.code == "sanguine_edge_of_rosen" {
+            return false;
+        }
         if filter.can_craft && i.craft_schema().is_some() && !char.account.can_craft(&i.code) {
             return false;
         }
