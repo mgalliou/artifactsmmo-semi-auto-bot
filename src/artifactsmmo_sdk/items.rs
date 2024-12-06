@@ -121,6 +121,18 @@ impl Items {
             .collect_vec()
     }
 
+    pub fn require_task_reward(&self, code: &str) -> bool {
+        self.base_mats_of(code).iter().any(|m| {
+            [
+                JASPER_CRYSTAL,
+                MAGICAL_CURE,
+                ENCHANTED_FABRIC,
+                ASTRALYTE_CRYSTAL,
+            ]
+            .contains(&m.code.as_str())
+        })
+    }
+
     /// Takes an item `code` and returns the only item it can be crafted in, or
     /// `None` otherwise.
     pub fn unique_craft(&self, code: &str) -> Option<&ItemSchema> {

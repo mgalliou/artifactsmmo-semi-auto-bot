@@ -1,6 +1,6 @@
 use super::{
-    character::Character, items::Items, maps::Maps, monsters::Monsters, resources::Resources,
-    skill::Skill, ItemSchemaExt,
+    account::Account, character::Character, items::Items, maps::Maps, monsters::Monsters,
+    resources::Resources, skill::Skill, ItemSchemaExt,
 };
 use artifactsmmo_openapi::models::{ItemSchema, MonsterSchema, ResourceSchema};
 use itertools::Itertools;
@@ -12,6 +12,7 @@ pub struct LevelingHelper {
     resources: Arc<Resources>,
     monsters: Arc<Monsters>,
     maps: Arc<Maps>,
+    account: Arc<Account>,
 }
 
 impl LevelingHelper {
@@ -20,35 +21,38 @@ impl LevelingHelper {
         resources: &Arc<Resources>,
         monsters: &Arc<Monsters>,
         maps: &Arc<Maps>,
+        account: &Arc<Account>,
     ) -> Self {
         Self {
             items: items.clone(),
             resources: resources.clone(),
             monsters: monsters.clone(),
             maps: maps.clone(),
+            account: account.clone(),
         }
     }
 
     /// Takes a `level` and a `skill` and returns the items providing experince
     /// when crafted.
-    pub fn crafts_providing_exp(&self, level: i32, skill: Skill) -> Vec<&ItemSchema> {
+    pub fn crafts_providing_exp(
+        &self,
+        level: i32,
+        skill: Skill,
+    ) -> impl Iterator<Item = &ItemSchema> {
         let min = if level > 11 { level - 10 } else { 1 };
         self.items
             .data
             .values()
-            .filter(|i| i.level >= min && i.level <= level)
-            .filter(|i| i.skill_to_craft().is_some_and(|s| s == skill))
-            .collect_vec()
+            .filter(move |i| i.level >= min && i.level <= level)
+            .filter(move |i| i.skill_to_craft().is_some_and(|s| s == skill))
     }
 
     /// Takes a `level` and a `skill` and returns the items of the lowest level
     /// providing experience when crafted.
     pub fn lowest_crafts_providing_exp(&self, level: i32, skill: Skill) -> Vec<&ItemSchema> {
         self.crafts_providing_exp(level, skill)
-            .iter()
             .min_set_by_key(|i| i.level)
             .into_iter()
-            .cloned()
             .collect_vec()
     }
 
@@ -56,10 +60,8 @@ impl LevelingHelper {
     /// providing experience when crafted.
     pub fn highest_crafts_providing_exp(&self, level: i32, skill: Skill) -> Vec<&ItemSchema> {
         self.crafts_providing_exp(level, skill)
-            .iter()
             .max_set_by_key(|i| i.level)
             .into_iter()
-            .cloned()
             .collect_vec()
     }
 
@@ -117,7 +119,6 @@ impl LevelingHelper {
 
     pub fn best_crafts(&self, level: i32, skill: Skill) -> Vec<&ItemSchema> {
         self.crafts_providing_exp(level, skill)
-            .into_iter()
             .filter(|i| {
                 ![
                     "wooden_staff",
@@ -130,8 +131,9 @@ impl LevelingHelper {
                     "topaz",
                 ]
                 .contains(&i.code.as_str())
-                    && !i.is_crafted_with("jasper_crystal")
-                    && !i.is_crafted_with("magical_cure")
+                    && !self.items.require_task_reward(&i.code)
+                    && !i.is_crafted_with("obsidian")
+                    && !i.is_crafted_with("diamond")
             })
             .filter(|i| {
                 i.mats()
@@ -141,6 +143,31 @@ impl LevelingHelper {
             .max_set_by_key(|i| i.level)
             .into_iter()
             .collect_vec()
+    }
+
+    pub fn best_craft(&self, level: i32, skill: Skill, char: &Character) -> Option<&ItemSchema> {
+        self.best_crafts_hardcoded(level, skill)
+            .into_iter()
+            .filter_map(|i| {
+                let mut mats_with_ttg = self
+                    .account
+                    .bank
+                    .missing_mats_for(&i.code, char.max_craftable_items(&i.code), Some(&char.name))
+                    .into_iter()
+                    .map(|m| (m.clone(), self.account.time_to_get(&i.code)));
+                if mats_with_ttg.all(|(_, ttg)| ttg.is_some()) {
+                    Some((
+                        i,
+                        mats_with_ttg
+                            .filter_map(|(m, ttg)| ttg.as_ref().map(|ttg| (ttg * m.quantity)))
+                            .sum::<i32>(),
+                    ))
+                } else {
+                    None
+                }
+            })
+            .min_by_key(|(_, ttg)| *ttg)
+            .map(|(i, _)| i)
     }
 
     pub fn best_resource(&self, level: i32, skill: Skill) -> Option<&ResourceSchema> {

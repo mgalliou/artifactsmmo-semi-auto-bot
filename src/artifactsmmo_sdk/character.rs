@@ -97,6 +97,7 @@ impl Character {
                 &game.resources,
                 &game.monsters,
                 &game.maps,
+                &game.account,
             ),
             bank: bank.clone(),
             data: data.clone(),
@@ -200,9 +201,7 @@ impl Character {
     fn level_skill_by_crafting(&self, skill: Skill) -> Result<(), CharacterError> {
         let Some(item) = self
             .leveling_helper
-            .best_crafts_hardcoded(self.skill_level(skill), skill)
-            .into_iter()
-            .min_by_key(|i| self.account.time_to_get(&i.code))
+            .best_craft(self.skill_level(skill), skill, self)
         else {
             return Err(CharacterError::ItemNotFound);
         };
@@ -1398,7 +1397,7 @@ impl Character {
 
     /// Calculates the maximum number of items that can be crafted in one go based on
     /// inventory max items
-    fn max_craftable_items(&self, item: &str) -> i32 {
+    pub fn max_craftable_items(&self, item: &str) -> i32 {
         self.inventory.max_items() / self.items.mats_quantity_for(item)
     }
 
