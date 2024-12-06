@@ -4,6 +4,7 @@ use artifactsmmo_playground::artifactsmmo_sdk::{
     fight_simulator::FightSimulator,
     game::Game,
     gear_finder::{Filter, GearFinder},
+    leveling_helper::LevelingHelper,
     orderboard::Purpose,
     skill::Skill,
 };
@@ -87,6 +88,13 @@ fn run_cli(game: &Game) -> Result<()> {
 fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> Result<bool> {
     let args = line.split_whitespace().collect_vec();
     let gear_finder = GearFinder::new(&game.items);
+    let leveling_helper = LevelingHelper::new(
+        &game.items,
+        &game.resources,
+        &game.monsters,
+        &game.maps,
+        &game.account,
+    );
     let cli = Cli::try_parse_from(args)?;
     match cli.command {
         Commands::Orderboard { action } => match action {
@@ -139,6 +147,29 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
                 .sources_of(&item)
                 .iter()
                 .for_each(|s| println!("{:?}", s)),
+            ItemsAction::BestCraft { skill } => {
+                let Some(char) = character else {
+                    bail!("no character selected");
+                };
+                println!(
+                    "best {} craft: {:?}",
+                    skill,
+                    leveling_helper
+                        .best_craft(char.skill_level(skill), skill, char)
+                        .map(|i| i.name.clone())
+                        .unwrap_or("none".to_string())
+                );
+            }
+            ItemsAction::BestCrafts { skill } => {
+                let Some(char) = character else {
+                    bail!("no character selected");
+                };
+                println!("best {} crafts:", skill);
+                leveling_helper
+                    .best_crafts(char.skill_level(skill), skill)
+                    .iter()
+                    .for_each(|i| println!("{}", i.name))
+            }
         },
         Commands::Char { i } => {
             character.clone_from(&game.account.get_character(i as usize));
@@ -398,6 +429,12 @@ enum ItemsAction {
     #[command(alias = "ttg")]
     TimeToGet {
         item: String,
+    },
+    BestCraft {
+        skill: Skill,
+    },
+    BestCrafts {
+        skill: Skill,
     },
     Sources {
         item: String,
