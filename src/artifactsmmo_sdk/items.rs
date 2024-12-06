@@ -90,13 +90,20 @@ impl Items {
         self.mats_of(code)
             .iter()
             .flat_map(|mat| {
-                self.base_mats_of(&mat.code)
-                    .iter()
-                    .map(|b| SimpleItemSchema {
-                        code: b.code.clone(),
-                        quantity: b.quantity * mat.quantity,
-                    })
-                    .collect_vec()
+                if self.mats_of(&mat.code).is_empty() {
+                    vec![SimpleItemSchema {
+                        code: mat.code.clone(),
+                        quantity: mat.quantity,
+                    }]
+                } else {
+                    self.mats_of(&mat.code)
+                        .iter()
+                        .map(|b| SimpleItemSchema {
+                            code: b.code.clone(),
+                            quantity: b.quantity * mat.quantity,
+                        })
+                        .collect_vec()
+                }
             })
             .collect_vec()
     }
@@ -782,5 +789,30 @@ mod tests {
         let tasks = Arc::new(Tasks::new(&config));
         let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
         assert_eq!(items.drop_rate("milk_bucket"), 12);
+    }
+
+    #[test]
+    fn require_task_reward() {
+        let config = GameConfig::from_file();
+        let events = Default::default();
+        let resources = Arc::new(Resources::new(&config, &events));
+        let monsters = Arc::new(Monsters::new(&config, &events));
+        let tasks = Arc::new(Tasks::new(&config));
+        let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
+
+        assert!(items.require_task_reward("greater_dreadful_staff"));
+    }
+
+    #[test]
+    fn mats_methods() {
+        let config = GameConfig::from_file();
+        let events = Default::default();
+        let resources = Arc::new(Resources::new(&config, &events));
+        let monsters = Arc::new(Monsters::new(&config, &events));
+        let tasks = Arc::new(Tasks::new(&config));
+        let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
+
+        assert!(!items.mats_of("greater_dreadful_staff").is_empty());
+        assert!(!items.base_mats_of("greater_dreadful_staff").is_empty());
     }
 }

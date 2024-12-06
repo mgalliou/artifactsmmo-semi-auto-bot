@@ -205,6 +205,10 @@ impl Character {
         else {
             return Err(CharacterError::ItemNotFound);
         };
+        info!(
+            "{}: best craft found to level {}: {}",
+            self.name, skill, item.code
+        );
         let craft = self.craft_from_bank(
             &item.code,
             self.max_craftable_items(&item.code),

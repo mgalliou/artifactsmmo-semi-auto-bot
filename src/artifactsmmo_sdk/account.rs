@@ -147,9 +147,9 @@ impl Account {
                         None
                     }
                 }
-                ItemSource::TaskReward => Some(2000),
-                ItemSource::Task => Some(2000),
-                ItemSource::Gift => Some(1000),
+                ItemSource::TaskReward => Some(20000),
+                ItemSource::Task => Some(20000),
+                ItemSource::Gift => Some(10000),
             })
             .min()
     }

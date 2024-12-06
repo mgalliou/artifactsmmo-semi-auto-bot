@@ -132,13 +132,12 @@ impl LevelingHelper {
                 ]
                 .contains(&i.code.as_str())
                     && !self.items.require_task_reward(&i.code)
+                    && !i.is_crafted_from_task()
                     && !i.is_crafted_with("obsidian")
                     && !i.is_crafted_with("diamond")
-            })
-            .filter(|i| {
-                i.mats()
-                    .iter()
-                    .all(|m| self.items.get(&m.code).unwrap().level <= level)
+                    && i.mats()
+                        .iter()
+                        .all(|m| self.items.get(&m.code).unwrap().level <= level)
             })
             .max_set_by_key(|i| i.level)
             .into_iter()
