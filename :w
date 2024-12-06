@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::bail;
 use artifactsmmo_playground::artifactsmmo_sdk::{
     character::Character,
     fight_simulator::FightSimulator,
@@ -13,7 +13,7 @@ use log::LevelFilter;
 use rustyline::{error::ReadlineError, DefaultEditor};
 use std::{str::FromStr, sync::Arc, thread::sleep, time::Duration};
 
-fn main() -> Result<()> {
+fn main() -> rustyline::Result<()> {
     let _ = simple_logging::log_to_file("artifactsmmo.log", LevelFilter::Info);
     let game = Game::new();
     game.init();
@@ -44,19 +44,15 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn run_cli(game: &Game) -> Result<()> {
+fn run_cli(game: &Game) -> rustyline::Result<()> {
     let mut rl = DefaultEditor::new()?;
     let mut character: Option<Arc<Character>> = None;
     loop {
         let readline = rl.readline(
-            format!(
-                "{} >> ",
-                character
-                    .as_ref()
-                    .map(|c| c.name.to_string())
-                    .unwrap_or("none".to_string())
-            )
-            .as_str(),
+            format!("{} >> ",
+            character
+                .and_then(|c| c.name.as_str())
+                .unwrap_or("none")),
         );
         match readline {
             Ok(line) => match respond(&line, &mut character, game) {
@@ -84,7 +80,11 @@ fn run_cli(game: &Game) -> Result<()> {
     Ok(())
 }
 
-fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> Result<bool> {
+fn respond(
+    line: &str,
+    character: &mut Option<Arc<Character>>,
+    game: &Game,
+) -> anyhow::Result<bool> {
     let args = line.split_whitespace().collect_vec();
     let gear_finder = GearFinder::new(&game.items);
     let cli = Cli::try_parse_from(args)?;
@@ -94,10 +94,9 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
                 game.orderboard.add(None, &item, quantity, Purpose::Cli)?;
             }
             OrderboardAction::Remove { item } => {
-                let Some(o) = game.orderboard.get(None, &item, &Purpose::Cli) else {
-                    bail!("order not found");
-                };
-                game.orderboard.remove(&o)?
+                if let Some(o) = game.orderboard.get(None, &item, &Purpose::Cli) {
+                    game.orderboard.remove(&o)?
+                }
             }
             OrderboardAction::List => {
                 println!("orders (by priority):");

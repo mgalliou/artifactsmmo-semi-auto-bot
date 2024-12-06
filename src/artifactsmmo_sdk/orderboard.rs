@@ -1,12 +1,14 @@
 use itertools::Itertools;
 use log::{debug, info};
 use std::{
+    error::Error,
     fmt::Display,
     mem::discriminant,
     sync::{Arc, RwLock},
 };
 use strum::IntoEnumIterator;
 use strum_macros::{EnumIs, EnumIter};
+use thiserror::Error;
 
 use super::{account::Account, gear::Slot, items::Items, skill::Skill};
 
@@ -234,10 +236,13 @@ impl Display for Order {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum OrderError {
+    #[error("invalid quantity")]
     InvalidQuantity,
+    #[error("order not found")]
     NotFound,
+    #[error("order already exists")]
     AlreadyExists,
 }
 
