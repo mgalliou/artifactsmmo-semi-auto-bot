@@ -344,9 +344,9 @@ impl Items {
                     .iter()
                     .map(|m| self.time_to_get(&m.code).unwrap_or(10000) * m.quantity)
                     .sum(),
-                ItemSource::TaskReward => 1500,
-                ItemSource::Task => 1500,
-                ItemSource::Gift => 1500,
+                ItemSource::TaskReward => 20000,
+                ItemSource::Task => 20000,
+                ItemSource::Gift => 10000,
             })
             .min()
     }

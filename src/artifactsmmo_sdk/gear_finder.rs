@@ -25,7 +25,7 @@ impl GearFinder {
         }
     }
 
-    pub fn best_against<'a>(
+    pub fn best_winning_against<'a>(
         &'a self,
         char: &'a Character,
         monster: &'a MonsterSchema,
@@ -41,6 +41,25 @@ impl GearFinder {
             })
             .filter(|(_g, f)| f.result == FightResult::Win)
             .min_by_key(|(_g, f)| f.cd + f.hp_lost / 5 + if f.hp_lost % 5 > 0 { 1 } else { 0 })
+            .map(|(g, _f)| g)
+            .unwrap_or_default()
+    }
+
+    pub fn best_against<'a>(
+        &'a self,
+        char: &'a Character,
+        monster: &'a MonsterSchema,
+        filter: Filter,
+    ) -> Gear<'a> {
+        self.bests_against(char, monster, filter)
+            .into_iter()
+            .map(|g| {
+                (
+                    g,
+                    self.fight_simulator.simulate(char.level(), 0, &g, monster),
+                )
+            })
+            .min_by_key(|(_g, f)| f.monster_hp)
             .map(|(g, _f)| g)
             .unwrap_or_default()
     }

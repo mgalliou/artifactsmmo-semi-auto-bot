@@ -210,6 +210,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
             from_monster,
             from_gift,
             available,
+            winning,
             monster,
         } => {
             let Some(char) = character else {
@@ -220,6 +221,61 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
             };
             println!(
                 "{}",
+                if winning {
+                    gear_finder.best_winning_against(
+                        char,
+                        monster,
+                        Filter {
+                            available,
+                            can_craft,
+                            from_task,
+                            from_monster,
+                            from_gift,
+                        },
+                    )
+                } else {
+                    gear_finder.best_against(
+                        char,
+                        monster,
+                        Filter {
+                            available,
+                            can_craft,
+                            from_task,
+                            from_monster,
+                            from_gift,
+                        },
+                    )
+                }
+            );
+        }
+        Commands::Simulate {
+            available,
+            can_craft,
+            from_task,
+            from_gift,
+            from_monster,
+            winning,
+            monster,
+        } => {
+            let Some(char) = character else {
+                bail!("no character selected");
+            };
+            let Some(monster) = game.monsters.get(&monster) else {
+                bail!("no character selected");
+            };
+            let gear = if winning {
+                gear_finder.best_winning_against(
+                    char,
+                    monster,
+                    Filter {
+                        available,
+                        can_craft,
+                        from_task,
+                        from_monster,
+                        from_gift,
+                    },
+                )
+            } else {
                 gear_finder.best_against(
                     char,
                     monster,
@@ -229,35 +285,9 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
                         from_task,
                         from_monster,
                         from_gift,
-                    }
+                    },
                 )
-            );
-        }
-        Commands::Simulate {
-            available,
-            can_craft,
-            from_task,
-            from_gift,
-            from_monster,
-            monster,
-        } => {
-            let Some(char) = character else {
-                bail!("no character selected");
             };
-            let Some(monster) = game.monsters.get(&monster) else {
-                bail!("no character selected");
-            };
-            let gear = gear_finder.best_against(
-                char,
-                monster,
-                Filter {
-                    available,
-                    can_craft,
-                    from_task,
-                    from_monster,
-                    from_gift,
-                },
-            );
             println!("{}", gear);
             let fight = FightSimulator::new().simulate(char.level(), 0, &gear, monster);
             println!("{:?}", fight)
@@ -374,6 +404,8 @@ enum Commands {
         from_gift: bool,
         #[arg(short = 'm', long)]
         from_monster: bool,
+        #[arg(short = 'w', long)]
+        winning: bool,
         monster: String,
     },
     #[command(alias = "sim")]
@@ -388,6 +420,8 @@ enum Commands {
         from_gift: bool,
         #[arg(short = 'm', long)]
         from_monster: bool,
+        #[arg(short = 'w', long)]
+        winning: bool,
         monster: String,
     },
     Deposit {

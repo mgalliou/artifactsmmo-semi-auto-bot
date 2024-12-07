@@ -948,7 +948,7 @@ impl Character {
         if self.inventory.is_full() {
             return Err(CharacterError::InventoryFull);
         }
-        let available = self.gear_finder.best_against(
+        let available = self.gear_finder.best_winning_against(
             self,
             monster,
             Filter {
@@ -1821,7 +1821,7 @@ impl Character {
     }
 
     fn order_best_gear_against(&self, monster: &MonsterSchema) {
-        let gear = self.gear_finder.best_against(
+        let gear = self.gear_finder.best_winning_against(
             self,
             monster,
             Filter {
