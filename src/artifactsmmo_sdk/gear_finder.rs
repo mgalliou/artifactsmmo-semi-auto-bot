@@ -7,9 +7,9 @@ use super::{
     ItemSchemaExt,
 };
 use artifactsmmo_openapi::models::{FightResult, ItemSchema, MonsterSchema};
-use itertools::{Itertools, PeekingNext};
+use itertools::Itertools;
 use ordered_float::OrderedFloat;
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
 #[derive(Default)]
 pub struct GearFinder {
@@ -166,12 +166,12 @@ impl GearFinder {
             .flatten()
             .filter(|i| {
                 if filter.available {
-                    char.has_available(&i.code) <= 1
+                    char.has_available(i) <= 1
                 } else {
                     false
                 }
             })
-            .map(|i| i.code.as_str())
+            .cloned()
             .collect_vec();
         let rings2 = self.best_armors_against_with_weapon(
             char,
@@ -181,7 +181,12 @@ impl GearFinder {
             filter,
             ring2_black_list,
         );
-        let mut artifacts = self.best_armors_against_with_weapon(
+        let ring_sets = [rings, rings2]
+            .iter()
+            .multi_cartesian_product()
+            .map(|rings| ItemWrapper::Rings(RingSet::new([*rings[0], *rings[1]])))
+            .collect_vec();
+        let artifacts = self.best_armors_against_with_weapon(
             char,
             monster,
             weapon,
@@ -189,80 +194,136 @@ impl GearFinder {
             filter,
             vec![],
         );
-        artifacts.push(None);
+        let artifact_sets = [artifacts.clone(), artifacts.clone(), artifacts]
+            .iter()
+            .multi_cartesian_product()
+            .map(|artifacts| {
+                ItemWrapper::Artifacts({
+                    let mut set = HashSet::new();
+                    set.insert(*artifacts[0]);
+                    set.insert(*artifacts[1]);
+                    set.insert(*artifacts[2]);
+                    set
+                })
+            })
+            .collect_vec();
         let mut items = vec![];
         if !helmets.is_empty() {
-            items.push(helmets);
+            items.push(helmets.iter().map(|i| ItemWrapper::Armor(*i)).collect_vec());
         }
         if !shields.is_empty() {
-            items.push(shields);
+            items.push(shields.iter().map(|i| ItemWrapper::Armor(*i)).collect_vec());
         }
         if !body_armor.is_empty() {
-            items.push(body_armor);
+            items.push(
+                body_armor
+                    .iter()
+                    .map(|i| ItemWrapper::Armor(*i))
+                    .collect_vec(),
+            );
         }
         if !leg_armor.is_empty() {
-            items.push(leg_armor);
+            items.push(
+                leg_armor
+                    .iter()
+                    .map(|i| ItemWrapper::Armor(*i))
+                    .collect_vec(),
+            );
         }
         if !boots.is_empty() {
-            items.push(boots);
+            items.push(boots.iter().map(|i| ItemWrapper::Armor(*i)).collect_vec());
         }
         if !amulets.is_empty() {
-            items.push(amulets);
+            items.push(amulets.iter().map(|i| ItemWrapper::Armor(*i)).collect_vec());
         }
-        if !rings.is_empty() {
-            items.push(rings);
+        if !ring_sets.is_empty() {
+            items.push(ring_sets);
         }
-        if !rings2.is_empty() {
-            items.push(rings2);
-        }
-        if !artifacts.is_empty() {
-            items.push(artifacts.clone());
-        }
-        if !artifacts.is_empty() {
-            items.push(artifacts.clone());
-        }
-        if !artifacts.is_empty() {
-            items.push(artifacts);
+        if !artifact_sets.is_empty() {
+            items.push(artifact_sets);
         }
         // TODO: handle artifacts and consumables
         //let consumables =
         //    self.best_armors_against_with_weapon(char, monster, weapon, Type::Consumable);
         items
-            .into_iter()
+            .iter()
             .multi_cartesian_product()
             .filter_map(|items| {
-                let mut iter = items.into_iter().peekable();
                 Gear::new(
                     Some(weapon),
-                    iter.peeking_next(|i| i.is_some_and(|i| i.is_of_type(Type::Helmet)))
-                        .flatten(),
-                    iter.peeking_next(|i| i.is_some_and(|i| i.is_of_type(Type::Shield)))
-                        .flatten(),
-                    iter.peeking_next(|i| i.is_some_and(|i| i.is_of_type(Type::BodyArmor)))
-                        .flatten(),
-                    iter.peeking_next(|i| i.is_some_and(|i| i.is_of_type(Type::LegArmor)))
-                        .flatten(),
-                    iter.peeking_next(|i| i.is_some_and(|i| i.is_of_type(Type::Boots)))
-                        .flatten(),
-                    iter.peeking_next(|i| i.is_some_and(|i| i.is_of_type(Type::Amulet)))
-                        .flatten(),
-                    iter.peeking_next(|i| i.is_some_and(|i| i.is_of_type(Type::Ring)))
-                        .flatten(),
-                    iter.peeking_next(|i| i.is_some_and(|i| i.is_of_type(Type::Ring)))
-                        .flatten(),
-                    iter.peeking_next(|i| i.is_some_and(|i| i.is_of_type(Type::Utility)))
-                        .flatten(),
-                    iter.peeking_next(|i| i.is_some_and(|i| i.is_of_type(Type::Utility)))
-                        .flatten(),
-                    iter.peeking_next(|i| i.is_some_and(|i| i.is_of_type(Type::Artifact)))
-                        .flatten(),
-                    iter.peeking_next(|i| i.is_some_and(|i| i.is_of_type(Type::Artifact)))
-                        .flatten(),
-                    iter.peeking_next(|i| i.is_some_and(|i| i.is_of_type(Type::Artifact)))
-                        .flatten(),
+                    self.item_from_wrappers(&items, Type::Helmet, 0),
+                    self.item_from_wrappers(&items, Type::Shield, 0),
+                    self.item_from_wrappers(&items, Type::BodyArmor, 0),
+                    self.item_from_wrappers(&items, Type::LegArmor, 0),
+                    self.item_from_wrappers(&items, Type::Boots, 0),
+                    self.item_from_wrappers(&items, Type::Amulet, 0),
+                    self.item_from_wrappers(&items, Type::Ring, 0),
+                    self.item_from_wrappers(&items, Type::Ring, 1),
+                    self.item_from_wrappers(&items, Type::Utility, 0),
+                    self.item_from_wrappers(&items, Type::Utility, 1),
+                    self.item_from_wrappers(&items, Type::Artifact, 0),
+                    self.item_from_wrappers(&items, Type::Artifact, 1),
+                    self.item_from_wrappers(&items, Type::Artifact, 2),
                 )
             })
             .collect::<Vec<_>>()
+    }
+
+    fn item_from_wrappers(
+        &self,
+        wrapper: &Vec<&ItemWrapper>,
+        r#type: Type,
+        index: usize,
+    ) -> Option<&ItemSchema> {
+        wrapper.iter().find_map(|w| match w {
+            ItemWrapper::Armor(Some(armor)) => {
+                self.items
+                    .get(armor)
+                    .and_then(|i| if i.is_of_type(r#type) { Some(i) } else { None })
+            }
+            ItemWrapper::Armor(None) => None,
+            ItemWrapper::Rings(ring_set) => {
+                if let Some(Some(ring)) = ring_set.rings.get(index) {
+                    self.items.get(ring).and_then(
+                        |i| {
+                            if i.is_of_type(r#type) {
+                                Some(i)
+                            } else {
+                                None
+                            }
+                        },
+                    )
+                } else {
+                    None
+                }
+            }
+            ItemWrapper::Artifacts(set) => {
+                if let Some(Some(artifact)) = set.iter().collect_vec().get(index) {
+                    self.items.get(artifact).and_then(|i| {
+                        if i.is_of_type(r#type) {
+                            Some(i)
+                        } else {
+                            None
+                        }
+                    })
+                } else {
+                    None
+                }
+            }
+            ItemWrapper::Utility(set) => {
+                if let Some(Some(utility)) = set.iter().collect_vec().get(index) {
+                    self.items.get(utility).and_then(|i| {
+                        if i.is_of_type(r#type) {
+                            Some(i)
+                        } else {
+                            None
+                        }
+                    })
+                } else {
+                    None
+                }
+            }
+        })
     }
 
     fn best_armors_against_with_weapon(
@@ -273,7 +334,7 @@ impl GearFinder {
         r#type: Type,
         filter: Filter,
         black_list: Vec<&str>,
-    ) -> Vec<Option<&ItemSchema>> {
+    ) -> Vec<Option<&str>> {
         let mut upgrades: Vec<&ItemSchema> = vec![];
         let equipables = self
             .items
@@ -304,7 +365,10 @@ impl GearFinder {
         }
         upgrades.sort_by_key(|i| &i.code);
         upgrades.dedup_by_key(|i| &i.code);
-        upgrades.into_iter().map(Some).collect_vec()
+        upgrades
+            .into_iter()
+            .map(|i| Some(i.code.as_str()))
+            .collect_vec()
     }
 
     pub fn best_tool(&self, char: &Character, skill: Skill, filter: Filter) -> Option<&ItemSchema> {
@@ -369,6 +433,26 @@ impl Default for Filter {
             from_monster: true,
             from_gift: false,
         }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+enum ItemWrapper<'a> {
+    Armor(Option<&'a str>),
+    Rings(RingSet<'a>),
+    Artifacts(HashSet<Option<&'a str>>),
+    Utility(HashSet<Option<&'a str>>),
+}
+
+#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
+struct RingSet<'a> {
+    rings: [Option<&'a str>; 2],
+}
+
+impl<'a> RingSet<'a> {
+    fn new(mut rings: [Option<&'a str>; 2]) -> Self {
+        rings.sort();
+        RingSet { rings }
     }
 }
 

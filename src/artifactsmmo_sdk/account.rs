@@ -106,6 +106,22 @@ impl Account {
             .unwrap_or(1)
     }
 
+    pub fn fisher_inventory_space(&self) -> i32 {
+        self.characters
+            .read()
+            .unwrap()
+            .iter()
+            .filter_map(|c| {
+                if c.skill_enabled(Skill::Fishing) {
+                    Some(c.inventory.free_space())
+                } else {
+                    None
+                }
+            })
+            .min()
+            .unwrap_or(0)
+    }
+
     pub fn time_to_get(&self, item: &str) -> Option<i32> {
         self.items
             .best_source_of(item)

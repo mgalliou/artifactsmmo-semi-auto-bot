@@ -1991,7 +1991,7 @@ impl Character {
         }
     }
 
-    fn skill_enabled(&self, s: Skill) -> bool {
+    pub fn skill_enabled(&self, s: Skill) -> bool {
         self.conf().skills.contains(&s)
     }
 
@@ -2063,7 +2063,7 @@ impl Character {
                 if let Err(e) = self.orderboard.add_or_reset(
                     Some(&self.name),
                     &best_food.code,
-                    self.inventory.max_items() - 30,
+                    self.account.fisher_inventory_space(),
                     Purpose::Food {
                         char: self.name.to_owned(),
                     },
