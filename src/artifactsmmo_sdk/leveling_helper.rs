@@ -4,6 +4,7 @@ use super::{
 };
 use artifactsmmo_openapi::models::{ItemSchema, MonsterSchema, ResourceSchema};
 use itertools::Itertools;
+use rayon::iter::{ParallelBridge, ParallelIterator};
 use std::sync::Arc;
 
 #[derive(Default)]
@@ -153,8 +154,9 @@ impl LevelingHelper {
                     .bank
                     .missing_mats_for(&i.code, char.max_craftable_items(&i.code), Some(&char.name))
                     .into_iter()
+                    .par_bridge()
                     .map(|m| (m.clone(), self.account.time_to_get(&m.code)))
-                    .collect_vec();
+                    .collect::<Vec<_>>();
                 if mats_with_ttg.iter().all(|(_, ttg)| ttg.is_some()) {
                     Some((
                         i,
