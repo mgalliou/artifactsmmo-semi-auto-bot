@@ -106,14 +106,14 @@ impl Account {
             .unwrap_or(1)
     }
 
-    pub fn fisher_inventory_space(&self) -> i32 {
+    pub fn fisher_max_items(&self) -> i32 {
         self.characters
             .read()
             .unwrap()
             .iter()
             .filter_map(|c| {
                 if c.skill_enabled(Skill::Fishing) {
-                    Some(c.inventory.free_space())
+                    Some(c.inventory.max_items())
                 } else {
                     None
                 }

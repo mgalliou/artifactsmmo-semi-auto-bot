@@ -2064,7 +2064,7 @@ impl Character {
                 if let Err(e) = self.orderboard.add_or_reset(
                     Some(&self.name),
                     &best_food.code,
-                    self.account.fisher_inventory_space(),
+                    self.account.fisher_max_items(),
                     Purpose::Food {
                         char: self.name.to_owned(),
                     },
