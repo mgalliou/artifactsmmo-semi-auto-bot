@@ -1569,9 +1569,9 @@ impl Character {
     }
 
     fn equip_item(&self, item: &str, slot: Slot, quantity: i32) -> Result<(), CharacterError> {
-        if let Some(equiped) = self.equiped_in(slot) {
-            if self.inventory.free_space() + equiped.inventory_space() <= 0 {
-                self.deposit_all_but(item);
+        if let Some(item) = self.items.get(item) {
+            if self.inventory.free_space() + item.inventory_space() <= 0 {
+                self.deposit_all_but(&item.code);
             }
         }
         self.unequip_item(slot, self.quantity_in_slot(slot))?;
