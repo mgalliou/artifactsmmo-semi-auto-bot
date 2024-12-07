@@ -244,6 +244,7 @@ impl Character {
                 &item.code,
                 s.amount_of(&item.code)
             );
+            self.deposit_all();
         })
     }
 
