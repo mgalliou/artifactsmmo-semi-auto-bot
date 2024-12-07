@@ -181,12 +181,15 @@ impl GearFinder {
             filter,
             ring2_black_list,
         );
-        let ring_sets = [rings, rings2]
+        let mut ring_sets = [rings, rings2]
             .iter()
             .multi_cartesian_product()
-            .map(|rings| ItemWrapper::Rings(RingSet::new([*rings[0], *rings[1]])))
+            .map(|rings| [*rings[0], *rings[1]])
+            .sorted()
+            .map(|rings| ItemWrapper::Rings(RingSet::new(rings)))
             .collect_vec();
-        let artifacts = self.best_armors_against_with_weapon(
+        ring_sets.dedup();
+        let mut artifacts = self.best_armors_against_with_weapon(
             char,
             monster,
             weapon,
@@ -194,6 +197,7 @@ impl GearFinder {
             filter,
             vec![],
         );
+        artifacts.push(None);
         let artifact_sets = [artifacts.clone(), artifacts.clone(), artifacts]
             .iter()
             .multi_cartesian_product()
