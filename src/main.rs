@@ -18,7 +18,7 @@ fn main() -> Result<()> {
     let _ = simple_logging::log_to_file("artifactsmmo.log", LevelFilter::Info);
     let game = Game::new();
     game.init();
-    let _ = game.orderboard.add(None, "snowman_hat", 10, Purpose::Cli);
+    let _ = game.orderboard.add(None, "carrot", 1000, Purpose::Cli);
     let _ = game.orderboard.add(None, "lizard_skin", 1000, Purpose::Cli);
     let _ = game.orderboard.add(None, "demon_horn", 1000, Purpose::Cli);
     let _ = game
