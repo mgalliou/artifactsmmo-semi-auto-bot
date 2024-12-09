@@ -1,7 +1,6 @@
 use itertools::Itertools;
 use log::{debug, info};
 use std::{
-    error::Error,
     fmt::Display,
     mem::discriminant,
     sync::{Arc, RwLock},
@@ -67,7 +66,6 @@ impl OrderBoard {
                     chunk
                         .sorted_by_key(|o| self.items.get(&o.item).map(|i| i.level).unwrap_or(1))
                         .rev()
-                        .collect_vec()
                 })
                 .collect_vec();
             orders.extend(filtered);
