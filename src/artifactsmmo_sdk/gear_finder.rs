@@ -379,7 +379,7 @@ impl GearFinder {
         self.items
             .equipable_at_level(char.level(), Type::Weapon)
             .into_iter()
-            .filter(|i| self.is_eligible(i, filter, char))
+            .filter(|i| self.is_eligible(i, filter, char) && i.skill_cooldown_reduction(skill) < 0)
             .min_by_key(|i| i.skill_cooldown_reduction(skill))
     }
 
