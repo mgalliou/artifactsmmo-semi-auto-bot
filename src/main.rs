@@ -210,6 +210,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
             from_monster,
             from_gift,
             available,
+            utilities,
             winning,
             monster,
         } => {
@@ -219,32 +220,20 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
             let Some(monster) = game.monsters.get(&monster) else {
                 bail!("no character selected");
             };
+            let filter = Filter {
+                available,
+                can_craft,
+                from_task,
+                from_monster,
+                from_gift,
+                utilities,
+            };
             println!(
                 "{}",
                 if winning {
-                    gear_finder.best_winning_against(
-                        char,
-                        monster,
-                        Filter {
-                            available,
-                            can_craft,
-                            from_task,
-                            from_monster,
-                            from_gift,
-                        },
-                    )
+                    gear_finder.best_winning_against(char, monster, filter)
                 } else {
-                    gear_finder.best_against(
-                        char,
-                        monster,
-                        Filter {
-                            available,
-                            can_craft,
-                            from_task,
-                            from_monster,
-                            from_gift,
-                        },
-                    )
+                    gear_finder.best_against(char, monster, filter)
                 }
             );
         }
@@ -254,6 +243,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
             from_task,
             from_gift,
             from_monster,
+            utilities,
             winning,
             monster,
         } => {
@@ -263,18 +253,16 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
             let Some(monster) = game.monsters.get(&monster) else {
                 bail!("no character selected");
             };
+            let filter = Filter {
+                available,
+                can_craft,
+                from_task,
+                from_monster,
+                from_gift,
+                utilities,
+            };
             let gear = if winning {
-                gear_finder.best_winning_against(
-                    char,
-                    monster,
-                    Filter {
-                        available,
-                        can_craft,
-                        from_task,
-                        from_monster,
-                        from_gift,
-                    },
-                )
+                gear_finder.best_winning_against(char, monster, filter)
             } else {
                 gear_finder.best_against(
                     char,
@@ -285,6 +273,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
                         from_task,
                         from_monster,
                         from_gift,
+                        utilities,
                     },
                 )
             };
@@ -404,6 +393,8 @@ enum Commands {
         from_gift: bool,
         #[arg(short = 'm', long)]
         from_monster: bool,
+        #[arg(short = 'u', long)]
+        utilities: bool,
         #[arg(short = 'w', long)]
         winning: bool,
         monster: String,
@@ -420,6 +411,8 @@ enum Commands {
         from_gift: bool,
         #[arg(short = 'm', long)]
         from_monster: bool,
+        #[arg(short = 'u', long)]
+        utilities: bool,
         #[arg(short = 'w', long)]
         winning: bool,
         monster: String,

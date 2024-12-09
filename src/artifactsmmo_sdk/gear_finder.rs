@@ -159,6 +159,80 @@ impl GearFinder {
             filter,
             vec![],
         );
+        let mut items = vec![];
+        if !helmets.is_empty() {
+            items.push(helmets.iter().map(|i| ItemWrapper::Armor(*i)).collect_vec());
+        }
+        if !shields.is_empty() {
+            items.push(shields.iter().map(|i| ItemWrapper::Armor(*i)).collect_vec());
+        }
+        if !body_armor.is_empty() {
+            items.push(
+                body_armor
+                    .iter()
+                    .map(|i| ItemWrapper::Armor(*i))
+                    .collect_vec(),
+            );
+        }
+        if !leg_armor.is_empty() {
+            items.push(
+                leg_armor
+                    .iter()
+                    .map(|i| ItemWrapper::Armor(*i))
+                    .collect_vec(),
+            );
+        }
+        if !boots.is_empty() {
+            items.push(boots.iter().map(|i| ItemWrapper::Armor(*i)).collect_vec());
+        }
+        if !amulets.is_empty() {
+            items.push(amulets.iter().map(|i| ItemWrapper::Armor(*i)).collect_vec());
+        }
+        let ring_sets = self.gen_rings_sets(char, monster, weapon, filter);
+        if !ring_sets.is_empty() {
+            items.push(ring_sets);
+        }
+        if filter.utilities {
+            let utilities_sets = self.gen_utilities_sets(char, monster, weapon, filter);
+            if !utilities_sets.is_empty() {
+                items.push(utilities_sets);
+            }
+        }
+        let artifact_sets = self.gen_artifacts_sets(char, monster, weapon, filter);
+        if !artifact_sets.is_empty() {
+            items.push(artifact_sets);
+        }
+        items
+            .iter()
+            .multi_cartesian_product()
+            .filter_map(|items| {
+                Gear::new(
+                    Some(weapon),
+                    self.item_from_wrappers(&items, Type::Helmet, 0),
+                    self.item_from_wrappers(&items, Type::Shield, 0),
+                    self.item_from_wrappers(&items, Type::BodyArmor, 0),
+                    self.item_from_wrappers(&items, Type::LegArmor, 0),
+                    self.item_from_wrappers(&items, Type::Boots, 0),
+                    self.item_from_wrappers(&items, Type::Amulet, 0),
+                    self.item_from_wrappers(&items, Type::Ring, 0),
+                    self.item_from_wrappers(&items, Type::Ring, 1),
+                    self.item_from_wrappers(&items, Type::Utility, 0),
+                    self.item_from_wrappers(&items, Type::Utility, 1),
+                    self.item_from_wrappers(&items, Type::Artifact, 0),
+                    self.item_from_wrappers(&items, Type::Artifact, 1),
+                    self.item_from_wrappers(&items, Type::Artifact, 2),
+                )
+            })
+            .collect::<Vec<_>>()
+    }
+
+    fn gen_rings_sets<'a>(
+        &'a self,
+        char: &Character,
+        monster: &MonsterSchema,
+        weapon: &ItemSchema,
+        filter: Filter,
+    ) -> Vec<ItemWrapper<'a>> {
         let rings =
             self.best_armors_against_with_weapon(char, monster, weapon, Type::Ring, filter, vec![]);
         let ring2_black_list = rings
@@ -189,6 +263,42 @@ impl GearFinder {
             .map(|rings| ItemWrapper::Rings(RingSet::new(rings)))
             .collect_vec();
         ring_sets.dedup();
+        ring_sets
+    }
+
+    fn gen_utilities_sets<'a>(
+        &'a self,
+        char: &Character,
+        monster: &MonsterSchema,
+        weapon: &ItemSchema,
+        filter: Filter,
+    ) -> Vec<ItemWrapper<'a>> {
+        let mut utilities =
+            self.best_utilities_against_with_weapon(char, monster, weapon, filter, vec![]);
+        utilities.push(None);
+        let mut sets = [utilities.clone(), utilities]
+            .iter()
+            .multi_cartesian_product()
+            .map(|utilities| {
+                ItemWrapper::Utility({
+                    let mut set = HashSet::new();
+                    set.insert(*utilities[0]);
+                    set.insert(*utilities[1]);
+                    set
+                })
+            })
+            .collect_vec();
+        sets.dedup();
+        sets
+    }
+
+    fn gen_artifacts_sets<'a>(
+        &'a self,
+        char: &Character,
+        monster: &MonsterSchema,
+        weapon: &ItemSchema,
+        filter: Filter,
+    ) -> Vec<ItemWrapper<'a>> {
         let mut artifacts = self.best_armors_against_with_weapon(
             char,
             monster,
@@ -198,7 +308,7 @@ impl GearFinder {
             vec![],
         );
         artifacts.push(None);
-        let artifact_sets = [artifacts.clone(), artifacts.clone(), artifacts]
+        let mut sets = [artifacts.clone(), artifacts.clone(), artifacts]
             .iter()
             .multi_cartesian_product()
             .map(|artifacts| {
@@ -211,66 +321,8 @@ impl GearFinder {
                 })
             })
             .collect_vec();
-        let mut items = vec![];
-        if !helmets.is_empty() {
-            items.push(helmets.iter().map(|i| ItemWrapper::Armor(*i)).collect_vec());
-        }
-        if !shields.is_empty() {
-            items.push(shields.iter().map(|i| ItemWrapper::Armor(*i)).collect_vec());
-        }
-        if !body_armor.is_empty() {
-            items.push(
-                body_armor
-                    .iter()
-                    .map(|i| ItemWrapper::Armor(*i))
-                    .collect_vec(),
-            );
-        }
-        if !leg_armor.is_empty() {
-            items.push(
-                leg_armor
-                    .iter()
-                    .map(|i| ItemWrapper::Armor(*i))
-                    .collect_vec(),
-            );
-        }
-        if !boots.is_empty() {
-            items.push(boots.iter().map(|i| ItemWrapper::Armor(*i)).collect_vec());
-        }
-        if !amulets.is_empty() {
-            items.push(amulets.iter().map(|i| ItemWrapper::Armor(*i)).collect_vec());
-        }
-        if !ring_sets.is_empty() {
-            items.push(ring_sets);
-        }
-        if !artifact_sets.is_empty() {
-            items.push(artifact_sets);
-        }
-        // TODO: handle artifacts and consumables
-        //let consumables =
-        //    self.best_armors_against_with_weapon(char, monster, weapon, Type::Consumable);
-        items
-            .iter()
-            .multi_cartesian_product()
-            .filter_map(|items| {
-                Gear::new(
-                    Some(weapon),
-                    self.item_from_wrappers(&items, Type::Helmet, 0),
-                    self.item_from_wrappers(&items, Type::Shield, 0),
-                    self.item_from_wrappers(&items, Type::BodyArmor, 0),
-                    self.item_from_wrappers(&items, Type::LegArmor, 0),
-                    self.item_from_wrappers(&items, Type::Boots, 0),
-                    self.item_from_wrappers(&items, Type::Amulet, 0),
-                    self.item_from_wrappers(&items, Type::Ring, 0),
-                    self.item_from_wrappers(&items, Type::Ring, 1),
-                    self.item_from_wrappers(&items, Type::Utility, 0),
-                    self.item_from_wrappers(&items, Type::Utility, 1),
-                    self.item_from_wrappers(&items, Type::Artifact, 0),
-                    self.item_from_wrappers(&items, Type::Artifact, 1),
-                    self.item_from_wrappers(&items, Type::Artifact, 2),
-                )
-            })
-            .collect::<Vec<_>>()
+        sets.dedup();
+        sets
     }
 
     fn item_from_wrappers(
@@ -375,6 +427,57 @@ impl GearFinder {
             .collect_vec()
     }
 
+    fn best_utilities_against_with_weapon(
+        &self,
+        char: &Character,
+        monster: &MonsterSchema,
+        weapon: &ItemSchema,
+        filter: Filter,
+        black_list: Vec<&str>,
+    ) -> Vec<Option<&str>> {
+        let mut upgrades: Vec<&ItemSchema> = vec![];
+        let equipables = self
+            .items
+            .equipable_at_level(char.level(), Type::Utility)
+            .into_iter()
+            .filter(|i| !black_list.contains(&i.code.as_str()) && self.is_eligible(i, filter, char))
+            .collect_vec();
+        let best_for_damage = equipables
+            .iter()
+            .filter(|i| i.damage_increase_against_with(monster, weapon) > 0.0)
+            .max_by_key(|i| OrderedFloat(i.damage_increase_against_with(monster, weapon)));
+        let best_reduction = equipables
+            .iter()
+            .filter(|i| i.damage_reduction_against(monster) > 0.0)
+            .max_by_key(|i| OrderedFloat(i.damage_reduction_against(monster)));
+        let best_health_increase = equipables
+            .iter()
+            .filter(|i| i.health() > 0)
+            .max_by_key(|i| i.health());
+        let best_restore = equipables
+            .iter()
+            .filter(|i| i.restore() > 0)
+            .max_by_key(|i| i.restore());
+        if let Some(best_for_damage) = best_for_damage {
+            upgrades.push(best_for_damage);
+        }
+        if let Some(best_reduction) = best_reduction {
+            upgrades.push(best_reduction);
+        }
+        if let Some(best_health_increase) = best_health_increase {
+            upgrades.push(best_health_increase);
+        }
+        if let Some(best_restore) = best_restore {
+            upgrades.push(best_restore);
+        }
+        upgrades.sort_by_key(|i| &i.code);
+        upgrades.dedup_by_key(|i| &i.code);
+        upgrades
+            .into_iter()
+            .map(|i| Some(i.code.as_str()))
+            .collect_vec()
+    }
+
     pub fn best_tool(&self, char: &Character, skill: Skill, filter: Filter) -> Option<&ItemSchema> {
         self.items
             .equipable_at_level(char.level(), Type::Weapon)
@@ -426,6 +529,7 @@ pub struct Filter {
     pub from_task: bool,
     pub can_craft: bool,
     pub from_gift: bool,
+    pub utilities: bool,
 }
 
 impl Default for Filter {
@@ -436,6 +540,7 @@ impl Default for Filter {
             from_task: true,
             from_monster: true,
             from_gift: false,
+            utilities: false,
         }
     }
 }

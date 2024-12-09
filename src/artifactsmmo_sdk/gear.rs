@@ -362,6 +362,7 @@ impl From<Slot> for ItemSlot {
         }
     }
 }
+
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
