@@ -1532,36 +1532,7 @@ impl Character {
     }
 
     fn equip_gear(&self, gear: &mut Gear) {
-        if self
-            .equiped_in(Slot::Ring1)
-            .is_some_and(|r1| gear.ring2.is_some_and(|r2| r1 == r2))
-        {
-            std::mem::swap(&mut gear.ring1, &mut gear.ring2);
-        }
-        if self
-            .equiped_in(Slot::Utility1)
-            .is_some_and(|u1| gear.utility2.is_some_and(|u2| u1 == u2))
-        {
-            std::mem::swap(&mut gear.utility1, &mut gear.utility2);
-        }
-        if self
-            .equiped_in(Slot::Artifact1)
-            .is_some_and(|a1| gear.artifact2.is_some_and(|a2| a1 == a2))
-        {
-            std::mem::swap(&mut gear.artifact1, &mut gear.artifact2);
-        }
-        if self
-            .equiped_in(Slot::Artifact1)
-            .is_some_and(|a1| gear.artifact3.is_some_and(|a3| a1 == a3))
-        {
-            std::mem::swap(&mut gear.artifact1, &mut gear.artifact3);
-        }
-        if self
-            .equiped_in(Slot::Artifact2)
-            .is_some_and(|a2| gear.artifact3.is_some_and(|a3| a2 == a3))
-        {
-            std::mem::swap(&mut gear.artifact2, &mut gear.artifact3);
-        }
+        gear.align_to(&self.gear());
         Slot::iter().for_each(|s| {
             if let Some(item) = gear.slot(s) {
                 self.equip_item_from_bank_or_inventory(&item.code, s);

@@ -130,6 +130,54 @@ impl<'a> Gear<'a> {
             .map(|s| self.slot(s).map_or(0, |i| i.haste()))
             .sum()
     }
+
+    pub fn align_to(&mut self, other: &Gear<'_>) {
+        if self
+            .slot(Slot::Ring1)
+            .is_some_and(|r1| other.ring2.is_some_and(|r2| r1 == r2))
+            || self
+                .slot(Slot::Ring2)
+                .is_some_and(|r2| other.ring1.is_some_and(|r1| r2 == r1))
+        {
+            std::mem::swap(&mut self.ring1, &mut self.ring2);
+        }
+        if self
+            .slot(Slot::Utility1)
+            .is_some_and(|u1| other.utility2.is_some_and(|u2| u1 == u2))
+            || self
+                .slot(Slot::Utility2)
+                .is_some_and(|u2| other.utility1.is_some_and(|u1| u2 == u1))
+        {
+            std::mem::swap(&mut self.utility1, &mut self.utility2);
+        }
+        if self
+            .slot(Slot::Artifact1)
+            .is_some_and(|a1| other.artifact2.is_some_and(|a2| a1 == a2))
+            || self
+                .slot(Slot::Artifact2)
+                .is_some_and(|a2| other.artifact1.is_some_and(|a1| a2 == a1))
+        {
+            std::mem::swap(&mut self.artifact1, &mut self.artifact2);
+        }
+        if self
+            .slot(Slot::Artifact1)
+            .is_some_and(|a1| other.artifact3.is_some_and(|a3| a1 == a3))
+            || self
+                .slot(Slot::Artifact3)
+                .is_some_and(|a3| other.artifact3.is_some_and(|a1| a3 == a1))
+        {
+            std::mem::swap(&mut self.artifact1, &mut self.artifact3);
+        }
+        if self
+            .slot(Slot::Artifact2)
+            .is_some_and(|a2| other.artifact3.is_some_and(|a3| a2 == a3))
+            || self
+                .slot(Slot::Artifact3)
+                .is_some_and(|a3| other.artifact2.is_some_and(|a2| a3 == a2))
+        {
+            std::mem::swap(&mut self.artifact2, &mut self.artifact3);
+        }
+    }
 }
 
 impl Display for Gear<'_> {
@@ -312,5 +360,59 @@ impl From<Slot> for ItemSlot {
             Slot::Utility1 => Self::Utility1,
             Slot::Utility2 => Self::Utility2,
         }
+    }
+}
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use crate::artifactsmmo_sdk::{
+        game_config::GameConfig, items::Items, monsters::Monsters, resources::Resources,
+        tasks::Tasks,
+    };
+
+    use super::*;
+
+    #[test]
+    fn check_gear_alignment_is_working() {
+        let config = GameConfig::from_file();
+        let events = Default::default();
+        let resources = Arc::new(Resources::new(&config, &events));
+        let monsters = Arc::new(Monsters::new(&config, &events));
+        let tasks = Arc::new(Tasks::new(&config));
+        let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
+
+        let gear1 = Gear {
+            ring1: Some(items.get("skull_ring").unwrap()),
+            ring2: Some(items.get("dreadful_ring").unwrap()),
+            utility1: Some(items.get("minor_health_potion").unwrap()),
+            utility2: Some(items.get("small_health_potion").unwrap()),
+            artifact1: Some(items.get("christmas_star").unwrap()),
+            artifact2: Some(items.get("life_crystal").unwrap()),
+            artifact3: Some(items.get("backpack").unwrap()),
+            ..Default::default()
+        };
+        let mut gear2 = Gear {
+            ring1: Some(items.get("dreadful_ring").unwrap()),
+            ring2: Some(items.get("skull_ring").unwrap()),
+            utility1: Some(items.get("small_health_potion").unwrap()),
+            utility2: Some(items.get("minor_health_potion").unwrap()),
+            artifact1: Some(items.get("life_crystal").unwrap()),
+            artifact2: Some(items.get("backpack").unwrap()),
+            artifact3: Some(items.get("christmas_star").unwrap()),
+            ..Default::default()
+        };
+        let mut gear3 = Gear {
+            ring2: Some(items.get("skull_ring").unwrap()),
+            utility1: Some(items.get("small_health_potion").unwrap()),
+            artifact2: Some(items.get("christmas_star").unwrap()),
+            ..Default::default()
+        };
+        gear2.align_to(&gear1);
+        gear3.align_to(&gear1);
+        assert_eq!(gear1, gear2);
+        assert_eq!(gear3.ring1, gear1.ring1);
+        assert_eq!(gear3.utility2, gear1.utility2);
+        assert_eq!(gear3.artifact1, gear1.artifact1);
     }
 }
