@@ -1,7 +1,6 @@
-use std::cmp::max;
-
-use super::gear::Gear;
+use super::{gear::Gear, ItemSchemaExt};
 use artifactsmmo_openapi::models::{FightResult, MonsterSchema};
+use std::cmp::max;
 
 pub struct FightSimulator {}
 
@@ -40,7 +39,8 @@ impl FightSimulator {
         gear: &Gear,
         monster: &MonsterSchema,
     ) -> Fight {
-        let starting_hp = BASE_HP + HP_PER_LEVEL * level + gear.health_increase() - missing_hp;
+        let base_hp = BASE_HP + HP_PER_LEVEL * level;
+        let starting_hp = base_hp + gear.health_increase() - missing_hp;
         let mut hp = starting_hp;
         let mut monster_hp = monster.hp;
         let mut turns = 1;
@@ -52,6 +52,10 @@ impl FightSimulator {
                     break;
                 }
             } else {
+                if hp < (base_hp + gear.health_increase()) / 2 {
+                    hp += gear.utility1.map(|u| u.restore()).unwrap_or(0);
+                    hp += gear.utility2.map(|u| u.restore()).unwrap_or(0);
+                }
                 hp -= gear.attack_damage_from(monster).round() as i32;
                 if hp <= 0 {
                     break;
