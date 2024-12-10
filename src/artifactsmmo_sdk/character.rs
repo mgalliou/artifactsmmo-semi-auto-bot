@@ -746,11 +746,9 @@ impl Character {
                 error!("{} error while accepting new task: {:?}", self.name, e)
             }
         }
-        if let Some(task_monster) = self.monsters.get(&self.task()) {
-            if self.can_kill(task_monster).is_ok() {
-                self.kill_monster(task_monster)?;
-                return Ok(());
-            }
+        if self.task_type().is_some_and(|t| t == TaskType::Monsters) && self.progress_task().is_ok()
+        {
+            return Ok(());
         }
         let Some(monster) = self.leveling_helper.best_monster(self) else {
             return Err(CharacterError::MonsterNotFound);
@@ -763,10 +761,8 @@ impl Character {
     /// `monster` is available, equip it, then move the `Character` to the given
     /// map or the closest containing the `monster` and fight it.
     fn kill_monster(&self, monster: &MonsterSchema) -> Result<FightSchema, CharacterError> {
+        self.can_fight(monster)?;
         let mut available: Gear = self.gear();
-        let Some(map) = self.closest_map_with_content_code(&monster.code) else {
-            return Err(CharacterError::MapNotFound);
-        };
         if let Ok(_browsed) = self.bank.browsed.write() {
             match self.can_kill(monster) {
                 Ok(gear) => {
@@ -802,7 +798,7 @@ impl Character {
                 error!("{} failed to rest: {:?}", self.name, e)
             }
         }
-        self.action_move(map.x, map.y)?;
+        self.move_to_closest_map_with_content_code(&monster.code)?;
         Ok(self.action_fight()?)
     }
 
@@ -940,15 +936,23 @@ impl Character {
             .min()
     }
 
-    /// Checks if the `Character` is able to kill the given monster and returns
-    /// the best available gear to do so.
-    pub fn can_kill<'a>(&'a self, monster: &'a MonsterSchema) -> Result<Gear<'a>, CharacterError> {
+    pub fn can_fight(&self, monster: &MonsterSchema) -> Result<(), CharacterError> {
         if !self.skill_enabled(Skill::Combat) {
             return Err(CharacterError::SkillDisabled(Skill::Combat));
+        }
+        if self.maps.with_content_code(&monster.code).is_empty() {
+            return Err(CharacterError::MapNotFound);
         }
         if self.inventory.is_full() {
             return Err(CharacterError::InventoryFull);
         }
+        Ok(())
+    }
+
+    /// Checks if the `Character` is able to kill the given monster and returns
+    /// the best available gear to do so.
+    pub fn can_kill<'a>(&'a self, monster: &'a MonsterSchema) -> Result<Gear<'a>, CharacterError> {
+        self.can_fight(monster)?;
         let available = self.gear_finder.best_winning_against(
             self,
             monster,
@@ -1457,6 +1461,17 @@ impl Character {
         } else {
             self.move_to_closest_map_of_type("tasks_master")
         }
+    }
+
+    fn move_to_closest_map_with_content_code(
+        &self,
+        code: &str,
+    ) -> Result<MapSchema, CharacterError> {
+        let Some(map) = self.closest_map_with_content_code(code) else {
+            return Err(CharacterError::FailedToMove);
+        };
+        let (x, y) = (map.x, map.y);
+        Ok(self.action_move(x, y)?)
     }
 
     fn move_to_closest_map_with_content_schema(
