@@ -45,7 +45,7 @@ const EXCHANGE_PRICE: i32 = 6;
 const CANCEL_PRICE: i32 = 6;
 const MIN_COIN_THRESHOLD: i32 = 4;
 const MAX_LEVEL: i32 = 40;
-const MIN_FOOD_THRESHOLD: i32 = 300;
+const MIN_FOOD_THRESHOLD: i32 = 1000;
 const CRAFT_TIME: i32 = 5;
 
 #[derive(Default)]
@@ -124,6 +124,7 @@ impl Character {
                 continue;
             }
             self.maps.refresh();
+            self.order_food();
             if self.handle_goals() {
                 continue;
             }
@@ -776,7 +777,6 @@ impl Character {
             }
             self.order_best_gear_against(monster);
         }
-        self.order_food();
         self.equip_gear(&mut available);
         self.withdraw_food();
         if let Ok(_) | Err(CharacterError::NoTask) = self.complete_task() {
@@ -1971,21 +1971,6 @@ impl Character {
         let Ok(_browsed) = self.bank.browsed.write() else {
             return;
         };
-        // NOTE: this maybe should be done before checking
-        // orders because if the first character orders food and the following character already
-        // have it in inventory, they gonna deposit it instead of keeping it for themselves since
-        // it is not yet reserved
-        self.inventory.consumable_food().iter().for_each(|f| {
-            if let Err(e) = self
-                .inventory
-                .reserv(&f.code, self.inventory.total_of(&f.code))
-            {
-                error!(
-                    "{} failed to reserv food currently in inventory: {:?}",
-                    self.name, e
-                )
-            }
-        });
         if !self.inventory.consumable_food().is_empty() && !self.map().content_is("bank") {
             return;
         }
@@ -2015,16 +2000,20 @@ impl Character {
     }
 
     fn order_food(&self) {
-        if self
-            .bank
-            .consumable_food(self.level())
-            .iter()
-            .map(|f| self.bank.has_available(&f.code, Some(&self.name)))
-            .sum::<i32>()
-            > MIN_FOOD_THRESHOLD
-        {
+        if !self.skill_enabled(Skill::Combat) {
             return;
         }
+        self.inventory.consumable_food().iter().for_each(|f| {
+            if let Err(e) = self
+                .inventory
+                .reserv(&f.code, self.inventory.total_of(&f.code))
+            {
+                error!(
+                    "{} failed to reserv food currently in inventory: {:?}",
+                    self.name, e
+                )
+            }
+        });
         if let Some(best_food) = self
             .items
             .best_consumable_foods(self.level())
