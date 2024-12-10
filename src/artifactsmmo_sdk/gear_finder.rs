@@ -402,6 +402,22 @@ impl GearFinder {
             .iter()
             .filter(|i| i.damage_increase_against_with(monster, weapon) > 0.0)
             .max_by_key(|i| OrderedFloat(i.damage_increase_against_with(monster, weapon)));
+        let bests_for_damage = equipables
+            .iter()
+            .filter(|i| {
+                // TODO: find a better way to handle negative damage reduction on damage increases
+                // (snowman_hat)
+                if let Some(best) = best_for_damage {
+                    i.damage_increase_against_with(monster, weapon)
+                        >= best.damage_increase_against_with(monster, weapon) * 0.75
+                } else {
+                    false
+                }
+            })
+            .sorted_by_key(|i| OrderedFloat(i.damage_increase_against_with(monster, weapon)))
+            .rev()
+            .take(3)
+            .collect_vec();
         let best_reduction = equipables
             .iter()
             .filter(|i| i.damage_reduction_against(monster) > 0.0)
@@ -410,8 +426,8 @@ impl GearFinder {
             .iter()
             .filter(|i| i.health() > 0)
             .max_by_key(|i| i.health());
-        if let Some(best_for_damage) = best_for_damage {
-            upgrades.push(best_for_damage);
+        if !bests_for_damage.is_empty() {
+            upgrades.extend(bests_for_damage);
         }
         if let Some(best_reduction) = best_reduction {
             upgrades.push(best_reduction);
