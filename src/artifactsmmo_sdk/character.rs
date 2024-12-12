@@ -616,7 +616,10 @@ impl Character {
     }
 
     fn can_exchange_task(&self) -> Result<(), CharacterError> {
-        if self.has_available(TASKS_COIN) < EXCHANGE_PRICE + MIN_COIN_THRESHOLD {
+        if self.inventory.total_of(TASKS_COIN)
+            + self.bank.has_available(TASKS_COIN, Some(&self.name))
+            < EXCHANGE_PRICE + MIN_COIN_THRESHOLD
+        {
             return Err(CharacterError::NotEnoughCoin);
         }
         Ok(())
@@ -624,23 +627,27 @@ impl Character {
 
     fn exchange_task(&self) -> Result<RewardsSchema, CharacterError> {
         self.can_exchange_task()?;
-        if self.inventory.has_available(TASKS_COIN) >= EXCHANGE_PRICE {
-            if let Err(e) = self.inventory.reserv(TASKS_COIN, EXCHANGE_PRICE) {
+        let mut quantity = min(
+            self.inventory.max_items() / 2,
+            self.bank.has_available(GIFT, Some(&self.name)),
+        );
+        quantity = quantity - quantity % EXCHANGE_PRICE;
+        if self.inventory.total_of(TASKS_COIN) >= EXCHANGE_PRICE {
+            if let Err(e) = self
+                .inventory
+                .reserv(TASKS_COIN, self.inventory.total_of(TASKS_COIN))
+            {
                 error!(
-                    "{}: error while reserving tasks coin inventory: {}",
+                    "{}: error while reserving tasks coins inventory inventory: {}",
                     self.name, e
                 );
             }
         } else {
-            if self
-                .bank
-                .reserv(TASKS_COIN, EXCHANGE_PRICE, &self.name)
-                .is_err()
-            {
+            if self.bank.reserv(TASKS_COIN, quantity, &self.name).is_err() {
                 return Err(CharacterError::NotEnoughCoin);
             }
             self.deposit_all();
-            self.withdraw_item(TASKS_COIN, EXCHANGE_PRICE)?;
+            self.withdraw_item(TASKS_COIN, quantity)?;
         }
         if let Err(e) = self.move_to_closest_taskmaster(self.task_type()) {
             error!("{}: error while moving to taskmaster: {:?}", self.name, e);
@@ -652,7 +659,7 @@ impl Character {
     }
 
     fn can_exchange_gift(&self) -> Result<(), CharacterError> {
-        if self.has_available(GIFT) < 1 {
+        if self.inventory.total_of(GIFT) + self.bank.has_available(GIFT, Some(&self.name)) < 1 {
             return Err(CharacterError::NotEnoughGift);
         }
         Ok(())
@@ -664,9 +671,12 @@ impl Character {
             self.inventory.max_items() / 2,
             self.bank.has_available(GIFT, Some(&self.name)),
         );
-        if self.inventory.has_available(GIFT) >= 1 {
-            if let Err(e) = self.inventory.reserv(GIFT, 1) {
-                error!("{}: error while reserving gift inventory: {}", self.name, e);
+        if self.inventory.total_of(GIFT) >= 1 {
+            if let Err(e) = self.inventory.reserv(GIFT, self.inventory.total_of(GIFT)) {
+                error!(
+                    "{}: error while reserving gift in inventory: {}",
+                    self.name, e
+                );
             }
         } else {
             if self.bank.reserv(GIFT, quantity, &self.name).is_err() {
