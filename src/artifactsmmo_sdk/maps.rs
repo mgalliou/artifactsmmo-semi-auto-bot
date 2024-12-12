@@ -88,15 +88,15 @@ impl Maps {
             .collect()
     }
 
-    pub fn to_craft(&self, skill: Skill) -> Option<MapSchema> {
+    pub fn workshop(&self, skill: Skill) -> Option<MapSchema> {
         match skill {
-            Skill::Weaponcrafting => self.with_content_code("weaponcrafting").first().cloned(),
-            Skill::Gearcrafting => self.with_content_code("gearcrafting").first().cloned(),
-            Skill::Jewelrycrafting => self.with_content_code("jewelrycrafting").first().cloned(),
-            Skill::Cooking => self.with_content_code("cooking").first().cloned(),
-            Skill::Woodcutting => self.with_content_code("woodcutting").first().cloned(),
-            Skill::Mining => self.with_content_code("mining").first().cloned(),
-            Skill::Alchemy => self.with_content_code("alchemy").first().cloned(),
+            Skill::Weaponcrafting
+            | Skill::Gearcrafting
+            | Skill::Jewelrycrafting
+            | Skill::Cooking
+            | Skill::Woodcutting
+            | Skill::Mining
+            | Skill::Alchemy => self.with_content_code(skill.as_ref()).first().cloned(),
             Skill::Combat => None,
             Skill::Fishing => None,
         }

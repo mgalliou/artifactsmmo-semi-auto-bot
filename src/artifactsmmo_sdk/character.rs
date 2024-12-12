@@ -1539,7 +1539,7 @@ impl Character {
         let Some(skill) = self.items.get(item).and_then(|i| i.skill_to_craft()) else {
             return Err(CharacterError::ItemNotCraftable);
         };
-        let Some(dest) = self.maps.to_craft(skill) else {
+        let Some(dest) = self.maps.workshop(skill) else {
             return Err(CharacterError::MapNotFound);
         };
         self.action_move(dest.x, dest.y)?;
