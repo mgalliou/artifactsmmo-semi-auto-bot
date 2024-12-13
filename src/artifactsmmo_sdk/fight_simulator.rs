@@ -80,7 +80,7 @@ impl FightSimulator {
     pub fn compute_cd(haste: i32, turns: i32) -> i32 {
         max(
             5,
-            ((turns * 2) as f32 - (haste as f32 * 0.01) * (turns * 2) as f32) as i32,
+            ((turns * 2) as f32 - (haste as f32 * 0.01) * (turns * 2) as f32).round() as i32,
         )
     }
 
