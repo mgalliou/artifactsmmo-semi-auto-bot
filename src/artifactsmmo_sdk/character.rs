@@ -629,9 +629,9 @@ impl Character {
         self.can_exchange_task()?;
         let mut quantity = min(
             self.inventory.max_items() / 2,
-            self.bank.has_available(GIFT, Some(&self.name)),
+            self.bank.has_available(TASKS_COIN, Some(&self.name)),
         );
-        quantity = quantity - quantity % EXCHANGE_PRICE;
+        quantity = quantity - (quantity % EXCHANGE_PRICE);
         if self.inventory.total_of(TASKS_COIN) >= EXCHANGE_PRICE {
             if let Err(e) = self
                 .inventory
