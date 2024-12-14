@@ -137,4 +137,29 @@ mod tests {
         println!("{:?}", fight);
         assert_eq!(fight.result, FightResult::Win);
     }
+
+    #[test]
+    fn kill_cultist_emperor() {
+        let simulator = FightSimulator::new();
+        let game = Game::new();
+        let gear = Gear {
+            weapon: game.items.get("magic_bow"),
+            shield: game.items.get("gold_shield"),
+            helmet: game.items.get("strangold_helmet"),
+            body_armor: game.items.get("serpent_skin_armor"),
+            leg_armor: game.items.get("strangold_legs_armor"),
+            boots: game.items.get("gold_boots"),
+            ring1: game.items.get("emerald_ring"),
+            ring2: game.items.get("emerald_ring"),
+            amulet: game.items.get("ancestral_talisman"),
+            artifact1: game.items.get("christmas_star"),
+            artifact2: None,
+            artifact3: None,
+            utility1: None,
+            utility2: None,
+        };
+        let fight = simulator.simulate(40, 0, &gear, game.monsters.get("cultist_emperor").unwrap());
+        println!("{:?}", fight);
+        assert_eq!(fight.result, FightResult::Win);
+    }
 }
