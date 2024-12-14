@@ -171,6 +171,20 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
                     .for_each(|i| println!("{}", i.name))
             }
         },
+        Commands::Events { action } => match action {
+            EventsAction::List => {
+                game.events.data.iter().for_each(|e| println!("{:?}", e));
+            }
+            EventsAction::Active => {
+                game.events
+                    .active
+                    .read()
+                    .unwrap()
+                    .iter()
+                    .for_each(|e| println!("{:?}", e));
+            }
+        },
+
         Commands::Char { i } => {
             character.clone_from(&game.account.get_character(i as usize));
             if let Some(char) = character.clone() {
@@ -357,6 +371,10 @@ enum Commands {
         #[command(subcommand)]
         action: ItemsAction,
     },
+    Events {
+        #[command(subcommand)]
+        action: EventsAction,
+    },
     Char {
         #[arg(value_parser = value_parser!(i32), default_value = "0")]
         i: i32,
@@ -444,10 +462,12 @@ enum OrderboardAction {
 }
 
 #[derive(Subcommand)]
+#[command(alias = "b")]
 enum BankAction {
     #[command(alias = "res")]
     Reservations,
     Empty,
+    #[command(alias = "l")]
     List,
 }
 
@@ -469,6 +489,16 @@ enum ItemsAction {
 }
 
 #[derive(Subcommand)]
+#[command(alias = "e")]
+enum EventsAction {
+    #[command(alias = "l")]
+    List,
+    #[command(alias = "a")]
+    Active,
+}
+
+#[derive(Subcommand)]
+#[command(alias = "s")]
 enum SkillAction {
     Add {
         skill: String,
@@ -477,5 +507,6 @@ enum SkillAction {
     Remove {
         skill: String,
     },
+    #[command(alias = "l")]
     List,
 }
