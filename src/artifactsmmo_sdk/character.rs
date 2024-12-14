@@ -1804,7 +1804,7 @@ impl Character {
     //TODO: finish implementing this function
     #[allow(dead_code)]
     #[allow(unused_variables)]
-    fn order_upgrades(&self, current: Gear<'_>, monster: &MonsterSchema, filter: Filter) {
+    fn order_upgrades(&self, current: Gear, monster: &MonsterSchema, filter: Filter) {
         let gears = self.gear_finder.bests_against(self, monster, filter);
         if let Some(gear) = gears
             .iter()
@@ -1833,7 +1833,8 @@ impl Character {
         };
     }
 
-    fn order_gear(&self, gear: Gear<'_>) {
+    fn order_gear(&self, mut gear: Gear) {
+        gear.align_to(&self.gear());
         Slot::iter().for_each(|s| {
             if !s.is_artifact_1()
                 && !s.is_artifact_2()
@@ -1887,7 +1888,8 @@ impl Character {
         false
     }
 
-    fn reserv_gear(&self, gear: Gear<'_>) {
+    fn reserv_gear(&self, mut gear: Gear) {
+        gear.align_to(&self.gear());
         Slot::iter().for_each(|s| {
             if !(s.is_ring_1() || s.is_ring_2()) {
                 if let Some(item) = gear.slot(s) {
