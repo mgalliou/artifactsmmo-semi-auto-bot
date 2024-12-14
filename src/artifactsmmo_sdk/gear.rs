@@ -164,7 +164,7 @@ impl<'a> Gear<'a> {
             .is_some_and(|a1| other.artifact3.is_some_and(|a3| a1 == a3))
             || self
                 .slot(Slot::Artifact3)
-                .is_some_and(|a3| other.artifact3.is_some_and(|a1| a3 == a1))
+                .is_some_and(|a3| other.artifact1.is_some_and(|a1| a3 == a1))
         {
             std::mem::swap(&mut self.artifact1, &mut self.artifact3);
         }
