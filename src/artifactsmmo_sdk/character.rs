@@ -19,7 +19,7 @@ use super::{
     FightSchemaExt, ItemSchemaExt, MapSchemaExt, RewardsSchemaExt, SkillSchemaExt,
 };
 use crate::artifactsmmo_sdk::{char_config::Goal, SkillInfoSchemaExt};
-use actions::{PostCraftAction, RequestError};
+use actions::RequestError;
 use artifactsmmo_openapi::models::{
     CharacterSchema, FightResult, FightSchema, ItemSchema, MapContentSchema, MapSchema,
     MonsterSchema, RecyclingItemsSchema, ResourceSchema, RewardsSchema, SimpleItemSchema,
@@ -406,7 +406,7 @@ impl Character {
             return None;
         }
         order.inc_in_progress(quantity);
-        let crafted = self.craft_from_bank(&order.item, quantity, PostCraftAction::None);
+        let crafted = self.craft_from_bank(&order.item, quantity, PostCraftAction::Keep);
         order.dec_in_progress(quantity);
         crafted.ok().map(|craft| craft.amount_of(&order.item))
     }
@@ -1070,45 +1070,6 @@ impl Character {
         })
     }
 
-    /// Withdraw the materials for, craft, then deposit the item `code` until
-    /// the given quantity is crafted.
-    pub fn craft_items(&self, item: &str, quantity: i32) -> i32 {
-        if let Err(e) = self.can_craft(item) {
-            error!("{}: {:?}", self.name, e);
-            return 0;
-        }
-        let mut crafted = 0;
-        let mut craftable = self.bank.has_mats_for(item, Some(&self.name));
-        info!("{}: is going to craft '{}'x{}", self.name, item, quantity);
-        while crafted < quantity && craftable > 0 {
-            self.deposit_all();
-            crafted += self
-                .craft_from_bank(
-                    item,
-                    min(self.max_current_craftable_items(item), quantity - crafted),
-                    PostCraftAction::Deposit,
-                )
-                .map_or(0, |s| s.amount_of(item));
-            craftable = self.bank.has_mats_for(item, Some(&self.name));
-            info!("{}: crafted {}/{} '{}", self.name, crafted, quantity, item)
-        }
-        if crafted == 0 && self.bank.has_mats_for(item, Some(&self.name)) < quantity {
-            return 0;
-        }
-        quantity
-    }
-
-    /// Crafts the maximum amount of given item `code` that can be crafted in one go with the
-    /// materials available in bank, then deposit the crafted items.
-    pub fn craft_max_from_bank(
-        &self,
-        item: &str,
-        post_action: PostCraftAction,
-    ) -> Result<SkillInfoSchema, CharacterError> {
-        let max = self.max_craftable_items_from_bank(item);
-        self.craft_from_bank(item, max, post_action)
-    }
-
     /// Crafts the given `quantity` of the given item `code` if the required
     /// materials to craft them in one go are available in bank and deposit the crafted
     /// items into the bank.
@@ -1119,15 +1080,6 @@ impl Character {
         post_action: PostCraftAction,
     ) -> Result<SkillInfoSchema, CharacterError> {
         self.can_craft(item)?;
-        self.craft_from_bank_unchecked(item, quantity, post_action)
-    }
-
-    pub fn craft_from_bank_unchecked(
-        &self,
-        item: &str,
-        quantity: i32,
-        post_action: PostCraftAction,
-    ) -> Result<SkillInfoSchema, CharacterError> {
         if self.max_craftable_items_from_bank(item) < quantity {
             return Err(CharacterError::InsuffisientMaterials);
         }
@@ -1162,19 +1114,14 @@ impl Character {
                 }
             }
             PostCraftAction::Recycle => {
-                if let Err(e) = self.move_to_craft(item) {
-                    error!(
-                        "{}: failed to move before recycling items after crafting from bank: {:?}",
-                        self.name, e
-                    )
-                } else if let Err(e) = self.action_recycle(item, quantity) {
+                if let Err(e) = self.recycle_item(item, quantity) {
                     error!(
                         "{}: error while recycling items after crafting from bank: {:?}",
                         self.name, e
                     )
                 }
             }
-            PostCraftAction::None => (),
+            PostCraftAction::Keep => (),
         };
         Ok(craft?)
     }
@@ -1418,15 +1365,6 @@ impl Character {
         min(
             self.bank.has_mats_for(item, Some(&self.name)),
             self.inventory.max_items() / self.items.mats_quantity_for(item),
-        )
-    }
-
-    /// Calculates the maximum number of items that can be crafted in one go based on available
-    /// inventory free space and bank materials.
-    fn max_current_craftable_items(&self, item: &str) -> i32 {
-        min(
-            self.bank.has_mats_for(item, Some(&self.name)),
-            self.inventory.free_space() / self.items.mats_quantity_for(item),
         )
     }
 
@@ -2109,6 +2047,13 @@ impl Role {
         }
     }
 }
+
+pub enum PostCraftAction {
+    Deposit,
+    Recycle,
+    Keep,
+}
+
 
 #[derive(Error, Debug)]
 pub enum CharacterError {

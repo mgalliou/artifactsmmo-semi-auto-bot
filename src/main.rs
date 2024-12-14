@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use artifactsmmo_playground::artifactsmmo_sdk::{
-    character::Character,
+    character::{Character, PostCraftAction},
     fight_simulator::FightSimulator,
     game::Game,
     gear_finder::{Filter, GearFinder},
@@ -204,7 +204,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
             let Some(char) = character else {
                 bail!("no character selected");
             };
-            char.craft_items(&item, quantity);
+            char.craft_from_bank(&item, quantity, PostCraftAction::Keep)?;
         }
         Commands::Recycle { item, quantity } => {
             let Some(char) = character else {

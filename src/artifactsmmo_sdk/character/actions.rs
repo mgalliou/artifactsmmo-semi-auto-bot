@@ -517,12 +517,6 @@ pub enum Action<'a> {
     },
 }
 
-pub enum PostCraftAction {
-    Deposit,
-    Recycle,
-    None,
-}
-
 #[derive(Error, Debug)]
 pub enum RequestError {
     #[error("reqwest error: {0}")]

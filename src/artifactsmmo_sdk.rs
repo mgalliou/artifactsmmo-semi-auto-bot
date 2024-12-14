@@ -30,6 +30,8 @@ pub mod resources;
 pub mod skill;
 pub mod tasks;
 
+pub const MAX_LEVEL: i32 = 40;
+
 trait ItemSchemaExt {
     fn name(&self) -> String;
     fn r#type(&self) -> Type;
