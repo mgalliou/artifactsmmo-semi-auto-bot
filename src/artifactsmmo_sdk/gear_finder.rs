@@ -41,7 +41,7 @@ impl GearFinder {
                 )
             })
             .filter(|(_g, f)| f.result == FightResult::Win)
-            .min_by_key(|(_g, f)| f.cd + f.hp_lost / 5 + if f.hp_lost % 5 > 0 { 1 } else { 0 })
+            .min_by_key(|(_g, f)| f.cd + FightSimulator::time_to_rest(f.hp_lost))
             .map(|(g, _f)| g)
             .unwrap_or_default()
     }
@@ -505,7 +505,7 @@ impl GearFinder {
 
     fn is_eligible(&self, i: &ItemSchema, filter: Filter, char: &Character) -> bool {
         if filter.available {
-            return char.has_available(&i.code) > 0
+            return char.has_available(&i.code) > 0;
         }
         if i.code == "sanguine_edge_of_rosen" {
             return false;

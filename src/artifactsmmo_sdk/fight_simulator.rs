@@ -77,6 +77,10 @@ impl FightSimulator {
         }
     }
 
+    pub fn time_to_rest(health: i32) -> i32 {
+        health / 5 + if health % 5 > 0 { 1 } else { 0 }
+    }
+
     pub fn compute_cd(haste: i32, turns: i32) -> i32 {
         max(
             5,

@@ -2070,7 +2070,10 @@ impl Character {
             .for_each(|f| {
                 // TODO: improve logic to eat different foods to restore more hp
                 let mut quantity = self.missing_hp() / f.heal();
-                if (self.missing_hp() % f.heal()) as f32 > f.heal() as f32 / 1.5 {
+                if self.account.time_to_get(&f.code).is_some_and(|t| {
+                    t * (self.missing_hp() / f.heal())
+                        < FightSimulator::time_to_rest(self.missing_hp())
+                }) {
                     quantity += 1;
                 };
                 if quantity > 0 {
