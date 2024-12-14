@@ -1,5 +1,6 @@
 use super::{
-    api::events::EventsApi, game_config::GameConfig, persist_data, retreive_data, ActiveEventSchemaExt, MapSchemaExt
+    api::events::EventsApi, game_config::GameConfig, persist_data, retreive_data, EventSchemaExt,
+    MapSchemaExt,
 };
 use artifactsmmo_openapi::models::{ActiveEventSchema, EventSchema, MapSchema};
 use chrono::{DateTime, Duration, Utc};
@@ -89,12 +90,32 @@ impl Events {
     }
 }
 
-impl ActiveEventSchemaExt for ActiveEventSchema {
+impl EventSchemaExt for ActiveEventSchema {
     fn content_code(&self) -> &String {
         self.map
             .content
             .as_ref()
             .map(|c| &c.code)
             .expect("event to have content")
+    }
+
+    fn to_string(&self) -> String {
+        format!(
+            "{} ({},{}): '{}'",
+            self.name,
+            self.map.x,
+            self.map.y,
+            self.content_code()
+        )
+    }
+}
+
+impl EventSchemaExt for EventSchema {
+    fn content_code(&self) -> &String {
+        &self.content.code
+    }
+
+    fn to_string(&self) -> String {
+        format!("{}: '{}'", self.name, self.content_code())
     }
 }

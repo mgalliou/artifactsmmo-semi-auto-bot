@@ -73,8 +73,9 @@ trait MonsterSchemaExt {
     fn drop_rate(&self, item: &str) -> Option<i32>;
 }
 
-trait ActiveEventSchemaExt {
+pub trait EventSchemaExt {
     fn content_code(&self) -> &String;
+    fn to_string(&self) -> String;
 }
 
 pub trait ResponseSchema: Downcast {

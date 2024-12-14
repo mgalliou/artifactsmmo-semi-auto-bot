@@ -7,6 +7,7 @@ use artifactsmmo_playground::artifactsmmo_sdk::{
     leveling_helper::LevelingHelper,
     orderboard::Purpose,
     skill::Skill,
+    EventSchemaExt,
 };
 use clap::{value_parser, Parser, Subcommand};
 use itertools::Itertools;
@@ -173,7 +174,10 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
         },
         Commands::Events { action } => match action {
             EventsAction::List => {
-                game.events.data.iter().for_each(|e| println!("{:?}", e));
+                game.events
+                    .data
+                    .iter()
+                    .for_each(|e| println!("{}", e.to_string()));
             }
             EventsAction::Active => {
                 game.events
@@ -181,7 +185,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
                     .read()
                     .unwrap()
                     .iter()
-                    .for_each(|e| println!("{:?}", e));
+                    .for_each(|e| println!("{}", e.to_string()));
             }
         },
 
