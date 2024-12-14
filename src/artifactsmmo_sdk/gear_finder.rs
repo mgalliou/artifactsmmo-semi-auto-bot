@@ -504,11 +504,8 @@ impl GearFinder {
     }
 
     fn is_eligible(&self, i: &ItemSchema, filter: Filter, char: &Character) -> bool {
-        if filter.available && char.has_available(&i.code) > 0 {
-            return true;
-        }
-        if filter.available && char.has_available(&i.code) <= 0 {
-            return false;
+        if filter.available {
+            return char.has_available(&i.code) > 0
         }
         if i.code == "sanguine_edge_of_rosen" {
             return false;
