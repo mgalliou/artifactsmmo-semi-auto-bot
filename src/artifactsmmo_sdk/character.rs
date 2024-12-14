@@ -536,6 +536,14 @@ impl Character {
     }
 
     fn progress_task(&self) -> Result<(), CharacterError> {
+        if self.task().is_empty() {
+            let r#type = if self.skill_enabled(Skill::Combat) {
+                TaskType::Monsters
+            } else {
+                TaskType::Items
+            };
+            return self.accept_task(r#type).map(|_| ());
+        }
         let Some(monster) = self.monsters.get(&self.task()) else {
             return self.trade_task().map(|_| ());
         };
@@ -2053,7 +2061,6 @@ pub enum PostCraftAction {
     Recycle,
     Keep,
 }
-
 
 #[derive(Error, Debug)]
 pub enum CharacterError {
