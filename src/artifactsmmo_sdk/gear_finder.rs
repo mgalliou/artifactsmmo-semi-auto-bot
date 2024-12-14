@@ -6,6 +6,7 @@ use super::{
     skill::Skill,
     ItemSchemaExt,
 };
+use anyhow::bail;
 use artifactsmmo_openapi::models::{FightResult, ItemSchema, MonsterSchema};
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
@@ -311,14 +312,14 @@ impl GearFinder {
         let mut sets = [artifacts.clone(), artifacts.clone(), artifacts]
             .iter()
             .multi_cartesian_product()
-            .map(|artifacts| {
-                ItemWrapper::Artifacts({
-                    let mut set = HashSet::new();
-                    set.insert(*artifacts[0]);
-                    set.insert(*artifacts[1]);
-                    set.insert(*artifacts[2]);
-                    set
-                })
+            .map(|artifacts| [*artifacts[0], *artifacts[1], *artifacts[2]])
+            .sorted()
+            .filter_map(|artifacts| {
+                if let Ok(artifact_set) = ArtifactSet::new(artifacts) {
+                    Some(ItemWrapper::Artifacts(artifact_set))
+                } else {
+                    None
+                }
             })
             .collect_vec();
         sets.dedup();
@@ -327,7 +328,7 @@ impl GearFinder {
 
     fn item_from_wrappers(
         &self,
-        wrapper: &Vec<&ItemWrapper>,
+        wrapper: &[&ItemWrapper],
         r#type: Type,
         index: usize,
     ) -> Option<&ItemSchema> {
@@ -354,7 +355,7 @@ impl GearFinder {
                 }
             }
             ItemWrapper::Artifacts(set) => {
-                if let Some(Some(artifact)) = set.iter().collect_vec().get(index) {
+                if let Some(Some(artifact)) = set.artifacts.get(index) {
                     self.items.get(artifact).and_then(|i| {
                         if i.is_of_type(r#type) {
                             Some(i)
@@ -565,7 +566,7 @@ impl Default for Filter {
 enum ItemWrapper<'a> {
     Armor(Option<&'a str>),
     Rings(RingSet<'a>),
-    Artifacts(HashSet<Option<&'a str>>),
+    Artifacts(ArtifactSet<'a>),
     Utility(HashSet<Option<&'a str>>),
 }
 
@@ -578,6 +579,26 @@ impl<'a> RingSet<'a> {
     fn new(mut rings: [Option<&'a str>; 2]) -> Self {
         rings.sort();
         RingSet { rings }
+    }
+}
+
+#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
+struct ArtifactSet<'a> {
+    artifacts: [Option<&'a str>; 3],
+}
+
+impl<'a> ArtifactSet<'a> {
+    fn new(mut artifacts: [Option<&'a str>; 3]) -> anyhow::Result<Self> {
+        artifacts.sort();
+        if artifacts[0].is_some_and(|a| artifacts[1].is_some_and(|b| a == b))
+            || artifacts[1].is_some_and(|a| artifacts[2].is_some_and(|b| a == b))
+            || artifacts[2].is_some_and(|a| artifacts[0].is_some_and(|b| a == b))
+        {
+            bail!("Artifact should be unique");
+        } else {
+            artifacts.sort();
+            Ok(ArtifactSet { artifacts })
+        }
     }
 }
 
