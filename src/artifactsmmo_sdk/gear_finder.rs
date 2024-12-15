@@ -37,7 +37,7 @@ impl GearFinder {
             .map(|g| {
                 (
                     g,
-                    self.fight_simulator.simulate(char.level(), 0, &g, monster),
+                    self.fight_simulator.simulate(char.level(), 0, &g, monster, false),
                 )
             })
             .filter(|(_g, f)| f.result == FightResult::Win)
@@ -57,10 +57,10 @@ impl GearFinder {
             .map(|g| {
                 (
                     g,
-                    self.fight_simulator.simulate(char.level(), 0, &g, monster),
+                    self.fight_simulator.simulate(char.level(), 0, &g, monster, true),
                 )
             })
-            .min_by_key(|(_g, f)| f.monster_hp)
+            .min_by_key(|(_g, f)| f.cd + FightSimulator::time_to_rest(f.hp_lost))
             .map(|(g, _f)| g)
             .unwrap_or_default()
     }

@@ -896,7 +896,7 @@ impl Character {
             Ok(gear) => {
                 let fight = self
                     .fight_simulator
-                    .simulate(self.level(), 0, &gear, monster);
+                    .simulate(self.level(), 0, &gear, monster, false);
                 Some(fight.cd + (fight.hp_lost / 5 + if fight.hp_lost % 5 > 0 { 1 } else { 0 }))
             }
             Err(_) => None,
@@ -980,14 +980,14 @@ impl Character {
     /// `gear`
     fn can_kill_with(&self, monster: &MonsterSchema, gear: &Gear) -> bool {
         self.fight_simulator
-            .simulate(self.level(), 0, gear, monster)
+            .simulate(self.level(), 0, gear, monster, false)
             .result
             == FightResult::Win
     }
 
     fn can_kill_now(&self, monster: &MonsterSchema) -> bool {
         self.fight_simulator
-            .simulate(self.level(), self.missing_hp(), &self.gear(), monster)
+            .simulate(self.level(), self.missing_hp(), &self.gear(), monster, false)
             .result
             == FightResult::Win
     }

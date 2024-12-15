@@ -296,7 +296,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
                 )
             };
             println!("{}", gear);
-            let fight = FightSimulator::new().simulate(char.level(), 0, &gear, monster);
+            let fight = FightSimulator::new().simulate(char.level(), 0, &gear, monster, true);
             println!("{:?}", fight)
         }
         Commands::Deposit {

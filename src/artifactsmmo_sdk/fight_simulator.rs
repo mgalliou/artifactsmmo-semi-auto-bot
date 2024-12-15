@@ -38,6 +38,7 @@ impl FightSimulator {
         missing_hp: i32,
         gear: &Gear,
         monster: &MonsterSchema,
+        ignore_death: bool,
     ) -> Fight {
         let base_hp = BASE_HP + HP_PER_LEVEL * level;
         let starting_hp = base_hp + gear.health_increase() - missing_hp;
@@ -45,7 +46,7 @@ impl FightSimulator {
         let mut monster_hp = monster.hp;
         let mut turns = 1;
 
-        while turns <= MAX_TURN {
+        loop {
             if turns % 2 == 1 {
                 monster_hp -= gear.attack_damage_against(monster).round() as i32;
                 if monster_hp <= 0 {
@@ -57,9 +58,12 @@ impl FightSimulator {
                     hp += gear.utility2.map(|u| u.restore()).unwrap_or(0);
                 }
                 hp -= gear.attack_damage_from(monster).round() as i32;
-                if hp <= 0 {
+                if hp <= 0 && !ignore_death {
                     break;
                 }
+            }
+            if turns >= 100 {
+                break;
             }
             turns += 1;
         }
@@ -137,7 +141,13 @@ mod tests {
             utility1: None,
             utility2: None,
         };
-        let fight = simulator.simulate(30, 0, &gear, game.monsters.get("death_knight").unwrap());
+        let fight = simulator.simulate(
+            30,
+            0,
+            &gear,
+            game.monsters.get("death_knight").unwrap(),
+            false,
+        );
         println!("{:?}", fight);
         assert_eq!(fight.result, FightResult::Win);
     }
@@ -162,7 +172,13 @@ mod tests {
             utility1: None,
             utility2: None,
         };
-        let fight = simulator.simulate(40, 0, &gear, game.monsters.get("cultist_emperor").unwrap());
+        let fight = simulator.simulate(
+            40,
+            0,
+            &gear,
+            game.monsters.get("cultist_emperor").unwrap(),
+            false,
+        );
         println!("{:?}", fight);
         assert_eq!(fight.result, FightResult::Win);
     }
