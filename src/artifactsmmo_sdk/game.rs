@@ -11,7 +11,7 @@ use artifactsmmo_openapi::{
     models::StatusResponseSchema,
 };
 use chrono::{DateTime, TimeDelta, Utc};
-use log::debug;
+use log::{debug, error};
 use std::sync::{Arc, RwLock};
 
 #[derive(Default)]
@@ -85,12 +85,15 @@ impl Server {
     }
 
     pub fn update_offset(&self) {
-        // TODO: properly handle failure to retreive server_time
-        let server_time = self.time().unwrap_or(Utc::now());
         let now = Utc::now();
-        *self.server_offset.write().unwrap() = now - server_time;
+        let Some(server_time) = self.time() else {
+            error!("failed to update time offset");
+            return;
+        };
+        let round_trip = now - Utc::now();
+        *self.server_offset.write().unwrap() = now - server_time + (round_trip / 2);
         debug!("system time: {}", now);
-        debug!("server time: {}", self.time().unwrap());
+        debug!("server time: {}", server_time);
         debug!(
             "time offset: {}s and {}ms",
             self.server_offset.read().unwrap().num_seconds(),
