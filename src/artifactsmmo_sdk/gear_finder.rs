@@ -392,7 +392,7 @@ impl GearFinder {
         filter: Filter,
         black_list: Vec<&str>,
     ) -> Vec<Option<&str>> {
-        let mut upgrades: Vec<&ItemSchema> = vec![];
+        let mut bests: Vec<&ItemSchema> = vec![];
         let equipables = self
             .items
             .equipable_at_level(char.level(), r#type)
@@ -428,19 +428,24 @@ impl GearFinder {
             .filter(|i| i.health() > 0)
             .max_by_key(|i| i.health());
         if !bests_for_damage.is_empty() {
-            upgrades.extend(bests_for_damage);
+            bests.extend(bests_for_damage);
         }
         if let Some(best_reduction) = best_reduction {
-            upgrades.push(best_reduction);
+            bests.push(best_reduction);
         }
         if let Some(best_health_increase) = best_health_increase {
-            upgrades.push(best_health_increase);
+            if bests
+                .iter()
+                .all(|u| u.health() < best_health_increase.health())
+            {
+                bests.push(best_health_increase);
+            }
         }
-        upgrades.sort_by_key(|i| &i.code);
-        upgrades.dedup_by_key(|i| &i.code);
-        upgrades
+        bests
             .into_iter()
             .map(|i| Some(i.code.as_str()))
+            .sorted()
+            .dedup()
             .collect_vec()
     }
 
