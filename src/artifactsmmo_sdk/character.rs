@@ -780,38 +780,30 @@ impl Character {
     /// map or the closest containing the `monster` and fight it.
     fn kill_monster(&self, monster: &MonsterSchema) -> Result<FightSchema, CharacterError> {
         self.can_fight(monster)?;
-        let mut available: Gear = self.gear();
-        if let Ok(_browsed) = self.bank.browsed.write() {
-            match self.can_kill(monster) {
-                Ok(gear) => {
-                    available = gear;
-                    self.reserv_gear(available)
-                }
-                Err(e) => return Err(e),
+        let mut available: Gear;
+        let Ok(_browsed) = self.bank.browsed.write() else {
+            return Err(CharacterError::BankUnavailable);
+        };
+        match self.can_kill(monster) {
+            Ok(gear) => {
+                available = gear;
+                self.reserv_gear(available)
             }
-            self.order_best_gear_against(monster);
+            Err(e) => return Err(e),
         }
+        self.order_best_gear_against(monster);
+        drop(_browsed);
         self.equip_gear(&mut available);
-        self.withdraw_food();
         if let Ok(_) | Err(CharacterError::NoTask) = self.complete_task() {
             if let Err(e) = self.accept_task(TaskType::Monsters) {
                 error!("{} error while accepting new task: {:?}", self.name, e)
             }
         }
-        if self
-            .fight_simulator
-            .simulate(self.level(), self.missing_hp(), &self.gear(), monster)
-            .result
-            == FightResult::Loss
-        {
+        self.withdraw_food();
+        if !self.can_kill_now(monster) {
             self.eat_food();
         }
-        if self
-            .fight_simulator
-            .simulate(self.level(), self.missing_hp(), &self.gear(), monster)
-            .result
-            == FightResult::Loss
-        {
+        if !self.can_kill_now(monster) {
             if let Err(e) = self.rest() {
                 error!("{} failed to rest: {:?}", self.name, e)
             }
@@ -997,6 +989,13 @@ impl Character {
             == FightResult::Win
     }
 
+    fn can_kill_now(&self, monster: &MonsterSchema) -> bool {
+        self.fight_simulator
+            .simulate(self.level(), self.missing_hp(), &self.gear(), monster)
+            .result
+            == FightResult::Win
+    }
+
     // Checks that the `Character` has the required skill level to gather the given `resource`
     fn can_gather(&self, resource: &ResourceSchema) -> Result<(), CharacterError> {
         let skill: Skill = resource.skill.into();
@@ -1043,7 +1042,7 @@ impl Character {
             weapon: self.items.get(&d.weapon_slot),
             shield: self.items.get(&d.shield_slot),
             helmet: self.items.get(&d.helmet_slot),
-            body_armor: self.items.get(&d.boots_slot),
+            body_armor: self.items.get(&d.body_armor_slot),
             leg_armor: self.items.get(&d.leg_armor_slot),
             boots: self.items.get(&d.boots_slot),
             ring1: self.items.get(&d.ring1_slot),
