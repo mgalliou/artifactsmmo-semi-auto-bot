@@ -81,6 +81,9 @@ impl OrderBoard {
         quantity: i32,
         purpose: Purpose,
     ) -> Result<(), OrderError> {
+        if self.items.get(item).is_none() {
+            return Err(OrderError::UnknownItem);
+        }
         if self.get(owner, item, &purpose).is_some() {
             return Err(OrderError::AlreadyExists);
         }
@@ -242,6 +245,8 @@ pub enum OrderError {
     NotFound,
     #[error("order already exists")]
     AlreadyExists,
+    #[error("unknown item")]
+    UnknownItem,
 }
 
 #[derive(Debug, PartialEq, Clone, EnumIs, EnumIter)]
