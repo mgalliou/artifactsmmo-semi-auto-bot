@@ -45,7 +45,7 @@ const EXCHANGE_PRICE: i32 = 6;
 const CANCEL_PRICE: i32 = 6;
 const MIN_COIN_THRESHOLD: i32 = 4;
 const MAX_LEVEL: i32 = 40;
-const MIN_FOOD_THRESHOLD: i32 = 1000;
+const MIN_FOOD_THRESHOLD: i32 = 3000;
 const CRAFT_TIME: i32 = 5;
 
 #[derive(Default)]
@@ -991,7 +991,13 @@ impl Character {
 
     fn can_kill_now(&self, monster: &MonsterSchema) -> bool {
         self.fight_simulator
-            .simulate(self.level(), self.missing_hp(), &self.gear(), monster, false)
+            .simulate(
+                self.level(),
+                self.missing_hp(),
+                &self.gear(),
+                monster,
+                false,
+            )
             .result
             == FightResult::Win
     }
