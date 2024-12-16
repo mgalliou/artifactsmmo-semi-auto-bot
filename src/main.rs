@@ -13,13 +13,12 @@ use clap::{value_parser, Parser, Subcommand};
 use itertools::Itertools;
 use log::LevelFilter;
 use rustyline::{error::ReadlineError, DefaultEditor};
-use std::{str::FromStr, sync::Arc, thread::sleep, time::Duration};
+use std::{process::exit, str::FromStr, sync::Arc, thread::sleep, time::Duration};
 
 fn main() -> Result<()> {
     let _ = simple_logging::log_to_file("artifactsmmo.log", LevelFilter::Info);
     let game = Game::new();
     game.init();
-    //let _ = game.orderboard.add(None, "carrot", 1000, Purpose::Cli);
     game.orderboard
         .add(None, "lizard_skin", 1000, Purpose::Cli)?;
     game.orderboard
@@ -30,6 +29,7 @@ fn main() -> Result<()> {
         .add(None, "strange_ore", 6000, Purpose::Cli)?;
     game.orderboard
         .add(None, "magic_wood", 6000, Purpose::Cli)?;
+    //game.orderboard.add(None, "carrot", 1000, Purpose::Cli);
     //game.orderboard.add(None, "frozen_pickaxe", 5, Purpose::Cli)?;
     let handles = game
         .account
@@ -73,20 +73,17 @@ fn run_cli(game: &Game) -> Result<()> {
                 Err(e) => eprintln!("{}", e),
             },
             Err(ReadlineError::Interrupted) => {
-                println!("CTRL-C");
-                break;
+                println!("Quit");
             }
             Err(ReadlineError::Eof) => {
-                println!("CTRL-D");
-                break;
+                println!("quit");
+                exit(0);
             }
             Err(err) => {
                 println!("Error: {:#?}", err);
-                break;
             }
         }
     }
-    Ok(())
 }
 
 fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> Result<bool> {
