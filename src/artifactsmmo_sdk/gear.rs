@@ -67,23 +67,28 @@ impl<'a> Gear<'a> {
         }
     }
 
-    pub fn attack_damage_against(&self, monster: &MonsterSchema) -> f32 {
+    pub fn attack_damage_against(&self, monster: &MonsterSchema) -> i32 {
         DamageType::iter()
             .map(|t| {
-                self.weapon.map_or(0.0, |w| {
-                    FightSimulator::average_dmg(
-                        w.attack_damage(t),
-                        self.damage_increase(t),
-                        monster.resistance(t),
-                    )
-                })
+                self.weapon
+                    .map_or(0.0, |w| {
+                        FightSimulator::average_dmg(
+                            w.attack_damage(t),
+                            self.damage_increase(t),
+                            monster.resistance(t),
+                        )
+                    })
+                    .round() as i32
             })
             .sum()
     }
 
-    pub fn attack_damage_from(&self, monster: &MonsterSchema) -> f32 {
+    pub fn attack_damage_from(&self, monster: &MonsterSchema) -> i32 {
         DamageType::iter()
-            .map(|t| FightSimulator::average_dmg(monster.attack_damage(t), 0, self.resistance(t)))
+            .map(|t| {
+                FightSimulator::average_dmg(monster.attack_damage(t), 0, self.resistance(t)).round()
+                    as i32
+            })
             .sum()
     }
 

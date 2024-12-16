@@ -48,7 +48,7 @@ impl FightSimulator {
 
         loop {
             if turns % 2 == 1 {
-                monster_hp -= gear.attack_damage_against(monster).round() as i32;
+                monster_hp -= gear.attack_damage_against(monster);
                 if monster_hp <= 0 {
                     break;
                 }
@@ -57,7 +57,7 @@ impl FightSimulator {
                     hp += gear.utility1.map(|u| u.restore()).unwrap_or(0);
                     hp += gear.utility2.map(|u| u.restore()).unwrap_or(0);
                 }
-                hp -= gear.attack_damage_from(monster).round() as i32;
+                hp -= gear.attack_damage_from(monster);
                 if hp <= 0 && !ignore_death {
                     break;
                 }
