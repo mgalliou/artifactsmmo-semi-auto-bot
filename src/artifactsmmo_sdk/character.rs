@@ -322,7 +322,11 @@ impl Character {
                     self.can_craft(&order.item).is_ok()
                         && self
                             .bank
-                            .missing_mats_for(&order.item, order.quantity(), Some(&self.name))
+                            .missing_mats_for(
+                                &order.item,
+                                self.orderboard.total_missing_for(order),
+                                Some(&self.name),
+                            )
                             .is_empty()
                 }
                 ItemSource::TaskReward => {
