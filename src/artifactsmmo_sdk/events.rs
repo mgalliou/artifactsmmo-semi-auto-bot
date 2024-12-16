@@ -100,12 +100,21 @@ impl EventSchemaExt for ActiveEventSchema {
     }
 
     fn to_string(&self) -> String {
+        let remaining = if let Ok(expiration) = DateTime::parse_from_rfc3339(&self.expiration) {
+            (expiration.to_utc() - Utc::now()).to_string()
+        } else {
+            "unknown".to_string()
+        };
         format!(
-            "{} ({},{}): '{}'",
+            "{} ({},{}): '{}', duration: {}, created at {}, expires at {}, remaining: {}",
             self.name,
             self.map.x,
             self.map.y,
-            self.content_code()
+            self.content_code(),
+            self.duration,
+            self.created_at,
+            self.expiration,
+            remaining
         )
     }
 }
