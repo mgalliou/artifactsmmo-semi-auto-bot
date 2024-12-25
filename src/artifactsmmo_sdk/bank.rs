@@ -109,6 +109,19 @@ impl Bank {
             .sum()
     }
 
+    pub fn utilities(&self, level: i32) -> Vec<&ItemSchema> {
+        self.content
+            .read()
+            .unwrap()
+            .iter()
+            .filter_map(|i| {
+                self.items
+                    .get(&i.code)
+                    .filter(|&i| i.r#type().is_utility() && i.level <= level)
+            })
+            .collect_vec()
+    }
+
     pub fn consumable_food(&self, level: i32) -> Vec<&ItemSchema> {
         self.content
             .read()
@@ -116,6 +129,15 @@ impl Bank {
             .iter()
             .filter_map(|i| self.items.get(&i.code).filter(|&i| i.is_consumable(level)))
             .collect_vec()
+    }
+
+    pub fn best_health_potion(&self) -> Option<&ItemSchema> {
+        self.content
+            .read()
+            .unwrap()
+            .iter()
+            .filter_map(|i| self.items.get(&i.code).filter(|&i| i.is_health_potion()))
+            .max_by_key(|i| i.level)
     }
 
     /// Returns the `quantity` of the given item `code` available to the given `owner`.

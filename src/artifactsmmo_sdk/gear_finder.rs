@@ -10,7 +10,7 @@ use anyhow::bail;
 use artifactsmmo_openapi::models::{FightResult, ItemSchema, MonsterSchema};
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
-use std::{collections::HashSet, sync::Arc};
+use std::sync::Arc;
 
 #[derive(Default)]
 pub struct GearFinder {
@@ -37,7 +37,8 @@ impl GearFinder {
             .map(|g| {
                 (
                     g,
-                    self.fight_simulator.simulate(char.level(), 0, &g, monster, false),
+                    self.fight_simulator
+                        .simulate(char.level(), 0, &g, monster, false),
                 )
             })
             .filter(|(_g, f)| f.result == FightResult::Win)
@@ -57,7 +58,8 @@ impl GearFinder {
             .map(|g| {
                 (
                     g,
-                    self.fight_simulator.simulate(char.level(), 0, &g, monster, true),
+                    self.fight_simulator
+                        .simulate(char.level(), 0, &g, monster, true),
                 )
             })
             .min_by_key(|(_g, f)| f.cd + FightSimulator::time_to_rest(f.hp_lost))
@@ -196,7 +198,12 @@ impl GearFinder {
         if filter.utilities {
             let utilities_sets = self.gen_utilities_sets(char, monster, weapon, filter);
             if !utilities_sets.is_empty() {
-                items.push(utilities_sets);
+                items.push(
+                    utilities_sets
+                        .iter()
+                        .map(|i| ItemWrapper::Utility(*i))
+                        .collect_vec(),
+                );
             }
         }
         let artifact_sets = self.gen_artifacts_sets(char, monster, weapon, filter);
@@ -267,26 +274,27 @@ impl GearFinder {
         ring_sets
     }
 
-    fn gen_utilities_sets<'a>(
+    pub fn gen_utilities_sets<'a>(
         &'a self,
         char: &Character,
         monster: &MonsterSchema,
         weapon: &ItemSchema,
         filter: Filter,
-    ) -> Vec<ItemWrapper<'a>> {
+    ) -> Vec<UtilitySet<'a>> {
         let mut utilities =
             self.best_utilities_against_with_weapon(char, monster, weapon, filter, vec![]);
         utilities.push(None);
         let mut sets = [utilities.clone(), utilities]
             .iter()
             .multi_cartesian_product()
-            .map(|utilities| {
-                ItemWrapper::Utility({
-                    let mut set = HashSet::new();
-                    set.insert(*utilities[0]);
-                    set.insert(*utilities[1]);
-                    set
-                })
+            .map(|utilities| [*utilities[0], *utilities[1]])
+            .sorted()
+            .filter_map(|utilities| {
+                if let Ok(utility_set) = UtilitySet::new(utilities) {
+                    Some(utility_set)
+                } else {
+                    None
+                }
             })
             .collect_vec();
         sets.dedup();
@@ -368,7 +376,7 @@ impl GearFinder {
                 }
             }
             ItemWrapper::Utility(set) => {
-                if let Some(Some(utility)) = set.iter().collect_vec().get(index) {
+                if let Some(Some(utility)) = set.utilities.get(index) {
                     self.items.get(utility).and_then(|i| {
                         if i.is_of_type(r#type) {
                             Some(i)
@@ -569,7 +577,7 @@ enum ItemWrapper<'a> {
     Armor(Option<&'a str>),
     Rings(RingSet<'a>),
     Artifacts(ArtifactSet<'a>),
-    Utility(HashSet<Option<&'a str>>),
+    Utility(UtilitySet<'a>),
 }
 
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
@@ -601,6 +609,29 @@ impl<'a> ArtifactSet<'a> {
             artifacts.sort();
             Ok(ArtifactSet { artifacts })
         }
+    }
+}
+
+#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
+struct UtilitySet<'a> {
+    utilities: [Option<&'a str>; 2],
+}
+
+impl<'a> UtilitySet<'a> {
+    fn new(mut utilities: [Option<&'a str>; 2]) -> anyhow::Result<Self> {
+        utilities.sort();
+        if utilities[0].is_some_and(|a| utilities[1].is_some_and(|b| a == b))
+            || utilities[1].is_some_and(|a| utilities[2].is_some_and(|b| a == b))
+        {
+            bail!("Utility should be unique");
+        } else {
+            utilities.sort();
+            Ok(UtilitySet { utilities })
+        }
+    }
+
+    pub fn get(&self, index: usize) -> Option<&Option<&str>> {
+        self.utilities.get(index)
     }
 }
 
