@@ -1526,7 +1526,7 @@ impl Character {
     }
 
     /// Returns the `Character` position (coordinates).
-    fn position(&self) -> (i32, i32) {
+    pub fn position(&self) -> (i32, i32) {
         let d = self.data.read().unwrap();
         let (x, y) = (d.x, d.y);
         (x, y)

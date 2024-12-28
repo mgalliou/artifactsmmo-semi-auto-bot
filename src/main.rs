@@ -345,6 +345,13 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
                 });
             }
         },
+        Commands::Map => {
+            let Some(char) = character else {
+                bail!("no character selected");
+            };
+            let (x, y) = char.position();
+            println!("{:?}", game.maps.get(x, y).unwrap());
+        }
     }
     Ok(true)
 }
@@ -383,6 +390,7 @@ enum Commands {
         #[arg(value_parser = value_parser!(i32), default_value = "0")]
         i: i32,
     },
+    Map,
     Status,
     Idle,
     Craft {
