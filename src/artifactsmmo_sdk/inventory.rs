@@ -95,7 +95,7 @@ impl Inventory {
             .filter_map(|i| {
                 self.items
                     .get(&i.code)
-                    .filter(|&i| i.is_consumable_food(self.data.read().unwrap().level))
+                    .filter(|&i| i.is_consumable(self.data.read().unwrap().level))
             })
             .collect_vec()
     }

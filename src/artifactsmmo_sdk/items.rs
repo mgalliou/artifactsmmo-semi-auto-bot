@@ -499,14 +499,6 @@ impl ItemSchemaExt for ItemSchema {
             && !FOOD_BLACK_LIST.contains(&self.code.as_str())
     }
 
-    fn is_health_potion(&self) -> bool {
-        self.is_of_type(Type::Utility) && self.restore() > 0
-    }
-
-    fn is_health_boost_potion(&self) -> bool {
-        self.is_of_type(Type::Utility) && self.health() > 0
-    }
-
     fn damage_increase_against_with(&self, monster: &MonsterSchema, weapon: &ItemSchema) -> f32 {
         DamageType::iter()
             .map(|t| {

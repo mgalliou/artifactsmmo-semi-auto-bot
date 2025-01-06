@@ -780,56 +780,17 @@ impl Character {
     /// map or the closest containing the `monster` and fight it.
     fn kill_monster(&self, monster: &MonsterSchema) -> Result<FightSchema, CharacterError> {
         self.can_fight(monster)?;
+        let mut available: Gear;
         let Ok(_browsed) = self.bank.browsed.write() else {
             return Err(CharacterError::BankUnavailable);
         };
-        let mut available = self.gear_finder.best_winning_against(
-            self,
-            monster,
-            Filter {
-                available: true,
-                ..Default::default()
-            },
-        );
-        if !self.can_kill_with(monster, &available) {
-            if !self.should_use_potion_against(monster) {
-                return Err(CharacterError::GearTooWeak {
-                    monster_code: monster.code.to_owned(),
-                });
+        match self.can_kill(monster) {
+            Ok(gear) => {
+                available = gear;
+                self.reserv_gear(available)
             }
-            let gear_fight = self.gear_finder
-                .gen_utilities_sets(
-                    self,
-                    monster,
-                    // TODO: handle no weapon available
-                    &available.weapon.unwrap(),
-                    Filter {
-                        available: true,
-                        ..Default::default()
-                    },
-                )
-                .iter()
-                .map(|set| {
-                    if let Some(utility1) = set.get(0) {
-                        available.utility1 = utility1.map(|i| self.items.get(i)).flatten();
-                    } else {
-                        available.utility1 = None;
-                    }
-                    if let Some(utility2) = set.get(0) {
-                        available.utility2 = utility2.map(|i| self.items.get(i)).flatten();
-                    } else {
-                        available.utility2 = None;
-                    }
-                    (
-                        available.clone(),
-                        self.fight_simulator
-                            .simulate(self.level(), 0, &available, monster, false),
-                    )
-                })
-                .filter(|(_g, f)| f.result == FightResult::Win)
-                .min_by_key(|(_g, f)| f.cd + FightSimulator::time_to_rest(f.hp_lost))
-        };
-        self.reserv_gear(available);
+            Err(e) => return Err(e),
+        }
         self.order_best_gear_against(monster);
         drop(_browsed);
         self.equip_gear(&mut available);
@@ -849,10 +810,6 @@ impl Character {
         }
         self.move_to_closest_map_with_content_code(&monster.code)?;
         Ok(self.action_fight()?)
-    }
-
-    fn should_use_potion_against(&self, monster: &MonsterSchema) -> bool {
-        true
     }
 
     fn rest(&self) -> Result<(), CharacterError> {
