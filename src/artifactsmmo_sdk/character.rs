@@ -311,7 +311,7 @@ impl Character {
                     self.has_available(TASKS_COIN) >= EXCHANGE_PRICE + MIN_COIN_THRESHOLD
                 }
                 ItemSource::Task => self.has_available(&self.task()) >= self.task_missing(),
-                ItemSource::Gift => self.has_available(GIFT) >= 1,
+                ItemSource::Gift => self.has_available(GIFT) > 0,
             })
     }
 
