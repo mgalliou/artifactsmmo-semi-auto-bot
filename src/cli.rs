@@ -4,25 +4,23 @@ use artifactsmmo_sdk::{
     character::{Character, PostCraftAction},
     fight_simulator::FightSimulator,
     game::Game,
-    gear_finder::{Filter, GearFinder},
-    leveling_helper::LevelingHelper,
+    gear_finder::Filter,
     orderboard::Purpose,
     skill::Skill,
     EventSchemaExt,
 };
 use clap::{value_parser, Parser, Subcommand};
-use itertools::Itertools;
 use rustyline::{error::ReadlineError, DefaultEditor};
 use std::{process::exit, str::FromStr, sync::Arc};
 
 pub fn run_cli(game: &Game) -> Result<()> {
     let mut rl = DefaultEditor::new()?;
-    let mut character: Option<Arc<Character>> = None;
+    let mut chars: Option<Arc<Character>> = None;
     loop {
         let readline = rl.readline(
             format!(
                 "{} >> ",
-                character
+                chars
                     .as_ref()
                     .map(|c| c.name.to_string())
                     .unwrap_or("none".to_string())
@@ -30,7 +28,7 @@ pub fn run_cli(game: &Game) -> Result<()> {
             .as_str(),
         );
         match readline {
-            Ok(line) => match respond(&line, &mut character, game) {
+            Ok(line) => match respond(&line, &mut chars, game) {
                 Ok(_) => {
                     if let Err(e) = rl.add_history_entry(line.as_str()) {
                         eprintln!("failed to add history entry: {}", e);
@@ -52,18 +50,8 @@ pub fn run_cli(game: &Game) -> Result<()> {
     }
 }
 
-fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> Result<bool> {
-    let args = line.split_whitespace().collect_vec();
-    let gear_finder = GearFinder::new(&game.items);
-    let leveling_helper = LevelingHelper::new(
-        &game.items,
-        &game.resources,
-        &game.monsters,
-        &game.maps,
-        &game.account,
-    );
-    let cli = Cli::try_parse_from(args)?;
-    match cli.command {
+fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> Result<()> {
+    match Cli::try_parse_from(line.split_whitespace())?.command {
         Commands::Orderboard { action } => match action {
             OrderboardAction::Add { item, quantity } => {
                 game.orderboard.add(None, &item, quantity, Purpose::Cli)?;
@@ -121,7 +109,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
                 println!(
                     "best {} craft: {:?}",
                     skill,
-                    leveling_helper
+                    game.leveling_helper
                         .best_craft(char.skill_level(skill), skill, char)
                         .map(|i| i.name.clone())
                         .unwrap_or("none".to_string())
@@ -132,7 +120,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
                     bail!("no character selected");
                 };
                 println!("best {} crafts:", skill);
-                leveling_helper
+                game.leveling_helper
                     .best_crafts(char.skill_level(skill), skill)
                     .iter()
                     .for_each(|i| println!("{}", i.name))
@@ -154,7 +142,6 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
                     .for_each(|e| println!("{}", e.to_string()));
             }
         },
-
         Commands::Char { i } => {
             character.clone_from(&game.account.get_character(i as usize));
             if let Some(char) = character.clone() {
@@ -215,9 +202,9 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
             println!(
                 "{}",
                 if winning {
-                    gear_finder.best_winning_against(char, monster, filter)
+                    game.gear_finder.best_winning_against(char, monster, filter)
                 } else {
-                    gear_finder.best_against(char, monster, filter)
+                    game.gear_finder.best_against(char, monster, filter)
                 }
             );
         }
@@ -246,9 +233,9 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
                 utilities,
             };
             let gear = if winning {
-                gear_finder.best_winning_against(char, monster, filter)
+                game.gear_finder.best_winning_against(char, monster, filter)
             } else {
-                gear_finder.best_against(
+                game.gear_finder.best_against(
                     char,
                     monster,
                     Filter {
@@ -331,7 +318,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
             );
         }
     }
-    Ok(true)
+    Ok(())
 }
 
 #[derive(Parser)]
