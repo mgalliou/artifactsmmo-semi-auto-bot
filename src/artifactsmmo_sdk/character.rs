@@ -3,23 +3,26 @@ use super::{
     api::{characters::CharactersApi, my_character::MyCharacterApi},
     bank::Bank,
     char_config::CharConfig,
+    consts::{
+        CANCEL_PRICE, CRAFT_TIME, EXCHANGE_PRICE, GIFT, MAX_LEVEL, MIN_COIN_THRESHOLD,
+        MIN_FOOD_THRESHOLD, TASKS_COIN,
+    },
     fight_simulator::FightSimulator,
     game::{Game, Server},
     game_config::GameConfig,
     gear::{Gear, Slot},
     gear_finder::{Filter, GearFinder},
     inventory::Inventory,
-    items::{ItemSource, Items, Type, GIFT, TASKS_COIN},
+    items::{ItemSource, Items, Type},
     leveling_helper::LevelingHelper,
     maps::Maps,
     monsters::Monsters,
     orderboard::{Order, OrderBoard, Purpose},
     resources::Resources,
-    skill::Skill,
-    FightSchemaExt, ItemSchemaExt, MapSchemaExt, RewardsSchemaExt, SkillSchemaExt,
+    skill::Skill, ItemSchemaExt, MapSchemaExt,
 };
-use crate::artifactsmmo_sdk::{char_config::Goal, SkillInfoSchemaExt};
-use actions::RequestError;
+use crate::artifactsmmo_sdk::char_config::Goal;
+use actions::{HasDrops, RequestError};
 use artifactsmmo_openapi::models::{
     CharacterSchema, FightResult, FightSchema, ItemSchema, MapContentSchema, MapSchema,
     MonsterSchema, RecyclingItemsSchema, ResourceSchema, RewardsSchema, SimpleItemSchema,
@@ -40,13 +43,6 @@ use strum::IntoEnumIterator;
 use strum_macros::EnumIs;
 use thiserror::Error;
 mod actions;
-
-const EXCHANGE_PRICE: i32 = 6;
-const CANCEL_PRICE: i32 = 1;
-const MIN_COIN_THRESHOLD: i32 = 4;
-const MAX_LEVEL: i32 = 40;
-const MIN_FOOD_THRESHOLD: i32 = 3000;
-const CRAFT_TIME: i32 = 5;
 
 #[derive(Default)]
 pub struct Character {

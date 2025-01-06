@@ -1,8 +1,5 @@
 use super::Character;
-use crate::artifactsmmo_sdk::{
-    gear::Slot, ApiErrorResponseSchema, FightSchemaExt, MapSchemaExt, ResponseSchema,
-    RewardsSchemaExt, SkillInfoSchemaExt, SkillSchemaExt,
-};
+use crate::artifactsmmo_sdk::{gear::Slot, ApiErrorResponseSchema, MapSchemaExt, ResponseSchema};
 use artifactsmmo_openapi::{
     apis::Error,
     models::{
@@ -825,7 +822,11 @@ impl Display for DropSchemas<'_> {
     }
 }
 
-impl FightSchemaExt for FightSchema {
+pub trait HasDrops {
+    fn amount_of(&self, item: &str) -> i32;
+}
+
+impl HasDrops for FightSchema {
     fn amount_of(&self, item: &str) -> i32 {
         self.drops
             .iter()
@@ -834,7 +835,7 @@ impl FightSchemaExt for FightSchema {
     }
 }
 
-impl SkillSchemaExt for SkillDataSchema {
+impl HasDrops for SkillDataSchema {
     fn amount_of(&self, item: &str) -> i32 {
         self.details
             .items
@@ -844,7 +845,7 @@ impl SkillSchemaExt for SkillDataSchema {
     }
 }
 
-impl SkillInfoSchemaExt for SkillInfoSchema {
+impl HasDrops for SkillInfoSchema {
     fn amount_of(&self, item: &str) -> i32 {
         self.items
             .iter()
@@ -853,7 +854,7 @@ impl SkillInfoSchemaExt for SkillInfoSchema {
     }
 }
 
-impl RewardsSchemaExt for RewardsSchema {
+impl HasDrops for RewardsSchema {
     fn amount_of(&self, item: &str) -> i32 {
         self.items
             .iter()

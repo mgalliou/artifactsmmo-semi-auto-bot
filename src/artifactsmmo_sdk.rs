@@ -14,6 +14,7 @@ pub mod api;
 pub mod bank;
 pub mod char_config;
 pub mod character;
+pub mod consts;
 pub mod events;
 pub mod fight_simulator;
 pub mod game;
@@ -29,8 +30,6 @@ pub mod orderboard;
 pub mod resources;
 pub mod skill;
 pub mod tasks;
-
-pub const MAX_LEVEL: i32 = 40;
 
 trait ItemSchemaExt {
     fn name(&self) -> String;
@@ -83,22 +82,6 @@ pub trait ResponseSchema: Downcast {
     fn pretty(&self) -> String;
 }
 impl_downcast!(ResponseSchema);
-
-trait FightSchemaExt {
-    fn amount_of(&self, item: &str) -> i32;
-}
-
-trait SkillSchemaExt {
-    fn amount_of(&self, item: &str) -> i32;
-}
-
-trait SkillInfoSchemaExt {
-    fn amount_of(&self, item: &str) -> i32;
-}
-
-trait RewardsSchemaExt {
-    fn amount_of(&self, item: &str) -> i32;
-}
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ApiErrorResponseSchema {
