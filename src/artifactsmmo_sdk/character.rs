@@ -33,10 +33,8 @@ use log::{error, info, warn};
 use serde::Deserialize;
 use std::{
     cmp::min,
-    io,
     option::Option,
     sync::{Arc, RwLock},
-    thread::{self, JoinHandle},
     vec::Vec,
 };
 use strum::IntoEnumIterator;
@@ -93,15 +91,7 @@ impl Character {
         }
     }
 
-    pub fn run(char: Arc<Character>) -> Result<JoinHandle<()>, io::Error> {
-        thread::Builder::new()
-            .name(char.name.to_owned())
-            .spawn(move || {
-                char.run_loop();
-            })
-    }
-
-    fn run_loop(&self) {
+    pub fn run_loop(&self) {
         info!("{}: started !", self.name);
         loop {
             if self.conf.read().unwrap().idle {

@@ -3,6 +3,7 @@ use super::{
     gear_finder::GearFinder, items::Items, leveling_helper::LevelingHelper, maps::Maps,
     monsters::Monsters, orderboard::OrderBoard, resources::Resources, tasks::Tasks,
 };
+use anyhow::Result;
 use artifactsmmo_openapi::{
     apis::{
         configuration::Configuration,
@@ -13,7 +14,11 @@ use artifactsmmo_openapi::{
 };
 use chrono::{DateTime, TimeDelta, Utc};
 use log::{debug, error};
-use std::sync::{Arc, RwLock};
+use std::{
+    sync::{Arc, RwLock},
+    thread::{sleep, Builder},
+    time::Duration,
+};
 
 #[derive(Default)]
 pub struct Game {
@@ -63,6 +68,16 @@ impl Game {
     pub fn init(&self) {
         self.server.update_offset();
         self.account.init_characters(self);
+    }
+
+    pub fn run_characters(&self) -> Result<()> {
+        for c in self.account.characters.read().unwrap().iter().cloned()  {
+            sleep(Duration::from_millis(250));
+            Builder::new().spawn(move || {
+                c.run_loop();
+            })?;
+        }
+        Ok(())
     }
 }
 
