@@ -1,5 +1,7 @@
 use super::{
-    account::Account, events::Events, fight_simulator::FightSimulator, game_config::GameConfig, gear_finder::GearFinder, items::Items, leveling_helper::LevelingHelper, maps::Maps, monsters::Monsters, orderboard::OrderBoard, resources::Resources, tasks::Tasks
+    account::Account, events::Events, fight_simulator::FightSimulator, game_config::GameConfig,
+    gear_finder::GearFinder, items::Items, leveling_helper::LevelingHelper, maps::Maps,
+    monsters::Monsters, orderboard::OrderBoard, resources::Resources, tasks::Tasks,
 };
 use artifactsmmo_openapi::{
     apis::{
@@ -15,6 +17,7 @@ use std::sync::{Arc, RwLock};
 
 #[derive(Default)]
 pub struct Game {
+    pub server: Arc<Server>,
     pub maps: Arc<Maps>,
     pub resources: Arc<Resources>,
     pub monsters: Arc<Monsters>,
@@ -22,7 +25,6 @@ pub struct Game {
     pub events: Arc<Events>,
     pub account: Arc<Account>,
     pub orderboard: Arc<OrderBoard>,
-    pub server: Arc<Server>,
     pub gear_finder: Arc<GearFinder>,
     pub leveling_helper: Arc<LevelingHelper>,
     pub fight_simulator: Arc<FightSimulator>,
@@ -44,14 +46,14 @@ impl Game {
             &items, &resources, &monsters, &maps, &account,
         ));
         Game {
+            server: Arc::new(Server::new(&config)),
             maps,
             resources: resources.clone(),
             monsters: monsters.clone(),
             items,
             events,
-            orderboard: orderboard.clone(),
             account,
-            server: Arc::new(Server::new(&config)),
+            orderboard: orderboard.clone(),
             gear_finder: gear_finder.clone(),
             leveling_helper: leveling_helper.clone(),
             fight_simulator: Arc::new(FightSimulator::new()),
