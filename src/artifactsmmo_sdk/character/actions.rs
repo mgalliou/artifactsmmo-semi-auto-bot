@@ -1,5 +1,5 @@
 use super::Character;
-use crate::artifactsmmo_sdk::{gear::Slot, ApiErrorResponseSchema, MapSchemaExt, ResponseSchema};
+use crate::artifactsmmo_sdk::{gear::Slot, maps::MapSchemaExt, ApiErrorResponseSchema};
 use artifactsmmo_openapi::{
     apis::Error,
     models::{
@@ -14,6 +14,7 @@ use artifactsmmo_openapi::{
     },
 };
 use chrono::{DateTime, Utc};
+use downcast_rs::{impl_downcast, Downcast};
 use log::{debug, error, info};
 use std::{cmp::Ordering, fmt::Display, sync::RwLockWriteGuard, thread::sleep, time::Duration};
 use strum_macros::{Display, EnumIs};
@@ -541,6 +542,12 @@ impl<T> From<Error<T>> for RequestError {
         }
     }
 }
+
+trait ResponseSchema: Downcast {
+    fn character(&self) -> &CharacterSchema;
+    fn pretty(&self) -> String;
+}
+impl_downcast!(ResponseSchema);
 
 impl ResponseSchema for CharacterMovementResponseSchema {
     fn pretty(&self) -> String {

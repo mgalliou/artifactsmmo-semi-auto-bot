@@ -1,7 +1,4 @@
-use super::{
-    api::resources::ResourcesApi, events::Events, game_config::GameConfig, persist_data,
-    ResourceSchemaExt,
-};
+use super::{api::resources::ResourcesApi, events::Events, game_config::GameConfig, persist_data};
 use artifactsmmo_openapi::models::ResourceSchema;
 use log::error;
 use std::{fs::read_to_string, path::Path, sync::Arc};
@@ -48,6 +45,10 @@ impl Resources {
     pub fn is_event(&self, code: &str) -> bool {
         self.events.data.iter().any(|e| e.content.code == code)
     }
+}
+
+pub trait ResourceSchemaExt {
+    fn drop_rate(&self, item: &str) -> Option<i32>;
 }
 
 impl ResourceSchemaExt for ResourceSchema {

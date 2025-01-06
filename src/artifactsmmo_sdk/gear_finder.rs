@@ -2,9 +2,9 @@ use super::{
     character::Character,
     fight_simulator::FightSimulator,
     gear::Gear,
-    items::{Items, Type},
+    items::{ItemSchemaExt, Items, Type},
     skill::Skill,
-    ItemSchemaExt,
+    
 };
 use anyhow::bail;
 use artifactsmmo_openapi::models::{FightResult, ItemSchema, MonsterSchema};

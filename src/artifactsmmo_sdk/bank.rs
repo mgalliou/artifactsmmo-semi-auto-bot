@@ -1,4 +1,4 @@
-use super::{api::bank::BankApi, game_config::GameConfig, items::Items, ItemSchemaExt};
+use super::{api::bank::BankApi, game_config::GameConfig, items::{ItemSchemaExt, Items}};
 use artifactsmmo_openapi::models::{BankSchema, ItemSchema, SimpleItemSchema};
 use itertools::Itertools;
 use log::info;

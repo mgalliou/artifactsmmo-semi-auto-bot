@@ -1,7 +1,7 @@
 use super::{
     consts::{BASE_HP, HP_PER_LEVEL, MAX_TURN},
     gear::Gear,
-    ItemSchemaExt,
+    items::ItemSchemaExt,
 };
 use artifactsmmo_openapi::models::{FightResult, MonsterSchema};
 use std::cmp::max;

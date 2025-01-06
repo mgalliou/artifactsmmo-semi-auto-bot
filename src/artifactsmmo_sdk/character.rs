@@ -13,13 +13,13 @@ use super::{
     gear::{Gear, Slot},
     gear_finder::{Filter, GearFinder},
     inventory::Inventory,
-    items::{ItemSource, Items, Type},
+    items::{ItemSchemaExt, ItemSource, Items, Type},
     leveling_helper::LevelingHelper,
-    maps::Maps,
+    maps::{MapSchemaExt, Maps},
     monsters::Monsters,
     orderboard::{Order, OrderBoard, Purpose},
     resources::Resources,
-    skill::Skill, ItemSchemaExt, MapSchemaExt,
+    skill::Skill,
 };
 use crate::artifactsmmo_sdk::char_config::Goal;
 use actions::{HasDrops, RequestError};

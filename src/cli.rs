@@ -1,4 +1,4 @@
-use crate::artifactsmmo_sdk;
+use crate::artifactsmmo_sdk::{self, events::EventSchemaExt};
 use anyhow::{bail, Result};
 use artifactsmmo_sdk::{
     character::{Character, PostCraftAction},
@@ -7,7 +7,7 @@ use artifactsmmo_sdk::{
     gear_finder::Filter,
     orderboard::Purpose,
     skill::Skill,
-    EventSchemaExt,
+    
 };
 use clap::{value_parser, Parser, Subcommand};
 use rustyline::{error::ReadlineError, DefaultEditor};

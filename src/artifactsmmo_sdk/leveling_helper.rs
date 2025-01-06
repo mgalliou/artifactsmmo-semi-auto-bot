@@ -1,6 +1,6 @@
 use super::{
-    account::Account, character::Character, items::Items, maps::Maps, monsters::Monsters,
-    resources::Resources, skill::Skill, ItemSchemaExt,
+    account::Account, character::Character, items::{ItemSchemaExt, Items}, maps::Maps, monsters::Monsters,
+    resources::Resources, skill::Skill,
 };
 use artifactsmmo_openapi::models::{ItemSchema, MonsterSchema, ResourceSchema};
 use itertools::Itertools;

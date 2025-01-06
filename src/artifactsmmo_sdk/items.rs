@@ -1,13 +1,16 @@
 use super::consts::{
-    ASTRALYTE_CRYSTAL, DIAMOND, ENCHANTED_FABRIC, FOOD_BLACK_LIST, JASPER_CRYSTAL, MAGICAL_CURE, TASKS_COIN
+    ASTRALYTE_CRYSTAL, DIAMOND, ENCHANTED_FABRIC, FOOD_BLACK_LIST, JASPER_CRYSTAL, MAGICAL_CURE,
+    TASKS_COIN,
 };
 use super::fight_simulator::FightSimulator;
 use super::game_config::GameConfig;
 use super::gear::Slot;
+use super::monsters::MonsterSchemaExt;
+use super::resources::ResourceSchemaExt;
 use super::skill::Skill;
 use super::tasks::Tasks;
 use super::{api::items::ItemsApi, monsters::Monsters, resources::Resources};
-use super::{persist_data, retreive_data, ItemSchemaExt, MonsterSchemaExt, ResourceSchemaExt};
+use super::{persist_data, retreive_data};
 use artifactsmmo_openapi::models::{CraftSchema, ItemEffectSchema, ItemSchema, SimpleItemSchema};
 use artifactsmmo_openapi::models::{MonsterSchema, ResourceSchema};
 use itertools::Itertools;
@@ -350,6 +353,31 @@ impl Items {
     }
 }
 
+pub trait ItemSchemaExt {
+    fn name(&self) -> String;
+    fn r#type(&self) -> Type;
+    fn is_of_type(&self, r#type: Type) -> bool;
+    fn is_crafted_with(&self, item: &str) -> bool;
+    fn is_crafted_from_task(&self) -> bool;
+    fn mats(&self) -> Vec<SimpleItemSchema>;
+    fn craft_schema(&self) -> Option<CraftSchema>;
+    fn skill_to_craft(&self) -> Option<Skill>;
+    fn effects(&self) -> Vec<&ItemEffectSchema>;
+    fn attack_damage(&self, r#type: DamageType) -> i32;
+    fn attack_damage_against(&self, monster: &MonsterSchema) -> f32;
+    fn damage_increase(&self, r#type: DamageType) -> i32;
+    fn resistance(&self, r#type: DamageType) -> i32;
+    fn health(&self) -> i32;
+    fn haste(&self) -> i32;
+    fn skill_cooldown_reduction(&self, skijll: Skill) -> i32;
+    fn heal(&self) -> i32;
+    fn restore(&self) -> i32;
+    fn inventory_space(&self) -> i32;
+    fn is_consumable(&self, level: i32) -> bool;
+    fn damage_increase_against_with(&self, monster: &MonsterSchema, weapon: &ItemSchema) -> f32;
+    fn damage_reduction_against(&self, monster: &MonsterSchema) -> f32;
+}
+
 impl ItemSchemaExt for ItemSchema {
     fn name(&self) -> String {
         self.name.to_owned()
@@ -604,9 +632,10 @@ pub enum ItemSource<'a> {
 #[cfg(test)]
 mod tests {
     use super::Items;
+    use crate::artifactsmmo_sdk::items::ItemSchemaExt;
     use crate::artifactsmmo_sdk::{
         game_config::GameConfig, items::ItemSource, monsters::Monsters, resources::Resources,
-        tasks::Tasks, ItemSchemaExt,
+        tasks::Tasks,
     };
     use itertools::Itertools;
     use std::sync::Arc;

@@ -1,6 +1,6 @@
 use super::{
-    api::events::EventsApi, game_config::GameConfig, persist_data, retreive_data, EventSchemaExt,
-    MapSchemaExt,
+    api::events::EventsApi, game_config::GameConfig, maps::MapSchemaExt, persist_data,
+    retreive_data, 
 };
 use artifactsmmo_openapi::models::{ActiveEventSchema, EventSchema, MapSchema};
 use chrono::{DateTime, Duration, Utc};
@@ -117,6 +117,11 @@ impl EventSchemaExt for ActiveEventSchema {
             remaining
         )
     }
+}
+
+pub trait EventSchemaExt {
+    fn content_code(&self) -> &String;
+    fn to_string(&self) -> String;
 }
 
 impl EventSchemaExt for EventSchema {

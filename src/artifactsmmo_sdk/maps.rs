@@ -1,6 +1,4 @@
-use super::{
-    api::maps::MapsApi, events::Events, game_config::GameConfig, skill::Skill, MapSchemaExt,
-};
+use super::{api::maps::MapsApi, events::Events, game_config::GameConfig, skill::Skill};
 use artifactsmmo_openapi::models::{ActiveEventSchema, MapContentSchema, MapSchema};
 use chrono::{DateTime, Utc};
 use std::{
@@ -101,6 +99,12 @@ impl Maps {
             Skill::Fishing => None,
         }
     }
+}
+
+pub trait MapSchemaExt {
+    fn content(&self) -> Option<MapContentSchema>;
+    fn content_is(&self, code: &str) -> bool;
+    fn pretty(&self) -> String;
 }
 
 impl MapSchemaExt for MapSchema {

@@ -1,4 +1,4 @@
-use super::{fight_simulator::FightSimulator, items::DamageType, ItemSchemaExt, MonsterSchemaExt};
+use super::{fight_simulator::FightSimulator, items::{DamageType, ItemSchemaExt}, monsters::MonsterSchemaExt};
 use artifactsmmo_openapi::models::{ItemSchema, ItemSlot, MonsterSchema, SimpleItemSchema};
 use itertools::Itertools;
 use std::fmt::Display;
