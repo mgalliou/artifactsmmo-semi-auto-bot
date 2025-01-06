@@ -1705,11 +1705,11 @@ impl Character {
         self.data.read().unwrap().max_hp - self.data.read().unwrap().hp
     }
 
-    fn task(&self) -> String {
+    pub fn task(&self) -> String {
         self.data.read().unwrap().task.to_owned()
     }
 
-    fn task_type(&self) -> Option<TaskType> {
+    pub fn task_type(&self) -> Option<TaskType> {
         match self.data.read().unwrap().task_type.as_str() {
             "monsters" => Some(TaskType::Monsters),
             "items" => Some(TaskType::Items),
@@ -1717,15 +1717,15 @@ impl Character {
         }
     }
 
-    fn task_progress(&self) -> i32 {
+    pub fn task_progress(&self) -> i32 {
         self.data.read().unwrap().task_progress
     }
 
-    fn task_total(&self) -> i32 {
+    pub fn task_total(&self) -> i32 {
         self.data.read().unwrap().task_total
     }
 
-    fn task_missing(&self) -> i32 {
+    pub fn task_missing(&self) -> i32 {
         self.task_total() - self.task_progress()
     }
 

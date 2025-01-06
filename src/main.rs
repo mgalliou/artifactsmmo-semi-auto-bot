@@ -19,12 +19,14 @@ fn main() -> Result<()> {
     let _ = simple_logging::log_to_file("artifactsmmo.log", LevelFilter::Info);
     let game = Game::new();
     game.init();
-    game.orderboard
-        .add(None, "lizard_skin", 1000, Purpose::Cli)?;
-    game.orderboard
-        .add(None, "demon_horn", 1000, Purpose::Cli)?;
+    //game.orderboard
+    //    .add(None, "lizard_skin", 1000, Purpose::Cli)?;
+    //game.orderboard
+    //    .add(None, "demon_horn", 1000, Purpose::Cli)?;
     game.orderboard
         .add(None, "malefic_cloth", 200, Purpose::Cli)?;
+    game.orderboard
+        .add(None, "rosenblood_elixir", 200, Purpose::Cli)?;
     game.orderboard
         .add(None, "strange_ore", 6000, Purpose::Cli)?;
     game.orderboard
@@ -352,6 +354,12 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
             let (x, y) = char.position();
             println!("{:?}", game.maps.get(x, y).unwrap());
         }
+        Commands::Task => {
+            let Some(char) = character else {
+                bail!("no character selected");
+            };
+            println!("{} ({:?}) {}/{}", char.task(), char.task_type(), char.task_progress(), char.task_total());
+        },
     }
     Ok(true)
 }
@@ -391,6 +399,7 @@ enum Commands {
         i: i32,
     },
     Map,
+    Task,
     Status,
     Idle,
     Craft {

@@ -388,6 +388,9 @@ impl ItemSchemaExt for ItemSchema {
             || self.is_crafted_with(ENCHANTED_FABRIC)
             || self.is_crafted_with(ASTRALYTE_CRYSTAL)
             || self.is_crafted_with(DIAMOND)
+            || self.is_crafted_with("rosenblood_elixir")
+            || self.is_crafted_with("hellhound_hair")
+            || self.is_crafted_with("efreet_cloth")
     }
 
     fn mats(&self) -> Vec<SimpleItemSchema> {
