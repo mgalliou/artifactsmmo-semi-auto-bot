@@ -1263,11 +1263,18 @@ impl Character {
     }
 
     pub fn deposit_all_gold(&self) -> Result<i32, CharacterError> {
-        let gold = self.data.read().unwrap().gold;
-        if gold <= 0 {
+        self.deposit_gold(self.gold())
+    }
+
+    pub fn deposit_gold(&self, amount: i32) -> Result<i32, CharacterError> {
+        if amount <= 0 {
             return Ok(0);
         };
-        Ok(self.action_deposit_gold(gold)?)
+        if amount > self.gold() {
+            return Err(CharacterError::InsuffisientGoldInInventory);
+        }
+        self.move_to_closest_map_of_type("bank")?;
+        Ok(self.action_deposit_gold(amount)?)
     }
 
     pub fn expand_bank(&self) -> Result<i32, CharacterError> {
@@ -1277,9 +1284,20 @@ impl Character {
         if self.bank.gold() + self.gold() < self.bank.next_expansion_cost() {
             return Err(CharacterError::InsuffisientGold);
         };
+        self.withdraw_gold(self.bank.next_expansion_cost() - self.gold())?;
         self.move_to_closest_map_of_type("bank")?;
-        self.action_withdraw_gold(self.bank.next_expansion_cost() - self.gold())?;
         Ok(self.action_expand_bank()?)
+    }
+
+    pub fn withdraw_gold(&self, amount: i32) -> Result<i32, CharacterError> {
+        if amount <= 0 {
+            return Ok(0);
+        };
+        if self.bank.gold() < amount {
+            return Err(CharacterError::InsuffisientGoldInBank);
+        };
+        self.move_to_closest_map_of_type("bank")?;
+        Ok(self.action_withdraw_gold(amount)?)
     }
 
     pub fn empty_bank(&self) {
@@ -2077,6 +2095,10 @@ pub enum CharacterError {
     NotEnoughCoin,
     #[error("Not enough gold is available to the character")]
     InsuffisientGold,
+    #[error("Not enough gold is available in the bank")]
+    InsuffisientGoldInBank,
+    #[error("Not enough gold is available in the character inventory")]
+    InsuffisientGoldInInventory,
     #[error("Bank is not available")]
     BankUnavailable,
     #[error("Inventory is full")]
