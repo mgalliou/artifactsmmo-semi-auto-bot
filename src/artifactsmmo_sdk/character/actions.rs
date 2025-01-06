@@ -1,5 +1,5 @@
 use super::Character;
-use crate::artifactsmmo_sdk::{gear::Slot, maps::MapSchemaExt, ApiErrorResponseSchema};
+use crate::artifactsmmo_sdk::{consts::BANK_EXTENSION_SIZE, gear::Slot, maps::MapSchemaExt, ApiErrorResponseSchema};
 use artifactsmmo_openapi::{
     apis::Error,
     models::{
@@ -170,7 +170,7 @@ impl Character {
                     .is_some()
                 {
                     if let Some(mut bank_details) = bank_details {
-                        bank_details.slots += 20;
+                        bank_details.slots += BANK_EXTENSION_SIZE;
                     }
                 };
                 Ok(res)

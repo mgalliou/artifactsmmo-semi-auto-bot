@@ -26,3 +26,5 @@ pub const FOOD_BLACK_LIST: &[&str] = &[
 pub const MAX_TURN: i32 = 100;
 pub const BASE_HP: i32 = 115;
 pub const HP_PER_LEVEL: i32 = 5;
+
+pub const BANK_EXTENSION_SIZE: i32 = 20;
