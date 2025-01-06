@@ -51,16 +51,7 @@ impl Account {
             *chars = chars_conf
                 .into_iter()
                 .zip(chars_schema.iter())
-                .map(|(conf, schema)| {
-                    Arc::new(Character::new(
-                        &self.config,
-                        &game.account,
-                        game,
-                        &self.bank,
-                        &conf,
-                        schema,
-                    ))
-                })
+                .map(|(conf, schema)| Arc::new(Character::new(&self.config, game, &conf, schema)))
                 .collect_vec()
         }
     }

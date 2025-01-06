@@ -72,9 +72,7 @@ pub struct Character {
 impl Character {
     pub fn new(
         config: &GameConfig,
-        account: &Arc<Account>,
         game: &Game,
-        bank: &Arc<Bank>,
         conf: &Arc<RwLock<CharConfig>>,
         data: &Arc<RwLock<CharacterSchema>>,
     ) -> Character {
@@ -83,7 +81,7 @@ impl Character {
             conf: conf.clone(),
             my_api: MyCharacterApi::new(&config.base_url, &config.token),
             api: CharactersApi::new(&config.base_url, &config.token),
-            account: account.clone(),
+            account: game.account.clone(),
             server: game.server.clone(),
             maps: game.maps.clone(),
             resources: game.resources.clone(),
@@ -93,7 +91,7 @@ impl Character {
             gear_finder: game.gear_finder.clone(),
             fight_simulator: game.fight_simulator.clone(),
             leveling_helper: game.leveling_helper.clone(),
-            bank: bank.clone(),
+            bank: game.account.bank.clone(),
             data: data.clone(),
             inventory: Arc::new(Inventory::new(data, &game.items)),
         }
