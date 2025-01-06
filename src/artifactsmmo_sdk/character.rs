@@ -42,7 +42,7 @@ use thiserror::Error;
 mod actions;
 
 const EXCHANGE_PRICE: i32 = 6;
-const CANCEL_PRICE: i32 = 6;
+const CANCEL_PRICE: i32 = 1;
 const MIN_COIN_THRESHOLD: i32 = 4;
 const MAX_LEVEL: i32 = 40;
 const MIN_FOOD_THRESHOLD: i32 = 3000;
