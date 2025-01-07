@@ -369,6 +369,7 @@ pub trait ItemSchemaExt {
     fn resistance(&self, r#type: DamageType) -> i32;
     fn health(&self) -> i32;
     fn haste(&self) -> i32;
+    fn is_tool(&self) -> bool;
     fn skill_cooldown_reduction(&self, skijll: Skill) -> i32;
     fn heal(&self) -> i32;
     fn restore(&self) -> i32;
@@ -475,6 +476,10 @@ impl ItemSchemaExt for ItemSchema {
             .find(|e| e.name == "haste")
             .map(|e| e.value)
             .unwrap_or(0)
+    }
+
+    fn is_tool(&self) -> bool {
+        Skill::iter().any(|s| self.skill_cooldown_reduction(s) < 0)
     }
 
     fn skill_cooldown_reduction(&self, skill: Skill) -> i32 {

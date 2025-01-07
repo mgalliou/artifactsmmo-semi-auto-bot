@@ -4,7 +4,6 @@ use super::{
     gear::Gear,
     items::{ItemSchemaExt, Items, Type},
     skill::Skill,
-    
 };
 use anyhow::bail;
 use artifactsmmo_openapi::models::{FightResult, ItemSchema, MonsterSchema};
@@ -37,7 +36,8 @@ impl GearFinder {
             .map(|g| {
                 (
                     g,
-                    self.fight_simulator.simulate(char.level(), 0, &g, monster, false),
+                    self.fight_simulator
+                        .simulate(char.level(), 0, &g, monster, false),
                 )
             })
             .filter(|(_g, f)| f.result == FightResult::Win)
@@ -57,7 +57,8 @@ impl GearFinder {
             .map(|g| {
                 (
                     g,
-                    self.fight_simulator.simulate(char.level(), 0, &g, monster, true),
+                    self.fight_simulator
+                        .simulate(char.level(), 0, &g, monster, true),
                 )
             })
             .min_by_key(|(_g, f)| f.cd + FightSimulator::time_to_rest(f.hp_lost))
@@ -87,7 +88,7 @@ impl GearFinder {
             .items
             .equipable_at_level(char.level(), Type::Weapon)
             .into_iter()
-            .filter(|i| self.is_eligible(i, filter, char))
+            .filter(|i| !i.is_tool() && self.is_eligible(i, filter, char))
             .collect_vec();
         let best = equipables
             .iter()
