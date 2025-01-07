@@ -4,8 +4,8 @@ use super::{
     base_character::{BaseCharacter, RequestError},
     char_config::CharConfig,
     consts::{
-        CANCEL_PRICE, CRAFT_TIME, EXCHANGE_PRICE, GIFT, MAX_LEVEL, MIN_COIN_THRESHOLD,
-        MIN_FOOD_THRESHOLD, TASKS_COIN,
+        CRAFT_TIME, GIFT, MAX_LEVEL, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD, TASKS_COIN,
+        TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE,
     },
     fight_simulator::FightSimulator,
     game::Game,
@@ -306,7 +306,7 @@ impl Character {
                             .is_empty()
                 }
                 ItemSource::TaskReward => {
-                    self.has_available(TASKS_COIN) >= EXCHANGE_PRICE + MIN_COIN_THRESHOLD
+                    self.has_available(TASKS_COIN) >= TASK_EXCHANGE_PRICE + MIN_COIN_THRESHOLD
                 }
                 ItemSource::Task => self.has_available(&self.task()) >= self.task_missing(),
                 ItemSource::Gift => self.has_available(GIFT) > 0,
@@ -400,7 +400,7 @@ impl Character {
                     return None;
                 }
                 if let CharacterError::NotEnoughCoin = e {
-                    let q = EXCHANGE_PRICE + MIN_COIN_THRESHOLD
+                    let q = TASK_EXCHANGE_PRICE + MIN_COIN_THRESHOLD
                         - if self.orderboard.is_ordered(TASKS_COIN) {
                             0
                         } else {
@@ -621,7 +621,7 @@ impl Character {
     fn can_exchange_task(&self) -> Result<(), CharacterError> {
         if self.inventory.total_of(TASKS_COIN)
             + self.bank.has_available(TASKS_COIN, Some(&self.base.name()))
-            < EXCHANGE_PRICE + MIN_COIN_THRESHOLD
+            < TASK_EXCHANGE_PRICE + MIN_COIN_THRESHOLD
         {
             return Err(CharacterError::NotEnoughCoin);
         }
@@ -634,8 +634,8 @@ impl Character {
             self.inventory.max_items() / 2,
             self.bank.has_available(TASKS_COIN, Some(&self.base.name())),
         );
-        quantity = quantity - (quantity % EXCHANGE_PRICE);
-        if self.inventory.total_of(TASKS_COIN) >= EXCHANGE_PRICE {
+        quantity = quantity - (quantity % TASK_EXCHANGE_PRICE);
+        if self.inventory.total_of(TASKS_COIN) >= TASK_EXCHANGE_PRICE {
             if let Err(e) = self
                 .inventory
                 .reserv(TASKS_COIN, self.inventory.total_of(TASKS_COIN))
@@ -666,7 +666,7 @@ impl Character {
         };
         let result = self.base.action_task_exchange().map_err(|e| e.into());
         self.inventory
-            .decrease_reservation(TASKS_COIN, EXCHANGE_PRICE);
+            .decrease_reservation(TASKS_COIN, TASK_EXCHANGE_PRICE);
         result
     }
 
@@ -714,20 +714,20 @@ impl Character {
 
     fn cancel_task(&self) -> Result<(), CharacterError> {
         if self.bank.has_available(TASKS_COIN, Some(&self.base.name()))
-            < EXCHANGE_PRICE + MIN_COIN_THRESHOLD
+            < TASK_EXCHANGE_PRICE + MIN_COIN_THRESHOLD
         {
             return Err(CharacterError::NotEnoughCoin);
         }
         if self.inventory.has_available(TASKS_COIN) <= 0 {
             if self
                 .bank
-                .reserv("tasks_coin", CANCEL_PRICE, &self.base.name())
+                .reserv("tasks_coin", TASK_CANCEL_PRICE, &self.base.name())
                 .is_err()
             {
                 return Err(CharacterError::NotEnoughCoin);
             }
             self.deposit_all();
-            self.withdraw_item(TASKS_COIN, CANCEL_PRICE)?;
+            self.withdraw_item(TASKS_COIN, TASK_CANCEL_PRICE)?;
         }
         if let Err(e) = self.move_to_closest_taskmaster(self.task_type()) {
             error!(
@@ -738,7 +738,7 @@ impl Character {
         };
         let result = self.base.action_cancel_task().map_err(|e| e.into());
         self.inventory
-            .decrease_reservation(TASKS_COIN, CANCEL_PRICE);
+            .decrease_reservation(TASKS_COIN, TASK_CANCEL_PRICE);
         result
     }
 
