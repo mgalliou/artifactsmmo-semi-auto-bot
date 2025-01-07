@@ -4,7 +4,8 @@ use super::{
     base_character::{BaseCharacter, RequestError},
     char_config::CharConfig,
     consts::{
-        BANK_MIN_FREE_SLOT, CRAFT_TIME, GIFT, MAX_LEVEL, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD, TASKS_COIN, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE
+        BANK_MIN_FREE_SLOT, CRAFT_TIME, GIFT, MAX_LEVEL, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
+        TASKS_COIN, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE,
     },
     fight_simulator::FightSimulator,
     game::Game,
@@ -14,7 +15,7 @@ use super::{
     inventory::Inventory,
     items::{ItemSchemaExt, ItemSource, Items, Type},
     leveling_helper::LevelingHelper,
-    maps::{MapSchemaExt, Maps},
+    maps::{ContentType, MapSchemaExt, Maps},
     monsters::Monsters,
     orderboard::{Order, OrderBoard, Purpose},
     resources::Resources,
@@ -699,7 +700,7 @@ impl Character {
             self.deposit_all();
             self.withdraw_item(GIFT, quantity)?;
         }
-        if let Err(e) = self.move_to_closest_map_of_type("santa_claus") {
+        if let Err(e) = self.move_to_closest_map_of_type(ContentType::SantaClaus) {
             error!(
                 "{}: error while moving to santa claus: {:?}",
                 self.base.name(),
@@ -1258,7 +1259,7 @@ impl Character {
             // TODO: return a better error
             return Err(CharacterError::ItemNotFound);
         }
-        self.move_to_closest_map_of_type("bank")?;
+        self.move_to_closest_map_of_type(ContentType::Bank)?;
         if self.bank.free_slots() <= BANK_MIN_FREE_SLOT {
             if let Err(e) = self.expand_bank() {
                 error!(
@@ -1300,7 +1301,7 @@ impl Character {
             // TODO: return a better error
             return Err(CharacterError::ItemNotFound);
         }
-        self.move_to_closest_map_of_type("bank")?;
+        self.move_to_closest_map_of_type(ContentType::Bank)?;
         let result = self.base.action_withdraw(item, quantity);
         if result.is_ok() {
             self.bank
@@ -1381,7 +1382,7 @@ impl Character {
         if amount > self.gold() {
             return Err(CharacterError::InsuffisientGoldInInventory);
         }
-        self.move_to_closest_map_of_type("bank")?;
+        self.move_to_closest_map_of_type(ContentType::Bank)?;
         Ok(self.base.action_deposit_gold(amount)?)
     }
 
@@ -1393,7 +1394,7 @@ impl Character {
             return Err(CharacterError::InsuffisientGold);
         };
         self.withdraw_gold(self.bank.next_expansion_cost() - self.gold())?;
-        self.move_to_closest_map_of_type("bank")?;
+        self.move_to_closest_map_of_type(ContentType::Bank)?;
         Ok(self.base.action_expand_bank()?)
     }
 
@@ -1404,12 +1405,12 @@ impl Character {
         if self.bank.gold() < amount {
             return Err(CharacterError::InsuffisientGoldInBank);
         };
-        self.move_to_closest_map_of_type("bank")?;
+        self.move_to_closest_map_of_type(ContentType::Bank)?;
         Ok(self.base.action_withdraw_gold(amount)?)
     }
 
     pub fn empty_bank(&self) {
-        if let Err(e) = self.move_to_closest_map_of_type("bank") {
+        if let Err(e) = self.move_to_closest_map_of_type(ContentType::Bank) {
             error!(
                 "{} failed to move to bank before emptying bank: {:?}",
                 self.base.name(),
@@ -1510,7 +1511,10 @@ impl Character {
         self.base.data.read().unwrap().gold
     }
 
-    fn move_to_closest_map_of_type(&self, r#type: &str) -> Result<MapSchema, CharacterError> {
+    fn move_to_closest_map_of_type(
+        &self,
+        r#type: ContentType,
+    ) -> Result<MapSchema, CharacterError> {
         if let Some(map) = self.closest_map_of_type(r#type) {
             let (x, y) = (map.x, map.y);
             Ok(self.move_to(x, y)?)
@@ -1529,7 +1533,7 @@ impl Character {
                 code: r#type.to_string(),
             })
         } else {
-            self.move_to_closest_map_of_type("tasks_master")
+            self.move_to_closest_map_of_type(ContentType::TasksMaster)
         }
     }
 
@@ -1557,7 +1561,7 @@ impl Character {
 
     /// Returns the closest map from the `Character` containing the given
     /// content `type`.
-    fn closest_map_of_type(&self, r#type: &str) -> Option<MapSchema> {
+    fn closest_map_of_type(&self, r#type: ContentType) -> Option<MapSchema> {
         let maps = self.maps.of_type(r#type);
         if maps.is_empty() {
             return None;

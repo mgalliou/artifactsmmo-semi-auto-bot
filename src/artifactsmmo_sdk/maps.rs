@@ -5,6 +5,7 @@ use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
 };
+use strum_macros::AsRefStr;
 
 #[derive(Default)]
 pub struct Maps {
@@ -56,7 +57,7 @@ impl Maps {
             .min_by_key(|m| i32::abs(x - m.x) + i32::abs(y - m.y))
     }
 
-    pub fn of_type(&self, r#type: &str) -> Vec<MapSchema> {
+    pub fn of_type(&self, r#type: ContentType) -> Vec<MapSchema> {
         self.data
             .values()
             .filter(|m| {
@@ -122,5 +123,23 @@ impl MapSchemaExt for MapSchema {
         } else {
             format!("{} ({},{})", self.name, self.x, self.y)
         }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, AsRefStr)]
+#[strum(serialize_all = "snake_case")]
+pub enum ContentType {
+    Monster,
+    Resource,
+    Workshop,
+    Bank,
+    GrandExchange,
+    TasksMaster,
+    SantaClaus,
+}
+
+impl PartialEq<ContentType> for String {
+    fn eq(&self, other: &ContentType) -> bool {
+        other.as_ref() == *self
     }
 }
