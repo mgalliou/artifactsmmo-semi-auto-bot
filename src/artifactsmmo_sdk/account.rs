@@ -30,7 +30,7 @@ impl Account {
     pub fn new(config: &Arc<GameConfig>, items: &Arc<Items>) -> Arc<Account> {
         let mut configuration = Configuration::new();
         configuration.base_path = config.base_url.to_owned();
-        configuration.bearer_access_token = Some(config.base_url.to_owned());
+        configuration.bearer_access_token = Some(config.token.to_owned());
         let my_characters_api = MyCharacterApi::new(&config.base_url, &config.token);
         Arc::new(Account {
             configuration,
