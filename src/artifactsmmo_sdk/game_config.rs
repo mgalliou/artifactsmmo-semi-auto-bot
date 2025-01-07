@@ -1,3 +1,5 @@
+use std::sync::RwLock;
+
 use super::char_config::CharConfig;
 use figment::{
     providers::{Format, Toml},
@@ -5,11 +7,11 @@ use figment::{
 };
 use serde::Deserialize;
 
-#[derive(Debug, Default, Clone, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 pub struct GameConfig {
     pub base_url: String,
     pub token: String,
-    pub characters: Vec<CharConfig>,
+    pub characters: Vec<RwLock<CharConfig>>,
 }
 
 impl GameConfig {

@@ -7,7 +7,6 @@ use artifactsmmo_sdk::{
     gear_finder::Filter,
     orderboard::Purpose,
     skill::Skill,
-    
 };
 use clap::{value_parser, Parser, Subcommand};
 use rustyline::{error::ReadlineError, DefaultEditor};
@@ -265,7 +264,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
                 let Some(char) = character else {
                     bail!("no character selected");
                 };
-                char.conf
+                char.conf()
                     .write()
                     .unwrap()
                     .skills
@@ -275,7 +274,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
                 let Some(char) = character else {
                     bail!("no character selected");
                 };
-                char.conf
+                char.conf()
                     .write()
                     .unwrap()
                     .skills
@@ -285,7 +284,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
                 let Some(char) = character else {
                     bail!("no character selected");
                 };
-                char.conf.read().unwrap().skills.iter().for_each(|s| {
+                char.conf().read().unwrap().skills.iter().for_each(|s| {
                     println!(
                         "{}({}): {}/{} ({}%)",
                         s,

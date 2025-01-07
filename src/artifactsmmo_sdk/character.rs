@@ -44,6 +44,8 @@ mod actions;
 
 #[derive(Default)]
 pub struct Character {
+    config: Arc<GameConfig>,
+    pub id: usize,
     pub name: String,
     my_api: MyCharacterApi,
     api: CharactersApi,
@@ -58,21 +60,21 @@ pub struct Character {
     gear_finder: Arc<GearFinder>,
     fight_simulator: Arc<FightSimulator>,
     leveling_helper: Arc<LevelingHelper>,
-    pub conf: Arc<RwLock<CharConfig>>,
     pub data: Arc<RwLock<CharacterSchema>>,
     pub inventory: Arc<Inventory>,
 }
 
 impl Character {
     pub fn new(
-        config: &GameConfig,
+        id: usize,
+        config: &Arc<GameConfig>,
         game: &Game,
-        conf: &Arc<RwLock<CharConfig>>,
         data: &Arc<RwLock<CharacterSchema>>,
     ) -> Character {
         Character {
+            config: config.clone(),
+            id,
             name: data.read().unwrap().name.to_owned(),
-            conf: conf.clone(),
             my_api: MyCharacterApi::new(&config.base_url, &config.token),
             api: CharactersApi::new(&config.base_url, &config.token),
             account: game.account.clone(),
@@ -94,7 +96,7 @@ impl Character {
     pub fn run_loop(&self) {
         info!("{}: started !", self.name);
         loop {
-            if self.conf.read().unwrap().idle {
+            if self.conf().read().unwrap().idle {
                 continue;
             }
             if self.inventory.is_full() {
@@ -110,7 +112,7 @@ impl Character {
             if self.progress_task().is_ok() {
                 continue;
             };
-            for s in self.conf().skills.iter() {
+            for s in self.conf().read().unwrap().skills.iter() {
                 if self.level_skill_up(*s) {
                     break;
                 }
@@ -119,15 +121,24 @@ impl Character {
     }
 
     fn handle_goals(&self) -> bool {
-        let first_level_goal_not_reached = self.conf().goals.into_iter().find(|g| {
-            if let Goal::ReachSkillLevel { skill, level } = g {
-                self.skill_level(*skill) < *level
-            } else {
-                false
-            }
-        });
+        let first_level_goal_not_reached = self
+            .conf()
+            .read()
+            .unwrap()
+            .goals
+            .iter()
+            .find(|g| {
+                if let Goal::ReachSkillLevel { skill, level } = g {
+                    self.skill_level(*skill) < *level
+                } else {
+                    false
+                }
+            })
+            .cloned();
         // TODO: improve the way ReachSkillLevel is handled
         self.conf()
+            .read()
+            .unwrap()
             .goals
             .iter()
             .filter(|g| {
@@ -1638,7 +1649,7 @@ impl Character {
     }
 
     pub fn toggle_idle(&self) {
-        let mut conf = self.conf.write().unwrap();
+        let mut conf = self.conf().write().unwrap();
         conf.idle ^= true;
         info!("{} toggled idle: {}.", self.name, conf.idle);
         if !conf.idle {
@@ -1737,8 +1748,8 @@ impl Character {
         }
     }
 
-    fn conf(&self) -> CharConfig {
-        self.conf.read().unwrap().clone()
+    pub fn conf(&self) -> &RwLock<CharConfig> {
+        self.config.characters.get(self.id).unwrap()
     }
 
     #[allow(dead_code)]
@@ -1938,7 +1949,7 @@ impl Character {
     }
 
     pub fn skill_enabled(&self, s: Skill) -> bool {
-        self.conf().skills.contains(&s)
+        self.conf().read().unwrap().skills.contains(&s)
     }
 
     fn withdraw_food(&self) {
