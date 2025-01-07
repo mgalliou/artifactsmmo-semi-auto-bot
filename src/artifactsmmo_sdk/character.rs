@@ -779,20 +779,7 @@ impl Character {
     /// map or the closest containing the `monster` and fight it.
     fn kill_monster(&self, monster: &MonsterSchema) -> Result<FightSchema, CharacterError> {
         self.can_fight(monster)?;
-        let mut available: Gear;
-        let Ok(_browsed) = self.bank.browsed.write() else {
-            return Err(CharacterError::BankUnavailable);
-        };
-        match self.can_kill(monster) {
-            Ok(gear) => {
-                available = gear;
-                self.reserv_gear(available)
-            }
-            Err(e) => return Err(e),
-        }
-        self.order_best_gear_against(monster);
-        drop(_browsed);
-        self.equip_gear(&mut available);
+        self.check_gear(monster)?;
         if let Ok(_) | Err(CharacterError::NoTask) = self.complete_task() {
             if let Err(e) = self.accept_task(TaskType::Monsters) {
                 error!(
@@ -813,6 +800,24 @@ impl Character {
         }
         self.move_to_closest_map_with_content_code(&monster.code)?;
         Ok(self.base.action_fight()?)
+    }
+
+    fn check_gear(&self, monster: &MonsterSchema) -> Result<(), CharacterError> {
+        let mut available: Gear;
+        let Ok(_browsed) = self.bank.browsed.write() else {
+            return Err(CharacterError::BankUnavailable);
+        };
+        match self.can_kill(monster) {
+            Ok(gear) => {
+                available = gear;
+                self.reserv_gear(available)
+            }
+            Err(e) => return Err(e),
+        }
+        self.order_best_gear_against(monster);
+        drop(_browsed);
+        self.equip_gear(&mut available);
+        Ok(())
     }
 
     fn rest(&self) -> Result<(), CharacterError> {
