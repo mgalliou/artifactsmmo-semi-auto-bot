@@ -1,5 +1,5 @@
 use super::{
-    account::Account, character::Character, events::Events, fight_simulator::FightSimulator,
+    account::Account, events::Events, fight_simulator::FightSimulator,
     game_config::GameConfig, gear_finder::GearFinder, items::Items,
     leveling_helper::LevelingHelper, maps::Maps, monsters::Monsters, orderboard::OrderBoard,
     resources::Resources, tasks::Tasks,
@@ -14,7 +14,6 @@ use artifactsmmo_openapi::{
     models::StatusResponseSchema,
 };
 use chrono::{DateTime, TimeDelta, Utc};
-use itertools::Itertools;
 use log::{debug, error};
 use std::{
     sync::{Arc, RwLock},

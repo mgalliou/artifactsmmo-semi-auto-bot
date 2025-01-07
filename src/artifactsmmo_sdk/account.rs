@@ -1,7 +1,6 @@
 use super::{
     api::{characters::CharactersApi, my_character::MyCharacterApi},
     bank::Bank,
-    base_character::BaseCharacter,
     character::Character,
     game::Game,
     game_config::GameConfig,
@@ -49,16 +48,11 @@ impl Account {
             return;
         };
         *chars = self
-            .get_characters_schemas()
+            .get_characters_data()
             .iter()
             .enumerate()
-            .map(|(id, schema)| {
-                Arc::new(Character::new(
-                    BaseCharacter::new(schema, game),
-                    id,
-                    &self.config,
-                    game,
-                ))
+            .map(|(id, data)| {
+                Arc::new(Character::new(id, data, game))
             })
             .collect_vec()
     }
@@ -177,7 +171,7 @@ impl Account {
             .min()
     }
 
-    fn get_characters_schemas(&self) -> Vec<Arc<RwLock<CharacterSchema>>> {
+    fn get_characters_data(&self) -> Vec<Arc<RwLock<CharacterSchema>>> {
         let my_characters_api = MyCharacterApi::new(
             &self.configuration.base_path,
             &self.configuration.bearer_access_token.clone().unwrap(),

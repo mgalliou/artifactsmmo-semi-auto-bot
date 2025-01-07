@@ -23,9 +23,9 @@ use super::{
 };
 use crate::artifactsmmo_sdk::{base_character::HasDrops, char_config::Goal};
 use artifactsmmo_openapi::models::{
-    FightResult, FightSchema, ItemSchema, MapContentSchema, MapSchema, MonsterSchema,
-    RecyclingItemsSchema, ResourceSchema, RewardsSchema, SimpleItemSchema, SkillDataSchema,
-    SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
+    CharacterSchema, FightResult, FightSchema, ItemSchema, MapContentSchema, MapSchema,
+    MonsterSchema, RecyclingItemsSchema, ResourceSchema, RewardsSchema, SimpleItemSchema,
+    SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
 };
 use itertools::Itertools;
 use log::{error, info, warn};
@@ -42,9 +42,10 @@ use thiserror::Error;
 
 #[derive(Default)]
 pub struct Character {
-    config: Arc<GameConfig>,
     pub id: usize,
+    config: Arc<GameConfig>,
     pub base: BaseCharacter,
+    pub inventory: Arc<Inventory>,
     pub account: Arc<Account>,
     maps: Arc<Maps>,
     resources: Arc<Resources>,
@@ -55,15 +56,17 @@ pub struct Character {
     gear_finder: Arc<GearFinder>,
     fight_simulator: Arc<FightSimulator>,
     leveling_helper: Arc<LevelingHelper>,
-    pub inventory: Arc<Inventory>,
 }
 
 impl Character {
-    pub fn new(base: BaseCharacter, id: usize, config: &Arc<GameConfig>, game: &Game) -> Character {
+    pub fn new(id: usize, data: &Arc<RwLock<CharacterSchema>>, game: &Game) -> Character {
         Character {
-            config: config.clone(),
             id,
+            config: game.config.clone(),
+            base: BaseCharacter::new(data, game),
+            inventory: Arc::new(Inventory::new(data, &game.items)),
             account: game.account.clone(),
+            bank: game.account.bank.clone(),
             maps: game.maps.clone(),
             resources: game.resources.clone(),
             monsters: game.monsters.clone(),
@@ -72,9 +75,6 @@ impl Character {
             gear_finder: game.gear_finder.clone(),
             fight_simulator: game.fight_simulator.clone(),
             leveling_helper: game.leveling_helper.clone(),
-            bank: game.account.bank.clone(),
-            inventory: Arc::new(Inventory::new(&base.data, &game.items)),
-            base,
         }
     }
 
