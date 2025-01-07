@@ -742,33 +742,6 @@ impl Character {
         result
     }
 
-    //fn handle_events(&self) -> bool {
-    //    if self.handle_resource_event() {
-    //        return true;
-    //    }
-    //    if self.handle_monster_event() {
-    //        return true;
-    //    }
-    //    false
-    //}
-
-    //fn handle_resource_event(&self) -> bool {
-    //    for event in self.events.of_type("resource") {
-    //        if let Some(resource) = self.resources.get(event.content_code()) {
-    //            return self.gather_resource(resource, Some(&event.map)).is_ok();
-    //        }
-    //    }
-    //    false
-    //}
-    //
-    //fn handle_monster_event(&self) -> bool {
-    //    self.events.of_type("monster").iter().any(|e| {
-    //        self.monsters
-    //            .get(e.content_code())
-    //            .is_some_and(|m| self.kill_monster(m, Some(&e.map)).is_ok())
-    //    })
-    //}
-
     /// Find a target and kill it if possible.
     fn level_combat(&self) -> Result<(), CharacterError> {
         if !self.skill_enabled(Skill::Combat) {
@@ -796,7 +769,7 @@ impl Character {
 
     fn move_to(&self, x: i32, y: i32) -> Result<MapSchema, CharacterError> {
         if self.base.position() == (x, y) {
-            return Ok((self.map()).clone());
+            return Ok(self.map());
         }
         Ok(self.base.action_move(x, y)?)
     }
