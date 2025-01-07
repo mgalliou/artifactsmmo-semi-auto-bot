@@ -1,4 +1,8 @@
-use super::{api::bank::BankApi, game_config::GameConfig, items::{ItemSchemaExt, Items}};
+use super::{
+    api::bank::BankApi,
+    game_config::GameConfig,
+    items::{ItemSchemaExt, Items},
+};
 use artifactsmmo_openapi::models::{BankSchema, ItemSchema, SimpleItemSchema};
 use itertools::Itertools;
 use log::info;
@@ -175,7 +179,7 @@ impl Bank {
         let Some(res) = self.get_reservation(item, owner) else {
             return;
         };
-        if quantity >= *res.quantity.read().unwrap() {
+        if quantity >= res.quantity() {
             self.remove_reservation(&res)
         } else {
             res.dec_quantity(quantity);
@@ -252,12 +256,9 @@ impl Bank {
     }
 
     fn get_reservation(&self, item: &str, owner: &str) -> Option<Arc<Reservation>> {
-        self.reservations
-            .read()
-            .unwrap()
-            .iter()
+        self.reservations()
+            .into_iter()
             .find(|r| r.item == item && r.owner == owner)
-            .cloned()
     }
 }
 
@@ -290,13 +291,7 @@ impl Reservation {
 
 impl Display for Reservation {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}: '{}'x{}",
-            self.owner,
-            self.item,
-            self.quantity.read().unwrap(),
-        )
+        write!(f, "{}: '{}'x{}", self.owner, self.item, self.quantity(),)
     }
 }
 
@@ -304,7 +299,7 @@ impl Clone for Reservation {
     fn clone(&self) -> Self {
         Self {
             item: self.item.clone(),
-            quantity: RwLock::new(*self.quantity.read().unwrap()),
+            quantity: RwLock::new(self.quantity()),
             owner: self.owner.clone(),
         }
     }
@@ -312,9 +307,7 @@ impl Clone for Reservation {
 
 impl PartialEq for Reservation {
     fn eq(&self, other: &Self) -> bool {
-        self.item == other.item
-            && *self.quantity.read().unwrap() == *other.quantity.read().unwrap()
-            && self.owner == other.owner
+        self.item == other.item && self.quantity() == other.quantity() && self.owner == other.owner
     }
 }
 
