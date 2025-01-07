@@ -21,7 +21,7 @@ pub fn run_cli(game: &Game) -> Result<()> {
                 "{} >> ",
                 chars
                     .as_ref()
-                    .map(|c| c.name.to_string())
+                    .map(|c| c.base.name().to_string())
                     .unwrap_or("none".to_string())
             )
             .as_str(),
@@ -144,7 +144,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
         Commands::Char { i } => {
             character.clone_from(&game.account.get_character(i as usize));
             if let Some(char) = character.clone() {
-                bail!("character '{}' selected", char.name);
+                bail!("character '{}' selected", char.base.name());
             } else {
                 bail!("character not found");
             }
@@ -301,7 +301,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
             let Some(char) = character else {
                 bail!("no character selected");
             };
-            let (x, y) = char.position();
+            let (x, y) = char.base.position();
             println!("{:?}", game.maps.get(x, y).unwrap());
         }
         Commands::Task => {

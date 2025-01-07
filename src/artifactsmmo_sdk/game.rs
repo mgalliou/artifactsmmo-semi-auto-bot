@@ -1,7 +1,8 @@
 use super::{
-    account::Account, events::Events, fight_simulator::FightSimulator, game_config::GameConfig,
-    gear_finder::GearFinder, items::Items, leveling_helper::LevelingHelper, maps::Maps,
-    monsters::Monsters, orderboard::OrderBoard, resources::Resources, tasks::Tasks,
+    account::Account, character::Character, events::Events, fight_simulator::FightSimulator,
+    game_config::GameConfig, gear_finder::GearFinder, items::Items,
+    leveling_helper::LevelingHelper, maps::Maps, monsters::Monsters, orderboard::OrderBoard,
+    resources::Resources, tasks::Tasks,
 };
 use anyhow::Result;
 use artifactsmmo_openapi::{
@@ -13,6 +14,7 @@ use artifactsmmo_openapi::{
     models::StatusResponseSchema,
 };
 use chrono::{DateTime, TimeDelta, Utc};
+use itertools::Itertools;
 use log::{debug, error};
 use std::{
     sync::{Arc, RwLock},
@@ -22,6 +24,7 @@ use std::{
 
 #[derive(Default)]
 pub struct Game {
+    pub config: Arc<GameConfig>,
     pub server: Arc<Server>,
     pub maps: Arc<Maps>,
     pub resources: Arc<Resources>,
@@ -37,7 +40,7 @@ pub struct Game {
 
 impl Game {
     pub fn new() -> Self {
-        let config: Arc<GameConfig> = Arc::new(GameConfig::from_file());
+        let config = Arc::new(GameConfig::from_file());
         let events = Arc::new(Events::new(&config));
         let monsters = Arc::new(Monsters::new(&config, &events));
         let resources = Arc::new(Resources::new(&config, &events));
@@ -51,6 +54,7 @@ impl Game {
             &items, &resources, &monsters, &maps, &account,
         ));
         Game {
+            config: config.clone(),
             server: Arc::new(Server::new(&config)),
             maps,
             resources: resources.clone(),
@@ -71,7 +75,7 @@ impl Game {
     }
 
     pub fn run_characters(&self) -> Result<()> {
-        for c in self.account.characters.read().unwrap().iter().cloned()  {
+        for c in self.account.characters() {
             sleep(Duration::from_millis(250));
             Builder::new().spawn(move || {
                 c.run_loop();

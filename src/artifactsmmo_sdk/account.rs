@@ -1,6 +1,7 @@
 use super::{
     api::{characters::CharactersApi, my_character::MyCharacterApi},
     bank::Bank,
+    base_character::BaseCharacter,
     character::Character,
     game::Game,
     game_config::GameConfig,
@@ -51,7 +52,23 @@ impl Account {
             .get_characters_schemas()
             .iter()
             .enumerate()
-            .map(|(i, schema)| Arc::new(Character::new(i, &self.config, game, schema)))
+            .map(|(id, schema)| {
+                Arc::new(Character::new(
+                    BaseCharacter::new(schema, game),
+                    id,
+                    &self.config,
+                    game,
+                ))
+            })
+            .collect_vec()
+    }
+
+    pub fn characters(&self) -> Vec<Arc<Character>> {
+        self.characters
+            .read()
+            .unwrap()
+            .iter()
+            .cloned()
             .collect_vec()
     }
 
@@ -64,7 +81,7 @@ impl Account {
             .read()
             .unwrap()
             .iter()
-            .find(|c| c.name == name)
+            .find(|c| c.base.name() == name)
             .cloned()
     }
 

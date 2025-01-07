@@ -622,7 +622,7 @@ mod tests {
         let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
         let gear_finder = GearFinder::new(&items);
         let char = Character::default();
-        char.data.write().unwrap().level = 30;
+        char.base.data.write().unwrap().level = 30;
 
         let weapons = gear_finder.best_weapons_against(
             &char,
