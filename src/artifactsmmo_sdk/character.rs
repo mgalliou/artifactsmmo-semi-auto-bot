@@ -4,8 +4,7 @@ use super::{
     base_character::{BaseCharacter, RequestError},
     char_config::CharConfig,
     consts::{
-        CRAFT_TIME, GIFT, MAX_LEVEL, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD, TASKS_COIN,
-        TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE,
+        BANK_MIN_FREE_SLOT, CRAFT_TIME, GIFT, MAX_LEVEL, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD, TASKS_COIN, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE
     },
     fight_simulator::FightSimulator,
     game::Game,
@@ -1260,7 +1259,7 @@ impl Character {
             return Err(CharacterError::ItemNotFound);
         }
         self.move_to_closest_map_of_type("bank")?;
-        if self.bank.free_slots() <= 3 {
+        if self.bank.free_slots() <= BANK_MIN_FREE_SLOT {
             if let Err(e) = self.expand_bank() {
                 error!(
                     "{}: failed to expand bank capacity: {:?}",
