@@ -641,7 +641,7 @@ impl Character {
                 .reserv(TASKS_COIN, self.inventory.total_of(TASKS_COIN))
             {
                 error!(
-                    "{}: error while reserving tasks coins inventory inventory: {}",
+                    "{}: error while reserving tasks coins in inventory: {}",
                     self.base.name(),
                     e
                 );
