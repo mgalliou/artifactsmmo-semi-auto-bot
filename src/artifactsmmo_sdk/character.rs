@@ -95,7 +95,7 @@ impl Character {
             }
             // TODO: improve fallback
             match self.progress_task() {
-                Ok(_) => break,
+                Ok(_) => continue,
                 Err(CharacterError::MissingItems { item, quantity }) => {
                     let _ = self.orderboard.add(
                         Some(&self.base.name()),
@@ -105,13 +105,13 @@ impl Character {
                             char: self.base.name().to_owned(),
                         },
                     );
-                    break;
+                    continue;
                 }
                 Err(_) => (),
             }
             for s in self.conf().read().unwrap().skills.iter() {
                 if self.level_skill_up(*s) {
-                    break;
+                    continue;
                 }
             }
         }
