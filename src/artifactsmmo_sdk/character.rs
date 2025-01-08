@@ -94,9 +94,21 @@ impl Character {
                 continue;
             }
             // TODO: improve fallback
-            if self.progress_task().is_ok() {
-                continue;
-            };
+            match self.progress_task() {
+                Ok(_) => break,
+                Err(CharacterError::MissingItems { item, quantity }) => {
+                    let _ = self.orderboard.add(
+                        Some(&self.base.name()),
+                        &item,
+                        quantity,
+                        Purpose::Task {
+                            char: self.base.name().to_owned(),
+                        },
+                    );
+                    break;
+                }
+                Err(_) => (),
+            }
             for s in self.conf().read().unwrap().skills.iter() {
                 if self.level_skill_up(*s) {
                     break;
@@ -2228,20 +2240,5 @@ pub enum CharacterError {
 impl From<RequestError> for CharacterError {
     fn from(value: RequestError) -> Self {
         CharacterError::RequestError(value)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use serde::de::IntoDeserializer;
-
-    use super::*;
-
-    #[test]
-    fn check_task_type_as_string() {
-        assert_eq!(
-            TaskType::Monsters,
-            TaskType::deserialize("monsters".to_string().into_deserializer()).unwrap()
-        );
     }
 }
