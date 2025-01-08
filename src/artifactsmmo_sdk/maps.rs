@@ -5,7 +5,7 @@ use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
 };
-use strum_macros::AsRefStr;
+use strum_macros::{AsRefStr, Display};
 
 #[derive(Default)]
 pub struct Maps {
@@ -126,7 +126,7 @@ impl MapSchemaExt for MapSchema {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, AsRefStr)]
+#[derive(Debug, Copy, Clone, PartialEq, AsRefStr, Display)]
 #[strum(serialize_all = "snake_case")]
 pub enum ContentType {
     Monster,
@@ -141,5 +141,16 @@ pub enum ContentType {
 impl PartialEq<ContentType> for String {
     fn eq(&self, other: &ContentType) -> bool {
         other.as_ref() == *self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn check_content_type_as_string() {
+        assert_eq!(ContentType::Monster.to_string(), "monster");
+        assert_eq!(ContentType::Monster.as_ref(), "monster");
     }
 }

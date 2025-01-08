@@ -1493,12 +1493,10 @@ impl Character {
         &self,
         r#type: ContentType,
     ) -> Result<MapSchema, CharacterError> {
-        if let Some(map) = self.closest_map_of_type(r#type) {
-            let (x, y) = (map.x, map.y);
-            Ok(self.move_to(x, y)?)
-        } else {
-            Err(CharacterError::FailedToMove)
-        }
+        let Some(map) = self.closest_map_of_type(r#type) else {
+            return Err(CharacterError::MapNotFound);
+        };
+        self.move_to(map.x, map.y)
     }
 
     fn move_to_closest_taskmaster(
@@ -1507,7 +1505,7 @@ impl Character {
     ) -> Result<MapSchema, CharacterError> {
         if let Some(r#type) = r#type {
             self.move_to_closest_map_with_content_schema(&MapContentSchema {
-                r#type: "tasks_master".to_owned(),
+                r#type: ContentType::TasksMaster.to_string(),
                 code: r#type.to_string(),
             })
         } else {
@@ -1520,7 +1518,7 @@ impl Character {
         code: &str,
     ) -> Result<MapSchema, CharacterError> {
         let Some(map) = self.closest_map_with_content_code(code) else {
-            return Err(CharacterError::FailedToMove);
+            return Err(CharacterError::MapNotFound);
         };
         let (x, y) = (map.x, map.y);
         self.move_to(x, y)
@@ -1533,8 +1531,7 @@ impl Character {
         let Some(map) = self.closest_map_with_content_schema(schema) else {
             return Err(CharacterError::FailedToMove);
         };
-        let (x, y) = (map.x, map.y);
-        self.move_to(x, y)
+        self.move_to(map.x, map.y)
     }
 
     /// Returns the closest map from the `Character` containing the given
@@ -2231,5 +2228,20 @@ pub enum CharacterError {
 impl From<RequestError> for CharacterError {
     fn from(value: RequestError) -> Self {
         CharacterError::RequestError(value)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde::de::IntoDeserializer;
+
+    use super::*;
+
+    #[test]
+    fn check_task_type_as_string() {
+        assert_eq!(
+            TaskType::Monsters,
+            TaskType::deserialize("monsters".to_string().into_deserializer()).unwrap()
+        );
     }
 }
