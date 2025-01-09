@@ -133,7 +133,7 @@ impl GearFinder {
             filter,
             vec![],
         );
-        let body_armor = self.best_armors_against_with_weapon(
+        let body_armors = self.best_armors_against_with_weapon(
             char,
             monster,
             weapon,
@@ -141,7 +141,7 @@ impl GearFinder {
             filter,
             vec![],
         );
-        let leg_armor = self.best_armors_against_with_weapon(
+        let leg_armors = self.best_armors_against_with_weapon(
             char,
             monster,
             weapon,
@@ -172,17 +172,17 @@ impl GearFinder {
         if !shields.is_empty() {
             items.push(shields.iter().map(|i| ItemWrapper::Armor(*i)).collect_vec());
         }
-        if !body_armor.is_empty() {
+        if !body_armors.is_empty() {
             items.push(
-                body_armor
+                body_armors
                     .iter()
                     .map(|i| ItemWrapper::Armor(*i))
                     .collect_vec(),
             );
         }
-        if !leg_armor.is_empty() {
+        if !leg_armors.is_empty() {
             items.push(
-                leg_armor
+                leg_armors
                     .iter()
                     .map(|i| ItemWrapper::Armor(*i))
                     .collect_vec(),
