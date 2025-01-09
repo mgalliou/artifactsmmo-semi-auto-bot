@@ -108,6 +108,11 @@ impl BaseCharacter {
                 .craft(&self.name(), item, quantity)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
+            Action::Recycle { item, quantity } => self
+                .my_api
+                .recycle(&self.name(), item, quantity)
+                .map(|r| r.into())
+                .map_err(|e| e.into()),
             Action::Delete { item, quantity } => self
                 .my_api
                 .delete(&self.name(), item, quantity)
@@ -138,11 +143,6 @@ impl BaseCharacter {
                 .expand_bank(&self.name())
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
-            Action::Recycle { item, quantity } => self
-                .my_api
-                .recycle(&self.name(), item, quantity)
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
             Action::Equip {
                 item,
                 slot,
@@ -163,6 +163,11 @@ impl BaseCharacter {
                 .accept_task(&self.name())
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
+            Action::TaskTrade { item, quantity } => self
+                .my_api
+                .trade_task(&self.name(), item, quantity)
+                .map(|r| r.into())
+                .map_err(|e| e.into()),
             Action::CompleteTask => self
                 .my_api
                 .complete_task(&self.name())
@@ -171,11 +176,6 @@ impl BaseCharacter {
             Action::CancelTask => self
                 .my_api
                 .cancel_task(&self.name())
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::TaskTrade { item, quantity } => self
-                .my_api
-                .trade_task(&self.name(), item, quantity)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
             Action::TaskExchange => self
@@ -260,6 +260,41 @@ impl BaseCharacter {
             .map(|s| *s.data)
     }
 
+    pub fn action_craft(&self, item: &str, quantity: i32) -> Result<SkillInfoSchema, RequestError> {
+        self.request_action(Action::Craft { item, quantity })
+            .and_then(|r| {
+                r.downcast::<SkillResponseSchema>()
+                    .map_err(|_| RequestError::DowncastError)
+            })
+            .map(|s| *s.data.details)
+    }
+
+    pub fn action_delete(
+        &self,
+        item: &str,
+        quantity: i32,
+    ) -> Result<SimpleItemSchema, RequestError> {
+        self.request_action(Action::Delete { item, quantity })
+            .and_then(|r| {
+                r.downcast::<DeleteItemResponseSchema>()
+                    .map_err(|_| RequestError::DowncastError)
+            })
+            .map(|s| *s.data.item)
+    }
+
+    pub fn action_recycle(
+        &self,
+        item: &str,
+        quantity: i32,
+    ) -> Result<RecyclingItemsSchema, RequestError> {
+        self.request_action(Action::Recycle { item, quantity })
+            .and_then(|r| {
+                r.downcast::<RecyclingResponseSchema>()
+                    .map_err(|_| RequestError::DowncastError)
+            })
+            .map(|s| *s.data.details)
+    }
+
     pub fn action_deposit(
         &self,
         item: &str,
@@ -309,41 +344,6 @@ impl BaseCharacter {
                     .map_err(|_| RequestError::DowncastError)
             })
             .map(|s| s.data.transaction.price)
-    }
-
-    pub fn action_craft(&self, item: &str, quantity: i32) -> Result<SkillInfoSchema, RequestError> {
-        self.request_action(Action::Craft { item, quantity })
-            .and_then(|r| {
-                r.downcast::<SkillResponseSchema>()
-                    .map_err(|_| RequestError::DowncastError)
-            })
-            .map(|s| *s.data.details)
-    }
-
-    pub fn action_delete(
-        &self,
-        item: &str,
-        quantity: i32,
-    ) -> Result<SimpleItemSchema, RequestError> {
-        self.request_action(Action::Delete { item, quantity })
-            .and_then(|r| {
-                r.downcast::<DeleteItemResponseSchema>()
-                    .map_err(|_| RequestError::DowncastError)
-            })
-            .map(|s| *s.data.item)
-    }
-
-    pub fn action_recycle(
-        &self,
-        item: &str,
-        quantity: i32,
-    ) -> Result<RecyclingItemsSchema, RequestError> {
-        self.request_action(Action::Recycle { item, quantity })
-            .and_then(|r| {
-                r.downcast::<RecyclingResponseSchema>()
-                    .map_err(|_| RequestError::DowncastError)
-            })
-            .map(|s| *s.data.details)
     }
 
     pub fn action_equip(&self, item: &str, slot: Slot, quantity: i32) -> Result<(), RequestError> {
@@ -521,8 +521,17 @@ pub enum Action<'a> {
         y: i32,
     },
     Fight,
+    Rest,
+    UseItem {
+        item: &'a str,
+        quantity: i32,
+    },
     Gather,
     Craft {
+        item: &'a str,
+        quantity: i32,
+    },
+    Recycle {
         item: &'a str,
         quantity: i32,
     },
@@ -545,10 +554,6 @@ pub enum Action<'a> {
         quantity: i32,
     },
     ExpandBank,
-    Recycle {
-        item: &'a str,
-        quantity: i32,
-    },
     Equip {
         item: &'a str,
         slot: Slot,
@@ -559,19 +564,14 @@ pub enum Action<'a> {
         quantity: i32,
     },
     AcceptTask,
-    CompleteTask,
-    CancelTask,
     TaskTrade {
         item: &'a str,
         quantity: i32,
     },
+    CompleteTask,
+    CancelTask,
     TaskExchange,
     ChristmasExchange,
-    Rest,
-    UseItem {
-        item: &'a str,
-        quantity: i32,
-    },
 }
 
 #[derive(Error, Debug)]
