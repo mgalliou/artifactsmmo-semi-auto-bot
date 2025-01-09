@@ -1,7 +1,10 @@
 use super::{
-    account::Account, events::Events, game_config::GameConfig, items::Items, maps::Maps,
-    monsters::Monsters, orderboard::OrderBoard, resources::Resources, tasks::Tasks,
+    account::Account, events::Events, fight_simulator::FightSimulator,
+    game_config::GameConfig, gear_finder::GearFinder, items::Items,
+    leveling_helper::LevelingHelper, maps::Maps, monsters::Monsters, orderboard::OrderBoard,
+    resources::Resources, tasks::Tasks,
 };
+use anyhow::Result;
 use artifactsmmo_openapi::{
     apis::{
         configuration::Configuration,
@@ -12,10 +15,16 @@ use artifactsmmo_openapi::{
 };
 use chrono::{DateTime, TimeDelta, Utc};
 use log::{debug, error};
-use std::sync::{Arc, RwLock};
+use std::{
+    sync::{Arc, RwLock},
+    thread::{sleep, Builder},
+    time::Duration,
+};
 
 #[derive(Default)]
 pub struct Game {
+    pub config: Arc<GameConfig>,
+    pub server: Arc<Server>,
     pub maps: Arc<Maps>,
     pub resources: Arc<Resources>,
     pub monsters: Arc<Monsters>,
@@ -23,12 +32,14 @@ pub struct Game {
     pub events: Arc<Events>,
     pub account: Arc<Account>,
     pub orderboard: Arc<OrderBoard>,
-    pub server: Arc<Server>,
+    pub gear_finder: Arc<GearFinder>,
+    pub leveling_helper: Arc<LevelingHelper>,
+    pub fight_simulator: Arc<FightSimulator>,
 }
 
 impl Game {
     pub fn new() -> Self {
-        let config: Arc<GameConfig> = Arc::new(GameConfig::from_file());
+        let config = Arc::new(GameConfig::from_file());
         let events = Arc::new(Events::new(&config));
         let monsters = Arc::new(Monsters::new(&config, &events));
         let resources = Arc::new(Resources::new(&config, &events));
@@ -36,21 +47,40 @@ impl Game {
         let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
         let account = Account::new(&config, &items);
         let orderboard = Arc::new(OrderBoard::new(&items, &account));
+        let gear_finder = Arc::new(GearFinder::new(&items));
+        let maps = Arc::new(Maps::new(&config, &events));
+        let leveling_helper = Arc::new(LevelingHelper::new(
+            &items, &resources, &monsters, &maps, &account,
+        ));
         Game {
-            maps: Arc::new(Maps::new(&config, &events)),
+            config: config.clone(),
+            server: Arc::new(Server::new(&config)),
+            maps,
             resources: resources.clone(),
             monsters: monsters.clone(),
             items,
             events,
-            orderboard: orderboard.clone(),
             account,
-            server: Arc::new(Server::new(&config)),
+            orderboard: orderboard.clone(),
+            gear_finder: gear_finder.clone(),
+            leveling_helper: leveling_helper.clone(),
+            fight_simulator: Arc::new(FightSimulator::new()),
         }
     }
 
     pub fn init(&self) {
         self.server.update_offset();
         self.account.init_characters(self);
+    }
+
+    pub fn run_characters(&self) -> Result<()> {
+        for c in self.account.characters() {
+            sleep(Duration::from_millis(250));
+            Builder::new().spawn(move || {
+                c.run_loop();
+            })?;
+        }
+        Ok(())
     }
 }
 

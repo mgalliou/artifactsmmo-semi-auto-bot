@@ -1,6 +1,6 @@
 use super::{
     api::monsters::MonstersApi, events::Events, game_config::GameConfig, items::DamageType,
-    persist_data, retreive_data, MonsterSchemaExt,
+    persist_data, retreive_data,
 };
 use artifactsmmo_openapi::models::MonsterSchema;
 use log::error;
@@ -61,6 +61,12 @@ impl Monsters {
     pub fn is_event(&self, code: &str) -> bool {
         self.events.data.iter().any(|e| e.content.code == code)
     }
+}
+
+pub trait MonsterSchemaExt {
+    fn resistance(&self, r#type: DamageType) -> i32;
+    fn attack_damage(&self, r#type: DamageType) -> i32;
+    fn drop_rate(&self, item: &str) -> Option<i32>;
 }
 
 impl MonsterSchemaExt for MonsterSchema {

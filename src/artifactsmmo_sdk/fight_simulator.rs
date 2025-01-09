@@ -1,4 +1,8 @@
-use super::{gear::Gear, ItemSchemaExt};
+use super::{
+    consts::{BASE_HP, HP_PER_LEVEL, MAX_TURN},
+    gear::Gear,
+    items::ItemSchemaExt,
+};
 use artifactsmmo_openapi::models::{FightResult, MonsterSchema};
 use std::cmp::max;
 
@@ -9,10 +13,6 @@ impl Default for FightSimulator {
         Self::new()
     }
 }
-
-const MAX_TURN: i32 = 100;
-const BASE_HP: i32 = 115;
-const HP_PER_LEVEL: i32 = 5;
 
 impl FightSimulator {
     pub fn new() -> Self {

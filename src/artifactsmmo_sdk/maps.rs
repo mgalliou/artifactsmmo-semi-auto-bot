@@ -1,12 +1,11 @@
-use super::{
-    api::maps::MapsApi, events::Events, game_config::GameConfig, skill::Skill, MapSchemaExt,
-};
+use super::{api::maps::MapsApi, events::Events, game_config::GameConfig, skill::Skill};
 use artifactsmmo_openapi::models::{ActiveEventSchema, MapContentSchema, MapSchema};
 use chrono::{DateTime, Utc};
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
 };
+use strum_macros::{AsRefStr, Display};
 
 #[derive(Default)]
 pub struct Maps {
@@ -58,7 +57,7 @@ impl Maps {
             .min_by_key(|m| i32::abs(x - m.x) + i32::abs(y - m.y))
     }
 
-    pub fn of_type(&self, r#type: &str) -> Vec<MapSchema> {
+    pub fn of_type(&self, r#type: ContentType) -> Vec<MapSchema> {
         self.data
             .values()
             .filter(|m| {
@@ -103,6 +102,12 @@ impl Maps {
     }
 }
 
+pub trait MapSchemaExt {
+    fn content(&self) -> Option<MapContentSchema>;
+    fn content_is(&self, code: &str) -> bool;
+    fn pretty(&self) -> String;
+}
+
 impl MapSchemaExt for MapSchema {
     fn content(&self) -> Option<MapContentSchema> {
         self.content.clone().map(|c| *c)
@@ -118,5 +123,34 @@ impl MapSchemaExt for MapSchema {
         } else {
             format!("{} ({},{})", self.name, self.x, self.y)
         }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, AsRefStr, Display)]
+#[strum(serialize_all = "snake_case")]
+pub enum ContentType {
+    Monster,
+    Resource,
+    Workshop,
+    Bank,
+    GrandExchange,
+    TasksMaster,
+    SantaClaus,
+}
+
+impl PartialEq<ContentType> for String {
+    fn eq(&self, other: &ContentType) -> bool {
+        other.as_ref() == *self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn check_content_type_as_string() {
+        assert_eq!(ContentType::Monster.to_string(), "monster");
+        assert_eq!(ContentType::Monster.as_ref(), "monster");
     }
 }

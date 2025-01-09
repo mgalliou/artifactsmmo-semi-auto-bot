@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use log::{debug, info};
 use std::{
-    fmt::Display,
+    fmt::{self, Display, Formatter},
     mem::discriminant,
     sync::{Arc, RwLock},
 };
@@ -220,7 +220,7 @@ impl Order {
 }
 
 impl Display for Order {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "{}: '{}'({}/{}), purpose: {}",
@@ -275,7 +275,7 @@ pub enum Purpose {
 }
 
 impl Display for Purpose {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "{}",

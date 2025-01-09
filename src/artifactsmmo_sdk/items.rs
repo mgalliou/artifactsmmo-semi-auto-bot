@@ -1,10 +1,16 @@
+use super::consts::{
+    ASTRALYTE_CRYSTAL, DIAMOND, ENCHANTED_FABRIC, FOOD_BLACK_LIST, JASPER_CRYSTAL, MAGICAL_CURE,
+    TASKS_COIN,
+};
 use super::fight_simulator::FightSimulator;
 use super::game_config::GameConfig;
 use super::gear::Slot;
+use super::monsters::MonsterSchemaExt;
+use super::resources::ResourceSchemaExt;
 use super::skill::Skill;
 use super::tasks::Tasks;
 use super::{api::items::ItemsApi, monsters::Monsters, resources::Resources};
-use super::{persist_data, retreive_data, ItemSchemaExt, MonsterSchemaExt, ResourceSchemaExt};
+use super::{persist_data, retreive_data};
 use artifactsmmo_openapi::models::{CraftSchema, ItemEffectSchema, ItemSchema, SimpleItemSchema};
 use artifactsmmo_openapi::models::{MonsterSchema, ResourceSchema};
 use itertools::Itertools;
@@ -16,24 +22,6 @@ use std::str::FromStr;
 use std::{sync::Arc, vec::Vec};
 use strum::IntoEnumIterator;
 use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
-
-pub const TASKS_COIN: &str = "tasks_coin";
-pub const GIFT: &str = "gift";
-pub const DIAMOND: &str = "diamond";
-pub const JASPER_CRYSTAL: &str = "jasper_crystal";
-pub const MAGICAL_CURE: &str = "magical_cure";
-pub const ENCHANTED_FABRIC: &str = "enchanted_fabric";
-pub const ASTRALYTE_CRYSTAL: &str = "astralyte_crystal";
-pub const FOOD_BLACK_LIST: &[&str] = &[
-    "apple",
-    "apple_pie",
-    "egg",
-    "carrot",
-    "mushroom_soup",
-    "fish_soup",
-    "cooked_hellhound_meat",
-    "maple_syrup",
-];
 
 #[derive(Default)]
 pub struct Items {
@@ -365,6 +353,32 @@ impl Items {
     }
 }
 
+pub trait ItemSchemaExt {
+    fn name(&self) -> String;
+    fn r#type(&self) -> Type;
+    fn is_of_type(&self, r#type: Type) -> bool;
+    fn is_crafted_with(&self, item: &str) -> bool;
+    fn is_crafted_from_task(&self) -> bool;
+    fn mats(&self) -> Vec<SimpleItemSchema>;
+    fn craft_schema(&self) -> Option<CraftSchema>;
+    fn skill_to_craft(&self) -> Option<Skill>;
+    fn effects(&self) -> Vec<&ItemEffectSchema>;
+    fn attack_damage(&self, r#type: DamageType) -> i32;
+    fn attack_damage_against(&self, monster: &MonsterSchema) -> f32;
+    fn damage_increase(&self, r#type: DamageType) -> i32;
+    fn resistance(&self, r#type: DamageType) -> i32;
+    fn health(&self) -> i32;
+    fn haste(&self) -> i32;
+    fn is_tool(&self) -> bool;
+    fn skill_cooldown_reduction(&self, skijll: Skill) -> i32;
+    fn heal(&self) -> i32;
+    fn restore(&self) -> i32;
+    fn inventory_space(&self) -> i32;
+    fn is_consumable(&self, level: i32) -> bool;
+    fn damage_increase_against_with(&self, monster: &MonsterSchema, weapon: &ItemSchema) -> f32;
+    fn damage_reduction_against(&self, monster: &MonsterSchema) -> f32;
+}
+
 impl ItemSchemaExt for ItemSchema {
     fn name(&self) -> String {
         self.name.to_owned()
@@ -388,6 +402,9 @@ impl ItemSchemaExt for ItemSchema {
             || self.is_crafted_with(ENCHANTED_FABRIC)
             || self.is_crafted_with(ASTRALYTE_CRYSTAL)
             || self.is_crafted_with(DIAMOND)
+            || self.is_crafted_with("rosenblood_elixir")
+            || self.is_crafted_with("hellhound_hair")
+            || self.is_crafted_with("efreet_cloth")
     }
 
     fn mats(&self) -> Vec<SimpleItemSchema> {
@@ -459,6 +476,10 @@ impl ItemSchemaExt for ItemSchema {
             .find(|e| e.name == "haste")
             .map(|e| e.value)
             .unwrap_or(0)
+    }
+
+    fn is_tool(&self) -> bool {
+        Skill::iter().any(|s| self.skill_cooldown_reduction(s) < 0)
     }
 
     fn skill_cooldown_reduction(&self, skill: Skill) -> i32 {
@@ -624,9 +645,10 @@ pub enum ItemSource<'a> {
 #[cfg(test)]
 mod tests {
     use super::Items;
+    use crate::artifactsmmo_sdk::items::ItemSchemaExt;
     use crate::artifactsmmo_sdk::{
         game_config::GameConfig, items::ItemSource, monsters::Monsters, resources::Resources,
-        tasks::Tasks, ItemSchemaExt,
+        tasks::Tasks,
     };
     use itertools::Itertools;
     use std::sync::Arc;

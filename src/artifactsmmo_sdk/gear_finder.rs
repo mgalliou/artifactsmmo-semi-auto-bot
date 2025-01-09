@@ -2,9 +2,8 @@ use super::{
     character::Character,
     fight_simulator::FightSimulator,
     gear::Gear,
-    items::{Items, Type},
+    items::{ItemSchemaExt, Items, Type},
     skill::Skill,
-    ItemSchemaExt,
 };
 use anyhow::bail;
 use artifactsmmo_openapi::models::{FightResult, ItemSchema, MonsterSchema};
@@ -42,7 +41,9 @@ impl GearFinder {
                 )
             })
             .filter(|(_g, f)| f.result == FightResult::Win)
-            .min_by_key(|(_g, f)| f.cd + FightSimulator::time_to_rest(f.hp_lost))
+            .min_set_by_key(|(_g, f)| f.cd + FightSimulator::time_to_rest(f.hp_lost))
+            .into_iter()
+            .max_by_key(|(_g, f)| f.hp)
             .map(|(g, _f)| g)
             .unwrap_or_default()
     }
@@ -62,7 +63,9 @@ impl GearFinder {
                         .simulate(char.level(), 0, &g, monster, true),
                 )
             })
-            .min_by_key(|(_g, f)| f.cd + FightSimulator::time_to_rest(f.hp_lost))
+            .min_set_by_key(|(_g, f)| f.cd + FightSimulator::time_to_rest(f.hp_lost))
+            .into_iter()
+            .max_by_key(|(_g, f)| f.hp)
             .map(|(g, _f)| g)
             .unwrap_or_default()
     }
@@ -89,7 +92,7 @@ impl GearFinder {
             .items
             .equipable_at_level(char.level(), Type::Weapon)
             .into_iter()
-            .filter(|i| self.is_eligible(i, filter, char))
+            .filter(|i| !i.is_tool() && self.is_eligible(i, filter, char))
             .collect_vec();
         let best = equipables
             .iter()
@@ -130,7 +133,7 @@ impl GearFinder {
             filter,
             vec![],
         );
-        let body_armor = self.best_armors_against_with_weapon(
+        let body_armors = self.best_armors_against_with_weapon(
             char,
             monster,
             weapon,
@@ -138,7 +141,7 @@ impl GearFinder {
             filter,
             vec![],
         );
-        let leg_armor = self.best_armors_against_with_weapon(
+        let leg_armors = self.best_armors_against_with_weapon(
             char,
             monster,
             weapon,
@@ -169,17 +172,17 @@ impl GearFinder {
         if !shields.is_empty() {
             items.push(shields.iter().map(|i| ItemWrapper::Armor(*i)).collect_vec());
         }
-        if !body_armor.is_empty() {
+        if !body_armors.is_empty() {
             items.push(
-                body_armor
+                body_armors
                     .iter()
                     .map(|i| ItemWrapper::Armor(*i))
                     .collect_vec(),
             );
         }
-        if !leg_armor.is_empty() {
+        if !leg_armors.is_empty() {
             items.push(
-                leg_armor
+                leg_armors
                     .iter()
                     .map(|i| ItemWrapper::Armor(*i))
                     .collect_vec(),
@@ -652,7 +655,7 @@ mod tests {
         let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
         let gear_finder = GearFinder::new(&items);
         let char = Character::default();
-        char.data.write().unwrap().level = 30;
+        char.base.data.write().unwrap().level = 30;
 
         let weapons = gear_finder.best_weapons_against(
             &char,

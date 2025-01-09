@@ -1,4 +1,4 @@
-use super::{character::CharacterError, items::Items, ItemSchemaExt};
+use super::{character::CharacterError, items::{ItemSchemaExt, Items}};
 use artifactsmmo_openapi::models::{CharacterSchema, InventorySlot, ItemSchema};
 use core::fmt;
 use itertools::Itertools;

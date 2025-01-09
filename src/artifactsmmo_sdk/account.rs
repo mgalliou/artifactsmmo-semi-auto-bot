@@ -7,7 +7,6 @@ use super::{
     items::{ItemSource, Items},
     skill::Skill,
 };
-use crate::artifactsmmo_sdk::char_config::CharConfig;
 use artifactsmmo_openapi::{
     apis::configuration::Configuration,
     models::{CharacterSchema, SimpleItemSchema},
@@ -31,7 +30,7 @@ impl Account {
     pub fn new(config: &Arc<GameConfig>, items: &Arc<Items>) -> Arc<Account> {
         let mut configuration = Configuration::new();
         configuration.base_path = config.base_url.to_owned();
-        configuration.bearer_access_token = Some(config.base_url.to_owned());
+        configuration.bearer_access_token = Some(config.token.to_owned());
         let my_characters_api = MyCharacterApi::new(&config.base_url, &config.token);
         Arc::new(Account {
             configuration,
@@ -45,24 +44,26 @@ impl Account {
     }
 
     pub fn init_characters(&self, game: &Game) {
-        let chars_conf = init_char_conf(&self.config.characters);
-        let chars_schema = init_chars_schema(&self.config);
-        if let Ok(mut chars) = self.characters.write() {
-            *chars = chars_conf
-                .into_iter()
-                .zip(chars_schema.iter())
-                .map(|(conf, schema)| {
-                    Arc::new(Character::new(
-                        &self.config,
-                        &game.account,
-                        game,
-                        &self.bank,
-                        &conf,
-                        schema,
-                    ))
-                })
-                .collect_vec()
-        }
+        let Ok(mut chars) = self.characters.write() else {
+            return;
+        };
+        *chars = self
+            .get_characters_data()
+            .iter()
+            .enumerate()
+            .map(|(id, data)| {
+                Arc::new(Character::new(id, data, game))
+            })
+            .collect_vec()
+    }
+
+    pub fn characters(&self) -> Vec<Arc<Character>> {
+        self.characters
+            .read()
+            .unwrap()
+            .iter()
+            .cloned()
+            .collect_vec()
     }
 
     pub fn get_character(&self, index: usize) -> Option<Arc<Character>> {
@@ -74,7 +75,7 @@ impl Account {
             .read()
             .unwrap()
             .iter()
-            .find(|c| c.name == name)
+            .find(|c| c.base.name() == name)
             .cloned()
     }
 
@@ -169,22 +170,18 @@ impl Account {
             })
             .min()
     }
-}
 
-fn init_char_conf(confs: &[CharConfig]) -> Vec<Arc<RwLock<CharConfig>>> {
-    confs
-        .iter()
-        .map(|c| Arc::new(RwLock::new(c.clone())))
-        .collect_vec()
-}
-
-fn init_chars_schema(config: &GameConfig) -> Vec<Arc<RwLock<CharacterSchema>>> {
-    let my_characters_api = MyCharacterApi::new(&config.base_url, &config.token);
-    my_characters_api
-        .characters()
-        .unwrap()
-        .data
-        .into_iter()
-        .map(|s| Arc::new(RwLock::new(s)))
-        .collect_vec()
+    fn get_characters_data(&self) -> Vec<Arc<RwLock<CharacterSchema>>> {
+        let my_characters_api = MyCharacterApi::new(
+            &self.configuration.base_path,
+            &self.configuration.bearer_access_token.clone().unwrap(),
+        );
+        my_characters_api
+            .characters()
+            .unwrap()
+            .data
+            .into_iter()
+            .map(|s| Arc::new(RwLock::new(s)))
+            .collect_vec()
+    }
 }
