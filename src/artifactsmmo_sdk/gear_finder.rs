@@ -41,7 +41,9 @@ impl GearFinder {
                 )
             })
             .filter(|(_g, f)| f.result == FightResult::Win)
-            .min_by_key(|(_g, f)| f.cd + FightSimulator::time_to_rest(f.hp_lost))
+            .min_set_by_key(|(_g, f)| f.cd + FightSimulator::time_to_rest(f.hp_lost))
+            .into_iter()
+            .max_by_key(|(_g, f)| f.hp)
             .map(|(g, _f)| g)
             .unwrap_or_default()
     }
@@ -61,7 +63,9 @@ impl GearFinder {
                         .simulate(char.level(), 0, &g, monster, true),
                 )
             })
-            .min_by_key(|(_g, f)| f.cd + FightSimulator::time_to_rest(f.hp_lost))
+            .min_set_by_key(|(_g, f)| f.cd + FightSimulator::time_to_rest(f.hp_lost))
+            .into_iter()
+            .max_by_key(|(_g, f)| f.hp)
             .map(|(g, _f)| g)
             .unwrap_or_default()
     }
