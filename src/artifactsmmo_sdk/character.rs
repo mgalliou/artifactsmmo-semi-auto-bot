@@ -1063,6 +1063,25 @@ impl Character {
         Ok(())
     }
 
+    pub fn can_recycle(&self, item: &str, quantity: i32) -> Result<(), CharacterError> {
+        let Some(item) = self.items.get(item) else {
+            return Err(CharacterError::ItemNotFound);
+        };
+        let Some(skill) = item.skill_to_craft() else {
+            return Err(CharacterError::ItemNotCraftable);
+        };
+        if !self.skill_enabled(skill) {
+            return Err(CharacterError::SkillDisabled(skill));
+        };
+        if self.skill_level(skill) < item.level {
+            return Err(CharacterError::InsuffisientSkillLevel(skill, item.level));
+        };
+        if self.inventory.max_items() < item.recycled_quantity() * quantity {
+            return Err(CharacterError::InsuffisientInventorySpace);
+        }
+        Ok(())
+    }
+
     /// Returns the current `Gear` of the `Character`, containing item schemas.
     pub fn gear(&self) -> Gear {
         let d = self.base.data.read().unwrap();
@@ -1174,7 +1193,7 @@ impl Character {
         item: &str,
         quantity: i32,
     ) -> Result<RecyclingItemsSchema, CharacterError> {
-        self.can_craft(item)?;
+        self.can_recycle(item, quantity)?;
         let quantity_available = self.inventory.has_available(item)
             + self.bank.has_available(item, Some(&self.base.name()));
         if quantity_available < quantity {
@@ -2235,6 +2254,8 @@ pub enum CharacterError {
     NotEnoughGift,
     #[error("Request error: {0}")]
     RequestError(RequestError),
+    #[error("Insuffisient inventory space")]
+    InsuffisientInventorySpace,
 }
 
 impl From<RequestError> for CharacterError {

@@ -181,6 +181,11 @@ impl Items {
         self.mats_of(code).iter().map(|mat| mat.quantity).sum()
     }
 
+    pub fn recycled_quantity_for(&self, code: &str) -> i32 {
+        let mats_quantity_for = self.mats_quantity_for(code);
+        mats_quantity_for / 5 + if mats_quantity_for % 5 > 0 { 1 } else { 0 }
+    }
+
     /// Takes an item `code` and returns the best (lowest value) drop rate from
     /// `Monsters` or `Resources`
     pub fn drop_rate(&self, code: &str) -> i32 {
@@ -360,6 +365,8 @@ pub trait ItemSchemaExt {
     fn is_crafted_with(&self, item: &str) -> bool;
     fn is_crafted_from_task(&self) -> bool;
     fn mats(&self) -> Vec<SimpleItemSchema>;
+    fn mats_quantity(&self) -> i32;
+    fn recycled_quantity(&self) -> i32;
     fn craft_schema(&self) -> Option<CraftSchema>;
     fn skill_to_craft(&self) -> Option<Skill>;
     fn effects(&self) -> Vec<&ItemEffectSchema>;
@@ -413,6 +420,15 @@ impl ItemSchemaExt for ItemSchema {
             .filter_map(|i| i.items)
             .flatten()
             .collect_vec()
+    }
+
+    fn mats_quantity(&self) -> i32 {
+        self.mats().iter().map(|m| m.quantity).sum()
+    }
+
+    fn recycled_quantity(&self) -> i32 {
+        let q = self.mats_quantity();
+        q / 5 + if q % 5 > 0 { 1 } else { 0 }
     }
 
     fn craft_schema(&self) -> Option<CraftSchema> {
