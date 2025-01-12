@@ -251,10 +251,16 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
             let fight = FightSimulator::new().simulate(char.level(), 0, &gear, monster, true);
             println!("{:?}", fight)
         }
-        Commands::Deposit {
-            item: _,
-            quantity: _,
-        } => bail!("not yet implemented"),
+        Commands::Deposit { item, quantity } => {
+            let Some(char) = character else {
+                bail!("no character selected");
+            };
+            if item == "all" {
+                char.deposit_all();
+            } else {
+                char.deposit_item(&item, quantity, None)?;
+            }
+        }
         Commands::Unequip {
             slot: _,
             quantity: _,
