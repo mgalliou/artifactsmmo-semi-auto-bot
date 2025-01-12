@@ -434,11 +434,7 @@ impl Character {
             Ok(r) => Some(r.amount_of(&order.item)),
             Err(e) => {
                 if let CharacterError::NoTask = e {
-                    let r#type = if self.skill_enabled(Skill::Combat) {
-                        TaskType::Monsters
-                    } else {
-                        TaskType::Items
-                    };
+                    let r#type = self.conf().read().unwrap().task_type;
                     if let Err(e) = self.accept_task(r#type) {
                         error!(
                             "{} error while accepting new task: {:?}",
@@ -534,12 +530,11 @@ impl Character {
 
     fn progress_task(&self) -> Result<(), CharacterError> {
         if self.task().is_empty() {
-            let r#type = if self.skill_enabled(Skill::Combat) {
-                TaskType::Monsters
-            } else {
-                TaskType::Items
-            };
+            let r#type = self.conf().read().unwrap().task_type;
             return self.accept_task(r#type).map(|_| ());
+        }
+        if self.task_finished() {
+            return self.complete_task().map(|_| ());
         }
         let Some(monster) = self.monsters.get(&self.task()) else {
             return self.trade_task().map(|_| ());
@@ -1795,7 +1790,7 @@ impl Character {
     }
 
     fn task_finished(&self) -> bool {
-        self.task_progress() >= self.task_total()
+        !self.task().is_empty() && self.task_progress() >= self.task_total()
     }
 
     /// Returns the level of the `Character`.

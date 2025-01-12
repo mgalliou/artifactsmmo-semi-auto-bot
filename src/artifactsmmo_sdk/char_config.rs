@@ -1,6 +1,7 @@
 use std::{collections::HashSet, fmt::Display};
 
 use super::skill::Skill;
+use artifactsmmo_openapi::models::TaskType;
 use serde::Deserialize;
 use strum_macros::{AsRefStr, EnumIs, EnumIter, EnumString};
 
@@ -9,6 +10,7 @@ pub struct CharConfig {
     #[serde(default)]
     pub idle: bool,
     pub skills: HashSet<Skill>,
+    pub task_type: TaskType,
     pub goals: Vec<Goal>,
     #[serde(default)]
     pub target_monster: Option<String>,
