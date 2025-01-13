@@ -1189,8 +1189,8 @@ impl Character {
         quantity: i32,
     ) -> Result<RecyclingItemsSchema, CharacterError> {
         self.can_recycle(item, quantity)?;
-        let quantity_available = self.inventory.has_available(item)
-            + self.bank.has_available(item, Some(&self.base.name()));
+        let quantity_available =
+            self.inventory.total_of(item) + self.bank.has_available(item, Some(&self.base.name()));
         if quantity_available < quantity {
             return Err(CharacterError::QuantityUnavailable(quantity));
         }
@@ -1200,7 +1200,7 @@ impl Character {
             item,
             quantity
         );
-        if self.inventory.has_available(item) < quantity {
+        if self.inventory.total_of(item) < quantity {
             let missing_quantity = quantity - self.inventory.has_available(item);
             if let Err(e) = self.bank.reserv(item, missing_quantity, &self.base.name()) {
                 error!(
@@ -2241,7 +2241,7 @@ pub enum CharacterError {
     InvalidTaskType,
     #[error("Missing item(s): '{item}'x{quantity}")]
     MissingItems { item: String, quantity: i32 },
-    #[error("Invalid quantity: {0}")]
+    #[error("Quantity unavailable: {0}")]
     QuantityUnavailable(i32),
     #[error("Task already completed")]
     TaskAlreadyCompleted,
