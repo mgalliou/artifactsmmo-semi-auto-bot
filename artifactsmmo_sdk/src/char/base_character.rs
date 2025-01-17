@@ -23,7 +23,7 @@ use artifactsmmo_openapi::{
 };
 use chrono::Utc;
 use downcast_rs::{impl_downcast, Downcast};
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 use std::{
     cmp::Ordering,
     fmt::Display,
@@ -418,6 +418,12 @@ impl BaseCharacter {
         action: Action,
         e: RequestError,
     ) -> Result<Box<dyn ResponseSchema>, RequestError> {
+        error!(
+            "{}: request error during action {:?}: {:?}",
+            self.name(),
+            action,
+            e
+        );
         match e {
             RequestError::ResponseError(ref res) => {
                 if res.error.code == 499 {
@@ -440,18 +446,15 @@ impl BaseCharacter {
             }
             RequestError::Reqwest(ref req) => {
                 if req.is_timeout() {
-                    error!("{}: request timeout, retrying...", self.name());
+                    error!("{}: request timed-out, retrying...", self.name());
                     return self.request_action(action);
                 }
             }
-            _ => {}
+            RequestError::Serde(_) | RequestError::Io(_) | RequestError::DowncastError => {
+                warn!("{}: refreshing data", self.name());
+                self.refresh_data()
+            }
         }
-        error!(
-            "{}: request error during action {:?}: {:?}",
-            self.name(),
-            action,
-            e
-        );
         Err(e)
     }
 
@@ -482,9 +485,10 @@ impl BaseCharacter {
 
     /// Refresh the `Character` schema from API.
     pub fn refresh_data(&self) {
-        if let Ok(resp) = self.api.get(&self.name()) {
-            self.update_data(&resp.data)
-        }
+        let Ok(resp) = self.api.get(&self.name()) else {
+            return;
+        };
+        self.update_data(&resp.data)
     }
 
     /// Update the `Character` schema with the given `schema.
