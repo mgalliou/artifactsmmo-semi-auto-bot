@@ -5,7 +5,10 @@ use std::{
     path::Path,
 };
 
+pub use fight_simulator::FightSimulator;
 pub use game::Game;
+pub use game_config::{CharConfig, GameConfig, Goal};
+pub use leveling_helper::LevelingHelper;
 
 pub mod account;
 pub mod api;

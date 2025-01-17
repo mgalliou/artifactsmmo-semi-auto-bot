@@ -1,4 +1,4 @@
-use super::{api::resources::ResourcesApi, events::Events, game_config::GameConfig, persist_data};
+use crate::{api::ResourcesApi, events::Events, GameConfig, persist_data};
 use artifactsmmo_openapi::models::ResourceSchema;
 use log::error;
 use std::{fs::read_to_string, path::Path, sync::Arc};

@@ -1,4 +1,4 @@
-use super::{
+use crate::{
     api::monsters::MonstersApi, events::Events, game_config::GameConfig, items::DamageType,
     persist_data, retreive_data,
 };

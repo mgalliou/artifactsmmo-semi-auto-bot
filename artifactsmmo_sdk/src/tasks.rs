@@ -1,10 +1,7 @@
-use std::path::Path;
-
-use super::game_config::GameConfig;
-use super::retreive_data;
-use super::{api::tasks::TasksApi, persist_data};
+use crate::{api::TasksApi, GameConfig, persist_data, retreive_data};
 use artifactsmmo_openapi::models::{DropRateSchema, TaskFullSchema};
 use log::error;
+use std::path::Path;
 
 #[derive(Default)]
 pub struct Tasks {

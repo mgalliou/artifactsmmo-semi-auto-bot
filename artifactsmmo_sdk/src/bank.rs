@@ -1,5 +1,5 @@
-use super::{
-    api::bank::BankApi,
+use crate::{
+    api::BankApi,
     game_config::GameConfig,
     items::{ItemSchemaExt, Items},
 };

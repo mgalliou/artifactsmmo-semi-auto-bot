@@ -1,3 +1,4 @@
+use crate::char::skill::Skill;
 use artifactsmmo_openapi::models::TaskType;
 use figment::{
     providers::{Format, Toml},
@@ -7,8 +8,6 @@ use serde::Deserialize;
 use std::sync::RwLock;
 use std::{collections::HashSet, fmt::Display};
 use strum_macros::{AsRefStr, EnumIs, EnumIter, EnumString};
-
-use crate::char::skill::Skill;
 
 #[derive(Debug, Default, Deserialize)]
 pub struct GameConfig {

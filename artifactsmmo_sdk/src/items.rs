@@ -1,26 +1,25 @@
-use crate::char::Skill;
-
-use super::consts::{
-    ASTRALYTE_CRYSTAL, DIAMOND, ENCHANTED_FABRIC, FOOD_BLACK_LIST, JASPER_CRYSTAL, MAGICAL_CURE,
-    TASKS_COIN,
+use crate::{
+    api::ItemsApi,
+    char::Skill,
+    consts::{
+        ASTRALYTE_CRYSTAL, DIAMOND, ENCHANTED_FABRIC, FOOD_BLACK_LIST, JASPER_CRYSTAL,
+        MAGICAL_CURE, TASKS_COIN,
+    },
+    FightSimulator,
+    GameConfig,
+    gear::Slot,
+    monsters::{MonsterSchemaExt, Monsters},
+    persist_data,
+    resources::{ResourceSchemaExt, Resources},
+    retreive_data,
+    tasks::Tasks,
 };
-use super::fight_simulator::FightSimulator;
-use super::game_config::GameConfig;
-use super::gear::Slot;
-use super::monsters::MonsterSchemaExt;
-use super::resources::ResourceSchemaExt;
-use super::tasks::Tasks;
-use super::{api::items::ItemsApi, monsters::Monsters, resources::Resources};
-use super::{persist_data, retreive_data};
-use artifactsmmo_openapi::models::{CraftSchema, ItemEffectSchema, ItemSchema, SimpleItemSchema};
-use artifactsmmo_openapi::models::{MonsterSchema, ResourceSchema};
+use artifactsmmo_openapi::models::{
+    CraftSchema, ItemEffectSchema, ItemSchema, MonsterSchema, ResourceSchema, SimpleItemSchema,
+};
 use itertools::Itertools;
 use log::{debug, error};
-use std::collections::HashMap;
-use std::fmt;
-use std::path::Path;
-use std::str::FromStr;
-use std::{sync::Arc, vec::Vec};
+use std::{collections::HashMap, fmt, path::Path, str::FromStr, sync::Arc, vec::Vec};
 use strum::IntoEnumIterator;
 use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
 

@@ -1,7 +1,7 @@
-use super::{action::Action, HasCharacterData};
 use crate::{
     api::{characters::CharactersApi, my_character::MyCharacterApi},
     bank::Bank,
+    char::{action::Action, HasCharacterData},
     consts::BANK_EXTENSION_SIZE,
     game::{Game, Server},
     gear::Slot,

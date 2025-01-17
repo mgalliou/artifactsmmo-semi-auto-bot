@@ -1,19 +1,17 @@
-use super::{
-    api::{characters::CharactersApi, my_character::MyCharacterApi},
+use crate::{
+    api::{CharactersApi, MyCharacterApi},
     bank::Bank,
-    char::HasCharacterData,
+    char::{Character, HasCharacterData, Skill},
     game::Game,
     game_config::GameConfig,
     items::{ItemSource, Items},
 };
-use crate::char::{Character, Skill};
 use artifactsmmo_openapi::{
     apis::configuration::Configuration,
     models::{CharacterSchema, SimpleItemSchema},
 };
 use itertools::Itertools;
-use std::sync::Arc;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 
 #[derive(Default)]
 pub struct Account {

@@ -1,3 +1,4 @@
+use crate::{account::Account, char::skill::Skill, gear::Slot, items::Items};
 use itertools::Itertools;
 use log::{debug, info};
 use std::{
@@ -8,10 +9,6 @@ use std::{
 use strum::IntoEnumIterator;
 use strum_macros::{EnumIs, EnumIter};
 use thiserror::Error;
-
-use crate::char::skill::Skill;
-
-use super::{account::Account, gear::Slot, items::Items};
 
 #[derive(Default)]
 pub struct OrderBoard {

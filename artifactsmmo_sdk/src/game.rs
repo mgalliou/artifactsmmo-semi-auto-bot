@@ -1,4 +1,4 @@
-use super::{
+use crate::{
     account::Account, events::Events, fight_simulator::FightSimulator, game_config::GameConfig,
     gear_finder::GearFinder, items::Items, leveling_helper::LevelingHelper, maps::Maps,
     monsters::Monsters, orderboard::OrderBoard, resources::Resources, tasks::Tasks,

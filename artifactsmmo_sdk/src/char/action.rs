@@ -1,5 +1,5 @@
-use strum_macros::{Display, EnumIs};
 use crate::gear::Slot;
+use strum_macros::{Display, EnumIs};
 
 #[derive(Debug, EnumIs, Display)]
 pub enum Action<'a> {

@@ -1,6 +1,7 @@
-use crate::char::CharacterError;
-
-use super::items::{ItemSchemaExt, Items};
+use crate::{
+    char::CharacterError,
+    items::{ItemSchemaExt, Items},
+};
 use artifactsmmo_openapi::models::{CharacterSchema, InventorySlot, ItemSchema};
 use core::fmt;
 use itertools::Itertools;

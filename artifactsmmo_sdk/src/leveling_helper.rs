@@ -1,7 +1,6 @@
-use crate::char::{Character, HasCharacterData, Skill};
-
-use super::{
+use crate::{
     account::Account,
+    char::{Character, HasCharacterData, Skill},
     items::{ItemSchemaExt, Items},
     maps::Maps,
     monsters::Monsters,

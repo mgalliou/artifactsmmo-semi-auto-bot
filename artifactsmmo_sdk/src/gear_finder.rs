@@ -1,6 +1,5 @@
-use crate::char::{Character, HasCharacterData, Skill};
-
-use super::{
+use crate::{
+    char::{Character, HasCharacterData, Skill},
     fight_simulator::FightSimulator,
     gear::Gear,
     items::{ItemSchemaExt, Items, Type},
@@ -318,9 +317,7 @@ impl GearFinder {
             .multi_cartesian_product()
             .map(|artifacts| [*artifacts[0], *artifacts[1], *artifacts[2]])
             .sorted()
-            .filter_map(|artifacts| {
-                ArtifactSet::new(artifacts).map(ItemWrapper::Artifacts)
-            })
+            .filter_map(|artifacts| ArtifactSet::new(artifacts).map(ItemWrapper::Artifacts))
             .collect_vec();
         sets.dedup();
         sets

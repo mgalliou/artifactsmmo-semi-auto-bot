@@ -1,5 +1,5 @@
-use super::{
-    api::events::EventsApi, game_config::GameConfig, maps::MapSchemaExt, persist_data,
+use crate::{
+    api::EventsApi, game_config::GameConfig, maps::MapSchemaExt, persist_data,
     retreive_data, 
 };
 use artifactsmmo_openapi::models::{ActiveEventSchema, EventSchema, MapSchema};

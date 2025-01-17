@@ -1,4 +1,4 @@
-use super::{
+use crate::{
     consts::{BASE_HP, HP_PER_LEVEL, MAX_TURN},
     gear::Gear,
     items::ItemSchemaExt,

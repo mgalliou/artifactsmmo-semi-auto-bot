@@ -1,8 +1,4 @@
-use super::{
-    base_character::{BaseCharacter, RequestError},
-    skill::Skill,
-    HasCharacterData,
-};
+use super::{base_character::RequestError, BaseCharacter, HasCharacterData, Skill};
 use crate::{
     account::Account,
     bank::Bank,
@@ -11,9 +7,6 @@ use crate::{
         BANK_MIN_FREE_SLOT, CRAFT_TIME, GIFT, MAX_LEVEL, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
         TASKS_COIN, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE,
     },
-    fight_simulator::FightSimulator,
-    game::Game,
-    game_config::{CharConfig, GameConfig, Goal},
     gear::{Gear, Slot},
     gear_finder::{Filter, GearFinder},
     inventory::Inventory,
@@ -23,6 +16,7 @@ use crate::{
     monsters::Monsters,
     orderboard::{Order, OrderBoard, Purpose},
     resources::Resources,
+    CharConfig, FightSimulator, Game, GameConfig, Goal,
 };
 use artifactsmmo_openapi::models::{
     CharacterSchema, FightResult, FightSchema, ItemSchema, MapContentSchema, MapSchema,
