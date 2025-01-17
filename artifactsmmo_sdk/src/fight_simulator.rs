@@ -112,7 +112,7 @@ pub struct Fight {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::artifactsmmo_sdk::game::Game;
+    use crate::game::Game;
 
     #[test]
     fn gather() {

@@ -21,7 +21,7 @@ use super::{
     resources::Resources,
     skill::Skill,
 };
-use crate::artifactsmmo_sdk::{base_character::HasDrops, char_config::Goal};
+use crate::{base_character::HasDrops, char_config::Goal};
 use artifactsmmo_openapi::models::{
     CharacterSchema, FightResult, FightSchema, ItemSchema, MapContentSchema, MapSchema,
     MonsterSchema, RecyclingItemsSchema, ResourceSchema, RewardsSchema, SimpleItemSchema,

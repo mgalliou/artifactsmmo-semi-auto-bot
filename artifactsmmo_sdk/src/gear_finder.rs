@@ -1,7 +1,11 @@
 use super::{
-    base_character::HasCharacterData, character::Character, fight_simulator::FightSimulator, gear::Gear, items::{ItemSchemaExt, Items, Type}, skill::Skill
+    base_character::HasCharacterData,
+    character::Character,
+    fight_simulator::FightSimulator,
+    gear::Gear,
+    items::{ItemSchemaExt, Items, Type},
+    skill::Skill,
 };
-use anyhow::bail;
 use artifactsmmo_openapi::models::{FightResult, ItemSchema, MonsterSchema};
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
@@ -316,11 +320,7 @@ impl GearFinder {
             .map(|artifacts| [*artifacts[0], *artifacts[1], *artifacts[2]])
             .sorted()
             .filter_map(|artifacts| {
-                if let Ok(artifact_set) = ArtifactSet::new(artifacts) {
-                    Some(ItemWrapper::Artifacts(artifact_set))
-                } else {
-                    None
-                }
+                ArtifactSet::new(artifacts).map(ItemWrapper::Artifacts)
             })
             .collect_vec();
         sets.dedup();
@@ -591,26 +591,25 @@ struct ArtifactSet<'a> {
 }
 
 impl<'a> ArtifactSet<'a> {
-    fn new(mut artifacts: [Option<&'a str>; 3]) -> anyhow::Result<Self> {
+    fn new(mut artifacts: [Option<&'a str>; 3]) -> Option<Self> {
         artifacts.sort();
         if artifacts[0].is_some_and(|a| artifacts[1].is_some_and(|b| a == b))
             || artifacts[1].is_some_and(|a| artifacts[2].is_some_and(|b| a == b))
             || artifacts[2].is_some_and(|a| artifacts[0].is_some_and(|b| a == b))
         {
-            bail!("Artifact should be unique");
+            None
         } else {
             artifacts.sort();
-            Ok(ArtifactSet { artifacts })
+            Some(ArtifactSet { artifacts })
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::{game_config::GameConfig, monsters::Monsters, resources::Resources, tasks::Tasks};
+
     use super::*;
-    use crate::artifactsmmo_sdk::{
-        game_config::GameConfig, monsters::Monsters, resources::Resources, tasks::Tasks,
-    };
 
     #[test]
     fn best_weapons_against() {

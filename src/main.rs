@@ -1,8 +1,6 @@
 use anyhow::Result;
-use artifactsmmo_playground::{
-    artifactsmmo_sdk::{game::Game, orderboard::Purpose},
-    cli::run_cli,
-};
+use artifactsmmo_playground::cli::run_cli;
+use artifactsmmo_sdk::{game::Game, orderboard::Purpose};
 use log::LevelFilter;
 
 fn main() -> Result<()> {
@@ -23,6 +21,6 @@ fn main() -> Result<()> {
         .add(None, "magic_wood", 6000, Purpose::Cli)?;
     //game.orderboard.add(None, "carrot", 1000, Purpose::Cli);
     //game.orderboard.add(None, "frozen_pickaxe", 5, Purpose::Cli)?;
-    game.run_characters()?;
+    game.run_characters();
     run_cli(&game)
 }

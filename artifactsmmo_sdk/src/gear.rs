@@ -372,7 +372,7 @@ impl From<Slot> for ItemSlot {
 mod tests {
     use std::sync::Arc;
 
-    use crate::artifactsmmo_sdk::{
+    use crate::{
         game_config::GameConfig, items::Items, monsters::Monsters, resources::Resources,
         tasks::Tasks,
     };

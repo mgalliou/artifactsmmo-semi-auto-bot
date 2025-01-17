@@ -1,7 +1,9 @@
-use crate::artifactsmmo_sdk::{self, base_character::HasCharacterData, events::EventSchemaExt};
 use anyhow::{bail, Result};
 use artifactsmmo_sdk::{
+    self,
+    base_character::HasCharacterData,
     character::{Character, PostCraftAction},
+    events::EventSchemaExt,
     fight_simulator::FightSimulator,
     game::Game,
     gear_finder::Filter,

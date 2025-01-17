@@ -1,5 +1,5 @@
 use super::skill::Skill;
-use crate::artifactsmmo_sdk::{
+use crate::{
     api::{characters::CharactersApi, my_character::MyCharacterApi},
     bank::Bank,
     consts::BANK_EXTENSION_SIZE,

@@ -1,10 +1,8 @@
 use super::{
-    account::Account, events::Events, fight_simulator::FightSimulator,
-    game_config::GameConfig, gear_finder::GearFinder, items::Items,
-    leveling_helper::LevelingHelper, maps::Maps, monsters::Monsters, orderboard::OrderBoard,
-    resources::Resources, tasks::Tasks,
+    account::Account, events::Events, fight_simulator::FightSimulator, game_config::GameConfig,
+    gear_finder::GearFinder, items::Items, leveling_helper::LevelingHelper, maps::Maps,
+    monsters::Monsters, orderboard::OrderBoard, resources::Resources, tasks::Tasks,
 };
-use anyhow::Result;
 use artifactsmmo_openapi::{
     apis::{
         configuration::Configuration,
@@ -73,14 +71,15 @@ impl Game {
         self.account.init_characters(self);
     }
 
-    pub fn run_characters(&self) -> Result<()> {
+    pub fn run_characters(&self) {
         for c in self.account.characters() {
             sleep(Duration::from_millis(250));
-            Builder::new().spawn(move || {
+            if let Err(e) = Builder::new().spawn(move || {
                 c.run_loop();
-            })?;
+            }) {
+                error!("failed to spawn character thread: {}", e);
+            }
         }
-        Ok(())
     }
 }
 

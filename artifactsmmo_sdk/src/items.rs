@@ -652,14 +652,7 @@ pub enum ItemSource<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::Items;
-    use crate::artifactsmmo_sdk::items::ItemSchemaExt;
-    use crate::artifactsmmo_sdk::{
-        game_config::GameConfig, items::ItemSource, monsters::Monsters, resources::Resources,
-        tasks::Tasks,
-    };
-    use itertools::Itertools;
-    use std::sync::Arc;
+    use super::*;
 
     #[test]
     fn potential_upgrade() {
