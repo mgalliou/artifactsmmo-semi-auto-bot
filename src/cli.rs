@@ -1,18 +1,17 @@
 use anyhow::{bail, Result};
 use artifactsmmo_sdk::{
-    self,
     char::{character::PostCraftAction, Character, HasCharacterData, Skill},
-    events::EventSchemaExt,
+    events::{EventSchemaExt, EVENTS},
     fight_simulator::FightSimulator,
-    game::Game,
     gear_finder::Filter,
     orderboard::Purpose,
+    ACCOUNT, BANK, GAME, ITEMS, MAPS, MONSTERS,
 };
 use clap::{value_parser, Parser, Subcommand};
 use rustyline::{error::ReadlineError, DefaultEditor};
 use std::{process::exit, str::FromStr, sync::Arc};
 
-pub fn run_cli(game: &Game) -> Result<()> {
+pub fn run_cli() -> Result<()> {
     let mut rl = DefaultEditor::new()?;
     let mut chars: Option<Arc<Character>> = None;
     loop {
@@ -27,7 +26,7 @@ pub fn run_cli(game: &Game) -> Result<()> {
             .as_str(),
         );
         match readline {
-            Ok(line) => match respond(&line, &mut chars, game) {
+            Ok(line) => match respond(&line, &mut chars) {
                 Ok(_) => {
                     if let Err(e) = rl.add_history_entry(line.as_str()) {
                         eprintln!("failed to add history entry: {}", e);
@@ -49,25 +48,25 @@ pub fn run_cli(game: &Game) -> Result<()> {
     }
 }
 
-fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> Result<()> {
+fn respond(line: &str, character: &mut Option<Arc<Character>>) -> Result<()> {
     match Cli::try_parse_from(line.split_whitespace())?.command {
         Commands::Orderboard { action } => match action {
             OrderboardAction::Add { item, quantity } => {
-                game.orderboard.add(None, &item, quantity, Purpose::Cli)?;
+                GAME.orderboard.add(None, &item, quantity, Purpose::Cli)?;
             }
             OrderboardAction::Remove { item } => {
-                let Some(o) = game.orderboard.get(None, &item, &Purpose::Cli) else {
+                let Some(o) = GAME.orderboard.get(None, &item, &Purpose::Cli) else {
                     bail!("order not found");
                 };
-                game.orderboard.remove(&o)?
+                GAME.orderboard.remove(&o)?
             }
             OrderboardAction::List => {
                 println!("orders (by priority):");
-                game.orderboard.orders_by_priority().iter().for_each(|o| {
+                GAME.orderboard.orders_by_priority().iter().for_each(|o| {
                     println!(
                         "{}, in inventory: {}",
                         o,
-                        game.account.available_in_inventories(&o.item)
+                        ACCOUNT.available_in_inventories(&o.item)
                     )
                 });
             }
@@ -75,16 +74,10 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
         Commands::Bank { action } => match action {
             BankAction::Reservations => {
                 println!("reservations:");
-                game.account
-                    .bank
-                    .reservations()
-                    .iter()
-                    .for_each(|r| println!("{}", r));
+                BANK.reservations().iter().for_each(|r| println!("{}", r));
             }
             BankAction::List => {
-                game.account
-                    .bank
-                    .content
+                BANK.content
                     .read()
                     .unwrap()
                     .iter()
@@ -95,9 +88,8 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
             }
         },
         Commands::Items { action } => match action {
-            ItemsAction::TimeToGet { item } => println!("{:?}", game.account.time_to_get(&item)),
-            ItemsAction::Sources { item } => game
-                .items
+            ItemsAction::TimeToGet { item } => println!("{:?}", ACCOUNT.time_to_get(&item)),
+            ItemsAction::Sources { item } => ITEMS
                 .sources_of(&item)
                 .iter()
                 .for_each(|s| println!("{:?}", s)),
@@ -108,7 +100,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
                 println!(
                     "best {} craft: {:?}",
                     skill,
-                    game.leveling_helper
+                    GAME.leveling_helper
                         .best_craft(char.skill_level(skill), skill, char)
                         .map(|i| i.name.clone())
                         .unwrap_or("none".to_string())
@@ -119,7 +111,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
                     bail!("no character selected");
                 };
                 println!("best {} crafts:", skill);
-                game.leveling_helper
+                GAME.leveling_helper
                     .best_crafts(char.skill_level(skill), skill)
                     .iter()
                     .for_each(|i| println!("{}", i.name))
@@ -127,13 +119,13 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
         },
         Commands::Events { action } => match action {
             EventsAction::List => {
-                game.events
+                EVENTS
                     .data
                     .iter()
                     .for_each(|e| println!("{}", e.to_string()));
             }
             EventsAction::Active => {
-                game.events
+                EVENTS
                     .active
                     .read()
                     .unwrap()
@@ -142,7 +134,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
             }
         },
         Commands::Char { i } => {
-            character.clone_from(&game.account.get_character(i as usize));
+            character.clone_from(&ACCOUNT.get_character(i as usize));
             if let Some(char) = character.clone() {
                 bail!("character '{}' selected", char.base.name());
             } else {
@@ -187,7 +179,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
             let Some(char) = character else {
                 bail!("no character selected");
             };
-            let Some(monster) = game.monsters.get(&monster) else {
+            let Some(monster) = MONSTERS.get(&monster) else {
                 bail!("no character selected");
             };
             let filter = Filter {
@@ -201,9 +193,9 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
             println!(
                 "{}",
                 if winning {
-                    game.gear_finder.best_winning_against(char, monster, filter)
+                    GAME.gear_finder.best_winning_against(char, monster, filter)
                 } else {
-                    game.gear_finder.best_against(char, monster, filter)
+                    GAME.gear_finder.best_against(char, monster, filter)
                 }
             );
         }
@@ -220,7 +212,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
             let Some(char) = character else {
                 bail!("no character selected");
             };
-            let Some(monster) = game.monsters.get(&monster) else {
+            let Some(monster) = MONSTERS.get(&monster) else {
                 bail!("no character selected");
             };
             let filter = Filter {
@@ -232,9 +224,9 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
                 utilities,
             };
             let gear = if winning {
-                game.gear_finder.best_winning_against(char, monster, filter)
+                GAME.gear_finder.best_winning_against(char, monster, filter)
             } else {
-                game.gear_finder.best_against(
+                GAME.gear_finder.best_against(
                     char,
                     monster,
                     Filter {
@@ -308,7 +300,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>, game: &Game) -> R
                 bail!("no character selected");
             };
             let (x, y) = char.base.position();
-            println!("{:?}", game.maps.get(x, y).unwrap());
+            println!("{:?}", MAPS.get(x, y).unwrap());
         }
         Commands::Task => {
             let Some(char) = character else {

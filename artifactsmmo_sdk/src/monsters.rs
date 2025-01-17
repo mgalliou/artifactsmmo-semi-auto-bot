@@ -1,20 +1,24 @@
 use crate::{
-    api::monsters::MonstersApi, events::Events, game_config::GameConfig, items::DamageType,
+    api::monsters::MonstersApi, events::EVENTS, game_config::GAME_CONFIG, items::DamageType,
     persist_data, retreive_data,
 };
 use artifactsmmo_openapi::models::MonsterSchema;
+use lazy_static::lazy_static;
 use log::error;
 use std::{path::Path, sync::Arc};
+
+lazy_static! {
+    pub static ref MONSTERS: Arc<Monsters> = Arc::new(Monsters::new());
+}
 
 #[derive(Default)]
 pub struct Monsters {
     pub data: Vec<MonsterSchema>,
-    events: Arc<Events>,
 }
 
 impl Monsters {
-    pub fn new(config: &GameConfig, events: &Arc<Events>) -> Monsters {
-        let api = MonstersApi::new(&config.base_url);
+    fn new() -> Monsters {
+        let api = MonstersApi::new(GAME_CONFIG.token.as_str());
         let path = Path::new(".cache/monsters.json");
         let data = if let Ok(data) = retreive_data::<Vec<MonsterSchema>>(path) {
             data
@@ -27,10 +31,7 @@ impl Monsters {
             }
             data
         };
-        Monsters {
-            data,
-            events: events.clone(),
-        }
+        Monsters { data }
     }
     pub fn get(&self, code: &str) -> Option<&MonsterSchema> {
         self.data.iter().find(|m| m.code == code)
@@ -59,7 +60,7 @@ impl Monsters {
     }
 
     pub fn is_event(&self, code: &str) -> bool {
-        self.events.data.iter().any(|e| e.content.code == code)
+        EVENTS.data.iter().any(|e| e.content.code == code)
     }
 }
 

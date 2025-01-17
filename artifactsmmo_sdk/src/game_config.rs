@@ -1,3 +1,4 @@
+use lazy_static::lazy_static;
 use crate::char::skill::Skill;
 use artifactsmmo_openapi::models::TaskType;
 use figment::{
@@ -5,9 +6,13 @@ use figment::{
     Figment,
 };
 use serde::Deserialize;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 use std::{collections::HashSet, fmt::Display};
 use strum_macros::{AsRefStr, EnumIs, EnumIter, EnumString};
+
+lazy_static! {
+    pub static ref GAME_CONFIG: Arc<GameConfig> = Arc::new(GameConfig::from_file());
+}
 
 #[derive(Debug, Default, Deserialize)]
 pub struct GameConfig {
@@ -17,7 +22,7 @@ pub struct GameConfig {
 }
 
 impl GameConfig {
-    pub fn from_file() -> Self {
+    fn from_file() -> Self {
         Figment::new()
             .merge(Toml::file_exact("ArtifactsMMO.toml"))
             .extract()

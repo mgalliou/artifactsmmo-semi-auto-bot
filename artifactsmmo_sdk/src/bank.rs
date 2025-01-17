@@ -1,10 +1,11 @@
 use crate::{
     api::BankApi,
-    game_config::GameConfig,
-    items::{ItemSchemaExt, Items},
+    game_config::GAME_CONFIG,
+    items::{ItemSchemaExt, ITEMS},
 };
 use artifactsmmo_openapi::models::{BankSchema, ItemSchema, SimpleItemSchema};
 use itertools::Itertools;
+use lazy_static::lazy_static;
 use log::info;
 use std::{
     cmp::max,
@@ -12,9 +13,12 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+lazy_static! {
+    pub static ref BANK: Arc<Bank> = Arc::new(Bank::new());
+}
+
 #[derive(Default)]
 pub struct Bank {
-    items: Arc<Items>,
     pub browsed: RwLock<()>,
     pub details: RwLock<BankSchema>,
     pub content: RwLock<Vec<SimpleItemSchema>>,
@@ -24,13 +28,8 @@ pub struct Bank {
 
 impl Bank {
     pub fn new() -> Self {
-        Default::default()
-    }
-
-    pub fn from_api(config: &GameConfig, items: &Arc<Items>) -> Self {
-        let api = BankApi::new(&config.base_url, &config.token);
+        let api = BankApi::new(&GAME_CONFIG.base_url, &GAME_CONFIG.token);
         Self {
-            items: items.clone(),
             browsed: RwLock::new(()),
             details: RwLock::new(*api.details().unwrap().data),
             content: RwLock::new(api.items(None).unwrap()),
@@ -80,7 +79,7 @@ impl Bank {
     //  NOTE: this should maybe return a Option to indicate that the item is not craftable and
     //  return None in this case
     pub fn has_mats_for(&self, item: &str, owner: Option<&str>) -> i32 {
-        self.items
+        ITEMS
             .mats_of(item)
             .iter()
             .map(|mat| self.has_available(&mat.code, owner) / mat.quantity)
@@ -96,7 +95,7 @@ impl Bank {
         quantity: i32,
         owner: Option<&str>,
     ) -> Vec<SimpleItemSchema> {
-        self.items
+        ITEMS
             .mats_of(item)
             .into_iter()
             .filter(|m| self.has_available(&m.code, owner) < m.quantity * quantity)
@@ -118,7 +117,7 @@ impl Bank {
             .read()
             .unwrap()
             .iter()
-            .filter_map(|i| self.items.get(&i.code).filter(|&i| i.is_consumable(level)))
+            .filter_map(|i| ITEMS.get(&i.code).filter(|&i| i.is_consumable(level)))
             .collect_vec()
     }
 
@@ -317,35 +316,30 @@ mod tests {
 
     #[test]
     fn reserv_with_not_item() {
-        let bank = Bank::new();
-        let result = bank.increase_reservation("copper_ore", 50, "char1");
+        let result = BANK.increase_reservation("copper_ore", 50, "char1");
         assert_eq!(Err(BankError::QuantityUnavailable(50)), result);
     }
 
     #[test]
     fn reserv_with_item_available() {
-        let bank = Bank::new();
-
-        (*bank.content.write().unwrap()).push(SimpleItemSchema {
+        (*BANK.content.write().unwrap()).push(SimpleItemSchema {
             code: "copper_ore".to_owned(),
             quantity: 100,
         });
-        let _ = bank.increase_reservation("copper_ore", 50, "char1");
-        let _ = bank.increase_reservation("copper_ore", 50, "char1");
-        assert_eq!(100, bank.has_available("copper_ore", Some("char1")))
+        let _ = BANK.increase_reservation("copper_ore", 50, "char1");
+        let _ = BANK.increase_reservation("copper_ore", 50, "char1");
+        assert_eq!(100, BANK.has_available("copper_ore", Some("char1")))
     }
 
     #[test]
     fn reserv_if_not_with_item_available() {
-        let bank = Bank::new();
-
-        (*bank.content.write().unwrap()).push(SimpleItemSchema {
+        (*BANK.content.write().unwrap()).push(SimpleItemSchema {
             code: "copper_ore".to_owned(),
             quantity: 100,
         });
-        let _ = bank.reserv("copper_ore", 50, "char1");
-        let _ = bank.reserv("copper_ore", 50, "char1");
-        assert_eq!(100, bank.has_available("copper_ore", Some("char1")));
-        assert_eq!(50, bank.quantity_reserved("copper_ore"))
+        let _ = BANK.reserv("copper_ore", 50, "char1");
+        let _ = BANK.reserv("copper_ore", 50, "char1");
+        assert_eq!(100, BANK.has_available("copper_ore", Some("char1")));
+        assert_eq!(50, BANK.quantity_reserved("copper_ore"))
     }
 }

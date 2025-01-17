@@ -1,6 +1,6 @@
 use crate::{
     char::CharacterError,
-    items::{ItemSchemaExt, Items},
+    items::{ItemSchemaExt, ITEMS},
 };
 use artifactsmmo_openapi::models::{CharacterSchema, InventorySlot, ItemSchema};
 use core::fmt;
@@ -13,15 +13,13 @@ use std::{
 
 #[derive(Default)]
 pub struct Inventory {
-    items: Arc<Items>,
     data: Arc<RwLock<CharacterSchema>>,
     reservations: RwLock<Vec<Arc<InventoryReservation>>>,
 }
 
 impl Inventory {
-    pub fn new(data: &Arc<RwLock<CharacterSchema>>, items: &Arc<Items>) -> Self {
+    pub fn new(data: &Arc<RwLock<CharacterSchema>>) -> Self {
         Inventory {
-            items: items.clone(),
             data: data.clone(),
             reservations: RwLock::new(vec![]),
         }
@@ -96,7 +94,7 @@ impl Inventory {
             .iter()
             .flatten()
             .filter_map(|i| {
-                self.items
+                ITEMS
                     .get(&i.code)
                     .filter(|&i| i.is_consumable(self.data.read().unwrap().level))
             })

@@ -4,18 +4,17 @@ use crate::{
     items::ItemSchemaExt,
 };
 use artifactsmmo_openapi::models::{FightResult, MonsterSchema};
-use std::cmp::max;
+use lazy_static::lazy_static;
+use std::{cmp::max, sync::Arc};
+
+lazy_static! {
+    pub static ref FIGHT_SIMULATOR: Arc<FightSimulator> = Arc::new(FightSimulator::new());
+}
 
 pub struct FightSimulator {}
 
-impl Default for FightSimulator {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl FightSimulator {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {}
     }
 
@@ -112,7 +111,7 @@ pub struct Fight {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::game::Game;
+    use crate::{items::ITEMS, monsters::MONSTERS};
 
     #[test]
     fn gather() {
@@ -124,30 +123,23 @@ mod tests {
     #[test]
     fn kill_deathnight() {
         let simulator = FightSimulator::new();
-        let game = Game::new();
         let gear = Gear {
-            weapon: game.items.get("skull_staff"),
-            shield: game.items.get("steel_shield"),
-            helmet: game.items.get("piggy_helmet"),
-            body_armor: game.items.get("bandit_armor"),
-            leg_armor: game.items.get("piggy_pants"),
-            boots: game.items.get("adventurer_boots"),
-            ring1: game.items.get("skull_ring"),
-            ring2: game.items.get("skull_ring"),
-            amulet: game.items.get("ruby_amulet"),
+            weapon: ITEMS.get("skull_staff"),
+            shield: ITEMS.get("steel_shield"),
+            helmet: ITEMS.get("piggy_helmet"),
+            body_armor: ITEMS.get("bandit_armor"),
+            leg_armor: ITEMS.get("piggy_pants"),
+            boots: ITEMS.get("adventurer_boots"),
+            ring1: ITEMS.get("skull_ring"),
+            ring2: ITEMS.get("skull_ring"),
+            amulet: ITEMS.get("ruby_amulet"),
             artifact1: None,
             artifact2: None,
             artifact3: None,
             utility1: None,
             utility2: None,
         };
-        let fight = simulator.simulate(
-            30,
-            0,
-            &gear,
-            game.monsters.get("death_knight").unwrap(),
-            false,
-        );
+        let fight = simulator.simulate(30, 0, &gear, MONSTERS.get("death_knight").unwrap(), false);
         println!("{:?}", fight);
         assert_eq!(fight.result, FightResult::Win);
     }
@@ -155,18 +147,17 @@ mod tests {
     #[test]
     fn kill_cultist_emperor() {
         let simulator = FightSimulator::new();
-        let game = Game::new();
         let gear = Gear {
-            weapon: game.items.get("magic_bow"),
-            shield: game.items.get("gold_shield"),
-            helmet: game.items.get("strangold_helmet"),
-            body_armor: game.items.get("serpent_skin_armor"),
-            leg_armor: game.items.get("strangold_legs_armor"),
-            boots: game.items.get("gold_boots"),
-            ring1: game.items.get("emerald_ring"),
-            ring2: game.items.get("emerald_ring"),
-            amulet: game.items.get("ancestral_talisman"),
-            artifact1: game.items.get("christmas_star"),
+            weapon: ITEMS.get("magic_bow"),
+            shield: ITEMS.get("gold_shield"),
+            helmet: ITEMS.get("strangold_helmet"),
+            body_armor: ITEMS.get("serpent_skin_armor"),
+            leg_armor: ITEMS.get("strangold_legs_armor"),
+            boots: ITEMS.get("gold_boots"),
+            ring1: ITEMS.get("emerald_ring"),
+            ring2: ITEMS.get("emerald_ring"),
+            amulet: ITEMS.get("ancestral_talisman"),
+            artifact1: ITEMS.get("christmas_star"),
             artifact2: None,
             artifact3: None,
             utility1: None,
@@ -176,7 +167,7 @@ mod tests {
             40,
             0,
             &gear,
-            game.monsters.get("cultist_emperor").unwrap(),
+            MONSTERS.get("cultist_emperor").unwrap(),
             false,
         );
         println!("{:?}", fight);

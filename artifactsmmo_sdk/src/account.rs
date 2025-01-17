@@ -1,47 +1,46 @@
 use crate::{
     api::{CharactersApi, MyCharacterApi},
-    bank::Bank,
     char::{Character, HasCharacterData, Skill},
-    game::Game,
-    game_config::GameConfig,
-    items::{ItemSource, Items},
+    game_config::GAME_CONFIG,
+    items::{ItemSource, ITEMS},
 };
 use artifactsmmo_openapi::{
     apis::configuration::Configuration,
     models::{CharacterSchema, SimpleItemSchema},
 };
 use itertools::Itertools;
+use lazy_static::lazy_static;
 use std::sync::{Arc, RwLock};
+
+lazy_static! {
+    pub static ref ACCOUNT: Arc<Account> = Arc::new(Account::new());
+}
 
 #[derive(Default)]
 pub struct Account {
     pub configuration: Configuration,
-    pub config: Arc<GameConfig>,
     pub character_api: CharactersApi,
     pub my_characters_api: MyCharacterApi,
-    pub items: Arc<Items>,
-    pub bank: Arc<Bank>,
     pub characters: RwLock<Vec<Arc<Character>>>,
 }
 
 impl Account {
-    pub fn new(config: &Arc<GameConfig>, items: &Arc<Items>) -> Arc<Account> {
+    fn new() -> Account {
         let mut configuration = Configuration::new();
-        configuration.base_path = config.base_url.to_owned();
-        configuration.bearer_access_token = Some(config.token.to_owned());
-        let my_characters_api = MyCharacterApi::new(&config.base_url, &config.token);
-        Arc::new(Account {
+        configuration.base_path = GAME_CONFIG.base_url.to_owned();
+        configuration.bearer_access_token = Some(GAME_CONFIG.token.to_owned());
+        let my_characters_api = MyCharacterApi::new(&GAME_CONFIG.base_url, &GAME_CONFIG.token);
+        let account = Account {
             configuration,
-            config: config.clone(),
-            character_api: CharactersApi::new(&config.base_url, &config.token),
+            character_api: CharactersApi::new(&GAME_CONFIG.base_url, &GAME_CONFIG.token),
             my_characters_api,
-            items: items.clone(),
-            bank: Arc::new(Bank::from_api(config, items)),
             characters: RwLock::new(vec![]),
-        })
+        };
+        account.init_characters();
+        account
     }
 
-    pub fn init_characters(&self, game: &Game) {
+    fn init_characters(&self) {
         let Ok(mut chars) = self.characters.write() else {
             return;
         };
@@ -49,7 +48,7 @@ impl Account {
             .get_characters_data()
             .iter()
             .enumerate()
-            .map(|(id, data)| Arc::new(Character::new(id, data, game)))
+            .map(|(id, data)| Arc::new(Character::new(id, data)))
             .collect_vec()
     }
 
@@ -120,7 +119,7 @@ impl Account {
     }
 
     pub fn time_to_get(&self, item: &str) -> Option<i32> {
-        self.items
+        ITEMS
             .best_source_of(item)
             .iter()
             .filter_map(|s| match s {
@@ -137,11 +136,10 @@ impl Account {
                     .unwrap()
                     .iter()
                     .filter_map(|c| c.time_to_kill(m))
-                    .map(|time| time * self.items.drop_rate(item))
+                    .map(|time| time * ITEMS.drop_rate(item))
                     .min(),
                 ItemSource::Craft => {
-                    let mats_wit_ttg = self
-                        .items
+                    let mats_wit_ttg = ITEMS
                         .mats_of(item)
                         .into_iter()
                         .map(|m| (m.clone(), self.time_to_get(&m.code)))

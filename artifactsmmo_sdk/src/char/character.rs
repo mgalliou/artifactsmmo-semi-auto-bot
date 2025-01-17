@@ -1,22 +1,24 @@
 use super::{base_character::RequestError, BaseCharacter, HasCharacterData, Skill};
 use crate::{
-    account::Account,
-    bank::Bank,
+    account::ACCOUNT,
+    bank::BANK,
     char::base_character::HasDrops,
     consts::{
         BANK_MIN_FREE_SLOT, CRAFT_TIME, GIFT, MAX_LEVEL, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
         TASKS_COIN, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE,
     },
+    fight_simulator::FIGHT_SIMULATOR,
+    game_config::GAME_CONFIG,
     gear::{Gear, Slot},
-    gear_finder::{Filter, GearFinder},
+    gear_finder::{Filter, GEAR_FINDER},
     inventory::Inventory,
-    items::{ItemSchemaExt, ItemSource, Items, Type},
-    leveling_helper::LevelingHelper,
-    maps::{ContentType, MapSchemaExt, Maps},
-    monsters::Monsters,
-    orderboard::{Order, OrderBoard, Purpose},
-    resources::Resources,
-    CharConfig, FightSimulator, Game, GameConfig, Goal,
+    items::{ItemSchemaExt, ItemSource, Type, ITEMS},
+    leveling_helper::LEVELING_HELPER,
+    maps::{ContentType, MapSchemaExt, Maps, MAPS},
+    monsters::MONSTERS,
+    orderboard::{Order, Purpose, ORDER_BOARD},
+    resources::RESOURCES,
+    CharConfig, FightSimulator, Goal,
 };
 use artifactsmmo_openapi::models::{
     CharacterSchema, FightResult, FightSchema, ItemSchema, MapContentSchema, MapSchema,
@@ -39,38 +41,16 @@ use thiserror::Error;
 #[derive(Default)]
 pub struct Character {
     pub id: usize,
-    config: Arc<GameConfig>,
     pub base: BaseCharacter,
     pub inventory: Arc<Inventory>,
-    pub account: Arc<Account>,
-    maps: Arc<Maps>,
-    resources: Arc<Resources>,
-    monsters: Arc<Monsters>,
-    items: Arc<Items>,
-    bank: Arc<Bank>,
-    orderboard: Arc<OrderBoard>,
-    gear_finder: Arc<GearFinder>,
-    fight_simulator: Arc<FightSimulator>,
-    leveling_helper: Arc<LevelingHelper>,
 }
 
 impl Character {
-    pub fn new(id: usize, data: &Arc<RwLock<CharacterSchema>>, game: &Game) -> Character {
+    pub fn new(id: usize, data: &Arc<RwLock<CharacterSchema>>) -> Character {
         Character {
             id,
-            config: game.config.clone(),
-            base: BaseCharacter::new(data, game),
-            inventory: Arc::new(Inventory::new(data, &game.items)),
-            account: game.account.clone(),
-            bank: game.account.bank.clone(),
-            maps: game.maps.clone(),
-            resources: game.resources.clone(),
-            monsters: game.monsters.clone(),
-            items: game.items.clone(),
-            orderboard: game.orderboard.clone(),
-            gear_finder: game.gear_finder.clone(),
-            fight_simulator: game.fight_simulator.clone(),
-            leveling_helper: game.leveling_helper.clone(),
+            base: BaseCharacter::new(data),
+            inventory: Arc::new(Inventory::new(data)),
         }
     }
 
@@ -84,7 +64,7 @@ impl Character {
                 self.deposit_all();
                 continue;
             }
-            self.maps.refresh();
+            MAPS.refresh();
             self.order_food();
             if self.handle_goals() {
                 continue;
@@ -93,7 +73,7 @@ impl Character {
             match self.progress_task() {
                 Ok(_) => continue,
                 Err(CharacterError::MissingItems { item, quantity }) => {
-                    let _ = self.orderboard.add(
+                    let _ = ORDER_BOARD.add(
                         Some(&self.base.name()),
                         &item,
                         quantity,
@@ -149,10 +129,7 @@ impl Character {
                     skill,
                     skill_to_follow,
                 } if self.skill_level(*skill)
-                    < min(
-                        1 + self.account.max_skill_level(*skill_to_follow),
-                        MAX_LEVEL,
-                    ) =>
+                    < min(1 + ACCOUNT.max_skill_level(*skill_to_follow), MAX_LEVEL) =>
                 {
                     self.level_skill_up(*skill)
                 }
@@ -171,10 +148,7 @@ impl Character {
     }
 
     fn level_skill_by_gathering(&self, skill: &Skill) -> Result<(), CharacterError> {
-        let Some(resource) = self
-            .leveling_helper
-            .best_resource(self.skill_level(*skill), *skill)
-        else {
+        let Some(resource) = LEVELING_HELPER.best_resource(self.skill_level(*skill), *skill) else {
             return Err(CharacterError::ResourceNotFound);
         };
         self.gather_resource(resource)?;
@@ -182,10 +156,7 @@ impl Character {
     }
 
     fn level_skill_by_crafting(&self, skill: Skill) -> Result<(), CharacterError> {
-        let Some(item) = self
-            .leveling_helper
-            .best_craft(self.skill_level(skill), skill, self)
-        else {
+        let Some(item) = LEVELING_HELPER.best_craft(self.skill_level(skill), skill, self) else {
             return Err(CharacterError::ItemNotFound);
         };
         let craft = self.craft_from_bank(
@@ -200,8 +171,7 @@ impl Character {
         if let Err(CharacterError::InsuffisientMaterials) = craft {
             if (!skill.is_gathering()
                 || skill.is_alchemy()
-                    && self
-                        .leveling_helper
+                    && LEVELING_HELPER
                         .best_resource(self.skill_level(skill), skill)
                         .is_none())
                 && self.order_missing_mats(
@@ -232,7 +202,7 @@ impl Character {
     /// from an order. Then check for orders that can be progressed. Then check for order for which
     /// the skill level required needs to be leveled.
     fn handle_orderboard(&self) -> bool {
-        let orders = self.orderboard.orders_by_priority();
+        let orders = ORDER_BOARD.orders_by_priority();
         if orders.iter().cloned().any(|o| self.turn_in_order(o)) {
             return true;
         }
@@ -248,17 +218,14 @@ impl Character {
     }
 
     fn can_progress(&self, order: &Order) -> bool {
-        self.items
-            .best_source_of(&order.item)
-            .iter()
-            .any(|s| match s {
-                ItemSource::Resource(r) => self.can_gather(r).is_ok(),
-                ItemSource::Monster(m) => self.can_kill(m).is_ok(),
-                ItemSource::Craft => self.can_craft(&order.item).is_ok(),
-                ItemSource::TaskReward => order.in_progress() <= 0,
-                ItemSource::Task => true,
-                ItemSource::Gift => true,
-            })
+        ITEMS.best_source_of(&order.item).iter().any(|s| match s {
+            ItemSource::Resource(r) => self.can_gather(r).is_ok(),
+            ItemSource::Monster(m) => self.can_kill(m).is_ok(),
+            ItemSource::Craft => self.can_craft(&order.item).is_ok(),
+            ItemSource::TaskReward => order.in_progress() <= 0,
+            ItemSource::Task => true,
+            ItemSource::Gift => true,
+        })
     }
 
     /// Creates orders based on the missing (not available in bank) materials requiered to craft
@@ -269,23 +236,22 @@ impl Character {
         if quantity <= 0 {
             return false;
         }
-        self.items
+        ITEMS
             .mats_of(item)
             .into_iter()
             .filter(|m| {
-                self.bank.has_available(&m.code, Some(&self.base.name())) < m.quantity * quantity
+                BANK.has_available(&m.code, Some(&self.base.name())) < m.quantity * quantity
             })
             .update(|m| {
                 m.quantity = m.quantity * quantity
-                    - if self.orderboard.is_ordered(&m.code) {
+                    - if ORDER_BOARD.is_ordered(&m.code) {
                         0
                     } else {
-                        self.bank.has_available(&m.code, Some(&self.base.name()))
+                        BANK.has_available(&m.code, Some(&self.base.name()))
                     }
             })
             .for_each(|m| {
-                if self
-                    .orderboard
+                if ORDER_BOARD
                     .add(None, &m.code, m.quantity, purpose.clone())
                     .is_ok()
                 {
@@ -296,33 +262,29 @@ impl Character {
     }
 
     fn can_complete(&self, order: &Order) -> bool {
-        self.items
-            .best_source_of(&order.item)
-            .iter()
-            .any(|s| match s {
-                ItemSource::Resource(_) => false,
-                ItemSource::Monster(_) => false,
-                ItemSource::Craft => {
-                    self.can_craft(&order.item).is_ok()
-                        && self
-                            .bank
-                            .missing_mats_for(
-                                &order.item,
-                                self.orderboard.total_missing_for(order),
-                                Some(&self.base.name()),
-                            )
-                            .is_empty()
-                }
-                ItemSource::TaskReward => {
-                    self.has_available(TASKS_COIN) >= TASK_EXCHANGE_PRICE + MIN_COIN_THRESHOLD
-                }
-                ItemSource::Task => self.has_available(&self.task()) >= self.task_missing(),
-                ItemSource::Gift => self.has_available(GIFT) > 0,
-            })
+        ITEMS.best_source_of(&order.item).iter().any(|s| match s {
+            ItemSource::Resource(_) => false,
+            ItemSource::Monster(_) => false,
+            ItemSource::Craft => {
+                self.can_craft(&order.item).is_ok()
+                    && BANK
+                        .missing_mats_for(
+                            &order.item,
+                            ORDER_BOARD.total_missing_for(order),
+                            Some(&self.base.name()),
+                        )
+                        .is_empty()
+            }
+            ItemSource::TaskReward => {
+                self.has_available(TASKS_COIN) >= TASK_EXCHANGE_PRICE + MIN_COIN_THRESHOLD
+            }
+            ItemSource::Task => self.has_available(&self.task()) >= self.task_missing(),
+            ItemSource::Gift => self.has_available(GIFT) > 0,
+        })
     }
 
     fn handle_order(&self, order: Arc<Order>) -> bool {
-        if self.orderboard.total_missing_for(&order) <= 0 {
+        if ORDER_BOARD.total_missing_for(&order) <= 0 {
             return false;
         }
         let Some(progress) = self.progress_order(&order) else {
@@ -334,7 +296,7 @@ impl Character {
                 self.base.name(),
                 progress,
                 order,
-                self.account.available_in_inventories(&order.item),
+                ACCOUNT.available_in_inventories(&order.item),
             );
         }
         self.turn_in_order(order);
@@ -342,7 +304,7 @@ impl Character {
     }
 
     fn progress_order(&self, order: &Order) -> Option<i32> {
-        self.items
+        ITEMS
             .best_source_of(&order.item)
             .iter()
             .find_map(|s| match s {
@@ -377,14 +339,14 @@ impl Character {
         }
         if self.order_missing_mats(
             &order.item,
-            self.orderboard.total_missing_for(order),
+            ORDER_BOARD.total_missing_for(order),
             order.purpose.clone(),
         ) {
             return Some(0);
         }
         let quantity = min(
             self.max_craftable_items(&order.item),
-            self.orderboard.total_missing_for(order),
+            ORDER_BOARD.total_missing_for(order),
         );
         if quantity <= 0 {
             return None;
@@ -404,18 +366,17 @@ impl Character {
                 exchanged
             }
             Err(e) => {
-                if self.orderboard.total_missing_for(order) <= 0 {
+                if ORDER_BOARD.total_missing_for(order) <= 0 {
                     return None;
                 }
                 if let CharacterError::NotEnoughCoin = e {
                     let q = TASK_EXCHANGE_PRICE + MIN_COIN_THRESHOLD
-                        - if self.orderboard.is_ordered(TASKS_COIN) {
+                        - if ORDER_BOARD.is_ordered(TASKS_COIN) {
                             0
                         } else {
                             self.has_in_bank_or_inv(TASKS_COIN)
                         };
-                    return self
-                        .orderboard
+                    return ORDER_BOARD
                         .add(None, TASKS_COIN, q, order.purpose.to_owned())
                         .ok()
                         .map(|_| 0);
@@ -445,8 +406,7 @@ impl Character {
                 };
                 match self.progress_task() {
                     Ok(_) => Some(0),
-                    Err(CharacterError::MissingItems { item, quantity }) => self
-                        .orderboard
+                    Err(CharacterError::MissingItems { item, quantity }) => ORDER_BOARD
                         .add(
                             Some(&self.base.name()),
                             &item,
@@ -470,17 +430,16 @@ impl Character {
                 exchanged
             }
             Err(e) => {
-                if self.orderboard.total_missing_for(order) <= 0 {
+                if ORDER_BOARD.total_missing_for(order) <= 0 {
                     return None;
                 }
                 if let CharacterError::NotEnoughGift = e {
-                    let q = 1 - if self.orderboard.is_ordered(GIFT) {
+                    let q = 1 - if ORDER_BOARD.is_ordered(GIFT) {
                         0
                     } else {
                         self.has_in_bank_or_inv(GIFT)
                     };
-                    return self
-                        .orderboard
+                    return ORDER_BOARD
                         .add(None, GIFT, q, order.purpose.to_owned())
                         .ok()
                         .map(|_| 0);
@@ -493,7 +452,7 @@ impl Character {
     /// Deposit items requiered by the given `order` if needed.
     /// Returns true if items has be deposited.
     fn turn_in_order(&self, order: Arc<Order>) -> bool {
-        if self.orderboard.should_be_turned_in(&order) {
+        if ORDER_BOARD.should_be_turned_in(&order) {
             return self.deposit_order(&order);
         }
         false
@@ -512,7 +471,7 @@ impl Character {
             )
             .is_ok()
         {
-            if let Err(e) = self.orderboard.register_deposit(
+            if let Err(e) = ORDER_BOARD.register_deposit(
                 &order.owner,
                 &order.item,
                 min(q, order.not_deposited()),
@@ -532,7 +491,7 @@ impl Character {
         if self.task_finished() {
             return self.complete_task().map(|_| ());
         }
-        let Some(monster) = self.monsters.get(&self.task()) else {
+        let Some(monster) = MONSTERS.get(&self.task()) else {
             return self.trade_task().map(|_| ());
         };
         match self.kill_monster(monster) {
@@ -552,7 +511,7 @@ impl Character {
     fn trade_task(&self) -> Result<TaskTradeSchema, CharacterError> {
         self.can_trade_task()?;
         let q = min(self.task_missing(), self.inventory.max_items());
-        if let Err(e) = self.bank.reserv(&self.task(), q, &self.base.name()) {
+        if let Err(e) = BANK.reserv(&self.task(), q, &self.base.name()) {
             error!(
                 "{}: error while reserving items for item task: {:?}",
                 self.base.name(),
@@ -562,8 +521,7 @@ impl Character {
         self.deposit_all();
         if let Err(e) = self.withdraw_item(&self.task(), q) {
             error!("{}: error while withdrawing {:?}", self.base.name(), e);
-            self.bank
-                .decrease_reservation(&self.task(), q, &self.base.name());
+            BANK.decrease_reservation(&self.task(), q, &self.base.name());
         };
         if let Err(e) = self.move_to_closest_taskmaster(self.task_type()) {
             error!(
@@ -588,17 +546,13 @@ impl Character {
             return Err(CharacterError::TaskAlreadyCompleted);
         }
         if self.task_missing()
-            > self
-                .bank
-                .has_available(&self.task(), Some(&self.base.name()))
+            > BANK.has_available(&self.task(), Some(&self.base.name()))
                 + self.inventory.total_of(&self.task())
         {
             return Err(CharacterError::MissingItems {
                 item: self.task().to_owned(),
                 quantity: self.task_missing()
-                    - self
-                        .bank
-                        .has_available(&self.task(), Some(&self.base.name()))
+                    - BANK.has_available(&self.task(), Some(&self.base.name()))
                     - self.inventory.total_of(&self.task()),
             });
         }
@@ -623,7 +577,7 @@ impl Character {
 
     fn can_exchange_task(&self) -> Result<(), CharacterError> {
         if self.inventory.total_of(TASKS_COIN)
-            + self.bank.has_available(TASKS_COIN, Some(&self.base.name()))
+            + BANK.has_available(TASKS_COIN, Some(&self.base.name()))
             < TASK_EXCHANGE_PRICE + MIN_COIN_THRESHOLD
         {
             return Err(CharacterError::NotEnoughCoin);
@@ -635,7 +589,7 @@ impl Character {
         self.can_exchange_task()?;
         let mut quantity = min(
             self.inventory.max_items() / 2,
-            self.bank.has_available(TASKS_COIN, Some(&self.base.name())),
+            BANK.has_available(TASKS_COIN, Some(&self.base.name())),
         );
         quantity = quantity - (quantity % TASK_EXCHANGE_PRICE);
         if self.inventory.total_of(TASKS_COIN) >= TASK_EXCHANGE_PRICE {
@@ -650,8 +604,7 @@ impl Character {
                 );
             }
         } else {
-            if self
-                .bank
+            if BANK
                 .reserv(TASKS_COIN, quantity, &self.base.name())
                 .is_err()
             {
@@ -674,9 +627,7 @@ impl Character {
     }
 
     fn can_exchange_gift(&self) -> Result<(), CharacterError> {
-        if self.inventory.total_of(GIFT) + self.bank.has_available(GIFT, Some(&self.base.name()))
-            < 1
-        {
+        if self.inventory.total_of(GIFT) + BANK.has_available(GIFT, Some(&self.base.name())) < 1 {
             return Err(CharacterError::NotEnoughGift);
         }
         Ok(())
@@ -686,7 +637,7 @@ impl Character {
         self.can_exchange_gift()?;
         let quantity = min(
             self.inventory.max_items() / 2,
-            self.bank.has_available(GIFT, Some(&self.base.name())),
+            BANK.has_available(GIFT, Some(&self.base.name())),
         );
         if self.inventory.total_of(GIFT) >= 1 {
             if let Err(e) = self.inventory.reserv(GIFT, self.inventory.total_of(GIFT)) {
@@ -697,7 +648,7 @@ impl Character {
                 );
             }
         } else {
-            if self.bank.reserv(GIFT, quantity, &self.base.name()).is_err() {
+            if BANK.reserv(GIFT, quantity, &self.base.name()).is_err() {
                 return Err(CharacterError::NotEnoughGift);
             }
             self.deposit_all();
@@ -716,14 +667,13 @@ impl Character {
     }
 
     fn cancel_task(&self) -> Result<(), CharacterError> {
-        if self.bank.has_available(TASKS_COIN, Some(&self.base.name()))
+        if BANK.has_available(TASKS_COIN, Some(&self.base.name()))
             < TASK_EXCHANGE_PRICE + MIN_COIN_THRESHOLD
         {
             return Err(CharacterError::NotEnoughCoin);
         }
         if self.inventory.has_available(TASKS_COIN) <= 0 {
-            if self
-                .bank
+            if BANK
                 .reserv("tasks_coin", TASK_CANCEL_PRICE, &self.base.name())
                 .is_err()
             {
@@ -763,7 +713,7 @@ impl Character {
         {
             return Ok(());
         }
-        let Some(monster) = self.leveling_helper.best_monster(self) else {
+        let Some(monster) = LEVELING_HELPER.best_monster(self) else {
             return Err(CharacterError::MonsterNotFound);
         };
         self.kill_monster(monster)?;
@@ -807,7 +757,7 @@ impl Character {
 
     fn check_gear(&self, monster: &MonsterSchema) -> Result<(), CharacterError> {
         let mut available: Gear;
-        let Ok(_browsed) = self.bank.browsed.write() else {
+        let Ok(_browsed) = BANK.browsed.write() else {
             return Err(CharacterError::BankUnavailable);
         };
         match self.can_kill(monster) {
@@ -849,8 +799,8 @@ impl Character {
     fn check_for_tool(&self, resource: &ResourceSchema) {
         let mut available: Option<&ItemSchema> = None;
         let prev_equiped = self.equiped_in(Slot::Weapon);
-        if let Ok(_browsed) = self.bank.browsed.write() {
-            if let Some(tool) = self.gear_finder.best_tool(
+        if let Ok(_browsed) = BANK.browsed.write() {
+            if let Some(tool) = GEAR_FINDER.best_tool(
                 self,
                 resource.skill.into(),
                 Filter {
@@ -873,8 +823,7 @@ impl Character {
                     )
                 }
                 // TODO: improve logic: maybe include this logic in `deposit_item` method
-                if let Some(o) = self
-                    .orderboard
+                if let Some(o) = ORDER_BOARD
                     .orders_by_priority()
                     .iter()
                     .find(|o| o.item == prev_equiped.code)
@@ -896,7 +845,7 @@ impl Character {
     }
 
     fn order_best_tool(&self, skill: Skill) {
-        if let Some(best) = self.gear_finder.best_tool(
+        if let Some(best) = GEAR_FINDER.best_tool(
             self,
             skill,
             Filter {
@@ -911,9 +860,7 @@ impl Character {
     pub fn time_to_kill(&self, monster: &MonsterSchema) -> Option<i32> {
         match self.can_kill(monster) {
             Ok(gear) => {
-                let fight = self
-                    .fight_simulator
-                    .simulate(self.level(), 0, &gear, monster, false);
+                let fight = FIGHT_SIMULATOR.simulate(self.level(), 0, &gear, monster, false);
                 Some(fight.cd + (fight.hp_lost / 5 + if fight.hp_lost % 5 > 0 { 1 } else { 0 }))
             }
             Err(_) => None,
@@ -925,7 +872,7 @@ impl Character {
             return None;
         }
         let tool = self.best_tool_for_resource(&resource.code);
-        let time = self.fight_simulator.gather(
+        let time = FIGHT_SIMULATOR.gather(
             self.skill_level(resource.skill.into()),
             resource.level,
             tool.map_or(0, |t| t.skill_cooldown_reduction(resource.skill.into())),
@@ -935,18 +882,17 @@ impl Character {
 
     #[allow(dead_code)]
     pub fn time_to_get(&self, item: &str) -> Option<i32> {
-        self.items
+        ITEMS
             .best_source_of(item)
             .iter()
             .filter_map(|s| match s {
                 ItemSource::Resource(r) => self.time_to_gather(r),
                 ItemSource::Monster(m) => self
                     .time_to_kill(m)
-                    .map(|time| time * self.items.drop_rate(item)),
+                    .map(|time| time * ITEMS.drop_rate(item)),
                 ItemSource::Craft => Some(
                     CRAFT_TIME
-                        + self
-                            .items
+                        + ITEMS
                             .mats_of(item)
                             .iter()
                             .map(|m| self.time_to_get(&m.code).unwrap_or(1000) * m.quantity)
@@ -963,7 +909,7 @@ impl Character {
         if !self.skill_enabled(Skill::Combat) {
             return Err(CharacterError::SkillDisabled(Skill::Combat));
         }
-        if self.maps.with_content_code(&monster.code).is_empty() {
+        if MAPS.with_content_code(&monster.code).is_empty() {
             return Err(CharacterError::MapNotFound);
         }
         if self.inventory.is_full() {
@@ -976,7 +922,7 @@ impl Character {
     /// the best available gear to do so.
     pub fn can_kill<'a>(&'a self, monster: &'a MonsterSchema) -> Result<Gear<'a>, CharacterError> {
         self.can_fight(monster)?;
-        let available = self.gear_finder.best_winning_against(
+        let available = GEAR_FINDER.best_winning_against(
             self,
             monster,
             Filter {
@@ -996,14 +942,14 @@ impl Character {
     /// Checks if the `Character` could kill the given `monster` with the given
     /// `gear`
     fn can_kill_with(&self, monster: &MonsterSchema, gear: &Gear) -> bool {
-        self.fight_simulator
+        FIGHT_SIMULATOR
             .simulate(self.base.level(), 0, gear, monster, false)
             .result
             == FightResult::Win
     }
 
     fn can_kill_now(&self, monster: &MonsterSchema) -> bool {
-        self.fight_simulator
+        FIGHT_SIMULATOR
             .simulate(
                 self.base.level(),
                 self.base.missing_hp(),
@@ -1035,7 +981,7 @@ impl Character {
 
     // Checks that the `Character` has the required skill level to craft the given item `code`
     pub fn can_craft(&self, item: &str) -> Result<(), CharacterError> {
-        let Some(item) = self.items.get(item) else {
+        let Some(item) = ITEMS.get(item) else {
             return Err(CharacterError::ItemNotFound);
         };
         let Some(skill) = item.skill_to_craft() else {
@@ -1055,7 +1001,7 @@ impl Character {
     }
 
     pub fn can_recycle(&self, item: &str, quantity: i32) -> Result<(), CharacterError> {
-        let Some(item) = self.items.get(item) else {
+        let Some(item) = ITEMS.get(item) else {
             return Err(CharacterError::ItemNotFound);
         };
         let Some(skill) = item.skill_to_craft() else {
@@ -1078,20 +1024,20 @@ impl Character {
         let binding = self.data();
         let d = binding.read().unwrap();
         Gear {
-            weapon: self.items.get(&d.weapon_slot),
-            shield: self.items.get(&d.shield_slot),
-            helmet: self.items.get(&d.helmet_slot),
-            body_armor: self.items.get(&d.body_armor_slot),
-            leg_armor: self.items.get(&d.leg_armor_slot),
-            boots: self.items.get(&d.boots_slot),
-            ring1: self.items.get(&d.ring1_slot),
-            ring2: self.items.get(&d.ring2_slot),
-            amulet: self.items.get(&d.amulet_slot),
-            artifact1: self.items.get(&d.artifact1_slot),
-            artifact2: self.items.get(&d.artifact2_slot),
-            artifact3: self.items.get(&d.artifact3_slot),
-            utility1: self.items.get(&d.utility1_slot),
-            utility2: self.items.get(&d.utility2_slot),
+            weapon: ITEMS.get(&d.weapon_slot),
+            shield: ITEMS.get(&d.shield_slot),
+            helmet: ITEMS.get(&d.helmet_slot),
+            body_armor: ITEMS.get(&d.body_armor_slot),
+            leg_armor: ITEMS.get(&d.leg_armor_slot),
+            boots: ITEMS.get(&d.boots_slot),
+            ring1: ITEMS.get(&d.ring1_slot),
+            ring2: ITEMS.get(&d.ring2_slot),
+            amulet: ITEMS.get(&d.amulet_slot),
+            artifact1: ITEMS.get(&d.artifact1_slot),
+            artifact2: ITEMS.get(&d.artifact2_slot),
+            artifact3: ITEMS.get(&d.artifact3_slot),
+            utility1: ITEMS.get(&d.utility1_slot),
+            utility2: ITEMS.get(&d.utility2_slot),
         }
     }
 
@@ -1099,7 +1045,7 @@ impl Character {
     fn equiped_in(&self, slot: Slot) -> Option<&ItemSchema> {
         let binding = self.data();
         let d = binding.read().unwrap();
-        self.items.get(match slot {
+        ITEMS.get(match slot {
             Slot::Weapon => &d.weapon_slot,
             Slot::Shield => &d.shield_slot,
             Slot::Helmet => &d.helmet_slot,
@@ -1136,11 +1082,8 @@ impl Character {
             item,
             quantity
         );
-        self.items.mats_of(item).iter().for_each(|m| {
-            if let Err(e) = self
-                .bank
-                .reserv(&m.code, m.quantity * quantity, &self.base.name())
-            {
+        ITEMS.mats_of(item).iter().for_each(|m| {
+            if let Err(e) = BANK.reserv(&m.code, m.quantity * quantity, &self.base.name()) {
                 error!(
                     "{}: error while reserving mats for crafting from bank: {:?}",
                     self.base.name(),
@@ -1188,7 +1131,7 @@ impl Character {
     ) -> Result<RecyclingItemsSchema, CharacterError> {
         self.can_recycle(item, quantity)?;
         let quantity_available =
-            self.inventory.total_of(item) + self.bank.has_available(item, Some(&self.base.name()));
+            self.inventory.total_of(item) + BANK.has_available(item, Some(&self.base.name()));
         if quantity_available < quantity {
             return Err(CharacterError::QuantityUnavailable(quantity));
         }
@@ -1200,7 +1143,7 @@ impl Character {
         );
         if self.inventory.total_of(item) < quantity {
             let missing_quantity = quantity - self.inventory.has_available(item);
-            if let Err(e) = self.bank.reserv(item, missing_quantity, &self.base.name()) {
+            if let Err(e) = BANK.reserv(item, missing_quantity, &self.base.name()) {
                 error!(
                     "{}: error while reserving '{}': {:?}",
                     self.base.name(),
@@ -1223,8 +1166,8 @@ impl Character {
         item: &str,
         quantity: i32,
     ) -> Result<SimpleItemSchema, CharacterError> {
-        let quantity_available = self.inventory.has_available(item)
-            + self.bank.has_available(item, Some(&self.base.name()));
+        let quantity_available =
+            self.inventory.has_available(item) + BANK.has_available(item, Some(&self.base.name()));
         if quantity_available < quantity {
             return Err(CharacterError::QuantityUnavailable(quantity));
         }
@@ -1236,7 +1179,7 @@ impl Character {
         );
         if self.inventory.has_available(item) < quantity {
             let missing_quantity = quantity - self.inventory.has_available(item);
-            if let Err(e) = self.bank.reserv(item, missing_quantity, &self.base.name()) {
+            if let Err(e) = BANK.reserv(item, missing_quantity, &self.base.name()) {
                 error!(
                     "{}: error while reserving '{}': {:?}",
                     self.base.name(),
@@ -1264,7 +1207,7 @@ impl Character {
             return Err(CharacterError::ItemNotFound);
         }
         self.move_to_closest_map_of_type(ContentType::Bank)?;
-        if self.bank.free_slots() <= BANK_MIN_FREE_SLOT {
+        if BANK.free_slots() <= BANK_MIN_FREE_SLOT {
             if let Err(e) = self.expand_bank() {
                 error!(
                     "{}: failed to expand bank capacity: {:?}",
@@ -1276,7 +1219,7 @@ impl Character {
         let deposit = self.base.action_deposit(item, quantity);
         if deposit.is_ok() {
             if let Some(owner) = owner {
-                if let Err(e) = self.bank.increase_reservation(item, quantity, &owner) {
+                if let Err(e) = BANK.increase_reservation(item, quantity, &owner) {
                     error!(
                         "{}: failed to reserv deposited item: {:?}",
                         self.base.name(),
@@ -1301,15 +1244,14 @@ impl Character {
         item: &str,
         quantity: i32,
     ) -> Result<SimpleItemSchema, CharacterError> {
-        if self.bank.has_available(item, Some(&self.base.name())) < quantity {
+        if BANK.has_available(item, Some(&self.base.name())) < quantity {
             // TODO: return a better error
             return Err(CharacterError::ItemNotFound);
         }
         self.move_to_closest_map_of_type(ContentType::Bank)?;
         let result = self.base.action_withdraw(item, quantity);
         if result.is_ok() {
-            self.bank
-                .decrease_reservation(item, quantity, &self.base.name());
+            BANK.decrease_reservation(item, quantity, &self.base.name());
             if let Err(e) = self.inventory.reserv(item, quantity) {
                 error!(
                     "{}: failed to reserv withdrawed item '{}'x{}: {:?}",
@@ -1335,7 +1277,7 @@ impl Character {
             "{}: going to deposit all items to the bank.",
             self.base.name(),
         );
-        self.orderboard.orders_by_priority().iter().for_each(|o| {
+        ORDER_BOARD.orders_by_priority().iter().for_each(|o| {
             self.deposit_order(o);
         });
         self.inventory.copy().iter().for_each(|slot| {
@@ -1359,7 +1301,7 @@ impl Character {
             "{}: going to deposit all items but '{item}' to the bank.",
             self.base.name(),
         );
-        self.orderboard.orders_by_priority().iter().for_each(|o| {
+        ORDER_BOARD.orders_by_priority().iter().for_each(|o| {
             self.deposit_order(o);
         });
         self.inventory.copy().iter().for_each(|slot| {
@@ -1391,13 +1333,13 @@ impl Character {
     }
 
     pub fn expand_bank(&self) -> Result<i32, CharacterError> {
-        let Ok(_being_expanded) = self.bank.being_expanded.try_write() else {
+        let Ok(_being_expanded) = BANK.being_expanded.try_write() else {
             return Err(CharacterError::BankUnavailable);
         };
-        if self.bank.gold() + self.gold() < self.bank.next_expansion_cost() {
+        if BANK.gold() + self.gold() < BANK.next_expansion_cost() {
             return Err(CharacterError::InsuffisientGold);
         };
-        self.withdraw_gold(self.bank.next_expansion_cost() - self.gold())?;
+        self.withdraw_gold(BANK.next_expansion_cost() - self.gold())?;
         self.move_to_closest_map_of_type(ContentType::Bank)?;
         Ok(self.base.action_expand_bank()?)
     }
@@ -1406,7 +1348,7 @@ impl Character {
         if amount <= 0 {
             return Ok(0);
         };
-        if self.bank.gold() < amount {
+        if BANK.gold() < amount {
             return Err(CharacterError::InsuffisientGoldInBank);
         };
         self.move_to_closest_map_of_type(ContentType::Bank)?;
@@ -1422,7 +1364,7 @@ impl Character {
             )
         }
         self.deposit_all();
-        let content = self.bank.content.read().unwrap().clone();
+        let content = BANK.content.read().unwrap().clone();
         content.iter().for_each(|i| {
             info!("{} deleting {:?}", self.base.name(), i);
             let mut remain = i.quantity;
@@ -1456,14 +1398,13 @@ impl Character {
         item: &str,
         quantity: i32,
     ) -> Result<Vec<SimpleItemSchema>, CharacterError> {
-        let mats = self
-            .items
+        let mats = ITEMS
             .mats_of(item)
             .into_iter()
             .update(|m| m.quantity *= quantity)
             .collect_vec();
         for mat in &mats {
-            if self.bank.has_available(&mat.code, Some(&self.base.name())) < mat.quantity {
+            if BANK.has_available(&mat.code, Some(&self.base.name())) < mat.quantity {
                 warn!("{}: not enough materials in bank to withdraw the materials required to craft '{item}'x{quantity}", self.base.name());
                 return Err(CharacterError::InsuffisientMaterials);
             }
@@ -1481,15 +1422,15 @@ impl Character {
     /// Calculates the maximum number of items that can be crafted in one go based on
     /// inventory max items
     pub fn max_craftable_items(&self, item: &str) -> i32 {
-        self.inventory.max_items() / self.items.mats_quantity_for(item)
+        self.inventory.max_items() / ITEMS.mats_quantity_for(item)
     }
 
     /// Calculates the maximum number of items that can be crafted in one go based on available
     /// inventory max items and bank materials.
     fn max_craftable_items_from_bank(&self, item: &str) -> i32 {
         min(
-            self.bank.has_mats_for(item, Some(&self.base.name())),
-            self.inventory.max_items() / self.items.mats_quantity_for(item),
+            BANK.has_mats_for(item, Some(&self.base.name())),
+            self.inventory.max_items() / ITEMS.mats_quantity_for(item),
         )
     }
 
@@ -1558,7 +1499,7 @@ impl Character {
     /// Returns the closest map from the `Character` containing the given
     /// content `type`.
     fn closest_map_of_type(&self, r#type: ContentType) -> Option<MapSchema> {
-        let maps = self.maps.of_type(r#type);
+        let maps = MAPS.of_type(r#type);
         if maps.is_empty() {
             return None;
         }
@@ -1568,7 +1509,7 @@ impl Character {
     /// Returns the closest map from the `Character` containing the given
     /// content `code`.
     fn closest_map_with_content_code(&self, code: &str) -> Option<MapSchema> {
-        let maps = self.maps.with_content_code(code);
+        let maps = MAPS.with_content_code(code);
         if maps.is_empty() {
             return None;
         }
@@ -1578,7 +1519,7 @@ impl Character {
     /// Returns the closest map from the `Character` containing the given
     /// content schema.
     fn closest_map_with_content_schema(&self, schema: &MapContentSchema) -> Option<MapSchema> {
-        let maps = self.maps.with_content_schema(schema);
+        let maps = MAPS.with_content_schema(schema);
         if maps.is_empty() {
             return None;
         }
@@ -1593,16 +1534,16 @@ impl Character {
 
     fn map(&self) -> MapSchema {
         let (x, y) = self.base.position();
-        self.maps.get(x, y).unwrap()
+        MAPS.get(x, y).unwrap()
     }
 
     /// Moves the `Character` to the crafting station corresponding to the skill
     /// required to craft the given item `code`.
     fn move_to_craft(&self, item: &str) -> Result<(), CharacterError> {
-        let Some(skill) = self.items.get(item).and_then(|i| i.skill_to_craft()) else {
+        let Some(skill) = ITEMS.get(item).and_then(|i| i.skill_to_craft()) else {
             return Err(CharacterError::ItemNotCraftable);
         };
-        let Some(dest) = self.maps.workshop(skill) else {
+        let Some(dest) = MAPS.workshop(skill) else {
             return Err(CharacterError::MapNotFound);
         };
         self.move_to(dest.x, dest.y)?;
@@ -1619,7 +1560,7 @@ impl Character {
     }
 
     fn equip_item(&self, item: &str, slot: Slot, quantity: i32) -> Result<(), CharacterError> {
-        if let Some(item) = self.items.get(item) {
+        if let Some(item) = ITEMS.get(item) {
             if self.inventory.free_space() + item.inventory_space() <= 0 {
                 self.deposit_all_but(&item.code);
             }
@@ -1659,11 +1600,11 @@ impl Character {
             return;
         }
         if self.inventory.total_of(item) <= 0
-            && self.bank.has_available(item, Some(&self.base.name())) > 0
+            && BANK.has_available(item, Some(&self.base.name())) > 0
         {
             let q = min(
                 slot.max_quantity(),
-                self.bank.has_available(item, Some(&self.base.name())),
+                BANK.has_available(item, Some(&self.base.name())),
             );
             if self.inventory.free_space() < q {
                 self.deposit_all();
@@ -1689,8 +1630,7 @@ impl Character {
         }
         if let Some(i) = prev_equiped {
             // TODO: improve logic
-            if let Some(o) = self
-                .orderboard
+            if let Some(o) = ORDER_BOARD
                 .orders_by_priority()
                 .iter()
                 .find(|o| o.item == i.code)
@@ -1710,10 +1650,9 @@ impl Character {
     }
 
     fn best_tool_for_resource(&self, item: &str) -> Option<&ItemSchema> {
-        match self.resources.get(item) {
+        match RESOURCES.get(item) {
             //TODO improve filtering
-            Some(resource) => self
-                .items
+            Some(resource) => ITEMS
                 .equipable_at_level(self.level(), Type::Weapon)
                 .into_iter()
                 .filter(|i| i.skill_cooldown_reduction(resource.skill.into()) < 0)
@@ -1724,7 +1663,7 @@ impl Character {
 
     /// Returns the amount of the given item `code` available in bank and inventory.
     fn has_in_bank_or_inv(&self, item: &str) -> i32 {
-        self.bank.has_available(item, Some(&self.base.name())) + self.inventory.total_of(item)
+        BANK.has_available(item, Some(&self.base.name())) + self.inventory.total_of(item)
     }
 
     /// Returns the amount of the given item `code` available in bank, inventory and gear.
@@ -1749,13 +1688,13 @@ impl Character {
     }
 
     pub fn conf(&self) -> &RwLock<CharConfig> {
-        self.config.characters.get(self.id).unwrap()
+        GAME_CONFIG.characters.get(self.id).unwrap()
     }
 
     #[allow(dead_code)]
     fn time_to_get_gear(&self, gear: &Gear) -> Option<i32> {
         Slot::iter()
-            .map(|s| gear.slot(s).and_then(|i| self.items.time_to_get(&i.code)))
+            .map(|s| gear.slot(s).and_then(|i| ITEMS.time_to_get(&i.code)))
             .sum()
     }
 
@@ -1763,7 +1702,7 @@ impl Character {
     #[allow(dead_code)]
     #[allow(unused_variables)]
     fn order_upgrades(&self, current: Gear, monster: &MonsterSchema, filter: Filter) {
-        let gears = self.gear_finder.bests_against(self, monster, filter);
+        let gears = GEAR_FINDER.bests_against(self, monster, filter);
         if let Some(gear) = gears
             .iter()
             .filter(|g| self.can_kill_with(monster, g))
@@ -1776,7 +1715,7 @@ impl Character {
     }
 
     fn order_best_gear_against(&self, monster: &MonsterSchema) {
-        let gear = self.gear_finder.best_winning_against(
+        let gear = GEAR_FINDER.best_winning_against(
             self,
             monster,
             Filter {
@@ -1829,8 +1768,7 @@ impl Character {
                 .is_some_and(|equiped| item != equiped.code))
             && self.has_in_bank_or_inv(item) < quantity
         {
-            return self
-                .orderboard
+            return ORDER_BOARD
                 .add(
                     None,
                     item,
@@ -1880,7 +1818,7 @@ impl Character {
                 .is_some_and(|equiped| item != equiped.code))
             && self.inventory.total_of(item) < quantity
         {
-            if let Err(e) = self.bank.reserv(
+            if let Err(e) = BANK.reserv(
                 item,
                 quantity - self.inventory.total_of(item),
                 &self.base.name(),
@@ -1947,17 +1885,16 @@ impl Character {
     }
 
     fn withdraw_food(&self) {
-        let Ok(_browsed) = self.bank.browsed.write() else {
+        let Ok(_browsed) = BANK.browsed.write() else {
             return;
         };
         if !self.inventory.consumable_food().is_empty() && !self.map().content_is("bank") {
             return;
         }
-        let Some(food) = self
-            .bank
+        let Some(food) = BANK
             .consumable_food(self.level())
             .into_iter()
-            .filter(|f| self.bank.has_available(&f.code, Some(&self.base.name())) > 0)
+            .filter(|f| BANK.has_available(&f.code, Some(&self.base.name())) > 0)
             .max_by_key(|f| f.heal())
         else {
             return;
@@ -1965,9 +1902,9 @@ impl Character {
         // TODO: defined quantity withdrowned depending on the monster drop rate and damages
         let quantity = min(
             self.inventory.max_items() - 30,
-            self.bank.has_available(&food.code, Some(&self.base.name())),
+            BANK.has_available(&food.code, Some(&self.base.name())),
         );
-        if let Err(e) = self.bank.reserv(&food.code, quantity, &self.base.name()) {
+        if let Err(e) = BANK.reserv(&food.code, quantity, &self.base.name()) {
             error!("{} failed to reserv food: {:?}", self.base.name(), e)
         };
         drop(_browsed);
@@ -1994,21 +1931,16 @@ impl Character {
                 )
             }
         });
-        if let Some(best_food) = self
-            .items
+        if let Some(best_food) = ITEMS
             .best_consumable_foods(self.level())
             .iter()
             .max_by_key(|i| i.heal())
         {
-            if self
-                .bank
-                .has_available(&best_food.code, Some(&self.base.name()))
-                < MIN_FOOD_THRESHOLD
-            {
-                if let Err(e) = self.orderboard.add_or_reset(
+            if BANK.has_available(&best_food.code, Some(&self.base.name())) < MIN_FOOD_THRESHOLD {
+                if let Err(e) = ORDER_BOARD.add_or_reset(
                     Some(&self.base.name()),
                     &best_food.code,
-                    self.account.fisher_max_items(),
+                    ACCOUNT.fisher_max_items(),
                     Purpose::Food {
                         char: self.base.name().to_owned(),
                     },
@@ -2031,7 +1963,7 @@ impl Character {
             .for_each(|f| {
                 // TODO: improve logic to eat different foods to restore more hp
                 let mut quantity = self.missing_hp() / f.heal();
-                if self.account.time_to_get(&f.code).is_some_and(|t| {
+                if ACCOUNT.time_to_get(&f.code).is_some_and(|t| {
                     t * (self.missing_hp() / f.heal())
                         < FightSimulator::time_to_rest(self.missing_hp())
                 }) {

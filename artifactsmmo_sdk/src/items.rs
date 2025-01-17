@@ -5,40 +5,37 @@ use crate::{
         ASTRALYTE_CRYSTAL, DIAMOND, ENCHANTED_FABRIC, FOOD_BLACK_LIST, JASPER_CRYSTAL,
         MAGICAL_CURE, TASKS_COIN,
     },
-    FightSimulator,
-    GameConfig,
+    game_config::GAME_CONFIG,
     gear::Slot,
-    monsters::{MonsterSchemaExt, Monsters},
+    monsters::{MonsterSchemaExt, MONSTERS},
     persist_data,
-    resources::{ResourceSchemaExt, Resources},
+    resources::{ResourceSchemaExt, RESOURCES},
     retreive_data,
-    tasks::Tasks,
+    tasks::TASKS,
+    FightSimulator,
 };
 use artifactsmmo_openapi::models::{
     CraftSchema, ItemEffectSchema, ItemSchema, MonsterSchema, ResourceSchema, SimpleItemSchema,
 };
 use itertools::Itertools;
+use lazy_static::lazy_static;
 use log::{debug, error};
 use std::{collections::HashMap, fmt, path::Path, str::FromStr, sync::Arc, vec::Vec};
 use strum::IntoEnumIterator;
 use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
 
+lazy_static! {
+    pub static ref ITEMS: Arc<Items> = Arc::new(Items::new());
+}
+
 #[derive(Default)]
 pub struct Items {
     pub data: HashMap<String, ItemSchema>,
-    resources: Arc<Resources>,
-    monsters: Arc<Monsters>,
-    tasks: Arc<Tasks>,
 }
 
 impl Items {
-    pub fn new(
-        config: &GameConfig,
-        resources: &Arc<Resources>,
-        monsters: &Arc<Monsters>,
-        tasks: &Arc<Tasks>,
-    ) -> Items {
-        let api = ItemsApi::new(&config.base_url);
+    fn new() -> Items {
+        let api = ItemsApi::new(&GAME_CONFIG.base_url);
         let path = Path::new(".cache/items.json");
         let data = if let Ok(data) = retreive_data(path) {
             data
@@ -54,12 +51,7 @@ impl Items {
             }
             data
         };
-        Items {
-            data,
-            resources: resources.clone(),
-            monsters: monsters.clone(),
-            tasks: tasks.clone(),
-        }
+        Items { data }
     }
 
     /// Takes an item `code` and return its schema.
@@ -99,7 +91,7 @@ impl Items {
     /// Takes an `resource` code and returns the items that can be crafted
     /// from the base mats it drops.
     pub fn crafted_from_resource(&self, resource: &str) -> Vec<&ItemSchema> {
-        self.resources
+        RESOURCES
             .get(resource)
             .map(|r| &r.drops)
             .into_iter()
@@ -189,11 +181,11 @@ impl Items {
     /// Takes an item `code` and returns the best (lowest value) drop rate from
     /// `Monsters` or `Resources`
     pub fn drop_rate(&self, code: &str) -> i32 {
-        self.monsters
+        MONSTERS
             .dropping(code)
             .iter()
             .flat_map(|m| &m.drops)
-            .chain(self.resources.dropping(code).iter().flat_map(|m| &m.drops))
+            .chain(RESOURCES.dropping(code).iter().flat_map(|m| &m.drops))
             .find(|d| d.code == code)
             .map_or(0, |d| {
                 (d.rate as f32 * ((d.min_quantity + d.max_quantity) as f32 / 2.0)).round() as i32
@@ -263,9 +255,7 @@ impl Items {
     /// or the character level/skill_level/gear.
     pub fn best_source_of(&self, code: &str) -> Option<ItemSource> {
         if code == "gift" {
-            return Some(ItemSource::Monster(
-                self.monsters.get("gingerbread").unwrap(),
-            ));
+            return Some(ItemSource::Monster(MONSTERS.get("gingerbread").unwrap()));
         }
         let sources = self.sources_of(code);
         if sources.iter().all(|s| s.is_resource() || s.is_monster()) {
@@ -285,14 +275,13 @@ impl Items {
     }
 
     pub fn sources_of(&self, code: &str) -> Vec<ItemSource> {
-        let mut sources = self
-            .resources
+        let mut sources = RESOURCES
             .dropping(code)
             .into_iter()
             .map(ItemSource::Resource)
             .collect_vec();
         sources.extend(
-            self.monsters
+            MONSTERS
                 .dropping(code)
                 .into_iter()
                 .map(ItemSource::Monster)
@@ -301,7 +290,7 @@ impl Items {
         if self.get(code).is_some_and(|i| i.craft_schema().is_some()) {
             sources.push(ItemSource::Craft);
         }
-        if self.tasks.rewards.iter().any(|r| r.code == code) {
+        if TASKS.rewards.iter().any(|r| r.code == code) {
             sources.push(ItemSource::TaskReward);
         }
         if code == TASKS_COIN {
@@ -347,8 +336,8 @@ impl Items {
     pub fn is_from_event(&self, code: &str) -> bool {
         self.get(code).map_or(false, |i| {
             self.sources_of(&i.code).iter().any(|s| match s {
-                ItemSource::Resource(r) => self.resources.is_event(&r.code),
-                ItemSource::Monster(m) => self.monsters.is_event(&m.code),
+                ItemSource::Resource(r) => RESOURCES.is_event(&r.code),
+                ItemSource::Monster(m) => MONSTERS.is_event(&m.code),
                 ItemSource::Craft => false,
                 ItemSource::TaskReward => false,
                 ItemSource::Task => false,
@@ -653,18 +642,12 @@ pub enum ItemSource<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::monsters::MONSTERS;
 
     #[test]
     fn potential_upgrade() {
-        let config = GameConfig::from_file();
-        let events = Default::default();
-        let resources = Arc::new(Resources::new(&config, &events));
-        let monsters = Arc::new(Monsters::new(&config, &events));
-        let tasks = Arc::new(Tasks::new(&config));
-        let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
-
         assert_eq!(
-            items
+            ITEMS
                 .potential_upgrade(10, "copper_armor")
                 .iter()
                 .map(|i| &i.code)
@@ -681,40 +664,26 @@ mod tests {
 
     #[test]
     fn item_damage_against() {
-        let config = GameConfig::from_file();
-        let events = Default::default();
-        let resources = Arc::new(Resources::new(&config, &events));
-        let monsters = Arc::new(Monsters::new(&config, &events));
-        let tasks = Arc::new(Tasks::new(&config));
-        let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
-
         assert_eq!(
-            items
+            ITEMS
                 .get("skull_staff")
                 .unwrap()
-                .attack_damage_against(monsters.get("ogre").unwrap()),
+                .attack_damage_against(MONSTERS.get("ogre").unwrap()),
             48.0
         );
         assert_eq!(
-            items
+            ITEMS
                 .get("dreadful_staff")
                 .unwrap()
-                .attack_damage_against(monsters.get("vampire").unwrap()),
+                .attack_damage_against(MONSTERS.get("vampire").unwrap()),
             57.5
         );
     }
 
     #[test]
     fn damage_increase() {
-        let config = GameConfig::from_file();
-        let events = Default::default();
-        let resources = Arc::new(Resources::new(&config, &events));
-        let monsters = Arc::new(Monsters::new(&config, &events));
-        let tasks = Arc::new(Tasks::new(&config));
-        let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
-
         assert_eq!(
-            items
+            ITEMS
                 .get("steel_boots")
                 .unwrap()
                 .damage_increase(super::DamageType::Air),
@@ -724,31 +693,24 @@ mod tests {
 
     #[test]
     fn damage_increase_against() {
-        let config = GameConfig::from_file();
-        let events = Default::default();
-        let resources = Arc::new(Resources::new(&config, &events));
-        let monsters = Arc::new(Monsters::new(&config, &events));
-        let tasks = Arc::new(Tasks::new(&config));
-        let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
-
         assert_eq!(
-            items
+            ITEMS
                 .get("steel_armor")
                 .unwrap()
                 .damage_increase_against_with(
-                    monsters.get("chicken").unwrap(),
-                    items.get("steel_battleaxe").unwrap()
+                    MONSTERS.get("chicken").unwrap(),
+                    ITEMS.get("steel_battleaxe").unwrap()
                 ),
             6.0
         );
 
         assert_eq!(
-            items
+            ITEMS
                 .get("steel_boots")
                 .unwrap()
                 .damage_increase_against_with(
-                    monsters.get("ogre").unwrap(),
-                    items.get("skull_staff").unwrap()
+                    MONSTERS.get("ogre").unwrap(),
+                    ITEMS.get("skull_staff").unwrap()
                 ),
             0.0
         );
@@ -756,52 +718,31 @@ mod tests {
 
     #[test]
     fn damage_reduction_against() {
-        let config = GameConfig::from_file();
-        let events = Default::default();
-        let resources = Arc::new(Resources::new(&config, &events));
-        let monsters = Arc::new(Monsters::new(&config, &events));
-        let tasks = Arc::new(Tasks::new(&config));
-        let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
-
         assert_eq!(
-            items
+            ITEMS
                 .get("steel_armor")
                 .unwrap()
-                .damage_reduction_against(monsters.get("ogre").unwrap()),
+                .damage_reduction_against(MONSTERS.get("ogre").unwrap()),
             4.0
         );
     }
 
     #[test]
     fn gift_source() {
-        let config = GameConfig::from_file();
-        let events = Default::default();
-        let resources = Arc::new(Resources::new(&config, &events));
-        let monsters = Arc::new(Monsters::new(&config, &events));
-        let tasks = Arc::new(Tasks::new(&config));
-        let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
-
         assert_eq!(
-            items.sources_of("christmas_star").first(),
+            ITEMS.sources_of("christmas_star").first(),
             Some(&ItemSource::Gift)
         );
         assert_eq!(
-            items.best_source_of("gift"),
-            Some(&ItemSource::Monster(monsters.get("gingerbread").unwrap())).cloned()
+            ITEMS.best_source_of("gift"),
+            Some(&ItemSource::Monster(MONSTERS.get("gingerbread").unwrap())).cloned()
         );
     }
 
     #[test]
     fn best_consumable_foods() {
-        let config = GameConfig::from_file();
-        let events = Default::default();
-        let resources = Arc::new(Resources::new(&config, &events));
-        let monsters = Arc::new(Monsters::new(&config, &events));
-        let tasks = Arc::new(Tasks::new(&config));
-        let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
-
         assert_eq!(
-            items
+            ITEMS
                 .best_consumable_foods(29)
                 .iter()
                 .max_by_key(|i| i.heal())
@@ -813,37 +754,17 @@ mod tests {
 
     #[test]
     fn drop_rate() {
-        let config = GameConfig::from_file();
-        let events = Default::default();
-        let resources = Arc::new(Resources::new(&config, &events));
-        let monsters = Arc::new(Monsters::new(&config, &events));
-        let tasks = Arc::new(Tasks::new(&config));
-        let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
-        assert_eq!(items.drop_rate("milk_bucket"), 12);
+        assert_eq!(ITEMS.drop_rate("milk_bucket"), 12);
     }
 
     #[test]
     fn require_task_reward() {
-        let config = GameConfig::from_file();
-        let events = Default::default();
-        let resources = Arc::new(Resources::new(&config, &events));
-        let monsters = Arc::new(Monsters::new(&config, &events));
-        let tasks = Arc::new(Tasks::new(&config));
-        let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
-
-        assert!(items.require_task_reward("greater_dreadful_staff"));
+        assert!(ITEMS.require_task_reward("greater_dreadful_staff"));
     }
 
     #[test]
     fn mats_methods() {
-        let config = GameConfig::from_file();
-        let events = Default::default();
-        let resources = Arc::new(Resources::new(&config, &events));
-        let monsters = Arc::new(Monsters::new(&config, &events));
-        let tasks = Arc::new(Tasks::new(&config));
-        let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
-
-        assert!(!items.mats_of("greater_dreadful_staff").is_empty());
-        assert!(!items.base_mats_of("greater_dreadful_staff").is_empty());
+        assert!(!ITEMS.mats_of("greater_dreadful_staff").is_empty());
+        assert!(!ITEMS.base_mats_of("greater_dreadful_staff").is_empty());
     }
 }

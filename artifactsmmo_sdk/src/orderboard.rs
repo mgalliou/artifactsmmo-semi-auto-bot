@@ -1,5 +1,6 @@
-use crate::{account::Account, char::skill::Skill, gear::Slot, items::Items};
+use crate::{account::ACCOUNT, char::skill::Skill, gear::Slot, items::ITEMS};
 use itertools::Itertools;
+use lazy_static::lazy_static;
 use log::{debug, info};
 use std::{
     fmt::{self, Display, Formatter},
@@ -10,19 +11,19 @@ use strum::IntoEnumIterator;
 use strum_macros::{EnumIs, EnumIter};
 use thiserror::Error;
 
+lazy_static! {
+    pub static ref ORDER_BOARD: Arc<OrderBoard> = Arc::new(OrderBoard::new());
+}
+
 #[derive(Default)]
 pub struct OrderBoard {
-    pub orders: RwLock<Vec<Arc<Order>>>,
-    items: Arc<Items>,
-    account: Arc<Account>,
+    orders: RwLock<Vec<Arc<Order>>>,
 }
 
 impl OrderBoard {
-    pub fn new(items: &Arc<Items>, account: &Arc<Account>) -> Self {
+    fn new() -> Self {
         OrderBoard {
             orders: RwLock::new(vec![]),
-            items: items.clone(),
-            account: account.clone(),
         }
     }
 
@@ -63,13 +64,13 @@ impl OrderBoard {
                 .into_iter()
                 .flat_map(|(_, chunk)| {
                     chunk
-                        .sorted_by_key(|o| self.items.get(&o.item).map(|i| i.level).unwrap_or(1))
+                        .sorted_by_key(|o| ITEMS.get(&o.item).map(|i| i.level).unwrap_or(1))
                         .rev()
                 })
                 .collect_vec();
             orders.extend(filtered);
         });
-        orders.sort_by_key(|o| !self.items.is_from_event(&o.item));
+        orders.sort_by_key(|o| !ITEMS.is_from_event(&o.item));
         orders
     }
 
@@ -80,7 +81,7 @@ impl OrderBoard {
         quantity: i32,
         purpose: Purpose,
     ) -> Result<(), OrderError> {
-        if self.items.get(item).is_none() {
+        if ITEMS.get(item).is_none() {
             return Err(OrderError::UnknownItem);
         }
         if self.get(owner, item, &purpose).is_some() {
@@ -139,14 +140,12 @@ impl OrderBoard {
 
     pub fn should_be_turned_in(&self, order: &Order) -> bool {
         !order.turned_in()
-            && self.account.available_in_inventories(&order.item) + order.in_progress()
+            && ACCOUNT.available_in_inventories(&order.item) + order.in_progress()
                 >= order.not_deposited()
     }
 
     pub fn total_missing_for(&self, order: &Order) -> i32 {
-        order.not_deposited()
-            - self.account.available_in_inventories(&order.item)
-            - order.in_progress()
+        order.not_deposited() - ACCOUNT.available_in_inventories(&order.item) - order.in_progress()
     }
 }
 

@@ -1,12 +1,12 @@
 use crate::{
     api::{characters::CharactersApi, my_character::MyCharacterApi},
-    bank::Bank,
     char::{action::Action, HasCharacterData},
     consts::BANK_EXTENSION_SIZE,
-    game::{Game, Server},
+    game::SERVER,
+    game_config::GAME_CONFIG,
     gear::Slot,
     maps::MapSchemaExt,
-    ApiErrorResponseSchema,
+    ApiErrorResponseSchema, BANK,
 };
 use artifactsmmo_openapi::{
     apis::Error,
@@ -39,20 +39,16 @@ use thiserror::Error;
 #[derive(Default)]
 pub struct BaseCharacter {
     data: Arc<RwLock<CharacterSchema>>,
-    bank: Arc<Bank>,
-    server: Arc<Server>,
     api: CharactersApi,
     my_api: MyCharacterApi,
 }
 
 impl BaseCharacter {
-    pub fn new(data: &Arc<RwLock<CharacterSchema>>, game: &Game) -> Self {
+    pub fn new(data: &Arc<RwLock<CharacterSchema>>) -> Self {
         Self {
             data: data.clone(),
-            bank: game.account.bank.clone(),
-            server: game.server.clone(),
-            api: CharactersApi::new(&game.config.base_url, &game.config.token),
-            my_api: MyCharacterApi::new(&game.config.base_url, &game.config.token),
+            api: CharactersApi::new(&GAME_CONFIG.base_url, &GAME_CONFIG.token),
+            my_api: MyCharacterApi::new(&GAME_CONFIG.base_url, &GAME_CONFIG.token),
         }
     }
 
@@ -62,20 +58,10 @@ impl BaseCharacter {
 
         self.wait_for_cooldown();
         if action.is_deposit() || action.is_withdraw() {
-            bank_content = Some(
-                self.bank
-                    .content
-                    .write()
-                    .expect("bank_content to be writable"),
-            );
+            bank_content = Some(BANK.content.write().expect("bank_content to be writable"));
         }
         if action.is_deposit_gold() || action.is_withdraw_gold() || action.is_expand_bank() {
-            bank_details = Some(
-                self.bank
-                    .details
-                    .write()
-                    .expect("bank_details to be writable"),
-            );
+            bank_details = Some(BANK.details.write().expect("bank_details to be writable"));
         }
         let res: Result<Box<dyn ResponseSchema>, RequestError> = match action {
             Action::Move { x, y } => self
@@ -431,7 +417,7 @@ impl BaseCharacter {
                         "{}: code 499 received, resyncronizing server time",
                         self.name()
                     );
-                    self.server.update_offset();
+                    SERVER.update_offset();
                     return self.request_action(action);
                 }
                 if res.error.code == 500 || res.error.code == 520 {
@@ -475,7 +461,7 @@ impl BaseCharacter {
     /// Returns the remaining cooldown duration of the `Character`.
     fn remaining_cooldown(&self) -> Duration {
         if let Some(exp) = self.cooldown_expiration() {
-            let synced = Utc::now() - *self.server.server_offset.read().unwrap();
+            let synced = Utc::now() - *SERVER.server_offset.read().unwrap();
             if synced.cmp(&exp.to_utc()) == Ordering::Less {
                 return (exp.to_utc() - synced).to_std().unwrap();
             }

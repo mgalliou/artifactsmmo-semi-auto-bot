@@ -1,40 +1,29 @@
+use std::sync::Arc;
+
+use crate::account::ACCOUNT;
+use crate::bank::BANK;
+use crate::items::ITEMS;
+use crate::maps::MAPS;
+use crate::monsters::MONSTERS;
+use crate::resources::RESOURCES;
 use crate::{
-    account::Account,
     char::{Character, HasCharacterData, Skill},
-    items::{ItemSchemaExt, Items},
-    maps::Maps,
-    monsters::Monsters,
-    resources::Resources,
+    items::ItemSchemaExt,
 };
 use artifactsmmo_openapi::models::{ItemSchema, MonsterSchema, ResourceSchema};
 use itertools::Itertools;
+use lazy_static::lazy_static;
 use rayon::iter::{ParallelBridge, ParallelIterator};
-use std::sync::Arc;
 
-#[derive(Default)]
-pub struct LevelingHelper {
-    items: Arc<Items>,
-    resources: Arc<Resources>,
-    monsters: Arc<Monsters>,
-    maps: Arc<Maps>,
-    account: Arc<Account>,
+lazy_static! {
+    pub static ref LEVELING_HELPER: Arc<LevelingHelper> = Arc::new(LevelingHelper::new());
 }
 
+pub struct LevelingHelper {}
+
 impl LevelingHelper {
-    pub fn new(
-        items: &Arc<Items>,
-        resources: &Arc<Resources>,
-        monsters: &Arc<Monsters>,
-        maps: &Arc<Maps>,
-        account: &Arc<Account>,
-    ) -> Self {
-        Self {
-            items: items.clone(),
-            resources: resources.clone(),
-            monsters: monsters.clone(),
-            maps: maps.clone(),
-            account: account.clone(),
-        }
+    fn new() -> Self {
+        Self {}
     }
 
     /// Takes a `level` and a `skill` and returns the items providing experince
@@ -45,7 +34,7 @@ impl LevelingHelper {
         skill: Skill,
     ) -> impl Iterator<Item = &ItemSchema> {
         let min = if level > 11 { level - 10 } else { 1 };
-        self.items
+        ITEMS
             .data
             .values()
             .filter(move |i| i.level >= min && i.level <= level)
@@ -77,11 +66,11 @@ impl LevelingHelper {
                 if level >= 20 {
                     return self.best_crafts(level, skill);
                 } else if level >= 10 {
-                    vec![self.items.get("iron_helm")]
+                    vec![ITEMS.get("iron_helm")]
                 //} else if level >= 5 {
                 //    vec![self.get("copper_legs_armor")]
                 } else {
-                    vec![self.items.get("wooden_shield")]
+                    vec![ITEMS.get("wooden_shield")]
                 }
             }
             Skill::Weaponcrafting => {
@@ -89,26 +78,26 @@ impl LevelingHelper {
             }
             Skill::Jewelrycrafting => {
                 if level >= 30 {
-                    vec![self.items.get("gold_ring")]
+                    vec![ITEMS.get("gold_ring")]
                 } else if level >= 20 {
-                    vec![self.items.get("steel_ring")]
+                    vec![ITEMS.get("steel_ring")]
                 } else if level >= 15 {
-                    vec![self.items.get("life_ring")]
+                    vec![ITEMS.get("life_ring")]
                 } else if level >= 10 {
-                    vec![self.items.get("iron_ring")]
+                    vec![ITEMS.get("iron_ring")]
                 } else {
-                    vec![self.items.get("copper_ring")]
+                    vec![ITEMS.get("copper_ring")]
                 }
             }
             Skill::Cooking => {
                 if level >= 30 {
-                    vec![self.items.get("cooked_bass")]
+                    vec![ITEMS.get("cooked_bass")]
                 } else if level >= 20 {
-                    vec![self.items.get("cooked_trout")]
+                    vec![ITEMS.get("cooked_trout")]
                 } else if level >= 10 {
-                    vec![self.items.get("cooked_shrimp")]
+                    vec![ITEMS.get("cooked_shrimp")]
                 } else {
-                    vec![self.items.get("cooked_gudgeon")]
+                    vec![ITEMS.get("cooked_gudgeon")]
                 }
             }
             Skill::Mining | Skill::Woodcutting | Skill::Alchemy => {
@@ -136,13 +125,13 @@ impl LevelingHelper {
                     "topaz",
                 ]
                 .contains(&i.code.as_str())
-                    && !self.items.require_task_reward(&i.code)
+                    && !ITEMS.require_task_reward(&i.code)
                     && !i.is_crafted_from_task()
                     && !i.is_crafted_with("obsidian")
                     && !i.is_crafted_with("diamond")
                     && i.mats()
                         .iter()
-                        .all(|m| self.items.get(&m.code).unwrap().level <= level)
+                        .all(|m| ITEMS.get(&m.code).unwrap().level <= level)
             })
             .max_set_by_key(|i| i.level)
             .into_iter()
@@ -153,9 +142,7 @@ impl LevelingHelper {
         self.best_crafts_hardcoded(level, skill)
             .into_iter()
             .filter_map(|i| {
-                let mats_with_ttg = self
-                    .account
-                    .bank
+                let mats_with_ttg = BANK
                     .missing_mats_for(
                         &i.code,
                         char.max_craftable_items(&i.code),
@@ -163,7 +150,7 @@ impl LevelingHelper {
                     )
                     .into_iter()
                     .par_bridge()
-                    .map(|m| (m.clone(), self.account.time_to_get(&m.code)))
+                    .map(|m| (m.clone(), ACCOUNT.time_to_get(&m.code)))
                     .collect::<Vec<_>>();
                 if mats_with_ttg.iter().all(|(_, ttg)| ttg.is_some()) {
                     Some((
@@ -182,20 +169,20 @@ impl LevelingHelper {
     }
 
     pub fn best_resource(&self, level: i32, skill: Skill) -> Option<&ResourceSchema> {
-        self.resources
+        RESOURCES
             .data
             .iter()
             .filter(|r| {
                 Skill::from(r.skill) == skill
                     && r.level <= level
                     && level - r.level <= 10
-                    && !self.maps.with_content_code(&r.code).is_empty()
+                    && !MAPS.with_content_code(&r.code).is_empty()
             })
             .max_by_key(|r| r.level)
     }
 
     pub fn best_monster(&self, char: &Character) -> Option<&MonsterSchema> {
-        self.monsters
+        MONSTERS
             .data
             .iter()
             .filter(|m| char.level() >= m.level && m.code != "imp" && m.code != "death_knight")

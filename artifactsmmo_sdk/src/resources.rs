@@ -1,17 +1,21 @@
-use crate::{api::ResourcesApi, events::Events, GameConfig, persist_data};
+use crate::{api::ResourcesApi, events::EVENTS, game_config::GAME_CONFIG, persist_data};
 use artifactsmmo_openapi::models::ResourceSchema;
+use lazy_static::lazy_static;
 use log::error;
 use std::{fs::read_to_string, path::Path, sync::Arc};
+
+lazy_static! {
+    pub static ref RESOURCES: Arc<Resources> = Arc::new(Resources::new());
+}
 
 #[derive(Default)]
 pub struct Resources {
     pub data: Vec<ResourceSchema>,
-    events: Arc<Events>,
 }
 
 impl Resources {
-    pub fn new(config: &GameConfig, events: &Arc<Events>) -> Resources {
-        let api = ResourcesApi::new(&config.base_url);
+    fn new() -> Self {
+        let api = ResourcesApi::new(&GAME_CONFIG.base_url);
         let path = Path::new(".cache/resources.json");
         let data = if path.exists() {
             let content = read_to_string(path).unwrap();
@@ -25,10 +29,7 @@ impl Resources {
             }
             data
         };
-        Resources {
-            data,
-            events: events.clone(),
-        }
+        Resources { data }
     }
 
     pub fn get(&self, code: &str) -> Option<&ResourceSchema> {
@@ -43,7 +44,7 @@ impl Resources {
     }
 
     pub fn is_event(&self, code: &str) -> bool {
-        self.events.data.iter().any(|e| e.content.code == code)
+        EVENTS.data.iter().any(|e| e.content.code == code)
     }
 }
 

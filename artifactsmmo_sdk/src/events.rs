@@ -1,17 +1,20 @@
 use crate::{
-    api::EventsApi, game_config::GameConfig, maps::MapSchemaExt, persist_data,
-    retreive_data, 
+    api::EventsApi, game_config::GAME_CONFIG, maps::MapSchemaExt, persist_data, retreive_data,
 };
 use artifactsmmo_openapi::models::{ActiveEventSchema, EventSchema, MapSchema};
 use chrono::{DateTime, Duration, Utc};
 use itertools::Itertools;
+use lazy_static::lazy_static;
 use log::{debug, error};
 use std::{
     path::Path,
     sync::{Arc, RwLock},
 };
 
-#[derive(Default)]
+lazy_static! {
+    pub static ref EVENTS: Arc<Events> = Arc::new(Events::new());
+}
+
 pub struct Events {
     api: EventsApi,
     pub data: Vec<EventSchema>,
@@ -20,8 +23,8 @@ pub struct Events {
 }
 
 impl Events {
-    pub fn new(config: &GameConfig) -> Self {
-        let api = EventsApi::new(&config.base_url);
+    fn new() -> Self {
+        let api = EventsApi::new(&GAME_CONFIG.base_url);
         let path = Path::new(".cache/events.json");
         let data = if let Ok(data) = retreive_data::<Vec<EventSchema>>(path) {
             data

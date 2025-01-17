@@ -1,30 +1,33 @@
-use crate::{api::MapsApi, char::Skill, events::Events, game_config::GameConfig};
+use crate::{api::MapsApi, char::Skill, events::EVENTS, game_config::GAME_CONFIG};
 use artifactsmmo_openapi::models::{ActiveEventSchema, MapContentSchema, MapSchema};
 use chrono::{DateTime, Utc};
+use lazy_static::lazy_static;
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
 };
 use strum_macros::{AsRefStr, Display};
 
+lazy_static! {
+    pub static ref MAPS: Arc<Maps> = Arc::new(Maps::new());
+}
+
 #[derive(Default)]
 pub struct Maps {
     data: HashMap<(i32, i32), RwLock<MapSchema>>,
-    events: Arc<Events>,
     active_events: Arc<RwLock<Vec<ActiveEventSchema>>>,
 }
 
 impl Maps {
-    pub fn new(config: &GameConfig, events: &Arc<Events>) -> Maps {
+    pub fn new() -> Maps {
         Maps {
-            data: MapsApi::new(&config.base_url)
+            data: MapsApi::new(&GAME_CONFIG.base_url)
                 .all(None, None)
                 .expect("maps to be retrieved from API.")
                 .into_iter()
                 .map(|m| ((m.x, m.y), RwLock::new(m)))
                 .collect(),
-            events: events.clone(),
-            active_events: events.active.clone(),
+            active_events: EVENTS.active.clone(),
         }
     }
 
@@ -37,7 +40,7 @@ impl Maps {
                 }
             }
         });
-        self.events.refresh_active();
+        EVENTS.refresh_active();
         self.active_events.read().unwrap().iter().for_each(|e| {
             if DateTime::parse_from_rfc3339(&e.expiration).unwrap() > Utc::now() {
                 if let Some(map) = self.data.get(&(e.map.x, e.map.y)) {

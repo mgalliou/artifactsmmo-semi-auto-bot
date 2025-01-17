@@ -374,48 +374,35 @@ impl From<Slot> for ItemSlot {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
-    use crate::{
-        game_config::GameConfig, items::Items, monsters::Monsters, resources::Resources,
-        tasks::Tasks,
-    };
-
+    use crate::items::ITEMS;
     use super::*;
 
     #[test]
     fn check_gear_alignment_is_working() {
-        let config = GameConfig::from_file();
-        let events = Default::default();
-        let resources = Arc::new(Resources::new(&config, &events));
-        let monsters = Arc::new(Monsters::new(&config, &events));
-        let tasks = Arc::new(Tasks::new(&config));
-        let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
-
         let gear1 = Gear {
-            ring1: Some(items.get("skull_ring").unwrap()),
-            ring2: Some(items.get("dreadful_ring").unwrap()),
-            utility1: Some(items.get("minor_health_potion").unwrap()),
-            utility2: Some(items.get("small_health_potion").unwrap()),
-            artifact1: Some(items.get("christmas_star").unwrap()),
-            artifact2: Some(items.get("life_crystal").unwrap()),
-            artifact3: Some(items.get("backpack").unwrap()),
+            ring1: Some(ITEMS.get("skull_ring").unwrap()),
+            ring2: Some(ITEMS.get("dreadful_ring").unwrap()),
+            utility1: Some(ITEMS.get("minor_health_potion").unwrap()),
+            utility2: Some(ITEMS.get("small_health_potion").unwrap()),
+            artifact1: Some(ITEMS.get("christmas_star").unwrap()),
+            artifact2: Some(ITEMS.get("life_crystal").unwrap()),
+            artifact3: Some(ITEMS.get("backpack").unwrap()),
             ..Default::default()
         };
         let mut gear2 = Gear {
-            ring1: Some(items.get("dreadful_ring").unwrap()),
-            ring2: Some(items.get("skull_ring").unwrap()),
-            utility1: Some(items.get("small_health_potion").unwrap()),
-            utility2: Some(items.get("minor_health_potion").unwrap()),
-            artifact1: Some(items.get("life_crystal").unwrap()),
-            artifact2: Some(items.get("backpack").unwrap()),
-            artifact3: Some(items.get("christmas_star").unwrap()),
+            ring1: Some(ITEMS.get("dreadful_ring").unwrap()),
+            ring2: Some(ITEMS.get("skull_ring").unwrap()),
+            utility1: Some(ITEMS.get("small_health_potion").unwrap()),
+            utility2: Some(ITEMS.get("minor_health_potion").unwrap()),
+            artifact1: Some(ITEMS.get("life_crystal").unwrap()),
+            artifact2: Some(ITEMS.get("backpack").unwrap()),
+            artifact3: Some(ITEMS.get("christmas_star").unwrap()),
             ..Default::default()
         };
         let mut gear3 = Gear {
-            ring2: Some(items.get("skull_ring").unwrap()),
-            utility1: Some(items.get("small_health_potion").unwrap()),
-            artifact2: Some(items.get("christmas_star").unwrap()),
+            ring2: Some(ITEMS.get("skull_ring").unwrap()),
+            utility1: Some(ITEMS.get("small_health_potion").unwrap()),
+            artifact2: Some(ITEMS.get("christmas_star").unwrap()),
             ..Default::default()
         };
         gear2.align_to(&gear1);

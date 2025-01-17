@@ -1,7 +1,12 @@
-use crate::{api::TasksApi, GameConfig, persist_data, retreive_data};
+use crate::{api::TasksApi, game_config::GAME_CONFIG, persist_data, retreive_data};
 use artifactsmmo_openapi::models::{DropRateSchema, TaskFullSchema};
+use lazy_static::lazy_static;
 use log::error;
-use std::path::Path;
+use std::{path::Path, sync::Arc};
+
+lazy_static! {
+    pub static ref TASKS: Arc<Tasks> = Arc::new(Tasks::new());
+}
 
 #[derive(Default)]
 pub struct Tasks {
@@ -11,8 +16,8 @@ pub struct Tasks {
 }
 
 impl Tasks {
-    pub fn new(config: &GameConfig) -> Self {
-        let api = TasksApi::new(&config.base_url);
+    fn new() -> Self {
+        let api = TasksApi::new(&GAME_CONFIG.base_url);
         let tasks_path = Path::new(".cache/tasks.json");
         let list = if let Ok(data) = retreive_data::<Vec<TaskFullSchema>>(tasks_path) {
             data
