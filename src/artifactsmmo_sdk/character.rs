@@ -1,7 +1,7 @@
 use super::{
     account::Account,
     bank::Bank,
-    base_character::{BaseCharacter, RequestError},
+    base_character::{BaseCharacter, HasCharacterData, RequestError},
     char_config::CharConfig,
     consts::{
         BANK_MIN_FREE_SLOT, CRAFT_TIME, GIFT, MAX_LEVEL, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
@@ -1001,7 +1001,7 @@ impl Character {
     /// `gear`
     fn can_kill_with(&self, monster: &MonsterSchema, gear: &Gear) -> bool {
         self.fight_simulator
-            .simulate(self.level(), 0, gear, monster, false)
+            .simulate(self.base.level(), 0, gear, monster, false)
             .result
             == FightResult::Win
     }
@@ -1009,8 +1009,8 @@ impl Character {
     fn can_kill_now(&self, monster: &MonsterSchema) -> bool {
         self.fight_simulator
             .simulate(
-                self.level(),
-                self.missing_hp(),
+                self.base.level(),
+                self.base.missing_hp(),
                 &self.gear(),
                 monster,
                 false,
@@ -1025,7 +1025,7 @@ impl Character {
         if !self.skill_enabled(skill) {
             return Err(CharacterError::SkillDisabled(skill));
         }
-        if self.skill_level(skill) < resource.level {
+        if self.base.skill_level(skill) < resource.level {
             return Err(CharacterError::InsuffisientSkillLevel(
                 skill,
                 resource.level,
@@ -1048,7 +1048,7 @@ impl Character {
         if !self.skill_enabled(skill) {
             return Err(CharacterError::SkillDisabled(skill));
         }
-        if self.skill_level(skill) < item.level {
+        if self.base.skill_level(skill) < item.level {
             return Err(CharacterError::InsuffisientSkillLevel(skill, item.level));
         }
         // TODO: improve condition
@@ -1068,7 +1068,7 @@ impl Character {
         if !self.skill_enabled(skill) {
             return Err(CharacterError::SkillDisabled(skill));
         };
-        if self.skill_level(skill) < item.level {
+        if self.base.skill_level(skill) < item.level {
             return Err(CharacterError::InsuffisientSkillLevel(skill, item.level));
         };
         if self.inventory.max_items() < item.recycled_quantity() * quantity {
@@ -1079,7 +1079,8 @@ impl Character {
 
     /// Returns the current `Gear` of the `Character`, containing item schemas.
     pub fn gear(&self) -> Gear {
-        let d = self.base.data.read().unwrap();
+        let binding = self.data();
+        let d = binding.read().unwrap();
         Gear {
             weapon: self.items.get(&d.weapon_slot),
             shield: self.items.get(&d.shield_slot),
@@ -1100,7 +1101,8 @@ impl Character {
 
     /// Returns the item equiped in the `given` slot.
     fn equiped_in(&self, slot: Slot) -> Option<&ItemSchema> {
-        let d = self.base.data.read().unwrap();
+        let binding = self.data();
+        let d = binding.read().unwrap();
         self.items.get(match slot {
             Slot::Weapon => &d.weapon_slot,
             Slot::Shield => &d.shield_slot,
@@ -1215,7 +1217,7 @@ impl Character {
         }
         self.move_to_craft(item)?;
         let result = self.base.action_recycle(item, quantity);
-        self.inventory.decrease_reservation(&self.task(), quantity);
+        self.inventory.decrease_reservation(&self.base.task(), quantity);
         Ok(result?)
     }
 
@@ -1249,7 +1251,7 @@ impl Character {
             self.withdraw_item(item, missing_quantity)?;
         }
         let result = self.base.action_delete(item, quantity);
-        self.inventory.decrease_reservation(&self.task(), quantity);
+        self.inventory.decrease_reservation(&self.base.task(), quantity);
         Ok(result?)
     }
 
@@ -1510,11 +1512,6 @@ impl Character {
         }
         n
     }
-
-    fn gold(&self) -> i32 {
-        self.base.data.read().unwrap().gold
-    }
-
     fn move_to_closest_map_of_type(
         &self,
         r#type: ContentType,
@@ -1649,10 +1646,10 @@ impl Character {
         let Some(equiped) = self.equiped_in(slot) else {
             return Ok(());
         };
-        if equiped.health() >= self.health() {
+        if equiped.health() >= self.base.health() {
             self.eat_food();
         }
-        if equiped.health() >= self.health() {
+        if equiped.health() >= self.base.health() {
             self.rest()?;
         }
         Ok(self.base.action_unequip(slot, quantity)?)
@@ -1750,97 +1747,6 @@ impl Character {
         info!("{} toggled idle: {}.", self.base.name(), conf.idle);
         if !conf.idle {
             self.base.refresh_data()
-        }
-    }
-
-    fn max_health(&self) -> i32 {
-        self.base.data.read().unwrap().max_hp
-    }
-
-    fn health(&self) -> i32 {
-        self.base.data.read().unwrap().hp
-    }
-
-    fn missing_hp(&self) -> i32 {
-        self.max_health() - self.health()
-    }
-
-    pub fn task(&self) -> String {
-        self.base.data.read().unwrap().task.to_owned()
-    }
-
-    pub fn task_type(&self) -> Option<TaskType> {
-        match self.base.data.read().unwrap().task_type.as_str() {
-            "monsters" => Some(TaskType::Monsters),
-            "items" => Some(TaskType::Items),
-            _ => None,
-        }
-    }
-
-    pub fn task_progress(&self) -> i32 {
-        self.base.data.read().unwrap().task_progress
-    }
-
-    pub fn task_total(&self) -> i32 {
-        self.base.data.read().unwrap().task_total
-    }
-
-    pub fn task_missing(&self) -> i32 {
-        self.task_total() - self.task_progress()
-    }
-
-    fn task_finished(&self) -> bool {
-        !self.task().is_empty() && self.task_progress() >= self.task_total()
-    }
-
-    /// Returns the level of the `Character`.
-    pub fn level(&self) -> i32 {
-        self.base.data.read().unwrap().level
-    }
-
-    /// Returns the `Character` level in the given `skill`.
-    pub fn skill_level(&self, skill: Skill) -> i32 {
-        let d = self.base.data.read().unwrap();
-        match skill {
-            Skill::Combat => d.level,
-            Skill::Mining => d.mining_level,
-            Skill::Woodcutting => d.woodcutting_level,
-            Skill::Fishing => d.fishing_level,
-            Skill::Weaponcrafting => d.weaponcrafting_level,
-            Skill::Gearcrafting => d.gearcrafting_level,
-            Skill::Jewelrycrafting => d.jewelrycrafting_level,
-            Skill::Cooking => d.cooking_level,
-            Skill::Alchemy => d.alchemy_level,
-        }
-    }
-
-    pub fn skill_xp(&self, skill: Skill) -> i32 {
-        let d = self.base.data.read().unwrap();
-        match skill {
-            Skill::Combat => d.xp,
-            Skill::Mining => d.mining_xp,
-            Skill::Woodcutting => d.woodcutting_xp,
-            Skill::Fishing => d.fishing_xp,
-            Skill::Weaponcrafting => d.weaponcrafting_xp,
-            Skill::Gearcrafting => d.gearcrafting_xp,
-            Skill::Jewelrycrafting => d.jewelrycrafting_xp,
-            Skill::Cooking => d.cooking_xp,
-            Skill::Alchemy => d.alchemy_xp,
-        }
-    }
-
-    pub fn skill_max_xp(&self, skill: Skill) -> i32 {
-        let d = self.base.data.read().unwrap();
-        match skill {
-            Skill::Combat => d.max_xp,
-            Skill::Mining => d.mining_max_xp,
-            Skill::Woodcutting => d.woodcutting_max_xp,
-            Skill::Fishing => d.fishing_max_xp,
-            Skill::Weaponcrafting => d.weaponcrafting_max_xp,
-            Skill::Gearcrafting => d.gearcrafting_max_xp,
-            Skill::Jewelrycrafting => d.jewelrycrafting_max_xp,
-            Skill::Cooking => d.cooking_max_xp,
-            Skill::Alchemy => d.alchemy_max_xp,
         }
     }
 
@@ -2038,25 +1944,6 @@ impl Character {
         })
     }
 
-    fn quantity_in_slot(&self, s: Slot) -> i32 {
-        match s {
-            Slot::Utility1 => self.base.data.read().unwrap().utility1_slot_quantity,
-            Slot::Utility2 => self.base.data.read().unwrap().utility2_slot_quantity,
-            Slot::Weapon
-            | Slot::Shield
-            | Slot::Helmet
-            | Slot::BodyArmor
-            | Slot::LegArmor
-            | Slot::Boots
-            | Slot::Ring1
-            | Slot::Ring2
-            | Slot::Amulet
-            | Slot::Artifact1
-            | Slot::Artifact2
-            | Slot::Artifact3 => 1,
-        }
-    }
-
     pub fn skill_enabled(&self, s: Skill) -> bool {
         self.conf().read().unwrap().skills.contains(&s)
     }
@@ -2162,6 +2049,12 @@ impl Character {
                     self.inventory.decrease_reservation(&f.code, quantity);
                 }
             });
+    }
+}
+
+impl HasCharacterData for Character {
+    fn data(&self) -> Arc<RwLock<CharacterSchema>> {
+        self.base.data().clone()
     }
 }
 

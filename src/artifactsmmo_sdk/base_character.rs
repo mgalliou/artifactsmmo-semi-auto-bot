@@ -1,3 +1,4 @@
+use super::skill::Skill;
 use crate::artifactsmmo_sdk::{
     api::{characters::CharactersApi, my_character::MyCharacterApi},
     bank::Bank,
@@ -17,7 +18,7 @@ use artifactsmmo_openapi::{
         MapSchema, RecyclingItemsSchema, RecyclingResponseSchema, RewardDataResponseSchema,
         RewardsSchema, SimpleItemSchema, SkillDataSchema, SkillInfoSchema, SkillResponseSchema,
         TaskCancelledResponseSchema, TaskResponseSchema, TaskSchema, TaskTradeResponseSchema,
-        TaskTradeSchema, UseItemResponseSchema,
+        TaskTradeSchema, TaskType, UseItemResponseSchema,
     },
 };
 use chrono::{DateTime, Utc};
@@ -33,12 +34,144 @@ use std::{
 use strum_macros::{Display, EnumIs};
 use thiserror::Error;
 
+pub trait HasCharacterData {
+    fn data(&self) -> Arc<RwLock<CharacterSchema>>;
+
+    fn name(&self) -> String {
+        self.data().read().unwrap().name.to_owned()
+    }
+
+    /// Returns the `Character` position (coordinates).
+    fn position(&self) -> (i32, i32) {
+        let binding = self.data();
+        let d = binding.read().unwrap();
+        let (x, y) = (d.x, d.y);
+        (x, y)
+    }
+
+    fn level(&self) -> i32 {
+        self.data().read().unwrap().level
+    }
+
+    fn skill_xp(&self, skill: Skill) -> i32 {
+        let binding = self.data();
+        let d = binding.read().unwrap();
+        match skill {
+            Skill::Combat => d.xp,
+            Skill::Mining => d.mining_xp,
+            Skill::Woodcutting => d.woodcutting_xp,
+            Skill::Fishing => d.fishing_xp,
+            Skill::Weaponcrafting => d.weaponcrafting_xp,
+            Skill::Gearcrafting => d.gearcrafting_xp,
+            Skill::Jewelrycrafting => d.jewelrycrafting_xp,
+            Skill::Cooking => d.cooking_xp,
+            Skill::Alchemy => d.alchemy_xp,
+        }
+    }
+
+    fn skill_max_xp(&self, skill: Skill) -> i32 {
+        let binding = self.data();
+        let d = binding.read().unwrap();
+        match skill {
+            Skill::Combat => d.max_xp,
+            Skill::Mining => d.mining_max_xp,
+            Skill::Woodcutting => d.woodcutting_max_xp,
+            Skill::Fishing => d.fishing_max_xp,
+            Skill::Weaponcrafting => d.weaponcrafting_max_xp,
+            Skill::Gearcrafting => d.gearcrafting_max_xp,
+            Skill::Jewelrycrafting => d.jewelrycrafting_max_xp,
+            Skill::Cooking => d.cooking_max_xp,
+            Skill::Alchemy => d.alchemy_max_xp,
+        }
+    }
+
+    fn max_health(&self) -> i32 {
+        self.data().read().unwrap().max_hp
+    }
+
+    fn health(&self) -> i32 {
+        self.data().read().unwrap().hp
+    }
+
+    fn missing_hp(&self) -> i32 {
+        self.max_health() - self.health()
+    }
+
+    /// Returns the `Character` level in the given `skill`.
+    fn skill_level(&self, skill: Skill) -> i32 {
+        let binding = self.data();
+        let d = binding.read().unwrap();
+        match skill {
+            Skill::Combat => d.level,
+            Skill::Mining => d.mining_level,
+            Skill::Woodcutting => d.woodcutting_level,
+            Skill::Fishing => d.fishing_level,
+            Skill::Weaponcrafting => d.weaponcrafting_level,
+            Skill::Gearcrafting => d.gearcrafting_level,
+            Skill::Jewelrycrafting => d.jewelrycrafting_level,
+            Skill::Cooking => d.cooking_level,
+            Skill::Alchemy => d.alchemy_level,
+        }
+    }
+
+    fn gold(&self) -> i32 {
+        self.data().read().unwrap().gold
+    }
+
+    fn quantity_in_slot(&self, s: Slot) -> i32 {
+        match s {
+            Slot::Utility1 => self.data().read().unwrap().utility1_slot_quantity,
+            Slot::Utility2 => self.data().read().unwrap().utility2_slot_quantity,
+            Slot::Weapon
+            | Slot::Shield
+            | Slot::Helmet
+            | Slot::BodyArmor
+            | Slot::LegArmor
+            | Slot::Boots
+            | Slot::Ring1
+            | Slot::Ring2
+            | Slot::Amulet
+            | Slot::Artifact1
+            | Slot::Artifact2
+            | Slot::Artifact3 => 1,
+        }
+    }
+
+    fn task(&self) -> String {
+        self.data().read().unwrap().task.to_owned()
+    }
+
+    fn task_type(&self) -> Option<TaskType> {
+        match self.data().read().unwrap().task_type.as_str() {
+            "monsters" => Some(TaskType::Monsters),
+            "items" => Some(TaskType::Items),
+            _ => None,
+        }
+    }
+
+    fn task_progress(&self) -> i32 {
+        self.data().read().unwrap().task_progress
+    }
+
+    fn task_total(&self) -> i32 {
+        self.data().read().unwrap().task_total
+    }
+
+    fn task_missing(&self) -> i32 {
+        self.task_total() - self.task_progress()
+    }
+
+    fn task_finished(&self) -> bool {
+        !self.task().is_empty() && self.task_progress() >= self.task_total()
+    }
+}
+
 /// First layer of abstraction around the character API.
 /// It is responsible for handling the character action requests responce and errors
 /// by updating character and bank data, and retrying requests in case of errors.
 #[derive(Default)]
 pub struct BaseCharacter {
-    pub data: Arc<RwLock<CharacterSchema>>,
+    data: Arc<RwLock<CharacterSchema>>,
     bank: Arc<Bank>,
     server: Arc<Server>,
     api: CharactersApi,
@@ -490,10 +623,6 @@ impl BaseCharacter {
             .map(|cd| DateTime::parse_from_rfc3339(cd).ok().map(|dt| dt.to_utc()))?
     }
 
-    pub fn name(&self) -> String {
-        self.data.read().unwrap().name.to_string()
-    }
-
     /// Refresh the `Character` schema from API.
     pub fn refresh_data(&self) {
         if let Ok(resp) = self.api.get(&self.name()) {
@@ -505,12 +634,11 @@ impl BaseCharacter {
     pub fn update_data(&self, schema: &CharacterSchema) {
         self.data.write().unwrap().clone_from(schema)
     }
+}
 
-    /// Returns the `Character` position (coordinates).
-    pub fn position(&self) -> (i32, i32) {
-        let d = self.data.read().unwrap();
-        let (x, y) = (d.x, d.y);
-        (x, y)
+impl HasCharacterData for BaseCharacter {
+    fn data(&self) -> Arc<RwLock<CharacterSchema>> {
+        self.data.clone()
     }
 }
 

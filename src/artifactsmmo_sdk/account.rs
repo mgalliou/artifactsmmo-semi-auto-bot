@@ -1,11 +1,5 @@
 use super::{
-    api::{characters::CharactersApi, my_character::MyCharacterApi},
-    bank::Bank,
-    character::Character,
-    game::Game,
-    game_config::GameConfig,
-    items::{ItemSource, Items},
-    skill::Skill,
+    api::{characters::CharactersApi, my_character::MyCharacterApi}, bank::Bank, base_character::HasCharacterData, character::Character, game::Game, game_config::GameConfig, items::{ItemSource, Items}, skill::Skill
 };
 use artifactsmmo_openapi::{
     apis::configuration::Configuration,
@@ -75,7 +69,7 @@ impl Account {
             .read()
             .unwrap()
             .iter()
-            .find(|c| c.base.name() == name)
+            .find(|c| c.name() == name)
             .cloned()
     }
 

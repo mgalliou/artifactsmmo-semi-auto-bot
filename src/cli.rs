@@ -1,4 +1,4 @@
-use crate::artifactsmmo_sdk::{self, events::EventSchemaExt};
+use crate::artifactsmmo_sdk::{self, base_character::HasCharacterData, events::EventSchemaExt};
 use anyhow::{bail, Result};
 use artifactsmmo_sdk::{
     character::{Character, PostCraftAction},
@@ -21,7 +21,7 @@ pub fn run_cli(game: &Game) -> Result<()> {
                 "{} >> ",
                 chars
                     .as_ref()
-                    .map(|c| c.base.name().to_string())
+                    .map(|c| c.name().to_string())
                     .unwrap_or("none".to_string())
             )
             .as_str(),

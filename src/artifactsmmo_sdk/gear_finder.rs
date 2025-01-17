@@ -1,9 +1,5 @@
 use super::{
-    character::Character,
-    fight_simulator::FightSimulator,
-    gear::Gear,
-    items::{ItemSchemaExt, Items, Type},
-    skill::Skill,
+    base_character::HasCharacterData, character::Character, fight_simulator::FightSimulator, gear::Gear, items::{ItemSchemaExt, Items, Type}, skill::Skill
 };
 use anyhow::bail;
 use artifactsmmo_openapi::models::{FightResult, ItemSchema, MonsterSchema};
@@ -626,7 +622,7 @@ mod tests {
         let items = Arc::new(Items::new(&config, &resources, &monsters, &tasks));
         let gear_finder = GearFinder::new(&items);
         let char = Character::default();
-        char.base.data.write().unwrap().level = 30;
+        char.data().write().unwrap().level = 30;
 
         let weapons = gear_finder.best_weapons_against(
             &char,
