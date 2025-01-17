@@ -1,10 +1,9 @@
+use crate::char::{Character, HasCharacterData, Skill};
+
 use super::{
-    base_character::HasCharacterData,
-    character::Character,
     fight_simulator::FightSimulator,
     gear::Gear,
     items::{ItemSchemaExt, Items, Type},
-    skill::Skill,
 };
 use artifactsmmo_openapi::models::{FightResult, ItemSchema, MonsterSchema};
 use itertools::Itertools;

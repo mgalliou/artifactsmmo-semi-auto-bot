@@ -1,14 +1,12 @@
 use anyhow::{bail, Result};
 use artifactsmmo_sdk::{
     self,
-    base_character::HasCharacterData,
-    character::{Character, PostCraftAction},
+    char::{character::PostCraftAction, Character, HasCharacterData, Skill},
     events::EventSchemaExt,
     fight_simulator::FightSimulator,
     game::Game,
     gear_finder::Filter,
     orderboard::Purpose,
-    skill::Skill,
 };
 use clap::{value_parser, Parser, Subcommand};
 use rustyline::{error::ReadlineError, DefaultEditor};

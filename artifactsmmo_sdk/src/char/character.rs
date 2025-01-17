@@ -1,15 +1,19 @@
 use super::{
+    base_character::{BaseCharacter, RequestError},
+    skill::Skill,
+    HasCharacterData,
+};
+use crate::{
     account::Account,
     bank::Bank,
-    base_character::{BaseCharacter, HasCharacterData, RequestError},
-    char_config::CharConfig,
+    char::base_character::HasDrops,
     consts::{
         BANK_MIN_FREE_SLOT, CRAFT_TIME, GIFT, MAX_LEVEL, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
         TASKS_COIN, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE,
     },
     fight_simulator::FightSimulator,
     game::Game,
-    game_config::GameConfig,
+    game_config::{CharConfig, GameConfig, Goal},
     gear::{Gear, Slot},
     gear_finder::{Filter, GearFinder},
     inventory::Inventory,
@@ -19,9 +23,7 @@ use super::{
     monsters::Monsters,
     orderboard::{Order, OrderBoard, Purpose},
     resources::Resources,
-    skill::Skill,
 };
-use crate::{base_character::HasDrops, char_config::Goal};
 use artifactsmmo_openapi::models::{
     CharacterSchema, FightResult, FightSchema, ItemSchema, MapContentSchema, MapSchema,
     MonsterSchema, RecyclingItemsSchema, ResourceSchema, RewardsSchema, SimpleItemSchema,
@@ -1217,7 +1219,8 @@ impl Character {
         }
         self.move_to_craft(item)?;
         let result = self.base.action_recycle(item, quantity);
-        self.inventory.decrease_reservation(&self.base.task(), quantity);
+        self.inventory
+            .decrease_reservation(&self.base.task(), quantity);
         Ok(result?)
     }
 
@@ -1251,7 +1254,8 @@ impl Character {
             self.withdraw_item(item, missing_quantity)?;
         }
         let result = self.base.action_delete(item, quantity);
-        self.inventory.decrease_reservation(&self.base.task(), quantity);
+        self.inventory
+            .decrease_reservation(&self.base.task(), quantity);
         Ok(result?)
     }
 

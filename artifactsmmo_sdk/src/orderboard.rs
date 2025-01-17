@@ -9,7 +9,9 @@ use strum::IntoEnumIterator;
 use strum_macros::{EnumIs, EnumIter};
 use thiserror::Error;
 
-use super::{account::Account, gear::Slot, items::Items, skill::Skill};
+use crate::char::skill::Skill;
+
+use super::{account::Account, gear::Slot, items::Items};
 
 #[derive(Default)]
 pub struct OrderBoard {

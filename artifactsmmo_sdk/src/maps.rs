@@ -1,4 +1,6 @@
-use super::{api::maps::MapsApi, events::Events, game_config::GameConfig, skill::Skill};
+use crate::char::Skill;
+
+use super::{api::maps::MapsApi, events::Events, game_config::GameConfig};
 use artifactsmmo_openapi::models::{ActiveEventSchema, MapContentSchema, MapSchema};
 use chrono::{DateTime, Utc};
 use std::{

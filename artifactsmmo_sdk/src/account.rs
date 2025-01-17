@@ -1,6 +1,12 @@
 use super::{
-    api::{characters::CharactersApi, my_character::MyCharacterApi}, bank::Bank, base_character::HasCharacterData, character::Character, game::Game, game_config::GameConfig, items::{ItemSource, Items}, skill::Skill
+    api::{characters::CharactersApi, my_character::MyCharacterApi},
+    bank::Bank,
+    char::HasCharacterData,
+    game::Game,
+    game_config::GameConfig,
+    items::{ItemSource, Items},
 };
+use crate::char::{Character, Skill};
 use artifactsmmo_openapi::{
     apis::configuration::Configuration,
     models::{CharacterSchema, SimpleItemSchema},
@@ -45,9 +51,7 @@ impl Account {
             .get_characters_data()
             .iter()
             .enumerate()
-            .map(|(id, data)| {
-                Arc::new(Character::new(id, data, game))
-            })
+            .map(|(id, data)| Arc::new(Character::new(id, data, game)))
             .collect_vec()
     }
 

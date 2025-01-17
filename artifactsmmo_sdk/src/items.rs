@@ -1,3 +1,5 @@
+use crate::char::Skill;
+
 use super::consts::{
     ASTRALYTE_CRYSTAL, DIAMOND, ENCHANTED_FABRIC, FOOD_BLACK_LIST, JASPER_CRYSTAL, MAGICAL_CURE,
     TASKS_COIN,
@@ -7,7 +9,6 @@ use super::game_config::GameConfig;
 use super::gear::Slot;
 use super::monsters::MonsterSchemaExt;
 use super::resources::ResourceSchemaExt;
-use super::skill::Skill;
 use super::tasks::Tasks;
 use super::{api::items::ItemsApi, monsters::Monsters, resources::Resources};
 use super::{persist_data, retreive_data};

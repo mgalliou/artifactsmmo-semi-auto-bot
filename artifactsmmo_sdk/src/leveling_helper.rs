@@ -1,5 +1,11 @@
+use crate::char::{Character, HasCharacterData, Skill};
+
 use super::{
-    account::Account, base_character::HasCharacterData, character::Character, items::{ItemSchemaExt, Items}, maps::Maps, monsters::Monsters, resources::Resources, skill::Skill
+    account::Account,
+    items::{ItemSchemaExt, Items},
+    maps::Maps,
+    monsters::Monsters,
+    resources::Resources,
 };
 use artifactsmmo_openapi::models::{ItemSchema, MonsterSchema, ResourceSchema};
 use itertools::Itertools;
@@ -151,7 +157,11 @@ impl LevelingHelper {
                 let mats_with_ttg = self
                     .account
                     .bank
-                    .missing_mats_for(&i.code, char.max_craftable_items(&i.code), Some(&char.name()))
+                    .missing_mats_for(
+                        &i.code,
+                        char.max_craftable_items(&i.code),
+                        Some(&char.name()),
+                    )
                     .into_iter()
                     .par_bridge()
                     .map(|m| (m.clone(), self.account.time_to_get(&m.code)))

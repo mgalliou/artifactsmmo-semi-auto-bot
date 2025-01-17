@@ -5,12 +5,12 @@ use std::{
     path::Path,
 };
 
+pub use game::Game;
+
 pub mod account;
 pub mod api;
 pub mod bank;
-pub mod char_config;
-pub mod character;
-pub mod base_character;
+pub mod char;
 pub mod consts;
 pub mod events;
 pub mod fight_simulator;
@@ -25,7 +25,6 @@ pub mod maps;
 pub mod monsters;
 pub mod orderboard;
 pub mod resources;
-pub mod skill;
 pub mod tasks;
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
