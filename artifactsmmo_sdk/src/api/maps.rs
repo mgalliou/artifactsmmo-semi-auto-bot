@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use artifactsmmo_openapi::{
     apis::{
         configuration::Configuration,
@@ -10,16 +12,13 @@ use artifactsmmo_openapi::{
     models::{MapContentType, MapResponseSchema, MapSchema},
 };
 
-#[derive(Default)]
 pub struct MapsApi {
-    configuration: Configuration,
+    configuration: Arc<Configuration>,
 }
 
 impl MapsApi {
-    pub fn new(base_path: &str) -> MapsApi {
-        let mut configuration = Configuration::new();
-        configuration.base_path = base_path.to_owned();
-        MapsApi { configuration }
+    pub fn new(configuration: Arc<Configuration>) -> Self {
+        Self { configuration }
     }
 
     pub fn all(

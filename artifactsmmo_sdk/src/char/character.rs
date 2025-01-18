@@ -46,8 +46,8 @@ pub struct Character {
 }
 
 impl Character {
-    pub fn new(id: usize, data: &Arc<RwLock<CharacterSchema>>) -> Character {
-        Character {
+    pub fn new(id: usize, data: &Arc<RwLock<CharacterSchema>>) -> Self {
+        Self {
             id,
             base: BaseCharacter::new(data),
             inventory: Arc::new(Inventory::new(data)),

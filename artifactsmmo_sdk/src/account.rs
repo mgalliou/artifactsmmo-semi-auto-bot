@@ -1,8 +1,5 @@
 use crate::{
-    api::{CharactersApi, MyCharacterApi},
-    char::{Character, HasCharacterData, Skill},
-    game_config::GAME_CONFIG,
-    items::{ItemSource, ITEMS},
+    char::{Character, HasCharacterData, Skill}, game_config::GAME_CONFIG, items::ItemSource, API, ITEMS
 };
 use artifactsmmo_openapi::{
     apis::configuration::Configuration,
@@ -19,8 +16,6 @@ lazy_static! {
 #[derive(Default)]
 pub struct Account {
     pub configuration: Configuration,
-    pub character_api: CharactersApi,
-    pub my_characters_api: MyCharacterApi,
     pub characters: RwLock<Vec<Arc<Character>>>,
 }
 
@@ -29,11 +24,8 @@ impl Account {
         let mut configuration = Configuration::new();
         configuration.base_path = GAME_CONFIG.base_url.to_owned();
         configuration.bearer_access_token = Some(GAME_CONFIG.token.to_owned());
-        let my_characters_api = MyCharacterApi::new(&GAME_CONFIG.base_url, &GAME_CONFIG.token);
         let account = Account {
             configuration,
-            character_api: CharactersApi::new(&GAME_CONFIG.base_url, &GAME_CONFIG.token),
-            my_characters_api,
             characters: RwLock::new(vec![]),
         };
         account.init_characters();
@@ -166,11 +158,7 @@ impl Account {
     }
 
     fn get_characters_data(&self) -> Vec<Arc<RwLock<CharacterSchema>>> {
-        let my_characters_api = MyCharacterApi::new(
-            &self.configuration.base_path,
-            &self.configuration.bearer_access_token.clone().unwrap(),
-        );
-        my_characters_api
+        API.my_character
             .characters()
             .unwrap()
             .data

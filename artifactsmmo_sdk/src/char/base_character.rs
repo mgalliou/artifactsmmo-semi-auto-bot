@@ -1,12 +1,10 @@
 use crate::{
-    api::{characters::CharactersApi, my_character::MyCharacterApi},
     char::{action::Action, HasCharacterData},
     consts::BANK_EXTENSION_SIZE,
     game::SERVER,
-    game_config::GAME_CONFIG,
     gear::Slot,
     maps::MapSchemaExt,
-    ApiErrorResponseSchema, BANK,
+    ApiErrorResponseSchema, API, BANK,
 };
 use artifactsmmo_openapi::{
     apis::Error,
@@ -39,17 +37,11 @@ use thiserror::Error;
 #[derive(Default)]
 pub struct BaseCharacter {
     data: Arc<RwLock<CharacterSchema>>,
-    api: CharactersApi,
-    my_api: MyCharacterApi,
 }
 
 impl BaseCharacter {
     pub fn new(data: &Arc<RwLock<CharacterSchema>>) -> Self {
-        Self {
-            data: data.clone(),
-            api: CharactersApi::new(&GAME_CONFIG.base_url, &GAME_CONFIG.token),
-            my_api: MyCharacterApi::new(&GAME_CONFIG.base_url, &GAME_CONFIG.token),
-        }
+        Self { data: data.clone() }
     }
 
     fn request_action(&self, action: Action) -> Result<Box<dyn ResponseSchema>, RequestError> {
@@ -64,68 +56,68 @@ impl BaseCharacter {
             bank_details = Some(BANK.details.write().expect("bank_details to be writable"));
         }
         let res: Result<Box<dyn ResponseSchema>, RequestError> = match action {
-            Action::Move { x, y } => self
-                .my_api
+            Action::Move { x, y } => API
+                .my_character
                 .move_to(&self.name(), x, y)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
-            Action::Fight => self
-                .my_api
+            Action::Fight => API
+                .my_character
                 .fight(&self.name())
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
-            Action::Rest => self
-                .my_api
+            Action::Rest => API
+                .my_character
                 .rest(&self.name())
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
-            Action::UseItem { item, quantity } => self
-                .my_api
+            Action::UseItem { item, quantity } => API
+                .my_character
                 .use_item(&self.name(), item, quantity)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
-            Action::Gather => self
-                .my_api
+            Action::Gather => API
+                .my_character
                 .gather(&self.name())
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
-            Action::Craft { item, quantity } => self
-                .my_api
+            Action::Craft { item, quantity } => API
+                .my_character
                 .craft(&self.name(), item, quantity)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
-            Action::Recycle { item, quantity } => self
-                .my_api
+            Action::Recycle { item, quantity } => API
+                .my_character
                 .recycle(&self.name(), item, quantity)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
-            Action::Delete { item, quantity } => self
-                .my_api
+            Action::Delete { item, quantity } => API
+                .my_character
                 .delete(&self.name(), item, quantity)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
-            Action::Deposit { item, quantity } => self
-                .my_api
+            Action::Deposit { item, quantity } => API
+                .my_character
                 .deposit(&self.name(), item, quantity)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
-            Action::Withdraw { item, quantity } => self
-                .my_api
+            Action::Withdraw { item, quantity } => API
+                .my_character
                 .withdraw(&self.name(), item, quantity)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
-            Action::DepositGold { quantity } => self
-                .my_api
+            Action::DepositGold { quantity } => API
+                .my_character
                 .deposit_gold(&self.name(), quantity)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
-            Action::WithdrawGold { quantity } => self
-                .my_api
+            Action::WithdrawGold { quantity } => API
+                .my_character
                 .withdraw_gold(&self.name(), quantity)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
-            Action::ExpandBank => self
-                .my_api
+            Action::ExpandBank => API
+                .my_character
                 .expand_bank(&self.name())
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
@@ -133,44 +125,44 @@ impl BaseCharacter {
                 item,
                 slot,
                 quantity,
-            } => self
-                .my_api
+            } => API
+                .my_character
                 .equip(&self.name(), item, slot.into(), Some(quantity))
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
             Action::Unequip { slot, quantity } => {
-                self.my_api
+                API.my_character
                     .unequip(&self.name(), slot.into(), Some(quantity))
             }
             .map(|r| r.into())
             .map_err(|e| e.into()),
-            Action::AcceptTask => self
-                .my_api
+            Action::AcceptTask => API
+                .my_character
                 .accept_task(&self.name())
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
-            Action::TaskTrade { item, quantity } => self
-                .my_api
+            Action::TaskTrade { item, quantity } => API
+                .my_character
                 .trade_task(&self.name(), item, quantity)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
-            Action::CompleteTask => self
-                .my_api
+            Action::CompleteTask => API
+                .my_character
                 .complete_task(&self.name())
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
-            Action::CancelTask => self
-                .my_api
+            Action::CancelTask => API
+                .my_character
                 .cancel_task(&self.name())
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
-            Action::TaskExchange => self
-                .my_api
+            Action::TaskExchange => API
+                .my_character
                 .task_exchange(&self.name())
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
-            Action::ChristmasExchange => self
-                .my_api
+            Action::ChristmasExchange => API
+                .my_character
                 .christmas_exchange(&self.name())
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
@@ -471,7 +463,7 @@ impl BaseCharacter {
 
     /// Refresh the `Character` schema from API.
     pub fn refresh_data(&self) {
-        let Ok(resp) = self.api.get(&self.name()) else {
+        let Ok(resp) = API.character.get(&self.name()) else {
             return;
         };
         self.update_data(&resp.data)

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use artifactsmmo_openapi::{
     apis::{
         configuration::Configuration,
@@ -10,15 +12,12 @@ use artifactsmmo_openapi::{
     models::{ActiveEventSchema, EventSchema},
 };
 
-#[derive(Default)]
 pub struct EventsApi {
-    pub configuration: Configuration,
+    pub configuration: Arc<Configuration>,
 }
 
 impl EventsApi {
-    pub fn new(base_path: &str) -> Self {
-        let mut configuration = Configuration::new();
-        configuration.base_path = base_path.to_owned();
+    pub fn new(configuration: Arc<Configuration>) -> Self {
         EventsApi { configuration }
     }
 

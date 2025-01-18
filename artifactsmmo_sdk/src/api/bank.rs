@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use artifactsmmo_openapi::{
     apis::{
         configuration::Configuration,
@@ -11,15 +13,14 @@ use artifactsmmo_openapi::{
 };
 
 pub struct BankApi {
-    configuration: Configuration,
+    configuration: Arc<Configuration>,
 }
 
 impl BankApi {
-    pub fn new(base_path: &str, token: &str) -> BankApi {
-        let mut configuration = Configuration::new();
-        configuration.base_path = base_path.to_owned();
-        configuration.bearer_access_token = Some(token.to_owned());
-        BankApi { configuration }
+    pub fn new(configuration: Arc<Configuration>) -> Self {
+        BankApi {
+            configuration,
+        }
     }
 
     pub fn details(&self) -> Result<BankResponseSchema, Error<GetBankDetailsMyBankGetError>> {

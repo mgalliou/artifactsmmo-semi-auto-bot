@@ -1,4 +1,4 @@
-use crate::{api::ResourcesApi, events::EVENTS, game_config::GAME_CONFIG, persist_data};
+use crate::{events::EVENTS, persist_data, API};
 use artifactsmmo_openapi::models::ResourceSchema;
 use lazy_static::lazy_static;
 use log::error;
@@ -15,13 +15,13 @@ pub struct Resources {
 
 impl Resources {
     fn new() -> Self {
-        let api = ResourcesApi::new(&GAME_CONFIG.base_url);
         let path = Path::new(".cache/resources.json");
         let data = if path.exists() {
             let content = read_to_string(path).unwrap();
             serde_json::from_str(&content).unwrap()
         } else {
-            let data = api
+            let data = API
+                .resources
                 .all(None, None, None, None)
                 .expect("items to be retrieved from API.");
             if let Err(e) = persist_data(&data, path) {

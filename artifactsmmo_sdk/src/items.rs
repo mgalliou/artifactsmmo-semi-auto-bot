@@ -1,18 +1,16 @@
 use crate::{
-    api::ItemsApi,
     char::Skill,
     consts::{
         ASTRALYTE_CRYSTAL, DIAMOND, ENCHANTED_FABRIC, FOOD_BLACK_LIST, JASPER_CRYSTAL,
         MAGICAL_CURE, TASKS_COIN,
     },
-    game_config::GAME_CONFIG,
     gear::Slot,
     monsters::{MonsterSchemaExt, MONSTERS},
     persist_data,
     resources::{ResourceSchemaExt, RESOURCES},
     retreive_data,
     tasks::TASKS,
-    FightSimulator,
+    FightSimulator, API,
 };
 use artifactsmmo_openapi::models::{
     CraftSchema, ItemEffectSchema, ItemSchema, MonsterSchema, ResourceSchema, SimpleItemSchema,
@@ -35,12 +33,12 @@ pub struct Items {
 
 impl Items {
     fn new() -> Items {
-        let api = ItemsApi::new(&GAME_CONFIG.base_url);
         let path = Path::new(".cache/items.json");
         let data = if let Ok(data) = retreive_data(path) {
             data
         } else {
-            let data = api
+            let data = API
+                .items
                 .all(None, None, None, None, None, None)
                 .expect("items to be retrieved from API.")
                 .into_iter()

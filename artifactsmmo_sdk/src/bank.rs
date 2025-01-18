@@ -1,7 +1,6 @@
 use crate::{
-    api::BankApi,
-    game_config::GAME_CONFIG,
     items::{ItemSchemaExt, ITEMS},
+    API,
 };
 use artifactsmmo_openapi::models::{BankSchema, ItemSchema, SimpleItemSchema};
 use itertools::Itertools;
@@ -28,11 +27,10 @@ pub struct Bank {
 
 impl Bank {
     pub fn new() -> Self {
-        let api = BankApi::new(&GAME_CONFIG.base_url, &GAME_CONFIG.token);
         Self {
             browsed: RwLock::new(()),
-            details: RwLock::new(*api.details().unwrap().data),
-            content: RwLock::new(api.items(None).unwrap()),
+            details: RwLock::new(*API.bank.details().unwrap().data),
+            content: RwLock::new(API.bank.items(None).unwrap()),
             reservations: RwLock::new(vec![]),
             being_expanded: RwLock::new(()),
         }

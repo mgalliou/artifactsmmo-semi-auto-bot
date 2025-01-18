@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use artifactsmmo_openapi::{
     apis::{
         configuration::Configuration,
@@ -53,16 +55,12 @@ use artifactsmmo_openapi::{
     },
 };
 
-#[derive(Default, Clone)]
 pub struct MyCharacterApi {
-    pub configuration: Configuration,
+    configuration: Arc<Configuration>,
 }
 
 impl MyCharacterApi {
-    pub fn new(base_path: &str, token: &str) -> MyCharacterApi {
-        let mut configuration = Configuration::new();
-        configuration.base_path = base_path.to_owned();
-        configuration.bearer_access_token = Some(token.to_owned());
+    pub fn new(configuration: Arc<Configuration>) -> Self {
         MyCharacterApi { configuration }
     }
 

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use artifactsmmo_openapi::{
     apis::{
         configuration::Configuration,
@@ -11,14 +13,12 @@ use artifactsmmo_openapi::{
 };
 
 pub struct ResourcesApi {
-    configuration: Configuration,
+    configuration: Arc<Configuration>,
 }
 
 impl ResourcesApi {
-    pub fn new(base_path: &str) -> ResourcesApi {
-        let mut configuration = Configuration::new();
-        configuration.base_path = base_path.to_owned();
-        ResourcesApi { configuration }
+    pub fn new(configuration: Arc<Configuration>) -> Self {
+        Self { configuration }
     }
 
     pub fn all(

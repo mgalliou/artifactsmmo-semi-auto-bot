@@ -1,4 +1,4 @@
-use crate::{api::TasksApi, game_config::GAME_CONFIG, persist_data, retreive_data};
+use crate::{persist_data, retreive_data, API};
 use artifactsmmo_openapi::models::{DropRateSchema, TaskFullSchema};
 use lazy_static::lazy_static;
 use log::error;
@@ -10,19 +10,18 @@ lazy_static! {
 
 #[derive(Default)]
 pub struct Tasks {
-    pub api: TasksApi,
     pub list: Vec<TaskFullSchema>,
     pub rewards: Vec<DropRateSchema>,
 }
 
 impl Tasks {
     fn new() -> Self {
-        let api = TasksApi::new(&GAME_CONFIG.base_url);
         let tasks_path = Path::new(".cache/tasks.json");
         let list = if let Ok(data) = retreive_data::<Vec<TaskFullSchema>>(tasks_path) {
             data
         } else {
-            let data = api
+            let data = API
+                .tasks
                 .all(None, None, None, None)
                 .expect("items to be retrieved from API.");
             if let Err(e) = persist_data(&data, tasks_path) {
@@ -34,12 +33,15 @@ impl Tasks {
         let rewards = if let Ok(data) = retreive_data::<Vec<DropRateSchema>>(rewards_path) {
             data
         } else {
-            let data = api.rewards().expect("items to be retrieved from API.");
+            let data = API
+                .tasks
+                .rewards()
+                .expect("items to be retrieved from API.");
             if let Err(e) = persist_data(&data, rewards_path) {
                 error!("failed to persist tasks reward data: {}", e);
             }
             data
         };
-        Self { list, rewards, api }
+        Self { list, rewards }
     }
 }

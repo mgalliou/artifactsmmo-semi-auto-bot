@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use artifactsmmo_openapi::{
     apis::{
         characters_api::{get_character_characters_name_get, GetCharacterCharactersNameGetError},
@@ -7,17 +9,13 @@ use artifactsmmo_openapi::{
     models::CharacterResponseSchema,
 };
 
-#[derive(Default, Clone)]
 pub struct CharactersApi {
-    pub configuration: Configuration,
+    pub configuration: Arc<Configuration>,
 }
 
 impl CharactersApi {
-    pub fn new(base_path: &str, token: &str) -> CharactersApi {
-        let mut configuration = Configuration::new();
-        configuration.base_path = base_path.to_owned();
-        configuration.bearer_access_token = Some(token.to_owned());
-        CharactersApi { configuration }
+    pub fn new(configuration: Arc<Configuration>) -> Self {
+        Self { configuration }
     }
 
     pub fn get(

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use artifactsmmo_openapi::{
     apis::{
         configuration::Configuration,
@@ -10,15 +12,12 @@ use artifactsmmo_openapi::{
     models::{DropRateSchema, Skill, TaskFullSchema, TaskType},
 };
 
-#[derive(Default)]
 pub struct TasksApi {
-    pub configuration: Configuration,
+    pub configuration: Arc<Configuration>,
 }
 
 impl TasksApi {
-    pub fn new(base_path: &str) -> Self {
-        let mut configuration = Configuration::new();
-        configuration.base_path = base_path.to_owned();
+    pub fn new(configuration: Arc<Configuration>) -> Self {
         Self { configuration }
     }
 

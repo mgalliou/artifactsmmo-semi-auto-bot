@@ -1,5 +1,5 @@
 use crate::{
-    api::EventsApi, game_config::GAME_CONFIG, maps::MapSchemaExt, persist_data, retreive_data,
+    maps::MapSchemaExt, persist_data, retreive_data, API,
 };
 use artifactsmmo_openapi::models::{ActiveEventSchema, EventSchema, MapSchema};
 use chrono::{DateTime, Duration, Utc};
@@ -16,7 +16,6 @@ lazy_static! {
 }
 
 pub struct Events {
-    api: EventsApi,
     pub data: Vec<EventSchema>,
     pub active: Arc<RwLock<Vec<ActiveEventSchema>>>,
     last_refresh: RwLock<DateTime<Utc>>,
@@ -24,19 +23,17 @@ pub struct Events {
 
 impl Events {
     fn new() -> Self {
-        let api = EventsApi::new(&GAME_CONFIG.base_url);
         let path = Path::new(".cache/events.json");
         let data = if let Ok(data) = retreive_data::<Vec<EventSchema>>(path) {
             data
         } else {
-            let data = api.all().expect("items to be retrieved from API.");
+            let data = API.events.all().expect("items to be retrieved from API.");
             if let Err(e) = persist_data(&data, path) {
                 error!("failed to persist items data: {}", e);
             }
             data
         };
         let events = Self {
-            api,
             data,
             active: Arc::new(RwLock::new(vec![])),
             last_refresh: RwLock::new(DateTime::<Utc>::MIN_UTC),
@@ -62,7 +59,7 @@ impl Events {
         // NOTE: keep `events` locked before updating last refresh
         let mut events = self.active.write().unwrap();
         self.update_last_refresh(now);
-        if let Ok(new) = self.api.active() {
+        if let Ok(new) = API.events.active() {
             *events = new;
             debug!("events refreshed.");
         }

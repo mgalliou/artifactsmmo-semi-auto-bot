@@ -1,6 +1,6 @@
 use crate::{
-    api::monsters::MonstersApi, events::EVENTS, game_config::GAME_CONFIG, items::DamageType,
-    persist_data, retreive_data,
+    events::EVENTS, items::DamageType,
+    persist_data, retreive_data, API,
 };
 use artifactsmmo_openapi::models::MonsterSchema;
 use lazy_static::lazy_static;
@@ -18,12 +18,11 @@ pub struct Monsters {
 
 impl Monsters {
     fn new() -> Monsters {
-        let api = MonstersApi::new(GAME_CONFIG.token.as_str());
         let path = Path::new(".cache/monsters.json");
         let data = if let Ok(data) = retreive_data::<Vec<MonsterSchema>>(path) {
             data
         } else {
-            let data = api
+            let data = API.monsters
                 .all(None, None, None)
                 .expect("items to be retrieved from API.");
             if let Err(e) = persist_data(&data, path) {

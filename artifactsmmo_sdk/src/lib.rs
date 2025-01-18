@@ -1,4 +1,7 @@
+use api::ArtifactApi;
 use fs_extra::file::{read_to_string, write_all};
+use game_config::GAME_CONFIG;
+use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{self, Display, Formatter},
@@ -9,8 +12,8 @@ pub use account::ACCOUNT;
 pub use bank::BANK;
 pub use fight_simulator::FightSimulator;
 pub use game::GAME;
-pub use items::ITEMS;
 pub use game_config::{CharConfig, GameConfig, Goal};
+pub use items::ITEMS;
 pub use leveling_helper::LevelingHelper;
 pub use maps::MAPS;
 pub use monsters::MONSTERS;
@@ -34,6 +37,10 @@ pub mod monsters;
 pub mod orderboard;
 pub mod resources;
 pub mod tasks;
+
+lazy_static! {
+    pub static ref API: ArtifactApi = ArtifactApi::new(&GAME_CONFIG.base_url, &GAME_CONFIG.token);
+}
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ApiErrorResponseSchema {

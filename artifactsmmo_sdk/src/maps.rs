@@ -1,4 +1,4 @@
-use crate::{api::MapsApi, char::Skill, events::EVENTS, game_config::GAME_CONFIG};
+use crate::{char::Skill, events::EVENTS, API};
 use artifactsmmo_openapi::models::{ActiveEventSchema, MapContentSchema, MapSchema};
 use chrono::{DateTime, Utc};
 use lazy_static::lazy_static;
@@ -21,7 +21,8 @@ pub struct Maps {
 impl Maps {
     pub fn new() -> Maps {
         Maps {
-            data: MapsApi::new(&GAME_CONFIG.base_url)
+            data: API
+                .maps
                 .all(None, None)
                 .expect("maps to be retrieved from API.")
                 .into_iter()
