@@ -2,10 +2,11 @@ use anyhow::{bail, Result};
 use artifactsmmo_sdk::{
     char::{character::PostCraftAction, Character, HasCharacterData, Skill},
     events::{EventSchemaExt, EVENTS},
-    fight_simulator::FightSimulator,
-    gear_finder::Filter,
-    orderboard::Purpose,
-    ACCOUNT, BANK, GAME, ITEMS, MAPS, MONSTERS,
+    fight_simulator::FIGHT_SIMULATOR,
+    gear_finder::{Filter, GEAR_FINDER},
+    leveling_helper::LEVELING_HELPER,
+    orderboard::{Purpose, ORDER_BOARD},
+    ACCOUNT, BANK, ITEMS, MAPS, MONSTERS,
 };
 use clap::{value_parser, Parser, Subcommand};
 use rustyline::{error::ReadlineError, DefaultEditor};
@@ -52,17 +53,17 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>) -> Result<()> {
     match Cli::try_parse_from(line.split_whitespace())?.command {
         Commands::Orderboard { action } => match action {
             OrderboardAction::Add { item, quantity } => {
-                GAME.orderboard.add(None, &item, quantity, Purpose::Cli)?;
+                ORDER_BOARD.add(None, &item, quantity, Purpose::Cli)?;
             }
             OrderboardAction::Remove { item } => {
-                let Some(o) = GAME.orderboard.get(None, &item, &Purpose::Cli) else {
+                let Some(o) = ORDER_BOARD.get(None, &item, &Purpose::Cli) else {
                     bail!("order not found");
                 };
-                GAME.orderboard.remove(&o)?
+                ORDER_BOARD.remove(&o)?
             }
             OrderboardAction::List => {
                 println!("orders (by priority):");
-                GAME.orderboard.orders_by_priority().iter().for_each(|o| {
+                ORDER_BOARD.orders_by_priority().iter().for_each(|o| {
                     println!(
                         "{}, in inventory: {}",
                         o,
@@ -100,7 +101,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>) -> Result<()> {
                 println!(
                     "best {} craft: {:?}",
                     skill,
-                    GAME.leveling_helper
+                    LEVELING_HELPER
                         .best_craft(char.skill_level(skill), skill, char)
                         .map(|i| i.name.clone())
                         .unwrap_or("none".to_string())
@@ -111,7 +112,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>) -> Result<()> {
                     bail!("no character selected");
                 };
                 println!("best {} crafts:", skill);
-                GAME.leveling_helper
+                LEVELING_HELPER
                     .best_crafts(char.skill_level(skill), skill)
                     .iter()
                     .for_each(|i| println!("{}", i.name))
@@ -193,9 +194,9 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>) -> Result<()> {
             println!(
                 "{}",
                 if winning {
-                    GAME.gear_finder.best_winning_against(char, monster, filter)
+                    GEAR_FINDER.best_winning_against(char, monster, filter)
                 } else {
-                    GAME.gear_finder.best_against(char, monster, filter)
+                    GEAR_FINDER.best_against(char, monster, filter)
                 }
             );
         }
@@ -224,9 +225,9 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>) -> Result<()> {
                 utilities,
             };
             let gear = if winning {
-                GAME.gear_finder.best_winning_against(char, monster, filter)
+                GEAR_FINDER.best_winning_against(char, monster, filter)
             } else {
-                GAME.gear_finder.best_against(
+                GEAR_FINDER.best_against(
                     char,
                     monster,
                     Filter {
@@ -240,7 +241,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>) -> Result<()> {
                 )
             };
             println!("{}", gear);
-            let fight = FightSimulator::new().simulate(char.level(), 0, &gear, monster, true);
+            let fight = FIGHT_SIMULATOR.simulate(char.level(), 0, &gear, monster, true);
             println!("{:?}", fight)
         }
         Commands::Deposit { item, quantity } => {
