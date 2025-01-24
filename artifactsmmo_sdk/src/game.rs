@@ -8,17 +8,14 @@ use artifactsmmo_openapi::{
     models::StatusResponseSchema,
 };
 use chrono::{DateTime, TimeDelta, Utc};
-use lazy_static::lazy_static;
 use log::{debug, error};
 use std::{
-    sync::{Arc, RwLock},
+    sync::{LazyLock, RwLock},
     thread::{sleep, Builder},
     time::Duration,
 };
 
-lazy_static! {
-    pub static ref GAME: Arc<Game> = Arc::new(Game::new());
-}
+pub static GAME: LazyLock<Game> = LazyLock::new(Game::new);
 
 pub struct Game {}
 
@@ -39,9 +36,7 @@ impl Game {
     }
 }
 
-lazy_static! {
-    pub static ref SERVER: Arc<Server> = Arc::new(Server::new());
-}
+pub static SERVER: LazyLock<Server> = LazyLock::new(Server::new);
 
 #[derive(Default)]
 pub struct Server {

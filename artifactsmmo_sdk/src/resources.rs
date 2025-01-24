@@ -1,11 +1,9 @@
+use std::sync::LazyLock;
+
 use crate::{events::EVENTS, PersistedData, API};
 use artifactsmmo_openapi::models::ResourceSchema;
-use lazy_static::lazy_static;
-use std::sync::Arc;
 
-lazy_static! {
-    pub static ref RESOURCES: Arc<Resources> = Arc::new(Resources::new());
-}
+pub static RESOURCES: LazyLock<Resources> = LazyLock::new(Resources::new);
 
 pub struct Resources(Vec<ResourceSchema>);
 

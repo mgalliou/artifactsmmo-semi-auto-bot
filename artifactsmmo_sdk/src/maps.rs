@@ -1,16 +1,13 @@
 use crate::{char::Skill, events::EVENTS, API};
 use artifactsmmo_openapi::models::{ActiveEventSchema, MapContentSchema, MapSchema};
 use chrono::{DateTime, Utc};
-use lazy_static::lazy_static;
 use std::{
     collections::HashMap,
-    sync::{Arc, RwLock},
+    sync::{Arc, LazyLock, RwLock},
 };
 use strum_macros::{AsRefStr, Display};
 
-lazy_static! {
-    pub static ref MAPS: Arc<Maps> = Arc::new(Maps::new());
-}
+pub static MAPS: LazyLock<Maps> = LazyLock::new(Maps::new);
 
 #[derive(Default)]
 pub struct Maps {
@@ -19,8 +16,8 @@ pub struct Maps {
 }
 
 impl Maps {
-    pub fn new() -> Maps {
-        Maps {
+    pub fn new() -> Self {
+        Self {
             data: API
                 .maps
                 .all(None, None)

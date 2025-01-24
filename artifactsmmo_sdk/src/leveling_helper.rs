@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::account::ACCOUNT;
 use crate::bank::BANK;
 use crate::items::ITEMS;
@@ -12,12 +10,10 @@ use crate::{
 };
 use artifactsmmo_openapi::models::{ItemSchema, MonsterSchema, ResourceSchema};
 use itertools::Itertools;
-use lazy_static::lazy_static;
 use rayon::iter::{ParallelBridge, ParallelIterator};
+use std::sync::LazyLock;
 
-lazy_static! {
-    pub static ref LEVELING_HELPER: Arc<LevelingHelper> = Arc::new(LevelingHelper::new());
-}
+pub static LEVELING_HELPER: LazyLock<LevelingHelper> = LazyLock::new(LevelingHelper::new);
 
 pub struct LevelingHelper {}
 

@@ -1,11 +1,8 @@
 use crate::{PersistedData, API};
 use artifactsmmo_openapi::models::DropRateSchema;
-use lazy_static::lazy_static;
-use std::sync::Arc;
+use std::sync::LazyLock;
 
-lazy_static! {
-    pub static ref TASKS_REWARDS: Arc<TasksRewards> = Arc::new(TasksRewards::new());
-}
+pub static TASKS_REWARDS: LazyLock<TasksRewards> = LazyLock::new(TasksRewards::new);
 
 pub struct TasksRewards(Vec<DropRateSchema>);
 

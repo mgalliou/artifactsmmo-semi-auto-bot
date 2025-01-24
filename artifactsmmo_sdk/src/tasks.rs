@@ -1,11 +1,8 @@
 use crate::{PersistedData, API};
 use artifactsmmo_openapi::models::TaskFullSchema;
-use lazy_static::lazy_static;
-use std::sync::Arc;
+use std::sync::LazyLock;
 
-lazy_static! {
-    pub static ref TASKS: Arc<Tasks> = Arc::new(Tasks::new());
-}
+pub static TASKS: LazyLock<Tasks> = LazyLock::new(Tasks::new);
 
 pub struct Tasks(Vec<TaskFullSchema>);
 

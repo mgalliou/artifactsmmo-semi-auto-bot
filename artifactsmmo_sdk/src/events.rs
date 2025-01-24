@@ -2,13 +2,10 @@ use crate::{maps::MapSchemaExt, PersistedData, API};
 use artifactsmmo_openapi::models::{ActiveEventSchema, EventSchema, MapSchema};
 use chrono::{DateTime, Duration, Utc};
 use itertools::Itertools;
-use lazy_static::lazy_static;
 use log::debug;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, LazyLock, RwLock};
 
-lazy_static! {
-    pub static ref EVENTS: Arc<Events> = Arc::new(Events::new());
-}
+pub static EVENTS: LazyLock<Events> = LazyLock::new(Events::new);
 
 pub struct Events {
     pub data: Vec<EventSchema>,

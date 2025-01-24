@@ -1,12 +1,12 @@
 use api::ArtifactApi;
 use fs_extra::file::{read_to_string, write_all};
 use game_config::GAME_CONFIG;
-use lazy_static::lazy_static;
 use log::error;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{self, Display, Formatter},
     path::Path,
+    sync::LazyLock,
 };
 
 pub use account::ACCOUNT;
@@ -40,9 +40,8 @@ pub mod resources;
 pub mod tasks;
 pub mod tasks_rewards;
 
-lazy_static! {
-    pub static ref API: ArtifactApi = ArtifactApi::new(&GAME_CONFIG.base_url, &GAME_CONFIG.token);
-}
+pub static API: LazyLock<ArtifactApi> =
+    LazyLock::new(|| ArtifactApi::new(&GAME_CONFIG.base_url, &GAME_CONFIG.token));
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ApiErrorResponseSchema {

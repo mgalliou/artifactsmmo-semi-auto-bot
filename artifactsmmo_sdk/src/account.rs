@@ -1,17 +1,17 @@
 use crate::{
-    char::{Character, HasCharacterData, Skill}, game_config::GAME_CONFIG, items::ItemSource, API, ITEMS
+    char::{Character, HasCharacterData, Skill},
+    game_config::GAME_CONFIG,
+    items::ItemSource,
+    API, ITEMS,
 };
 use artifactsmmo_openapi::{
     apis::configuration::Configuration,
     models::{CharacterSchema, SimpleItemSchema},
 };
 use itertools::Itertools;
-use lazy_static::lazy_static;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, LazyLock, RwLock};
 
-lazy_static! {
-    pub static ref ACCOUNT: Arc<Account> = Arc::new(Account::new());
-}
+pub static ACCOUNT: LazyLock<Account> = LazyLock::new(Account::new);
 
 #[derive(Default)]
 pub struct Account {

@@ -122,7 +122,6 @@ dependencies = [
  "figment",
  "fs_extra",
  "itertools",
- "lazy_static",
  "log",
  "ordered-float",
  "rayon",

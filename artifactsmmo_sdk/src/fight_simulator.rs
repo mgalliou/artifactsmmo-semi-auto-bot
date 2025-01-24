@@ -4,12 +4,9 @@ use crate::{
     items::ItemSchemaExt,
 };
 use artifactsmmo_openapi::models::{FightResult, MonsterSchema};
-use lazy_static::lazy_static;
-use std::{cmp::max, sync::Arc};
+use std::{cmp::max, sync::LazyLock};
 
-lazy_static! {
-    pub static ref FIGHT_SIMULATOR: Arc<FightSimulator> = Arc::new(FightSimulator::new());
-}
+pub static FIGHT_SIMULATOR: LazyLock<FightSimulator> = LazyLock::new(FightSimulator::new);
 
 pub struct FightSimulator {}
 

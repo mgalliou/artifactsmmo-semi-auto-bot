@@ -4,17 +4,14 @@ use crate::{
 };
 use artifactsmmo_openapi::models::{BankSchema, ItemSchema, SimpleItemSchema};
 use itertools::Itertools;
-use lazy_static::lazy_static;
 use log::info;
 use std::{
     cmp::max,
     fmt::{self, Display, Formatter},
-    sync::{Arc, RwLock},
+    sync::{Arc, LazyLock, RwLock},
 };
 
-lazy_static! {
-    pub static ref BANK: Arc<Bank> = Arc::new(Bank::new());
-}
+pub static BANK: LazyLock<Bank> = LazyLock::new(Bank::new);
 
 #[derive(Default)]
 pub struct Bank {

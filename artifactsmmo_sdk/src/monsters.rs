@@ -1,11 +1,8 @@
 use crate::{events::EVENTS, items::DamageType, PersistedData, API};
 use artifactsmmo_openapi::models::MonsterSchema;
-use lazy_static::lazy_static;
-use std::sync::Arc;
+use std::sync::LazyLock;
 
-lazy_static! {
-    pub static ref MONSTERS: Arc<Monsters> = Arc::new(Monsters::new());
-}
+pub static MONSTERS: LazyLock<Monsters> = LazyLock::new(Monsters::new);
 
 pub struct Monsters(Vec<MonsterSchema>);
 

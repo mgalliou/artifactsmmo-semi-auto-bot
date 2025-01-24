@@ -1,19 +1,16 @@
 use crate::{account::ACCOUNT, char::skill::Skill, gear::Slot, items::ITEMS};
 use itertools::Itertools;
-use lazy_static::lazy_static;
 use log::{debug, info};
 use std::{
     fmt::{self, Display, Formatter},
     mem::discriminant,
-    sync::{Arc, RwLock},
+    sync::{Arc, LazyLock, RwLock},
 };
 use strum::IntoEnumIterator;
 use strum_macros::{EnumIs, EnumIter};
 use thiserror::Error;
 
-lazy_static! {
-    pub static ref ORDER_BOARD: Arc<OrderBoard> = Arc::new(OrderBoard::new());
-}
+pub static ORDER_BOARD: LazyLock<OrderBoard> = LazyLock::new(OrderBoard::new);
 
 #[derive(Default)]
 pub struct OrderBoard {

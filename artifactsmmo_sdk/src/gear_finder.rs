@@ -7,13 +7,10 @@ use crate::{
 };
 use artifactsmmo_openapi::models::{FightResult, ItemSchema, MonsterSchema};
 use itertools::Itertools;
-use lazy_static::lazy_static;
 use ordered_float::OrderedFloat;
-use std::{collections::HashSet, sync::Arc};
+use std::{collections::HashSet, sync::LazyLock};
 
-lazy_static! {
-    pub static ref GEAR_FINDER: Arc<GearFinder> = Arc::new(GearFinder::new());
-}
+pub static GEAR_FINDER: LazyLock<GearFinder> = LazyLock::new(GearFinder::new);
 
 pub struct GearFinder {}
 

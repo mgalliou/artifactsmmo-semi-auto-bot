@@ -14,15 +14,12 @@ use artifactsmmo_openapi::models::{
     CraftSchema, ItemEffectSchema, ItemSchema, MonsterSchema, ResourceSchema, SimpleItemSchema,
 };
 use itertools::Itertools;
-use lazy_static::lazy_static;
 use log::debug;
-use std::{collections::HashMap, fmt, str::FromStr, sync::Arc, vec::Vec};
+use std::{collections::HashMap, fmt, str::FromStr, sync::LazyLock, vec::Vec};
 use strum::IntoEnumIterator;
 use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
 
-lazy_static! {
-    pub static ref ITEMS: Arc<Items> = Arc::new(Items::new());
-}
+pub static ITEMS: LazyLock<Items> = LazyLock::new(Items::new);
 
 pub struct Items(HashMap<String, ItemSchema>);
 
