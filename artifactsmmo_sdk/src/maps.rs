@@ -9,27 +9,24 @@ use strum_macros::{AsRefStr, Display};
 
 pub static MAPS: LazyLock<Maps> = LazyLock::new(Maps::new);
 
-pub struct Maps {
-    data: HashMap<(i32, i32), RwLock<MapSchema>>,
-}
+pub struct Maps(HashMap<(i32, i32), RwLock<MapSchema>>);
 
 impl Maps {
     pub fn new() -> Self {
-        Self {
-            data: API
-                .maps
+        Self(
+            API.maps
                 .all(None, None)
-                .expect("maps to be retrieved from API.")
+                .unwrap()
                 .into_iter()
                 .map(|m| ((m.x, m.y), RwLock::new(m)))
                 .collect(),
-        }
+        )
     }
 
     pub fn refresh(&self) {
         EVENTS.active.read().unwrap().iter().for_each(|e| {
             if DateTime::parse_from_rfc3339(&e.expiration).unwrap() < Utc::now() {
-                if let Some(map) = self.data.get(&(e.map.x, e.map.y)) {
+                if let Some(map) = self.0.get(&(e.map.x, e.map.y)) {
                     map.write().unwrap().content = None;
                     map.write().unwrap().skin = e.previous_skin.clone();
                 }
@@ -38,7 +35,7 @@ impl Maps {
         EVENTS.refresh_active();
         EVENTS.active.read().unwrap().iter().for_each(|e| {
             if DateTime::parse_from_rfc3339(&e.expiration).unwrap() > Utc::now() {
-                if let Some(map) = self.data.get(&(e.map.x, e.map.y)) {
+                if let Some(map) = self.0.get(&(e.map.x, e.map.y)) {
                     map.write().unwrap().content = e.map.content.clone();
                     map.write().unwrap().skin = e.map.skin.clone();
                 }
@@ -47,7 +44,7 @@ impl Maps {
     }
 
     pub fn get(&self, x: i32, y: i32) -> Option<MapSchema> {
-        Some(self.data.get(&(x, y))?.read().unwrap().clone())
+        Some(self.0.get(&(x, y))?.read().unwrap().clone())
     }
 
     pub fn closest_from_amoung(x: i32, y: i32, maps: Vec<MapSchema>) -> Option<MapSchema> {
@@ -56,7 +53,7 @@ impl Maps {
     }
 
     pub fn of_type(&self, r#type: ContentType) -> Vec<MapSchema> {
-        self.data
+        self.0
             .values()
             .filter(|m| {
                 m.read()
@@ -70,7 +67,7 @@ impl Maps {
     }
 
     pub fn with_content_code(&self, code: &str) -> Vec<MapSchema> {
-        self.data
+        self.0
             .values()
             .filter(|m| m.read().unwrap().content_is(code))
             .map(|m| m.read().unwrap().clone())
@@ -78,7 +75,7 @@ impl Maps {
     }
 
     pub fn with_content_schema(&self, schema: &MapContentSchema) -> Vec<MapSchema> {
-        self.data
+        self.0
             .values()
             .filter(|m| m.read().unwrap().content().is_some_and(|c| c == *schema))
             .map(|m| m.read().unwrap().clone())
