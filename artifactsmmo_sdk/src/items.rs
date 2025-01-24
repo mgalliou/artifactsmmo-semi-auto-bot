@@ -303,7 +303,7 @@ impl Items {
             "christmas_star",
             "frozen_gloves",
             "frozen_axe",
-            "frozen_fishing_rode",
+            "frozen_fishing_rod",
             "frozen_pickaxe",
         ]
         .contains(&code)
