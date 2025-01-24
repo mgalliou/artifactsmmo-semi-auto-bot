@@ -1,43 +1,39 @@
-use crate::{events::EVENTS, persist_data, API};
+use crate::{events::EVENTS, PersistedData, API};
 use artifactsmmo_openapi::models::ResourceSchema;
 use lazy_static::lazy_static;
-use log::error;
-use std::{fs::read_to_string, path::Path, sync::Arc};
+use std::sync::Arc;
 
 lazy_static! {
     pub static ref RESOURCES: Arc<Resources> = Arc::new(Resources::new());
 }
 
-#[derive(Default)]
-pub struct Resources {
-    pub data: Vec<ResourceSchema>,
+pub struct Resources(Vec<ResourceSchema>);
+
+impl PersistedData<Vec<ResourceSchema>> for Resources {
+    fn data_from_api() -> Vec<ResourceSchema> {
+        API.resources.all(None, None, None, None).unwrap()
+    }
+
+    fn path() -> &'static str {
+        ".cache/resources.json"
+    }
 }
 
 impl Resources {
     fn new() -> Self {
-        let path = Path::new(".cache/resources.json");
-        let data = if path.exists() {
-            let content = read_to_string(path).unwrap();
-            serde_json::from_str(&content).unwrap()
-        } else {
-            let data = API
-                .resources
-                .all(None, None, None, None)
-                .expect("items to be retrieved from API.");
-            if let Err(e) = persist_data(&data, path) {
-                error!("failed to persist resources data: {}", e);
-            }
-            data
-        };
-        Resources { data }
+        Self(Self::get_data())
     }
 
     pub fn get(&self, code: &str) -> Option<&ResourceSchema> {
-        self.data.iter().find(|m| m.code == code)
+        self.0.iter().find(|m| m.code == code)
+    }
+
+    pub fn all(&self) -> &Vec<ResourceSchema> {
+        &self.0
     }
 
     pub fn dropping(&self, item: &str) -> Vec<&ResourceSchema> {
-        self.data
+        self.0
             .iter()
             .filter(|r| r.drops.iter().any(|d| d.code == item))
             .collect::<Vec<_>>()

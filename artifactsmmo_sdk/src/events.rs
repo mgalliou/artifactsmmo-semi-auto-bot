@@ -1,15 +1,10 @@
-use crate::{
-    maps::MapSchemaExt, persist_data, retreive_data, API,
-};
+use crate::{maps::MapSchemaExt, PersistedData, API};
 use artifactsmmo_openapi::models::{ActiveEventSchema, EventSchema, MapSchema};
 use chrono::{DateTime, Duration, Utc};
 use itertools::Itertools;
 use lazy_static::lazy_static;
-use log::{debug, error};
-use std::{
-    path::Path,
-    sync::{Arc, RwLock},
-};
+use log::debug;
+use std::sync::{Arc, RwLock};
 
 lazy_static! {
     pub static ref EVENTS: Arc<Events> = Arc::new(Events::new());
@@ -21,20 +16,20 @@ pub struct Events {
     last_refresh: RwLock<DateTime<Utc>>,
 }
 
+impl PersistedData<Vec<EventSchema>> for Events {
+    fn data_from_api() -> Vec<EventSchema> {
+        API.events.all().unwrap()
+    }
+
+    fn path() -> &'static str {
+        ".cache/events.json"
+    }
+}
+
 impl Events {
     fn new() -> Self {
-        let path = Path::new(".cache/events.json");
-        let data = if let Ok(data) = retreive_data::<Vec<EventSchema>>(path) {
-            data
-        } else {
-            let data = API.events.all().expect("items to be retrieved from API.");
-            if let Err(e) = persist_data(&data, path) {
-                error!("failed to persist items data: {}", e);
-            }
-            data
-        };
         let events = Self {
-            data,
+            data: Self::get_data(),
             active: Arc::new(RwLock::new(vec![])),
             last_refresh: RwLock::new(DateTime::<Utc>::MIN_UTC),
         };

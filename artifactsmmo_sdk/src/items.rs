@@ -6,19 +6,17 @@ use crate::{
     },
     gear::Slot,
     monsters::{MonsterSchemaExt, MONSTERS},
-    persist_data,
     resources::{ResourceSchemaExt, RESOURCES},
-    retreive_data,
-    tasks::TASKS,
-    FightSimulator, API,
+    tasks_rewards::TASKS_REWARDS,
+    FightSimulator, PersistedData, API,
 };
 use artifactsmmo_openapi::models::{
     CraftSchema, ItemEffectSchema, ItemSchema, MonsterSchema, ResourceSchema, SimpleItemSchema,
 };
 use itertools::Itertools;
 use lazy_static::lazy_static;
-use log::{debug, error};
-use std::{collections::HashMap, fmt, path::Path, str::FromStr, sync::Arc, vec::Vec};
+use log::debug;
+use std::{collections::HashMap, fmt, str::FromStr, sync::Arc, vec::Vec};
 use strum::IntoEnumIterator;
 use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
 
@@ -26,35 +24,35 @@ lazy_static! {
     pub static ref ITEMS: Arc<Items> = Arc::new(Items::new());
 }
 
-#[derive(Default)]
-pub struct Items {
-    pub data: HashMap<String, ItemSchema>,
+pub struct Items(HashMap<String, ItemSchema>);
+
+impl PersistedData<HashMap<String, ItemSchema>> for Items {
+    fn data_from_api() -> HashMap<String, ItemSchema> {
+        API.items
+            .all(None, None, None, None, None, None)
+            .unwrap()
+            .into_iter()
+            .map(|item| (item.code.clone(), item))
+            .collect()
+    }
+
+    fn path() -> &'static str {
+        ".cache/items.json"
+    }
 }
 
 impl Items {
-    fn new() -> Items {
-        let path = Path::new(".cache/items.json");
-        let data = if let Ok(data) = retreive_data(path) {
-            data
-        } else {
-            let data = API
-                .items
-                .all(None, None, None, None, None, None)
-                .expect("items to be retrieved from API.")
-                .into_iter()
-                .map(|item| (item.code.clone(), item))
-                .collect();
-            if let Err(e) = persist_data(&data, path) {
-                error!("failed to persist items data: {}", e);
-            }
-            data
-        };
-        Items { data }
+    fn new() -> Self {
+        Self(Self::get_data())
     }
 
     /// Takes an item `code` and return its schema.
     pub fn get(&self, code: &str) -> Option<&ItemSchema> {
-        self.data.get(code)
+        self.0.get(code)
+    }
+
+    pub fn all(&self) -> &HashMap<String, ItemSchema> {
+        &self.0
     }
 
     /// Takes an item `code` and return the mats required to craft it.
@@ -100,7 +98,7 @@ impl Items {
 
     /// Takes an item `code` and returns the items directly crafted with it.
     pub fn crafted_with(&self, code: &str) -> Vec<&ItemSchema> {
-        self.data
+        self.0
             .values()
             .filter(|i| i.is_crafted_with(code))
             .collect_vec()
@@ -130,7 +128,7 @@ impl Items {
 
     /// Takes an item `code` and returns the items crafted with it as base mat.
     pub fn crafted_with_base_mat(&self, code: &str) -> Vec<&ItemSchema> {
-        self.data
+        self.0
             .values()
             .filter(|i| self.is_crafted_with_base_mat(&i.code, code))
             .collect_vec()
@@ -210,21 +208,21 @@ impl Items {
     }
 
     pub fn equipable_at_level(&self, level: i32, r#type: Type) -> Vec<&ItemSchema> {
-        self.data
+        self.0
             .values()
             .filter(|i| i.r#type == r#type && i.level <= level)
             .collect_vec()
     }
 
     pub fn best_consumable_foods(&self, level: i32) -> Vec<&ItemSchema> {
-        self.data
+        self.0
             .values()
             .filter(|i| i.is_consumable(level))
             .collect_vec()
     }
 
     pub fn restoring_utilities(&self, level: i32) -> Vec<&ItemSchema> {
-        self.data
+        self.0
             .values()
             .filter(|i| i.r#type().is_utility() && i.restore() > 0 && i.level >= level)
             .collect_vec()
@@ -233,7 +231,7 @@ impl Items {
     /// Takes a `level` and a item `code` and returns all the items of the same
     /// type for which the level is between the given `level` and the item level.
     pub fn potential_upgrade(&self, level: i32, code: &str) -> Vec<&ItemSchema> {
-        self.data
+        self.0
             .values()
             .filter(|u| {
                 self.get(code)
@@ -288,7 +286,7 @@ impl Items {
         if self.get(code).is_some_and(|i| i.craft_schema().is_some()) {
             sources.push(ItemSource::Craft);
         }
-        if TASKS.rewards.iter().any(|r| r.code == code) {
+        if TASKS_REWARDS.all().iter().any(|r| r.code == code) {
             sources.push(ItemSource::TaskReward);
         }
         if code == TASKS_COIN {

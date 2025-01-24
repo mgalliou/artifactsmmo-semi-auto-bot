@@ -2,6 +2,7 @@ use api::ArtifactApi;
 use fs_extra::file::{read_to_string, write_all};
 use game_config::GAME_CONFIG;
 use lazy_static::lazy_static;
+use log::error;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{self, Display, Formatter},
@@ -37,6 +38,7 @@ pub mod monsters;
 pub mod orderboard;
 pub mod resources;
 pub mod tasks;
+pub mod tasks_rewards;
 
 lazy_static! {
     pub static ref API: ArtifactApi = ArtifactApi::new(&GAME_CONFIG.base_url, &GAME_CONFIG.token);
@@ -61,12 +63,27 @@ pub struct ApiErrorSchema {
 
 pub trait ApiRequestError {}
 
-pub fn retreive_data<T: for<'a> Deserialize<'a>>(
-    path: &Path,
-) -> Result<T, Box<dyn std::error::Error>> {
-    Ok(serde_json::from_str(&read_to_string(path)?)?)
-}
-
-pub fn persist_data<T: Serialize>(data: T, path: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    Ok(write_all(path, &serde_json::to_string_pretty(&data)?)?)
+pub trait PersistedData<D: for<'a> Deserialize<'a> + Serialize> {
+    fn get_data() -> D {
+        let path = Path::new(Self::path());
+        if let Ok(data) = Self::retreive_data::<D>(path) {
+            data
+        } else {
+            let data = Self::data_from_api();
+            if let Err(e) = Self::persist_data(&data, path) {
+                error!("failed to persist data: {}", e);
+            }
+            data
+        }
+    }
+    fn path() -> &'static str;
+    fn data_from_api() -> D;
+    fn retreive_data<T: for<'a> Deserialize<'a>>(
+        path: &Path,
+    ) -> Result<T, Box<dyn std::error::Error>> {
+        Ok(serde_json::from_str(&read_to_string(path)?)?)
+    }
+    fn persist_data<T: Serialize>(data: T, path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+        Ok(write_all(path, &serde_json::to_string_pretty(&data)?)?)
+    }
 }

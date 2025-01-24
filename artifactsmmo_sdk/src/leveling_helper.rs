@@ -35,7 +35,7 @@ impl LevelingHelper {
     ) -> impl Iterator<Item = &ItemSchema> {
         let min = if level > 11 { level - 10 } else { 1 };
         ITEMS
-            .data
+            .all()
             .values()
             .filter(move |i| i.level >= min && i.level <= level)
             .filter(move |i| i.skill_to_craft().is_some_and(|s| s == skill))
@@ -170,7 +170,7 @@ impl LevelingHelper {
 
     pub fn best_resource(&self, level: i32, skill: Skill) -> Option<&ResourceSchema> {
         RESOURCES
-            .data
+            .all()
             .iter()
             .filter(|r| {
                 Skill::from(r.skill) == skill
@@ -183,7 +183,7 @@ impl LevelingHelper {
 
     pub fn best_monster(&self, char: &Character) -> Option<&MonsterSchema> {
         MONSTERS
-            .data
+            .all()
             .iter()
             .filter(|m| char.level() >= m.level && m.code != "imp" && m.code != "death_knight")
             .max_by_key(|m| if char.can_kill(m).is_ok() { m.level } else { 0 })
