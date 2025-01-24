@@ -311,30 +311,33 @@ mod tests {
 
     #[test]
     fn reserv_with_not_item() {
-        let result = BANK.increase_reservation("copper_ore", 50, "char1");
+        let bank = Bank::default();
+        let result = bank.increase_reservation("iron_ore", 50, "char1");
         assert_eq!(Err(BankError::QuantityUnavailable(50)), result);
     }
 
     #[test]
     fn reserv_with_item_available() {
-        (*BANK.content.write().unwrap()).push(SimpleItemSchema {
+        let bank = Bank::default();
+        (bank.content.write().unwrap()).push(SimpleItemSchema {
             code: "copper_ore".to_owned(),
             quantity: 100,
         });
-        let _ = BANK.increase_reservation("copper_ore", 50, "char1");
-        let _ = BANK.increase_reservation("copper_ore", 50, "char1");
-        assert_eq!(100, BANK.has_available("copper_ore", Some("char1")))
+        let _ = bank.increase_reservation("copper_ore", 50, "char1");
+        let _ = bank.increase_reservation("copper_ore", 50, "char1");
+        assert_eq!(100, bank.has_available("copper_ore", Some("char1")))
     }
 
     #[test]
     fn reserv_if_not_with_item_available() {
-        (*BANK.content.write().unwrap()).push(SimpleItemSchema {
-            code: "copper_ore".to_owned(),
+        let bank = Bank::default();
+        (bank.content.write().unwrap()).push(SimpleItemSchema {
+            code: "gold_ore".to_owned(),
             quantity: 100,
         });
-        let _ = BANK.reserv("copper_ore", 50, "char1");
-        let _ = BANK.reserv("copper_ore", 50, "char1");
-        assert_eq!(100, BANK.has_available("copper_ore", Some("char1")));
-        assert_eq!(50, BANK.quantity_reserved("copper_ore"))
+        let _ = bank.reserv("gold_ore", 50, "char1");
+        let _ = bank.reserv("gold_ore", 50, "char1");
+        assert_eq!(100, bank.has_available("gold_ore", Some("char1")));
+        assert_eq!(50, bank.quantity_reserved("gold_ore"))
     }
 }

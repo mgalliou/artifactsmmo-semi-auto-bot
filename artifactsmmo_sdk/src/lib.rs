@@ -64,12 +64,11 @@ pub trait ApiRequestError {}
 
 pub trait PersistedData<D: for<'a> Deserialize<'a> + Serialize> {
     fn get_data() -> D {
-        let path = Path::new(Self::path());
-        if let Ok(data) = Self::retreive_data::<D>(path) {
+        if let Ok(data) = Self::retreive_data::<D>() {
             data
         } else {
             let data = Self::data_from_api();
-            if let Err(e) = Self::persist_data(&data, path) {
+            if let Err(e) = Self::persist_data(&data) {
                 error!("failed to persist data: {}", e);
             }
             data
@@ -77,12 +76,15 @@ pub trait PersistedData<D: for<'a> Deserialize<'a> + Serialize> {
     }
     fn path() -> &'static str;
     fn data_from_api() -> D;
-    fn retreive_data<T: for<'a> Deserialize<'a>>(
-        path: &Path,
-    ) -> Result<T, Box<dyn std::error::Error>> {
-        Ok(serde_json::from_str(&read_to_string(path)?)?)
+    fn retreive_data<T: for<'a> Deserialize<'a>>() -> Result<T, Box<dyn std::error::Error>> {
+        Ok(serde_json::from_str(&read_to_string(Path::new(
+            Self::path(),
+        ))?)?)
     }
-    fn persist_data<T: Serialize>(data: T, path: &Path) -> Result<(), Box<dyn std::error::Error>> {
-        Ok(write_all(path, &serde_json::to_string_pretty(&data)?)?)
+    fn persist_data<T: Serialize>(data: T) -> Result<(), Box<dyn std::error::Error>> {
+        Ok(write_all(
+            Path::new(Self::path()),
+            &serde_json::to_string_pretty(&data)?,
+        )?)
     }
 }

@@ -1,18 +1,16 @@
 use crate::{char::Skill, events::EVENTS, API};
-use artifactsmmo_openapi::models::{ActiveEventSchema, MapContentSchema, MapSchema};
+use artifactsmmo_openapi::models::{MapContentSchema, MapSchema};
 use chrono::{DateTime, Utc};
 use std::{
     collections::HashMap,
-    sync::{Arc, LazyLock, RwLock},
+    sync::{LazyLock, RwLock},
 };
 use strum_macros::{AsRefStr, Display};
 
 pub static MAPS: LazyLock<Maps> = LazyLock::new(Maps::new);
 
-#[derive(Default)]
 pub struct Maps {
     data: HashMap<(i32, i32), RwLock<MapSchema>>,
-    active_events: Arc<RwLock<Vec<ActiveEventSchema>>>,
 }
 
 impl Maps {
@@ -25,12 +23,11 @@ impl Maps {
                 .into_iter()
                 .map(|m| ((m.x, m.y), RwLock::new(m)))
                 .collect(),
-            active_events: EVENTS.active.clone(),
         }
     }
 
     pub fn refresh(&self) {
-        self.active_events.read().unwrap().iter().for_each(|e| {
+        EVENTS.active.read().unwrap().iter().for_each(|e| {
             if DateTime::parse_from_rfc3339(&e.expiration).unwrap() < Utc::now() {
                 if let Some(map) = self.data.get(&(e.map.x, e.map.y)) {
                     map.write().unwrap().content = None;
@@ -39,7 +36,7 @@ impl Maps {
             }
         });
         EVENTS.refresh_active();
-        self.active_events.read().unwrap().iter().for_each(|e| {
+        EVENTS.active.read().unwrap().iter().for_each(|e| {
             if DateTime::parse_from_rfc3339(&e.expiration).unwrap() > Utc::now() {
                 if let Some(map) = self.data.get(&(e.map.x, e.map.y)) {
                     map.write().unwrap().content = e.map.content.clone();
