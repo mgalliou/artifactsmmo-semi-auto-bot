@@ -172,7 +172,7 @@ impl LevelingHelper {
     pub fn best_resource(&self, level: i32, skill: Skill) -> Option<&ResourceSchema> {
         RESOURCES
             .all()
-            .iter()
+            .into_iter()
             .filter(|r| {
                 Skill::from(r.skill) == skill
                     && r.level <= level
@@ -185,7 +185,7 @@ impl LevelingHelper {
     pub fn best_monster(&self, char: &Character) -> Option<&MonsterSchema> {
         MONSTERS
             .all()
-            .iter()
+            .into_iter()
             .filter(|m| char.level() >= m.level && m.code != "imp" && m.code != "death_knight")
             .max_by_key(|m| if char.can_kill(m).is_ok() { m.level } else { 0 })
     }
