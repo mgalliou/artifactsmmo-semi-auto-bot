@@ -1,5 +1,10 @@
-use crate::{char::Skill, events::EVENTS, API};
-use artifactsmmo_openapi::models::{MapContentSchema, MapSchema};
+use crate::{
+    char::Skill,
+    events::EVENTS,
+    resources::{ResourceSchemaExt, RESOURCES},
+    API, MONSTERS,
+};
+use artifactsmmo_openapi::models::{MapContentSchema, MapSchema, MonsterSchema, ResourceSchema};
 use chrono::{DateTime, Utc};
 use std::{
     collections::HashMap,
@@ -101,6 +106,8 @@ pub trait MapSchemaExt {
     fn content(&self) -> Option<MapContentSchema>;
     fn content_is(&self, code: &str) -> bool;
     fn pretty(&self) -> String;
+    fn monster(&self) -> Option<&MonsterSchema>;
+    fn resource(&self) -> Option<&ResourceSchema>;
 }
 
 impl MapSchemaExt for MapSchema {
@@ -118,6 +125,20 @@ impl MapSchemaExt for MapSchema {
         } else {
             format!("{} ({},{})", self.name, self.x, self.y)
         }
+    }
+
+    fn monster(&self) -> Option<&MonsterSchema> {
+        let Some(content) = self.content() else {
+            return None;
+        };
+        MONSTERS.get(&content.code)
+    }
+
+    fn resource(&self) -> Option<&ResourceSchema> {
+        let Some(content) = self.content() else {
+            return None;
+        };
+        RESOURCES.get(&content.code)
     }
 }
 

@@ -66,6 +66,7 @@ pub trait MonsterSchemaExt {
     fn resistance(&self, r#type: DamageType) -> i32;
     fn attack_damage(&self, r#type: DamageType) -> i32;
     fn drop_rate(&self, item: &str) -> Option<i32>;
+    fn max_drop_quantity(&self) -> i32;
 }
 
 impl MonsterSchemaExt for MonsterSchema {
@@ -89,5 +90,9 @@ impl MonsterSchemaExt for MonsterSchema {
 
     fn drop_rate(&self, item: &str) -> Option<i32> {
         self.drops.iter().find(|i| i.code == item).map(|i| i.rate)
+    }
+
+    fn max_drop_quantity(&self) -> i32 {
+        self.drops.iter().map(|i| i.max_quantity).sum()
     }
 }

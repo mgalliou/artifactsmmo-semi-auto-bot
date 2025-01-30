@@ -11,6 +11,7 @@ pub mod action;
 pub mod base_character;
 pub mod character;
 pub mod skill;
+pub mod smart_character;
 
 pub trait HasCharacterData {
     fn data(&self) -> Arc<RwLock<CharacterSchema>>;
