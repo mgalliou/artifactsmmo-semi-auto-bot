@@ -1,14 +1,20 @@
 use crate::{events::EVENTS, items::DamageType, PersistedData, API};
 use artifactsmmo_openapi::models::MonsterSchema;
-use std::sync::LazyLock;
+use itertools::Itertools;
+use std::{collections::HashMap, sync::LazyLock};
 
 pub static MONSTERS: LazyLock<Monsters> = LazyLock::new(Monsters::new);
 
-pub struct Monsters(Vec<MonsterSchema>);
+pub struct Monsters(HashMap<String, MonsterSchema>);
 
-impl PersistedData<Vec<MonsterSchema>> for Monsters {
-    fn data_from_api() -> Vec<MonsterSchema> {
-        API.monsters.all(None, None, None).unwrap()
+impl PersistedData<HashMap<String, MonsterSchema>> for Monsters {
+    fn data_from_api() -> HashMap<String, MonsterSchema> {
+        API.monsters
+            .all(None, None, None)
+            .unwrap()
+            .into_iter()
+            .map(|m| (m.code.clone(), m))
+            .collect()
     }
 
     fn path() -> &'static str {
@@ -22,31 +28,31 @@ impl Monsters {
     }
 
     pub fn get(&self, code: &str) -> Option<&MonsterSchema> {
-        self.0.iter().find(|m| m.code == code)
+        self.0.get(code)
     }
 
-    pub fn all(&self) -> &Vec<MonsterSchema> {
-        &self.0
+    pub fn all(&self) -> Vec<&MonsterSchema> {
+        self.0.values().collect_vec()
     }
 
     pub fn dropping(&self, item: &str) -> Vec<&MonsterSchema> {
         self.0
-            .iter()
+            .values()
             .filter(|m| m.drops.iter().any(|d| d.code == item))
-            .collect::<Vec<_>>()
+            .collect_vec()
     }
 
     pub fn lowest_providing_exp(&self, level: i32) -> Option<&MonsterSchema> {
         let min = if level > 11 { level - 10 } else { 1 };
         self.0
-            .iter()
+            .values()
             .filter(|m| m.level >= min && m.level <= level)
             .min_by_key(|m| m.level)
     }
 
     pub fn highest_providing_exp(&self, level: i32) -> Option<&MonsterSchema> {
         self.0
-            .iter()
+            .values()
             .filter(|m| m.level <= level)
             .max_by_key(|m| m.level)
     }

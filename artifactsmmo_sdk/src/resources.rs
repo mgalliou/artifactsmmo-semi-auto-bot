@@ -1,15 +1,21 @@
-use std::sync::LazyLock;
+use std::{collections::HashMap, sync::LazyLock};
 
 use crate::{events::EVENTS, PersistedData, API};
 use artifactsmmo_openapi::models::ResourceSchema;
+use itertools::Itertools;
 
 pub static RESOURCES: LazyLock<Resources> = LazyLock::new(Resources::new);
 
-pub struct Resources(Vec<ResourceSchema>);
+pub struct Resources(HashMap<String, ResourceSchema>);
 
-impl PersistedData<Vec<ResourceSchema>> for Resources {
-    fn data_from_api() -> Vec<ResourceSchema> {
-        API.resources.all(None, None, None, None).unwrap()
+impl PersistedData<HashMap<String, ResourceSchema>> for Resources {
+    fn data_from_api() -> HashMap<String, ResourceSchema> {
+        API.resources
+            .all(None, None, None, None)
+            .unwrap()
+            .into_iter()
+            .map(|m| (m.code.clone(), m))
+            .collect()
     }
 
     fn path() -> &'static str {
@@ -23,18 +29,18 @@ impl Resources {
     }
 
     pub fn get(&self, code: &str) -> Option<&ResourceSchema> {
-        self.0.iter().find(|m| m.code == code)
+        self.0.get(code)
     }
 
-    pub fn all(&self) -> &Vec<ResourceSchema> {
-        &self.0
+    pub fn all(&self) -> Vec<&ResourceSchema> {
+        self.0.values().collect_vec()
     }
 
     pub fn dropping(&self, item: &str) -> Vec<&ResourceSchema> {
         self.0
-            .iter()
-            .filter(|r| r.drops.iter().any(|d| d.code == item))
-            .collect::<Vec<_>>()
+            .values()
+            .filter(|m| m.drops.iter().any(|d| d.code == item))
+            .collect_vec()
     }
 
     pub fn is_event(&self, code: &str) -> bool {
