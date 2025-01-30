@@ -1895,7 +1895,7 @@ impl Character {
         let Ok(_browsed) = BANK.browsed.write() else {
             return;
         };
-        if !self.inventory.consumable_food().is_empty() && !self.map().content_is("bank") {
+        if !self.inventory.consumable_food().is_empty() && !self.map().content_code_is("bank") {
             return;
         }
         let Some(food) = BANK

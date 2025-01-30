@@ -77,7 +77,7 @@ impl Maps {
     pub fn with_content_code(&self, code: &str) -> Vec<Arc<MapSchema>> {
         self.0
             .values()
-            .filter(|m| m.read().unwrap().content_is(code))
+            .filter(|m| m.read().unwrap().content_code_is(code))
             .map(|m| m.read().unwrap().clone())
             .collect()
     }
@@ -85,7 +85,7 @@ impl Maps {
     pub fn with_content_schema(&self, schema: &MapContentSchema) -> Vec<Arc<MapSchema>> {
         self.0
             .values()
-            .filter(|m| m.read().unwrap().content().is_some_and(|c| c == *schema))
+            .filter(|m| m.read().unwrap().content().is_some_and(|c| c == schema))
             .map(|m| m.read().unwrap().clone())
             .collect()
     }
@@ -106,20 +106,20 @@ impl Maps {
 }
 
 pub trait MapSchemaExt {
-    fn content(&self) -> Option<MapContentSchema>;
-    fn content_is(&self, code: &str) -> bool;
+    fn content(&self) -> Option<&MapContentSchema>;
+    fn content_code_is(&self, code: &str) -> bool;
     fn pretty(&self) -> String;
     fn monster(&self) -> Option<&MonsterSchema>;
     fn resource(&self) -> Option<&ResourceSchema>;
 }
 
 impl MapSchemaExt for MapSchema {
-    fn content(&self) -> Option<MapContentSchema> {
-        self.content.clone().map(|c| *c)
+    fn content(&self) -> Option<&MapContentSchema> {
+        self.content.as_ref().map(|c| c.as_ref())
     }
 
-    fn content_is(&self, code: &str) -> bool {
-        self.content().is_some_and(|c| c.code == code)
+    fn content_code_is(&self, code: &str) -> bool {
+        self.content.as_ref().is_some_and(|c| c.code == code)
     }
 
     fn pretty(&self) -> String {
