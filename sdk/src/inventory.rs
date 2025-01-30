@@ -14,6 +14,7 @@ use std::{
 #[derive(Default)]
 pub struct Inventory {
     data: Arc<RwLock<CharacterSchema>>,
+
     reservations: RwLock<Vec<Arc<InventoryReservation>>>,
 }
 

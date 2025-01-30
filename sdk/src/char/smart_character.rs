@@ -1,3 +1,4 @@
+use super::{base_character::RequestError, BaseCharacter, HasCharacterData};
 use crate::{
     inventory::Inventory, maps::MapSchemaExt, monsters::MonsterSchemaExt,
     resources::ResourceSchemaExt, MAPS,
@@ -5,8 +6,6 @@ use crate::{
 use artifactsmmo_openapi::models::{CharacterSchema, FightSchema, MapSchema, SkillDataSchema};
 use std::sync::{Arc, RwLock};
 use thiserror::Error;
-
-use super::{base_character::RequestError, BaseCharacter, HasCharacterData};
 
 pub struct SmartCharacter {
     pub id: usize,
@@ -127,7 +126,7 @@ impl SmartCharacter {
         todo!()
     }
 
-    fn map(&self) -> MapSchema {
+    fn map(&self) -> Arc<MapSchema> {
         let (x, y) = self.inner.position();
         MAPS.get(x, y).unwrap()
     }

@@ -1,5 +1,4 @@
 use std::{collections::HashMap, sync::LazyLock};
-
 use crate::{events::EVENTS, PersistedData, API};
 use artifactsmmo_openapi::models::ResourceSchema;
 use itertools::Itertools;

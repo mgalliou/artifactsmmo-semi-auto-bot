@@ -1,20 +1,15 @@
-use crate::{
-    char::Skill,
-    events::EVENTS,
-    resources::{ResourceSchemaExt, RESOURCES},
-    API, MONSTERS,
-};
+use crate::{char::Skill, events::EVENTS, resources::RESOURCES, API, MONSTERS};
 use artifactsmmo_openapi::models::{MapContentSchema, MapSchema, MonsterSchema, ResourceSchema};
 use chrono::{DateTime, Utc};
 use std::{
     collections::HashMap,
-    sync::{LazyLock, RwLock},
+    sync::{Arc, LazyLock, RwLock},
 };
 use strum_macros::{AsRefStr, Display};
 
 pub static MAPS: LazyLock<Maps> = LazyLock::new(Maps::new);
 
-pub struct Maps(HashMap<(i32, i32), RwLock<MapSchema>>);
+pub struct Maps(HashMap<(i32, i32), RwLock<Arc<MapSchema>>>);
 
 impl Maps {
     pub fn new() -> Self {
@@ -23,7 +18,7 @@ impl Maps {
                 .all(None, None)
                 .unwrap()
                 .into_iter()
-                .map(|m| ((m.x, m.y), RwLock::new(m)))
+                .map(|m| ((m.x, m.y), RwLock::new(Arc::new(m))))
                 .collect(),
         )
     }
@@ -32,8 +27,10 @@ impl Maps {
         EVENTS.active.read().unwrap().iter().for_each(|e| {
             if DateTime::parse_from_rfc3339(&e.expiration).unwrap() < Utc::now() {
                 if let Some(map) = self.0.get(&(e.map.x, e.map.y)) {
-                    map.write().unwrap().content = None;
-                    map.write().unwrap().skin = e.previous_skin.clone();
+                    let mut new_map = (*map.read().unwrap().clone()).clone();
+                    new_map.content = None;
+                    new_map.skin = e.previous_skin.clone();
+                    *map.write().unwrap() = Arc::new(new_map);
                 }
             }
         });
@@ -41,23 +38,29 @@ impl Maps {
         EVENTS.active.read().unwrap().iter().for_each(|e| {
             if DateTime::parse_from_rfc3339(&e.expiration).unwrap() > Utc::now() {
                 if let Some(map) = self.0.get(&(e.map.x, e.map.y)) {
-                    map.write().unwrap().content = e.map.content.clone();
-                    map.write().unwrap().skin = e.map.skin.clone();
+                    let mut new_map = (*map.read().unwrap().clone()).clone();
+                    new_map.content = e.map.content.clone();
+                    new_map.skin = e.map.skin.clone();
+                    *map.write().unwrap() = Arc::new(new_map);
                 }
             }
         });
     }
 
-    pub fn get(&self, x: i32, y: i32) -> Option<MapSchema> {
+    pub fn get(&self, x: i32, y: i32) -> Option<Arc<MapSchema>> {
         Some(self.0.get(&(x, y))?.read().unwrap().clone())
     }
 
-    pub fn closest_from_amoung(x: i32, y: i32, maps: Vec<MapSchema>) -> Option<MapSchema> {
+    pub fn closest_from_amoung(
+        x: i32,
+        y: i32,
+        maps: Vec<Arc<MapSchema>>,
+    ) -> Option<Arc<MapSchema>> {
         maps.into_iter()
             .min_by_key(|m| i32::abs(x - m.x) + i32::abs(y - m.y))
     }
 
-    pub fn of_type(&self, r#type: ContentType) -> Vec<MapSchema> {
+    pub fn of_type(&self, r#type: ContentType) -> Vec<Arc<MapSchema>> {
         self.0
             .values()
             .filter(|m| {
@@ -71,7 +74,7 @@ impl Maps {
             .collect()
     }
 
-    pub fn with_content_code(&self, code: &str) -> Vec<MapSchema> {
+    pub fn with_content_code(&self, code: &str) -> Vec<Arc<MapSchema>> {
         self.0
             .values()
             .filter(|m| m.read().unwrap().content_is(code))
@@ -79,7 +82,7 @@ impl Maps {
             .collect()
     }
 
-    pub fn with_content_schema(&self, schema: &MapContentSchema) -> Vec<MapSchema> {
+    pub fn with_content_schema(&self, schema: &MapContentSchema) -> Vec<Arc<MapSchema>> {
         self.0
             .values()
             .filter(|m| m.read().unwrap().content().is_some_and(|c| c == *schema))
@@ -87,7 +90,7 @@ impl Maps {
             .collect()
     }
 
-    pub fn workshop(&self, skill: Skill) -> Option<MapSchema> {
+    pub fn workshop(&self, skill: Skill) -> Option<Arc<MapSchema>> {
         match skill {
             Skill::Weaponcrafting
             | Skill::Gearcrafting
@@ -128,17 +131,11 @@ impl MapSchemaExt for MapSchema {
     }
 
     fn monster(&self) -> Option<&MonsterSchema> {
-        let Some(content) = self.content() else {
-            return None;
-        };
-        MONSTERS.get(&content.code)
+        MONSTERS.get(&self.content()?.code)
     }
 
     fn resource(&self) -> Option<&ResourceSchema> {
-        let Some(content) = self.content() else {
-            return None;
-        };
-        RESOURCES.get(&content.code)
+        RESOURCES.get(&self.content()?.code)
     }
 }
 
