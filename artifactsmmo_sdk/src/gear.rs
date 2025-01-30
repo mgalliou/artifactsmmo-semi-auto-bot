@@ -5,50 +5,58 @@ use crate::{
 };
 use artifactsmmo_openapi::models::{ItemSchema, ItemSlot, MonsterSchema, SimpleItemSchema};
 use itertools::Itertools;
-use std::fmt::Display;
+use std::{fmt::Display, sync::Arc};
 use strum::IntoEnumIterator;
 use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
 
-#[derive(Default, Debug, Clone, Copy, PartialEq)]
-pub struct Gear<'a> {
-    pub weapon: Option<&'a ItemSchema>,
-    pub helmet: Option<&'a ItemSchema>,
-    pub shield: Option<&'a ItemSchema>,
-    pub body_armor: Option<&'a ItemSchema>,
-    pub leg_armor: Option<&'a ItemSchema>,
-    pub boots: Option<&'a ItemSchema>,
-    pub amulet: Option<&'a ItemSchema>,
-    pub ring1: Option<&'a ItemSchema>,
-    pub ring2: Option<&'a ItemSchema>,
-    pub utility1: Option<&'a ItemSchema>,
-    pub utility2: Option<&'a ItemSchema>,
-    pub artifact1: Option<&'a ItemSchema>,
-    pub artifact2: Option<&'a ItemSchema>,
-    pub artifact3: Option<&'a ItemSchema>,
+#[derive(Default, Debug, PartialEq)]
+pub struct Gear {
+    pub weapon: Option<Arc<ItemSchema>>,
+    pub helmet: Option<Arc<ItemSchema>>,
+    pub shield: Option<Arc<ItemSchema>>,
+    pub body_armor: Option<Arc<ItemSchema>>,
+    pub leg_armor: Option<Arc<ItemSchema>>,
+    pub boots: Option<Arc<ItemSchema>>,
+    pub amulet: Option<Arc<ItemSchema>>,
+    pub ring1: Option<Arc<ItemSchema>>,
+    pub ring2: Option<Arc<ItemSchema>>,
+    pub utility1: Option<Arc<ItemSchema>>,
+    pub utility2: Option<Arc<ItemSchema>>,
+    pub artifact1: Option<Arc<ItemSchema>>,
+    pub artifact2: Option<Arc<ItemSchema>>,
+    pub artifact3: Option<Arc<ItemSchema>>,
 }
 
-impl<'a> Gear<'a> {
+impl Gear {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        weapon: Option<&'a ItemSchema>,
-        helmet: Option<&'a ItemSchema>,
-        shield: Option<&'a ItemSchema>,
-        body_armor: Option<&'a ItemSchema>,
-        leg_armor: Option<&'a ItemSchema>,
-        boots: Option<&'a ItemSchema>,
-        amulet: Option<&'a ItemSchema>,
-        ring1: Option<&'a ItemSchema>,
-        ring2: Option<&'a ItemSchema>,
-        utility1: Option<&'a ItemSchema>,
-        utility2: Option<&'a ItemSchema>,
-        artifact1: Option<&'a ItemSchema>,
-        artifact2: Option<&'a ItemSchema>,
-        artifact3: Option<&'a ItemSchema>,
-    ) -> Option<Gear<'a>> {
-        if utility1.is_some_and(|u1| utility2.is_some_and(|u2| u1.code == u2.code))
-            || artifact1.is_some_and(|a1| artifact2.is_some_and(|a2| a1.code == a2.code))
-            || artifact2.is_some_and(|a2| artifact3.is_some_and(|a3| a2.code == a3.code))
-            || artifact1.is_some_and(|a1| artifact3.is_some_and(|a3| a1.code == a3.code))
+        weapon: Option<Arc<ItemSchema>>,
+        helmet: Option<Arc<ItemSchema>>,
+        shield: Option<Arc<ItemSchema>>,
+        body_armor: Option<Arc<ItemSchema>>,
+        leg_armor: Option<Arc<ItemSchema>>,
+        boots: Option<Arc<ItemSchema>>,
+        amulet: Option<Arc<ItemSchema>>,
+        ring1: Option<Arc<ItemSchema>>,
+        ring2: Option<Arc<ItemSchema>>,
+        utility1: Option<Arc<ItemSchema>>,
+        utility2: Option<Arc<ItemSchema>>,
+        artifact1: Option<Arc<ItemSchema>>,
+        artifact2: Option<Arc<ItemSchema>>,
+        artifact3: Option<Arc<ItemSchema>>,
+    ) -> Option<Gear> {
+        if utility1
+            .as_ref()
+            .is_some_and(|u1| utility2.as_ref().is_some_and(|u2| u1.code == u2.code))
+            || artifact1
+                .as_ref()
+                .is_some_and(|a1| artifact2.as_ref().is_some_and(|a2| a1.code == a2.code))
+            || artifact2
+                .as_ref()
+                .is_some_and(|a2| artifact3.as_ref().is_some_and(|a3| a2.code == a3.code))
+            || artifact1
+                .as_ref()
+                .is_some_and(|a1| artifact3.as_ref().is_some_and(|a3| a1.code == a3.code))
         {
             None
         } else {
@@ -75,6 +83,7 @@ impl<'a> Gear<'a> {
         DamageType::iter()
             .map(|t| {
                 self.weapon
+                    .as_ref()
                     .map_or(0.0, |w| {
                         FightSimulator::average_dmg(
                             w.attack_damage(t),
@@ -109,22 +118,22 @@ impl<'a> Gear<'a> {
             .sum()
     }
 
-    pub fn slot(&self, slot: Slot) -> Option<&ItemSchema> {
+    pub fn slot(&self, slot: Slot) -> Option<Arc<ItemSchema>> {
         match slot {
-            Slot::Weapon => self.weapon,
-            Slot::Shield => self.shield,
-            Slot::Helmet => self.helmet,
-            Slot::BodyArmor => self.body_armor,
-            Slot::LegArmor => self.leg_armor,
-            Slot::Boots => self.boots,
-            Slot::Ring1 => self.ring1,
-            Slot::Ring2 => self.ring2,
-            Slot::Amulet => self.amulet,
-            Slot::Artifact1 => self.artifact1,
-            Slot::Artifact2 => self.artifact2,
-            Slot::Artifact3 => self.artifact3,
-            Slot::Utility1 => self.utility1,
-            Slot::Utility2 => self.utility2,
+            Slot::Weapon => self.weapon.clone(),
+            Slot::Shield => self.shield.clone(),
+            Slot::Helmet => self.helmet.clone(),
+            Slot::BodyArmor => self.body_armor.clone(),
+            Slot::LegArmor => self.leg_armor.clone(),
+            Slot::Boots => self.boots.clone(),
+            Slot::Ring1 => self.ring1.clone(),
+            Slot::Ring2 => self.ring2.clone(),
+            Slot::Amulet => self.amulet.clone(),
+            Slot::Artifact1 => self.artifact1.clone(),
+            Slot::Artifact2 => self.artifact2.clone(),
+            Slot::Artifact3 => self.artifact3.clone(),
+            Slot::Utility1 => self.utility1.clone(),
+            Slot::Utility2 => self.utility2.clone(),
         }
     }
 
@@ -140,104 +149,132 @@ impl<'a> Gear<'a> {
             .sum()
     }
 
-    pub fn align_to(&mut self, other: &Gear<'_>) {
+    pub fn align_to(&mut self, other: &Gear) {
         if self
             .slot(Slot::Ring1)
-            .is_some_and(|r1| other.ring2.is_some_and(|r2| r1 == r2))
+            .is_some_and(|r1| other.ring2.as_ref().is_some_and(|r2| r1 == *r2))
             || self
                 .slot(Slot::Ring2)
-                .is_some_and(|r2| other.ring1.is_some_and(|r1| r2 == r1))
+                .is_some_and(|r2| other.ring1.as_ref().is_some_and(|r1| r2 == *r1))
         {
             std::mem::swap(&mut self.ring1, &mut self.ring2);
         }
         if self
             .slot(Slot::Utility1)
-            .is_some_and(|u1| other.utility2.is_some_and(|u2| u1 == u2))
+            .is_some_and(|u1| other.utility2.as_ref().is_some_and(|u2| u1 == *u2))
             || self
                 .slot(Slot::Utility2)
-                .is_some_and(|u2| other.utility1.is_some_and(|u1| u2 == u1))
+                .is_some_and(|u2| other.utility1.as_ref().is_some_and(|u1| u2 == *u1))
         {
             std::mem::swap(&mut self.utility1, &mut self.utility2);
         }
         if self
             .slot(Slot::Artifact1)
-            .is_some_and(|a1| other.artifact2.is_some_and(|a2| a1 == a2))
+            .is_some_and(|a1| other.artifact2.as_ref().is_some_and(|a2| a1 == *a2))
             || self
                 .slot(Slot::Artifact2)
-                .is_some_and(|a2| other.artifact1.is_some_and(|a1| a2 == a1))
+                .is_some_and(|a2| other.artifact1.as_ref().is_some_and(|a1| a2 == *a1))
         {
             std::mem::swap(&mut self.artifact1, &mut self.artifact2);
         }
         if self
             .slot(Slot::Artifact1)
-            .is_some_and(|a1| other.artifact3.is_some_and(|a3| a1 == a3))
+            .is_some_and(|a1| other.artifact3.as_ref().is_some_and(|a3| a1 == *a3))
             || self
                 .slot(Slot::Artifact3)
-                .is_some_and(|a3| other.artifact1.is_some_and(|a1| a3 == a1))
+                .is_some_and(|a3| other.artifact1.as_ref().is_some_and(|a1| a3 == *a1))
         {
             std::mem::swap(&mut self.artifact1, &mut self.artifact3);
         }
         if self
             .slot(Slot::Artifact2)
-            .is_some_and(|a2| other.artifact3.is_some_and(|a3| a2 == a3))
+            .is_some_and(|a2| other.artifact3.as_ref().is_some_and(|a3| a2 == *a3))
             || self
                 .slot(Slot::Artifact3)
-                .is_some_and(|a3| other.artifact2.is_some_and(|a2| a3 == a2))
+                .is_some_and(|a3| other.artifact2.as_ref().is_some_and(|a2| a3 == *a2))
         {
             std::mem::swap(&mut self.artifact2, &mut self.artifact3);
         }
     }
 }
 
-impl Display for Gear<'_> {
+impl Display for Gear {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Weapon: {:?}", self.weapon.map(|w| w.name.to_string()))?;
-        writeln!(f, "Shield: {:?}", self.shield.map(|w| w.name.to_string()))?;
-        writeln!(f, "Helmet: {:?}", self.helmet.map(|w| w.name.to_string()))?;
+        writeln!(
+            f,
+            "Weapon: {:?}",
+            self.weapon.as_ref().map(|w| w.name.to_string())
+        )?;
+        writeln!(
+            f,
+            "Shield: {:?}",
+            self.shield.as_ref().map(|w| w.name.to_string())
+        )?;
+        writeln!(
+            f,
+            "Helmet: {:?}",
+            self.helmet.as_ref().map(|w| w.name.to_string())
+        )?;
         writeln!(
             f,
             "Body Armor: {:?}",
-            self.body_armor.map(|w| w.name.to_string())
+            self.body_armor.as_ref().map(|w| w.name.to_string())
         )?;
         writeln!(
             f,
             "Leg Armor: {:?}",
-            self.leg_armor.map(|w| w.name.to_string())
+            self.leg_armor.as_ref().map(|w| w.name.to_string())
         )?;
-        writeln!(f, "Boots: {:?}", self.boots.map(|w| w.name.to_string()))?;
-        writeln!(f, "Ring 1: {:?}", self.ring1.map(|w| w.name.to_string()))?;
-        writeln!(f, "Ring 2: {:?}", self.ring2.map(|w| w.name.to_string()))?;
-        writeln!(f, "Amulet: {:?}", self.amulet.map(|w| w.name.to_string()))?;
+        writeln!(
+            f,
+            "Boots: {:?}",
+            self.boots.as_ref().map(|w| w.name.to_string())
+        )?;
+        writeln!(
+            f,
+            "Ring 1: {:?}",
+            self.ring1.as_ref().map(|w| w.name.to_string())
+        )?;
+        writeln!(
+            f,
+            "Ring 2: {:?}",
+            self.ring2.as_ref().map(|w| w.name.to_string())
+        )?;
+        writeln!(
+            f,
+            "Amulet: {:?}",
+            self.amulet.as_ref().map(|w| w.name.to_string())
+        )?;
         writeln!(
             f,
             "Artifact 1: {:?}",
-            self.artifact1.map(|w| w.name.to_string())
+            self.artifact1.as_ref().map(|w| w.name.to_string())
         )?;
         writeln!(
             f,
             "Artifact 2: {:?}",
-            self.artifact2.map(|w| w.name.to_string())
+            self.artifact2.as_ref().map(|w| w.name.to_string())
         )?;
         writeln!(
             f,
             "Artifact 3: {:?}",
-            self.artifact3.map(|w| w.name.to_string())
+            self.artifact3.as_ref().map(|w| w.name.to_string())
         )?;
         writeln!(
             f,
             "Consumable 1: {:?}",
-            self.utility1.map(|w| w.name.to_string())
+            self.utility1.as_ref().map(|w| w.name.to_string())
         )?;
         writeln!(
             f,
             "Consumable 2: {:?}",
-            self.utility2.map(|w| w.name.to_string())
+            self.utility2.as_ref().map(|w| w.name.to_string())
         )
     }
 }
 
-impl From<Gear<'_>> for Vec<SimpleItemSchema> {
-    fn from(val: Gear<'_>) -> Self {
+impl From<Gear> for Vec<SimpleItemSchema> {
+    fn from(val: Gear) -> Self {
         let mut i = Slot::iter()
             .filter_map(|s| {
                 if s.is_ring_1() || s.is_ring_2() {
@@ -374,8 +411,8 @@ impl From<Slot> for ItemSlot {
 
 #[cfg(test)]
 mod tests {
-    use crate::items::ITEMS;
     use super::*;
+    use crate::items::ITEMS;
 
     #[test]
     fn check_gear_alignment_is_working() {

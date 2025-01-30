@@ -8,7 +8,10 @@ use crate::{
 use artifactsmmo_openapi::models::{FightResult, ItemSchema, MonsterSchema};
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
-use std::{collections::HashSet, sync::LazyLock};
+use std::{
+    collections::HashSet,
+    sync::{Arc, LazyLock},
+};
 
 pub static GEAR_FINDER: LazyLock<GearFinder> = LazyLock::new(GearFinder::new);
 
@@ -24,20 +27,20 @@ impl GearFinder {
         char: &'a Character,
         monster: &'a MonsterSchema,
         filter: Filter,
-    ) -> Gear<'a> {
+    ) -> Gear {
         self.bests_against(char, monster, filter)
             .into_iter()
             .map(|g| {
                 (
-                    g,
                     FIGHT_SIMULATOR.simulate(char.level(), 0, &g, monster, false),
+                    g,
                 )
             })
-            .filter(|(_g, f)| f.result == FightResult::Win)
-            .min_set_by_key(|(_g, f)| f.cd + FightSimulator::time_to_rest(f.hp_lost))
+            .filter(|(f, _g)| f.result == FightResult::Win)
+            .min_set_by_key(|(f, _g)| f.cd + FightSimulator::time_to_rest(f.hp_lost))
             .into_iter()
-            .max_by_key(|(_g, f)| f.hp)
-            .map(|(g, _f)| g)
+            .max_by_key(|(f, _g)| f.hp)
+            .map(|(_f, g)| g)
             .unwrap_or_default()
     }
 
@@ -46,19 +49,19 @@ impl GearFinder {
         char: &'a Character,
         monster: &'a MonsterSchema,
         filter: Filter,
-    ) -> Gear<'a> {
+    ) -> Gear {
         self.bests_against(char, monster, filter)
             .into_iter()
             .map(|g| {
                 (
-                    g,
                     FIGHT_SIMULATOR.simulate(char.level(), 0, &g, monster, true),
+                    g,
                 )
             })
-            .min_set_by_key(|(_g, f)| f.cd + FightSimulator::time_to_rest(f.hp_lost))
+            .min_set_by_key(|(f, _g)| f.cd + FightSimulator::time_to_rest(f.hp_lost))
             .into_iter()
-            .max_by_key(|(_g, f)| f.hp)
-            .map(|(g, _f)| g)
+            .max_by_key(|(f, _g)| f.hp)
+            .map(|(_f, g)| g)
             .unwrap_or_default()
     }
 
@@ -67,7 +70,7 @@ impl GearFinder {
         char: &'a Character,
         monster: &'a MonsterSchema,
         filter: Filter,
-    ) -> Vec<Gear<'a>> {
+    ) -> Vec<Gear> {
         self.best_weapons_against(char, monster, filter)
             .iter()
             .flat_map(|w| self.bests_against_with_weapon(char, monster, filter, w))
@@ -79,7 +82,7 @@ impl GearFinder {
         char: &'a Character,
         monster: &'a MonsterSchema,
         filter: Filter,
-    ) -> Vec<&'a ItemSchema> {
+    ) -> Vec<Arc<ItemSchema>> {
         let equipables = ITEMS
             .equipable_at_level(char.level(), Type::Weapon)
             .into_iter()
@@ -92,7 +95,7 @@ impl GearFinder {
         equipables
             .into_iter()
             .filter(|i| {
-                if let Some(best) = best {
+                if let Some(best) = &best {
                     i.attack_damage_against(monster) >= best.attack_damage_against(monster) * 0.90
                 } else {
                     false
@@ -101,13 +104,13 @@ impl GearFinder {
             .collect_vec()
     }
 
-    fn bests_against_with_weapon<'a>(
-        &'a self,
+    fn bests_against_with_weapon(
+        &self,
         char: &Character,
         monster: &MonsterSchema,
         filter: Filter,
-        weapon: &'a ItemSchema,
-    ) -> Vec<Gear<'a>> {
+        weapon: &Arc<ItemSchema>,
+    ) -> Vec<Gear> {
         let helmets = self.best_armors_against_with_weapon(
             char,
             monster,
@@ -158,16 +161,26 @@ impl GearFinder {
         );
         let mut items = vec![];
         if !helmets.is_empty() {
-            items.push(helmets.iter().map(|i| ItemWrapper::Armor(*i)).collect_vec());
+            items.push(
+                helmets
+                    .iter()
+                    .map(|i| ItemWrapper::Armor(i.clone()))
+                    .collect_vec(),
+            );
         }
         if !shields.is_empty() {
-            items.push(shields.iter().map(|i| ItemWrapper::Armor(*i)).collect_vec());
+            items.push(
+                shields
+                    .iter()
+                    .map(|i| ItemWrapper::Armor(i.clone()))
+                    .collect_vec(),
+            );
         }
         if !body_armors.is_empty() {
             items.push(
                 body_armors
                     .iter()
-                    .map(|i| ItemWrapper::Armor(*i))
+                    .map(|i| ItemWrapper::Armor(i.clone()))
                     .collect_vec(),
             );
         }
@@ -175,15 +188,25 @@ impl GearFinder {
             items.push(
                 leg_armors
                     .iter()
-                    .map(|i| ItemWrapper::Armor(*i))
+                    .map(|i| ItemWrapper::Armor(i.clone()))
                     .collect_vec(),
             );
         }
         if !boots.is_empty() {
-            items.push(boots.iter().map(|i| ItemWrapper::Armor(*i)).collect_vec());
+            items.push(
+                boots
+                    .iter()
+                    .map(|i| ItemWrapper::Armor(i.clone()))
+                    .collect_vec(),
+            );
         }
         if !amulets.is_empty() {
-            items.push(amulets.iter().map(|i| ItemWrapper::Armor(*i)).collect_vec());
+            items.push(
+                amulets
+                    .iter()
+                    .map(|i| ItemWrapper::Armor(i.clone()))
+                    .collect_vec(),
+            );
         }
         let ring_sets = self.gen_rings_sets(char, monster, weapon, filter);
         if !ring_sets.is_empty() {
@@ -204,7 +227,7 @@ impl GearFinder {
             .multi_cartesian_product()
             .filter_map(|items| {
                 Gear::new(
-                    Some(weapon),
+                    Some(weapon.clone()),
                     self.item_from_wrappers(&items, Type::Helmet, 0),
                     self.item_from_wrappers(&items, Type::Shield, 0),
                     self.item_from_wrappers(&items, Type::BodyArmor, 0),
@@ -223,13 +246,13 @@ impl GearFinder {
             .collect::<Vec<_>>()
     }
 
-    fn gen_rings_sets<'a>(
-        &'a self,
+    fn gen_rings_sets(
+        &self,
         char: &Character,
         monster: &MonsterSchema,
         weapon: &ItemSchema,
         filter: Filter,
-    ) -> Vec<ItemWrapper<'a>> {
+    ) -> Vec<ItemWrapper> {
         let rings =
             self.best_armors_against_with_weapon(char, monster, weapon, Type::Ring, filter, vec![]);
         let ring2_black_list = rings
@@ -255,7 +278,7 @@ impl GearFinder {
         let mut ring_sets = [rings, rings2]
             .iter()
             .multi_cartesian_product()
-            .map(|rings| [*rings[0], *rings[1]])
+            .map(|rings| [rings[0].clone(), rings[1].clone()])
             .sorted()
             .map(|rings| ItemWrapper::Rings(RingSet::new(rings)))
             .collect_vec();
@@ -263,13 +286,13 @@ impl GearFinder {
         ring_sets
     }
 
-    fn gen_utilities_sets<'a>(
-        &'a self,
+    fn gen_utilities_sets(
+        &self,
         char: &Character,
         monster: &MonsterSchema,
         weapon: &ItemSchema,
         filter: Filter,
-    ) -> Vec<ItemWrapper<'a>> {
+    ) -> Vec<ItemWrapper> {
         let mut utilities =
             self.best_utilities_against_with_weapon(char, monster, weapon, filter, vec![]);
         utilities.push(None);
@@ -279,8 +302,8 @@ impl GearFinder {
             .map(|utilities| {
                 ItemWrapper::Utility({
                     let mut set = HashSet::new();
-                    set.insert(*utilities[0]);
-                    set.insert(*utilities[1]);
+                    set.insert(utilities[0].clone());
+                    set.insert(utilities[1].clone());
                     set
                 })
             })
@@ -289,13 +312,13 @@ impl GearFinder {
         sets
     }
 
-    fn gen_artifacts_sets<'a>(
-        &'a self,
+    fn gen_artifacts_sets(
+        &self,
         char: &Character,
         monster: &MonsterSchema,
         weapon: &ItemSchema,
         filter: Filter,
-    ) -> Vec<ItemWrapper<'a>> {
+    ) -> Vec<ItemWrapper> {
         let mut artifacts = self.best_armors_against_with_weapon(
             char,
             monster,
@@ -308,7 +331,13 @@ impl GearFinder {
         let mut sets = [artifacts.clone(), artifacts.clone(), artifacts]
             .iter()
             .multi_cartesian_product()
-            .map(|artifacts| [*artifacts[0], *artifacts[1], *artifacts[2]])
+            .map(|artifacts| {
+                [
+                    artifacts[0].clone(),
+                    artifacts[1].clone(),
+                    artifacts[2].clone(),
+                ]
+            })
             .sorted()
             .filter_map(|artifacts| ArtifactSet::new(artifacts).map(ItemWrapper::Artifacts))
             .collect_vec();
@@ -321,7 +350,7 @@ impl GearFinder {
         wrapper: &[&ItemWrapper],
         r#type: Type,
         index: usize,
-    ) -> Option<&ItemSchema> {
+    ) -> Option<Arc<ItemSchema>> {
         wrapper.iter().find_map(|w| match w {
             ItemWrapper::Armor(Some(armor)) => {
                 ITEMS
@@ -378,13 +407,13 @@ impl GearFinder {
         weapon: &ItemSchema,
         r#type: Type,
         filter: Filter,
-        black_list: Vec<&str>,
-    ) -> Vec<Option<&str>> {
-        let mut bests: Vec<&ItemSchema> = vec![];
+        black_list: Vec<String>,
+    ) -> Vec<Option<String>> {
+        let mut bests: Vec<Arc<ItemSchema>> = vec![];
         let equipables = ITEMS
             .equipable_at_level(char.level(), r#type)
             .into_iter()
-            .filter(|i| !black_list.contains(&i.code.as_str()) && self.is_eligible(i, filter, char))
+            .filter(|i| !black_list.contains(&i.code) && self.is_eligible(i, filter, char))
             .collect_vec();
         let best_for_damage = equipables
             .iter()
@@ -405,15 +434,18 @@ impl GearFinder {
             .sorted_by_key(|i| OrderedFloat(i.damage_increase_against_with(monster, weapon)))
             .rev()
             .take(3)
+            .cloned()
             .collect_vec();
         let best_reduction = equipables
             .iter()
             .filter(|i| i.damage_reduction_against(monster) > 0.0)
-            .max_by_key(|i| OrderedFloat(i.damage_reduction_against(monster)));
+            .max_by_key(|i| OrderedFloat(i.damage_reduction_against(monster)))
+            .cloned();
         let best_health_increase = equipables
             .iter()
             .filter(|i| i.health() > 0)
-            .max_by_key(|i| i.health());
+            .max_by_key(|i| i.health())
+            .cloned();
         if !bests_for_damage.is_empty() {
             bests.extend(bests_for_damage);
         }
@@ -430,7 +462,7 @@ impl GearFinder {
         }
         bests
             .into_iter()
-            .map(|i| Some(i.code.as_str()))
+            .map(|i| Some(i.code.to_owned()))
             .sorted()
             .dedup()
             .collect_vec()
@@ -443,8 +475,8 @@ impl GearFinder {
         weapon: &ItemSchema,
         filter: Filter,
         black_list: Vec<&str>,
-    ) -> Vec<Option<&str>> {
-        let mut upgrades: Vec<&ItemSchema> = vec![];
+    ) -> Vec<Option<String>> {
+        let mut upgrades: Vec<Arc<ItemSchema>> = vec![];
         let equipables = ITEMS
             .equipable_at_level(char.level(), Type::Utility)
             .into_iter()
@@ -453,18 +485,22 @@ impl GearFinder {
         let best_for_damage = equipables
             .iter()
             .filter(|i| i.damage_increase_against_with(monster, weapon) > 0.0)
+            .cloned()
             .max_by_key(|i| OrderedFloat(i.damage_increase_against_with(monster, weapon)));
         let best_reduction = equipables
             .iter()
             .filter(|i| i.damage_reduction_against(monster) > 0.0)
+            .cloned()
             .max_by_key(|i| OrderedFloat(i.damage_reduction_against(monster)));
         let best_health_increase = equipables
             .iter()
             .filter(|i| i.health() > 0)
+            .cloned()
             .max_by_key(|i| i.health());
         let best_restore = equipables
             .iter()
             .filter(|i| i.restore() > 0)
+            .cloned()
             .max_by_key(|i| i.restore());
         if let Some(best_for_damage) = best_for_damage {
             upgrades.push(best_for_damage);
@@ -478,15 +514,20 @@ impl GearFinder {
         if let Some(best_restore) = best_restore {
             upgrades.push(best_restore);
         }
-        upgrades.sort_by_key(|i| &i.code);
-        upgrades.dedup_by_key(|i| &i.code);
+        upgrades.sort_by_key(|i| i.code.to_owned());
+        upgrades.dedup_by_key(|i| i.code.to_owned());
         upgrades
             .into_iter()
-            .map(|i| Some(i.code.as_str()))
+            .map(|i| Some(i.code.to_owned()))
             .collect_vec()
     }
 
-    pub fn best_tool(&self, char: &Character, skill: Skill, filter: Filter) -> Option<&ItemSchema> {
+    pub fn best_tool(
+        &self,
+        char: &Character,
+        skill: Skill,
+        filter: Filter,
+    ) -> Option<Arc<ItemSchema>> {
         ITEMS
             .equipable_at_level(char.level(), Type::Weapon)
             .into_iter()
@@ -545,36 +586,42 @@ impl Default for Filter {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-enum ItemWrapper<'a> {
-    Armor(Option<&'a str>),
-    Rings(RingSet<'a>),
-    Artifacts(ArtifactSet<'a>),
-    Utility(HashSet<Option<&'a str>>),
+enum ItemWrapper {
+    Armor(Option<String>),
+    Rings(RingSet),
+    Artifacts(ArtifactSet),
+    Utility(HashSet<Option<String>>),
 }
 
-#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
-struct RingSet<'a> {
-    rings: [Option<&'a str>; 2],
+#[derive(Debug, Hash, Eq, PartialEq)]
+struct RingSet {
+    rings: [Option<String>; 2],
 }
 
-impl<'a> RingSet<'a> {
-    fn new(mut rings: [Option<&'a str>; 2]) -> Self {
+impl RingSet {
+    fn new(mut rings: [Option<String>; 2]) -> Self {
         rings.sort();
         RingSet { rings }
     }
 }
 
-#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
-struct ArtifactSet<'a> {
-    artifacts: [Option<&'a str>; 3],
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+struct ArtifactSet {
+    artifacts: [Option<String>; 3],
 }
 
-impl<'a> ArtifactSet<'a> {
-    fn new(mut artifacts: [Option<&'a str>; 3]) -> Option<Self> {
+impl ArtifactSet {
+    fn new(mut artifacts: [Option<String>; 3]) -> Option<Self> {
         artifacts.sort();
-        if artifacts[0].is_some_and(|a| artifacts[1].is_some_and(|b| a == b))
-            || artifacts[1].is_some_and(|a| artifacts[2].is_some_and(|b| a == b))
-            || artifacts[2].is_some_and(|a| artifacts[0].is_some_and(|b| a == b))
+        if artifacts[0]
+            .as_ref()
+            .is_some_and(|a| artifacts[1].as_ref().is_some_and(|b| a == b))
+            || artifacts[1]
+                .as_ref()
+                .is_some_and(|a| artifacts[2].as_ref().is_some_and(|b| a == b))
+            || artifacts[2]
+                .as_ref()
+                .is_some_and(|a| artifacts[0].as_ref().is_some_and(|b| a == b))
         {
             None
         } else {

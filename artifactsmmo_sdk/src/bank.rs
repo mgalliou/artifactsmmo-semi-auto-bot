@@ -107,12 +107,12 @@ impl Bank {
             .sum()
     }
 
-    pub fn consumable_food(&self, level: i32) -> Vec<&ItemSchema> {
+    pub fn consumable_food(&self, level: i32) -> Vec<Arc<ItemSchema>> {
         self.content
             .read()
             .unwrap()
             .iter()
-            .filter_map(|i| ITEMS.get(&i.code).filter(|&i| i.is_consumable(level)))
+            .filter_map(|i| ITEMS.get(&i.code).filter(|i| i.is_consumable(level)))
             .collect_vec()
     }
 

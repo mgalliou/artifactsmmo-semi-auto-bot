@@ -763,7 +763,7 @@ impl Character {
         match self.can_kill(monster) {
             Ok(gear) => {
                 available = gear;
-                self.reserv_gear(available)
+                self.reserv_gear(&mut available)
             }
             Err(e) => return Err(e),
         }
@@ -797,10 +797,10 @@ impl Character {
     }
 
     fn check_for_tool(&self, resource: &ResourceSchema) {
-        let mut available: Option<&ItemSchema> = None;
+        let mut available: Option<Arc<ItemSchema>> = None;
         let prev_equiped = self.equiped_in(Slot::Weapon);
         if let Ok(_browsed) = BANK.browsed.write() {
-            if let Some(tool) = GEAR_FINDER.best_tool(
+            if let Some(ref tool) = GEAR_FINDER.best_tool(
                 self,
                 resource.skill.into(),
                 Filter {
@@ -808,13 +808,17 @@ impl Character {
                     ..Default::default()
                 },
             ) {
-                available = Some(tool);
+                available = Some(tool.clone());
                 self.reserv_if_needed_and_available(Slot::Weapon, &tool.code, 1);
             }
             self.order_best_tool(resource.skill.into());
         }
         if let Some(prev_equiped) = prev_equiped {
-            if available.is_none() || available.is_some_and(|t| t.code != prev_equiped.code) {
+            if available.is_none()
+                || available
+                    .as_ref()
+                    .is_some_and(|t| t.code != prev_equiped.code)
+            {
                 if let Err(e) = self.unequip_item(Slot::Weapon, 1) {
                     error!(
                         "{}: failed to unequip previously equiped weapon: {:?}",
@@ -920,7 +924,7 @@ impl Character {
 
     /// Checks if the `Character` is able to kill the given monster and returns
     /// the best available gear to do so.
-    pub fn can_kill<'a>(&'a self, monster: &'a MonsterSchema) -> Result<Gear<'a>, CharacterError> {
+    pub fn can_kill<'a>(&'a self, monster: &'a MonsterSchema) -> Result<Gear, CharacterError> {
         self.can_fight(monster)?;
         let available = GEAR_FINDER.best_winning_against(
             self,
@@ -1042,7 +1046,7 @@ impl Character {
     }
 
     /// Returns the item equiped in the `given` slot.
-    fn equiped_in(&self, slot: Slot) -> Option<&ItemSchema> {
+    fn equiped_in(&self, slot: Slot) -> Option<Arc<ItemSchema>> {
         let binding = self.data();
         let d = binding.read().unwrap();
         ITEMS.get(match slot {
@@ -1596,7 +1600,7 @@ impl Character {
 
     fn equip_item_from_bank_or_inventory(&self, item: &str, slot: Slot) {
         let prev_equiped = self.equiped_in(slot);
-        if prev_equiped.is_some_and(|e| e.code == item) {
+        if prev_equiped.as_ref().is_some_and(|e| e.code == item) {
             return;
         }
         if self.inventory.total_of(item) <= 0
@@ -1649,7 +1653,7 @@ impl Character {
         }
     }
 
-    fn best_tool_for_resource(&self, item: &str) -> Option<&ItemSchema> {
+    fn best_tool_for_resource(&self, item: &str) -> Option<Arc<ItemSchema>> {
         match RESOURCES.get(item) {
             //TODO improve filtering
             Some(resource) => ITEMS
@@ -1698,24 +1702,24 @@ impl Character {
             .sum()
     }
 
-    //TODO: finish implementing this function
-    #[allow(dead_code)]
-    #[allow(unused_variables)]
-    fn order_upgrades(&self, current: Gear, monster: &MonsterSchema, filter: Filter) {
-        let gears = GEAR_FINDER.bests_against(self, monster, filter);
-        if let Some(gear) = gears
-            .iter()
-            .filter(|g| self.can_kill_with(monster, g))
-            .min_by_key(|g| self.time_to_get_gear(g))
-        {
-            if self.can_kill_with(monster, gear) {
-                self.order_gear(*gear);
-            };
-        }
-    }
+    ////TODO: finish implementing this function
+    //#[allow(dead_code)]
+    //#[allow(unused_variables)]
+    //fn order_upgrades(&self, current: Gear, monster: &MonsterSchema, filter: Filter) {
+    //    let gears = GEAR_FINDER.bests_against(self, monster, filter);
+    //    if let Some(gear) = gears
+    //        .iter()
+    //        .filter(|g| self.can_kill_with(monster, g))
+    //        .min_by_key(|g| self.time_to_get_gear(g))
+    //    {
+    //        if self.can_kill_with(monster, gear) {
+    //            self.order_gear(*gear);
+    //        };
+    //    }
+    //}
 
     fn order_best_gear_against(&self, monster: &MonsterSchema) {
-        let gear = GEAR_FINDER.best_winning_against(
+        let mut gear = GEAR_FINDER.best_winning_against(
             self,
             monster,
             Filter {
@@ -1726,11 +1730,11 @@ impl Character {
             },
         );
         if self.can_kill_with(monster, &gear) {
-            self.order_gear(gear);
+            self.order_gear(&mut gear);
         };
     }
 
-    fn order_gear(&self, mut gear: Gear) {
+    fn order_gear(&self, gear: &mut Gear) {
         gear.align_to(&self.gear());
         Slot::iter().for_each(|s| {
             if !s.is_artifact_1()
@@ -1750,12 +1754,12 @@ impl Character {
             }
         });
         if gear.ring1.is_some() && gear.ring1 == gear.ring2 {
-            self.order_if_needed(Slot::Ring1, &gear.ring1.unwrap().code, 2);
+            self.order_if_needed(Slot::Ring1, &gear.ring1.as_ref().unwrap().code, 2);
         } else {
-            if let Some(ring1) = gear.ring1 {
+            if let Some(ref ring1) = gear.ring1 {
                 self.order_if_needed(Slot::Ring1, &ring1.code, 1);
             }
-            if let Some(ring2) = gear.ring1 {
+            if let Some(ref ring2) = gear.ring1 {
                 self.order_if_needed(Slot::Ring2, &ring2.code, 1);
             }
         }
@@ -1784,7 +1788,7 @@ impl Character {
         false
     }
 
-    fn reserv_gear(&self, mut gear: Gear) {
+    fn reserv_gear(&self, gear: &mut Gear) {
         gear.align_to(&self.gear());
         Slot::iter().for_each(|s| {
             if !(s.is_ring_1() || s.is_ring_2()) {
@@ -1799,12 +1803,12 @@ impl Character {
             }
         });
         if gear.ring1.is_some() && gear.ring1 == gear.ring2 {
-            self.reserv_if_needed_and_available(Slot::Ring1, &gear.ring1.unwrap().code, 2);
+            self.reserv_if_needed_and_available(Slot::Ring1, &gear.ring1.as_ref().unwrap().code, 2);
         } else {
-            if let Some(ring1) = gear.ring1 {
+            if let Some(ref ring1) = gear.ring1 {
                 self.reserv_if_needed_and_available(Slot::Ring1, &ring1.code, 1);
             }
-            if let Some(ring2) = gear.ring2 {
+            if let Some(ref ring2) = gear.ring2 {
                 self.reserv_if_needed_and_available(Slot::Ring2, &ring2.code, 1);
             }
         }

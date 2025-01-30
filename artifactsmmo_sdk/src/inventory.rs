@@ -86,7 +86,7 @@ impl Inventory {
             .map_or(0, |i| i.quantity)
     }
 
-    pub fn consumable_food(&self) -> Vec<&ItemSchema> {
+    pub fn consumable_food(&self) -> Vec<Arc<ItemSchema>> {
         self.data
             .read()
             .unwrap()
@@ -96,7 +96,7 @@ impl Inventory {
             .filter_map(|i| {
                 ITEMS
                     .get(&i.code)
-                    .filter(|&i| i.is_consumable(self.data.read().unwrap().level))
+                    .filter(|i| i.is_consumable(self.data.read().unwrap().level))
             })
             .collect_vec()
     }

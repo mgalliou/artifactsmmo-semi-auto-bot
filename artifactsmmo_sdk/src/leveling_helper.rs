@@ -11,7 +11,7 @@ use crate::{
 use artifactsmmo_openapi::models::{ItemSchema, MonsterSchema, ResourceSchema};
 use itertools::Itertools;
 use rayon::iter::{ParallelBridge, ParallelIterator};
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 
 pub static LEVELING_HELPER: LazyLock<LevelingHelper> = LazyLock::new(LevelingHelper::new);
 
@@ -28,18 +28,18 @@ impl LevelingHelper {
         &self,
         level: i32,
         skill: Skill,
-    ) -> impl Iterator<Item = &ItemSchema> {
+    ) -> impl Iterator<Item = Arc<ItemSchema>> {
         let min = if level > 11 { level - 10 } else { 1 };
         ITEMS
             .all()
-            .values()
+            .into_iter()
             .filter(move |i| i.level >= min && i.level <= level)
             .filter(move |i| i.skill_to_craft().is_some_and(|s| s == skill))
     }
 
     /// Takes a `level` and a `skill` and returns the items of the lowest level
     /// providing experience when crafted.
-    pub fn lowest_crafts_providing_exp(&self, level: i32, skill: Skill) -> Vec<&ItemSchema> {
+    pub fn lowest_crafts_providing_exp(&self, level: i32, skill: Skill) -> Vec<Arc<ItemSchema>> {
         self.crafts_providing_exp(level, skill)
             .min_set_by_key(|i| i.level)
             .into_iter()
@@ -48,7 +48,7 @@ impl LevelingHelper {
 
     /// Takes a `level` and a `skill` and returns the items of the highest level
     /// providing experience when crafted.
-    pub fn highest_crafts_providing_exp(&self, level: i32, skill: Skill) -> Vec<&ItemSchema> {
+    pub fn highest_crafts_providing_exp(&self, level: i32, skill: Skill) -> Vec<Arc<ItemSchema>> {
         self.crafts_providing_exp(level, skill)
             .max_set_by_key(|i| i.level)
             .into_iter()
@@ -56,7 +56,7 @@ impl LevelingHelper {
     }
 
     /// Returns the best items to level the given `skill` at the given `level.
-    pub fn best_crafts_hardcoded(&self, level: i32, skill: Skill) -> Vec<&ItemSchema> {
+    pub fn best_crafts_hardcoded(&self, level: i32, skill: Skill) -> Vec<Arc<ItemSchema>> {
         match skill {
             Skill::Gearcrafting => {
                 if level >= 20 {
@@ -107,7 +107,7 @@ impl LevelingHelper {
         .collect_vec()
     }
 
-    pub fn best_crafts(&self, level: i32, skill: Skill) -> Vec<&ItemSchema> {
+    pub fn best_crafts(&self, level: i32, skill: Skill) -> Vec<Arc<ItemSchema>> {
         self.crafts_providing_exp(level, skill)
             .filter(|i| {
                 ![
@@ -134,7 +134,12 @@ impl LevelingHelper {
             .collect_vec()
     }
 
-    pub fn best_craft(&self, level: i32, skill: Skill, char: &Character) -> Option<&ItemSchema> {
+    pub fn best_craft(
+        &self,
+        level: i32,
+        skill: Skill,
+        char: &Character,
+    ) -> Option<Arc<ItemSchema>> {
         self.best_crafts_hardcoded(level, skill)
             .into_iter()
             .filter_map(|i| {

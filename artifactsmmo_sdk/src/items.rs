@@ -15,21 +15,27 @@ use artifactsmmo_openapi::models::{
 };
 use itertools::Itertools;
 use log::debug;
-use std::{collections::HashMap, fmt, str::FromStr, sync::LazyLock, vec::Vec};
+use std::{
+    collections::HashMap,
+    fmt,
+    str::FromStr,
+    sync::{Arc, LazyLock, RwLock},
+    vec::Vec,
+};
 use strum::IntoEnumIterator;
 use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
 
 pub static ITEMS: LazyLock<Items> = LazyLock::new(Items::new);
 
-pub struct Items(HashMap<String, ItemSchema>);
+pub struct Items(RwLock<HashMap<String, Arc<ItemSchema>>>);
 
-impl PersistedData<HashMap<String, ItemSchema>> for Items {
-    fn data_from_api() -> HashMap<String, ItemSchema> {
+impl PersistedData<HashMap<String, Arc<ItemSchema>>> for Items {
+    fn data_from_api() -> HashMap<String, Arc<ItemSchema>> {
         API.items
             .all(None, None, None, None, None, None)
             .unwrap()
             .into_iter()
-            .map(|item| (item.code.clone(), item))
+            .map(|item| (item.code.clone(), Arc::new(item)))
             .collect()
     }
 
@@ -40,16 +46,20 @@ impl PersistedData<HashMap<String, ItemSchema>> for Items {
 
 impl Items {
     fn new() -> Self {
-        Self(Self::get_data())
+        Self(RwLock::new(Self::get_data()))
+    }
+
+    fn refresh_data(&self) {
+        *self.0.write().unwrap() = Self::data_from_api();
     }
 
     /// Takes an item `code` and return its schema.
-    pub fn get(&self, code: &str) -> Option<&ItemSchema> {
-        self.0.get(code)
+    pub fn get(&self, code: &str) -> Option<Arc<ItemSchema>> {
+        self.0.read().unwrap().get(code).cloned()
     }
 
-    pub fn all(&self) -> &HashMap<String, ItemSchema> {
-        &self.0
+    pub fn all(&self) -> Vec<Arc<ItemSchema>> {
+        self.0.read().unwrap().values().cloned().collect_vec()
     }
 
     /// Takes an item `code` and return the mats required to craft it.
@@ -83,7 +93,7 @@ impl Items {
 
     /// Takes an `resource` code and returns the items that can be crafted
     /// from the base mats it drops.
-    pub fn crafted_from_resource(&self, resource: &str) -> Vec<&ItemSchema> {
+    pub fn crafted_from_resource(&self, resource: &str) -> Vec<Arc<ItemSchema>> {
         RESOURCES
             .get(resource)
             .map(|r| &r.drops)
@@ -94,10 +104,11 @@ impl Items {
     }
 
     /// Takes an item `code` and returns the items directly crafted with it.
-    pub fn crafted_with(&self, code: &str) -> Vec<&ItemSchema> {
-        self.0
-            .values()
+    pub fn crafted_with(&self, code: &str) -> Vec<Arc<ItemSchema>> {
+        self.all()
+            .iter()
             .filter(|i| i.is_crafted_with(code))
+            .cloned()
             .collect_vec()
     }
 
@@ -115,19 +126,20 @@ impl Items {
 
     /// Takes an item `code` and returns the only item it can be crafted in, or
     /// `None` otherwise.
-    pub fn unique_craft(&self, code: &str) -> Option<&ItemSchema> {
+    pub fn unique_craft(&self, code: &str) -> Option<Arc<ItemSchema>> {
         let crafts = self.crafted_with(code);
         if crafts.len() == 1 {
-            return Some(crafts[0]);
+            return Some(crafts[0].clone());
         }
         None
     }
 
     /// Takes an item `code` and returns the items crafted with it as base mat.
-    pub fn crafted_with_base_mat(&self, code: &str) -> Vec<&ItemSchema> {
-        self.0
-            .values()
+    pub fn crafted_with_base_mat(&self, code: &str) -> Vec<Arc<ItemSchema>> {
+        self.all()
+            .iter()
             .filter(|i| self.is_crafted_with_base_mat(&i.code, code))
+            .cloned()
             .collect_vec()
     }
 
@@ -204,37 +216,41 @@ impl Items {
         average
     }
 
-    pub fn equipable_at_level(&self, level: i32, r#type: Type) -> Vec<&ItemSchema> {
-        self.0
-            .values()
+    pub fn equipable_at_level(&self, level: i32, r#type: Type) -> Vec<Arc<ItemSchema>> {
+        self.all()
+            .iter()
             .filter(|i| i.r#type == r#type && i.level <= level)
+            .cloned()
             .collect_vec()
     }
 
-    pub fn best_consumable_foods(&self, level: i32) -> Vec<&ItemSchema> {
-        self.0
-            .values()
+    pub fn best_consumable_foods(&self, level: i32) -> Vec<Arc<ItemSchema>> {
+        self.all()
+            .iter()
             .filter(|i| i.is_consumable(level))
+            .cloned()
             .collect_vec()
     }
 
-    pub fn restoring_utilities(&self, level: i32) -> Vec<&ItemSchema> {
-        self.0
-            .values()
+    pub fn restoring_utilities(&self, level: i32) -> Vec<Arc<ItemSchema>> {
+        self.all()
+            .iter()
             .filter(|i| i.r#type().is_utility() && i.restore() > 0 && i.level >= level)
+            .cloned()
             .collect_vec()
     }
 
     /// Takes a `level` and a item `code` and returns all the items of the same
     /// type for which the level is between the given `level` and the item level.
-    pub fn potential_upgrade(&self, level: i32, code: &str) -> Vec<&ItemSchema> {
-        self.0
-            .values()
+    pub fn potential_upgrade(&self, level: i32, code: &str) -> Vec<Arc<ItemSchema>> {
+        self.all()
+            .iter()
             .filter(|u| {
                 self.get(code)
                     .is_some_and(|i| u.r#type == i.r#type && u.level >= i.level)
                     && u.level <= level
             })
+            .cloned()
             .collect_vec()
     }
 
@@ -692,7 +708,7 @@ mod tests {
                 .unwrap()
                 .damage_increase_against_with(
                     MONSTERS.get("chicken").unwrap(),
-                    ITEMS.get("steel_battleaxe").unwrap()
+                    &ITEMS.get("steel_battleaxe").unwrap()
                 ),
             6.0
         );
@@ -703,7 +719,7 @@ mod tests {
                 .unwrap()
                 .damage_increase_against_with(
                     MONSTERS.get("ogre").unwrap(),
-                    ITEMS.get("skull_staff").unwrap()
+                    &ITEMS.get("skull_staff").unwrap()
                 ),
             0.0
         );

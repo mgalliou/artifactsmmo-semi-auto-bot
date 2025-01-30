@@ -50,8 +50,8 @@ impl FightSimulator {
                 }
             } else {
                 if hp < (base_hp + gear.health_increase()) / 2 {
-                    hp += gear.utility1.map(|u| u.restore()).unwrap_or(0);
-                    hp += gear.utility2.map(|u| u.restore()).unwrap_or(0);
+                    hp += gear.utility1.as_ref().map(|u| u.restore()).unwrap_or(0);
+                    hp += gear.utility2.as_ref().map(|u| u.restore()).unwrap_or(0);
                 }
                 hp -= gear.attack_damage_from(monster);
                 if hp <= 0 && !ignore_death {
