@@ -9,7 +9,7 @@ simple-logging = "2.0.2"
 anyhow = "1.0.94"
 rustyline = "14.0.0"
 clap = { version = "4.5.21", features = ["derive"] }
-artifactsmmo-sdk = { path = "artifactsmmo_sdk", version = "0.1.0" }
+artifactsmmo-sdk = { path = "sdk", version = "0.1.0" }
 
 [target.x86_64-pc-windows-msvc]
 rustflags = ["-C", "link-arg=-fuse-ld=lld"]
