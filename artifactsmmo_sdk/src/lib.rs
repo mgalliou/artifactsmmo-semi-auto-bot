@@ -1,4 +1,4 @@
-use api::ArtifactApi;
+use artifactsmmo_api_wrapper::ArtifactApi;
 use fs_extra::file::{read_to_string, write_all};
 use game_config::GAME_CONFIG;
 use log::error;
@@ -20,7 +20,6 @@ pub use maps::MAPS;
 pub use monsters::MONSTERS;
 
 pub mod account;
-pub mod api;
 pub mod bank;
 pub mod char;
 pub mod consts;
