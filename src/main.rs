@@ -1,4 +1,5 @@
 use anyhow::Result;
+use artifactsmmo_playground::cli;
 use artifactsmmo_sdk::{
     orderboard::{Purpose, ORDER_BOARD},
     GAME,
@@ -18,5 +19,5 @@ fn main() -> Result<()> {
     //game.orderboard.add(None, "carrot", 1000, Purpose::Cli);
     //game.orderboard.add(None, "frozen_pickaxe", 5, Purpose::Cli)?;
     GAME.run_characters();
-    artifactsmmo_playground::cli::run_cli()
+    cli::run()
 }

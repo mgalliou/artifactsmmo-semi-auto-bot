@@ -12,7 +12,7 @@ use clap::{value_parser, Parser, Subcommand};
 use rustyline::{error::ReadlineError, DefaultEditor};
 use std::{process::exit, str::FromStr, sync::Arc};
 
-pub fn run_cli() -> Result<()> {
+pub fn run() -> Result<()> {
     let mut rl = DefaultEditor::new()?;
     let mut chars: Option<Arc<Character>> = None;
     loop {
