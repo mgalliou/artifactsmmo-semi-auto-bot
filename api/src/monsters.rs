@@ -16,7 +16,7 @@ pub struct MonstersApi {
 }
 
 impl MonstersApi {
-    pub fn new(configuration: Arc<Configuration>) -> Self {
+    pub(crate) fn new(configuration: Arc<Configuration>) -> Self {
         Self { configuration }
     }
 

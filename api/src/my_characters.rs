@@ -59,7 +59,7 @@ pub struct MyCharacterApi {
 }
 
 impl MyCharacterApi {
-    pub fn new(configuration: Arc<Configuration>) -> Self {
+    pub(crate) fn new(configuration: Arc<Configuration>) -> Self {
         MyCharacterApi { configuration }
     }
 

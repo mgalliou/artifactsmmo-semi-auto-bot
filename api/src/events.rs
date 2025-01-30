@@ -12,11 +12,11 @@ use artifactsmmo_openapi::{
 use std::sync::Arc;
 
 pub struct EventsApi {
-    pub configuration: Arc<Configuration>,
+    configuration: Arc<Configuration>,
 }
 
 impl EventsApi {
-    pub fn new(configuration: Arc<Configuration>) -> Self {
+    pub(crate) fn new(configuration: Arc<Configuration>) -> Self {
         EventsApi { configuration }
     }
 

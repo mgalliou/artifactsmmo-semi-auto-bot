@@ -12,11 +12,11 @@ use artifactsmmo_openapi::{
 };
 
 pub struct ItemsApi {
-    pub configuration: Arc<Configuration>,
+    configuration: Arc<Configuration>,
 }
 
 impl ItemsApi {
-    pub fn new(configuration: Arc<Configuration>) -> Self {
+    pub(crate) fn new(configuration: Arc<Configuration>) -> Self {
         Self { configuration }
     }
 
