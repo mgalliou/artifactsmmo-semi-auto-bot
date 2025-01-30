@@ -1,10 +1,11 @@
 use crate::{
+    base_bank::BASE_BANK,
     char::{action::Action, HasCharacterData},
     consts::BANK_EXTENSION_SIZE,
     game::SERVER,
     gear::Slot,
     maps::MapSchemaExt,
-    ApiErrorResponseSchema, API, BANK,
+    ApiErrorResponseSchema, API,
 };
 use artifactsmmo_openapi::{
     apis::Error,
@@ -45,15 +46,25 @@ impl BaseCharacter {
     }
 
     fn request_action(&self, action: Action) -> Result<Box<dyn ResponseSchema>, RequestError> {
-        let mut bank_content: Option<RwLockWriteGuard<'_, Vec<SimpleItemSchema>>> = None;
-        let mut bank_details: Option<RwLockWriteGuard<'_, BankSchema>> = None;
+        let mut bank_content: Option<RwLockWriteGuard<'_, Arc<Vec<SimpleItemSchema>>>> = None;
+        let mut bank_details: Option<RwLockWriteGuard<'_, Arc<BankSchema>>> = None;
 
         self.wait_for_cooldown();
         if action.is_deposit() || action.is_withdraw() {
-            bank_content = Some(BANK.content.write().expect("bank_content to be writable"));
+            bank_content = Some(
+                BASE_BANK
+                    .content
+                    .write()
+                    .expect("bank_content to be writable"),
+            );
         }
         if action.is_deposit_gold() || action.is_withdraw_gold() || action.is_expand_bank() {
-            bank_details = Some(BANK.details.write().expect("bank_details to be writable"));
+            bank_details = Some(
+                BASE_BANK
+                    .details
+                    .write()
+                    .expect("bank_details to be writable"),
+            );
         }
         let res: Result<Box<dyn ResponseSchema>, RequestError> = match action {
             Action::Move { x, y } => API
@@ -173,18 +184,22 @@ impl BaseCharacter {
                 self.update_data(res.character());
                 if let Some(s) = res.downcast_ref::<BankItemTransactionResponseSchema>() {
                     if let Some(mut bank_content) = bank_content {
-                        *bank_content = s.data.bank.clone();
+                        *bank_content = s.data.bank.clone().into();
                     }
                 } else if let Some(s) = res.downcast_ref::<BankGoldTransactionResponseSchema>() {
-                    if let Some(mut bank_details) = bank_details {
-                        bank_details.gold = s.data.bank.quantity
+                    if let Some(details) = bank_details {
+                        let mut new_details = (*details.clone()).clone();
+                        new_details.gold = s.data.bank.quantity;
+                        BASE_BANK.update_details(new_details);
                     }
                 } else if res
                     .downcast_ref::<BankExtensionTransactionResponseSchema>()
                     .is_some()
                 {
-                    if let Some(mut bank_details) = bank_details {
-                        bank_details.slots += BANK_EXTENSION_SIZE;
+                    if let Some(details) = bank_details {
+                        let mut new_details = (*details.clone()).clone();
+                        new_details.slots += BANK_EXTENSION_SIZE;
+                        BASE_BANK.update_details(new_details);
                     }
                 };
                 Ok(res)

@@ -1368,8 +1368,7 @@ impl Character {
             )
         }
         self.deposit_all();
-        let content = BANK.content.read().unwrap().clone();
-        content.iter().for_each(|i| {
+        BANK.content().iter().for_each(|i| {
             info!("{} deleting {:?}", self.base.name(), i);
             let mut remain = i.quantity;
             while remain > 0 {

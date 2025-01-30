@@ -78,9 +78,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>) -> Result<()> {
                 BANK.reservations().iter().for_each(|r| println!("{}", r));
             }
             BankAction::List => {
-                BANK.content
-                    .read()
-                    .unwrap()
+                BANK.content()
                     .iter()
                     .for_each(|i| println!("{}: {}", i.code, i.quantity));
             }

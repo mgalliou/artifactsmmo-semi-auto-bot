@@ -1,6 +1,6 @@
 use crate::{
+    base_bank::BaseBank,
     items::{ItemSchemaExt, ITEMS},
-    API,
 };
 use artifactsmmo_openapi::models::{BankSchema, ItemSchema, SimpleItemSchema};
 use itertools::Itertools;
@@ -15,26 +15,28 @@ pub static BANK: LazyLock<Bank> = LazyLock::new(Bank::new);
 
 #[derive(Default)]
 pub struct Bank {
+    inner: BaseBank,
     pub browsed: RwLock<()>,
-    pub details: RwLock<BankSchema>,
-    pub content: RwLock<Vec<SimpleItemSchema>>,
-    pub reservations: RwLock<Vec<Arc<Reservation>>>,
     pub being_expanded: RwLock<()>,
+    pub reservations: RwLock<Vec<Arc<Reservation>>>,
 }
 
 impl Bank {
     pub fn new() -> Self {
         Self {
             browsed: RwLock::new(()),
-            details: RwLock::new(*API.bank.details().unwrap().data),
-            content: RwLock::new(API.bank.items(None).unwrap()),
+            inner: BaseBank::new(),
             reservations: RwLock::new(vec![]),
             being_expanded: RwLock::new(()),
         }
     }
 
-    pub fn update_content(&self, content: &Vec<SimpleItemSchema>) {
-        self.content.write().unwrap().clone_from(content)
+    pub fn details(&self) -> Arc<BankSchema> {
+        self.inner.details()
+    }
+
+    pub fn content(&self) -> Arc<Vec<SimpleItemSchema>> {
+        self.inner.content()
     }
 
     pub fn is_full(&self) -> bool {
@@ -42,20 +44,21 @@ impl Bank {
     }
 
     pub fn free_slots(&self) -> i32 {
-        self.details.read().unwrap().slots - self.content.read().unwrap().len() as i32
+        self.inner.details.read().unwrap().slots - self.inner.content.read().unwrap().len() as i32
     }
 
     pub fn gold(&self) -> i32 {
-        self.details.read().unwrap().gold
+        self.inner.details.read().unwrap().gold
     }
 
     pub fn next_expansion_cost(&self) -> i32 {
-        self.details.read().unwrap().next_expansion_cost
+        self.inner.details.read().unwrap().next_expansion_cost
     }
 
     /// Returns the total quantity of the given `item` code currently in the bank.
     fn total_of(&self, item: &str) -> i32 {
-        self.content
+        self.inner
+            .content
             .read()
             .unwrap()
             .iter()
@@ -108,7 +111,8 @@ impl Bank {
     }
 
     pub fn consumable_food(&self, level: i32) -> Vec<Arc<ItemSchema>> {
-        self.content
+        self.inner
+            .content
             .read()
             .unwrap()
             .iter()
@@ -319,10 +323,10 @@ mod tests {
     #[test]
     fn reserv_with_item_available() {
         let bank = Bank::default();
-        (bank.content.write().unwrap()).push(SimpleItemSchema {
+        *bank.inner.content.write().unwrap() = Arc::new(vec![SimpleItemSchema {
             code: "copper_ore".to_owned(),
             quantity: 100,
-        });
+        }]);
         let _ = bank.increase_reservation("copper_ore", 50, "char1");
         let _ = bank.increase_reservation("copper_ore", 50, "char1");
         assert_eq!(100, bank.has_available("copper_ore", Some("char1")))
@@ -331,10 +335,10 @@ mod tests {
     #[test]
     fn reserv_if_not_with_item_available() {
         let bank = Bank::default();
-        (bank.content.write().unwrap()).push(SimpleItemSchema {
+        *bank.inner.content.write().unwrap() = Arc::new(vec![SimpleItemSchema {
             code: "gold_ore".to_owned(),
             quantity: 100,
-        });
+        }]);
         let _ = bank.reserv("gold_ore", 50, "char1");
         let _ = bank.reserv("gold_ore", 50, "char1");
         assert_eq!(100, bank.has_available("gold_ore", Some("char1")));

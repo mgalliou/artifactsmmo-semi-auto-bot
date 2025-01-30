@@ -20,6 +20,7 @@ pub use maps::MAPS;
 pub use monsters::MONSTERS;
 
 pub mod account;
+pub mod base_bank;
 pub mod bank;
 pub mod char;
 pub mod consts;
