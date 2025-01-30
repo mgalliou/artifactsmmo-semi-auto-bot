@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use artifactsmmo_openapi::{
     apis::{
         configuration::Configuration,
@@ -11,6 +9,7 @@ use artifactsmmo_openapi::{
     },
     models::{GatheringSkill, ResourceResponseSchema, ResourceSchema},
 };
+use std::sync::Arc;
 
 pub struct ResourcesApi {
     configuration: Arc<Configuration>,

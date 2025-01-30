@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use artifactsmmo_openapi::{
     apis::{
         configuration::Configuration,
@@ -11,6 +9,7 @@ use artifactsmmo_openapi::{
     },
     models::{BankResponseSchema, SimpleItemSchema},
 };
+use std::sync::Arc;
 
 pub struct BankApi {
     configuration: Arc<Configuration>,
@@ -18,9 +17,7 @@ pub struct BankApi {
 
 impl BankApi {
     pub fn new(configuration: Arc<Configuration>) -> Self {
-        BankApi {
-            configuration,
-        }
+        BankApi { configuration }
     }
 
     pub fn details(&self) -> Result<BankResponseSchema, Error<GetBankDetailsMyBankGetError>> {

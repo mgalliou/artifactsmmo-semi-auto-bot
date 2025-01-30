@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use artifactsmmo_openapi::{
     apis::{
         configuration::Configuration,
@@ -54,6 +52,7 @@ use artifactsmmo_openapi::{
         UseItemResponseSchema,
     },
 };
+use std::sync::Arc;
 
 pub struct MyCharacterApi {
     configuration: Arc<Configuration>,

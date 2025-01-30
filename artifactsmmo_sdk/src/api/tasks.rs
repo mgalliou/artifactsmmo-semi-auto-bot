@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use artifactsmmo_openapi::{
     apis::{
         configuration::Configuration,
@@ -11,6 +9,7 @@ use artifactsmmo_openapi::{
     },
     models::{DropRateSchema, Skill, TaskFullSchema, TaskType},
 };
+use std::sync::Arc;
 
 pub struct TasksApi {
     pub configuration: Arc<Configuration>,

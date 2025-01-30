@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use artifactsmmo_openapi::{
     apis::{
         characters_api::{get_character_characters_name_get, GetCharacterCharactersNameGetError},
@@ -8,6 +6,7 @@ use artifactsmmo_openapi::{
     },
     models::CharacterResponseSchema,
 };
+use std::sync::Arc;
 
 pub struct CharactersApi {
     pub configuration: Arc<Configuration>,
