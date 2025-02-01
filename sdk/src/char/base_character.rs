@@ -183,23 +183,23 @@ impl BaseCharacter {
                 info!("{}", res.pretty());
                 self.update_data(res.character());
                 if let Some(s) = res.downcast_ref::<BankItemTransactionResponseSchema>() {
-                    if let Some(mut bank_content) = bank_content {
-                        *bank_content = s.data.bank.clone().into();
+                    if let Some(mut content) = bank_content {
+                        *content = s.data.bank.clone().into();
                     }
                 } else if let Some(s) = res.downcast_ref::<BankGoldTransactionResponseSchema>() {
-                    if let Some(details) = bank_details {
+                    if let Some(mut details) = bank_details {
                         let mut new_details = (*details.clone()).clone();
                         new_details.gold = s.data.bank.quantity;
-                        BASE_BANK.update_details(new_details);
+                        *details = Arc::new(new_details);
                     }
                 } else if res
                     .downcast_ref::<BankExtensionTransactionResponseSchema>()
                     .is_some()
                 {
-                    if let Some(details) = bank_details {
+                    if let Some(mut details) = bank_details {
                         let mut new_details = (*details.clone()).clone();
                         new_details.slots += BANK_EXTENSION_SIZE;
-                        BASE_BANK.update_details(new_details);
+                        *details = Arc::new(new_details);
                     }
                 };
                 Ok(res)
