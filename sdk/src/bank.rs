@@ -56,7 +56,7 @@ impl Bank {
     }
 
     /// Returns the total quantity of the given `item` code currently in the bank.
-    fn total_of(&self, item: &str) -> i32 {
+    pub fn total_of(&self, item: &str) -> i32 {
         self.inner
             .content
             .read()
@@ -116,7 +116,7 @@ impl Bank {
             .read()
             .unwrap()
             .iter()
-            .filter_map(|i| ITEMS.get(&i.code).filter(|i| i.is_consumable(level)))
+            .filter_map(|i| ITEMS.get(&i.code).filter(|i| i.is_consumable_at(level)))
             .collect_vec()
     }
 

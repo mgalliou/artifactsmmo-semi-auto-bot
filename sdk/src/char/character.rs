@@ -1023,49 +1023,6 @@ impl Character {
         Ok(())
     }
 
-    /// Returns the current `Gear` of the `Character`, containing item schemas.
-    pub fn gear(&self) -> Gear {
-        let binding = self.data();
-        let d = binding.read().unwrap();
-        Gear {
-            weapon: ITEMS.get(&d.weapon_slot),
-            shield: ITEMS.get(&d.shield_slot),
-            helmet: ITEMS.get(&d.helmet_slot),
-            body_armor: ITEMS.get(&d.body_armor_slot),
-            leg_armor: ITEMS.get(&d.leg_armor_slot),
-            boots: ITEMS.get(&d.boots_slot),
-            ring1: ITEMS.get(&d.ring1_slot),
-            ring2: ITEMS.get(&d.ring2_slot),
-            amulet: ITEMS.get(&d.amulet_slot),
-            artifact1: ITEMS.get(&d.artifact1_slot),
-            artifact2: ITEMS.get(&d.artifact2_slot),
-            artifact3: ITEMS.get(&d.artifact3_slot),
-            utility1: ITEMS.get(&d.utility1_slot),
-            utility2: ITEMS.get(&d.utility2_slot),
-        }
-    }
-
-    /// Returns the item equiped in the `given` slot.
-    fn equiped_in(&self, slot: Slot) -> Option<Arc<ItemSchema>> {
-        let binding = self.data();
-        let d = binding.read().unwrap();
-        ITEMS.get(match slot {
-            Slot::Weapon => &d.weapon_slot,
-            Slot::Shield => &d.shield_slot,
-            Slot::Helmet => &d.helmet_slot,
-            Slot::BodyArmor => &d.body_armor_slot,
-            Slot::LegArmor => &d.leg_armor_slot,
-            Slot::Boots => &d.boots_slot,
-            Slot::Ring1 => &d.ring1_slot,
-            Slot::Ring2 => &d.ring2_slot,
-            Slot::Amulet => &d.amulet_slot,
-            Slot::Artifact1 => &d.artifact1_slot,
-            Slot::Artifact2 => &d.artifact2_slot,
-            Slot::Artifact3 => &d.artifact3_slot,
-            Slot::Utility1 => &d.utility1_slot,
-            Slot::Utility2 => &d.utility2_slot,
-        })
-    }
 
     /// Crafts the given `quantity` of the given item `code` if the required
     /// materials to craft them in one go are available in bank and deposit the crafted
@@ -1550,7 +1507,7 @@ impl Character {
         let Some(skill) = ITEMS.get(item).and_then(|i| i.skill_to_craft()) else {
             return Err(CharacterError::ItemNotCraftable);
         };
-        let Some(dest) = MAPS.workshop(skill) else {
+        let Some(dest) = MAPS.with_workshop_for(skill) else {
             return Err(CharacterError::MapNotFound);
         };
         self.move_to(dest.x, dest.y)?;

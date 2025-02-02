@@ -90,7 +90,7 @@ impl Maps {
             .collect()
     }
 
-    pub fn workshop(&self, skill: Skill) -> Option<Arc<MapSchema>> {
+    pub fn with_workshop_for(&self, skill: Skill) -> Option<Arc<MapSchema>> {
         match skill {
             Skill::Weaponcrafting
             | Skill::Gearcrafting
@@ -108,6 +108,7 @@ impl Maps {
 pub trait MapSchemaExt {
     fn content(&self) -> Option<&MapContentSchema>;
     fn content_code_is(&self, code: &str) -> bool;
+    fn content_type_is(&self, r#type: ContentType) -> bool;
     fn pretty(&self) -> String;
     fn monster(&self) -> Option<&MonsterSchema>;
     fn resource(&self) -> Option<&ResourceSchema>;
@@ -120,6 +121,10 @@ impl MapSchemaExt for MapSchema {
 
     fn content_code_is(&self, code: &str) -> bool {
         self.content.as_ref().is_some_and(|c| c.code == code)
+    }
+
+    fn content_type_is(&self, r#type: ContentType) -> bool {
+        self.content.as_ref().is_some_and(|c| c.r#type == r#type)
     }
 
     fn pretty(&self) -> String {

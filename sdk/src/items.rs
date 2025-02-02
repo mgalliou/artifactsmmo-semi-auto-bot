@@ -227,7 +227,7 @@ impl Items {
     pub fn best_consumable_foods(&self, level: i32) -> Vec<Arc<ItemSchema>> {
         self.all()
             .iter()
-            .filter(|i| i.is_consumable(level))
+            .filter(|i| i.is_consumable_at(level))
             .cloned()
             .collect_vec()
     }
@@ -360,6 +360,7 @@ pub trait ItemSchemaExt {
     fn name(&self) -> String;
     fn r#type(&self) -> Type;
     fn is_of_type(&self, r#type: Type) -> bool;
+    fn is_craftable(&self) -> bool;
     fn is_crafted_with(&self, item: &str) -> bool;
     fn is_crafted_from_task(&self) -> bool;
     fn mats(&self) -> Vec<SimpleItemSchema>;
@@ -379,7 +380,8 @@ pub trait ItemSchemaExt {
     fn heal(&self) -> i32;
     fn restore(&self) -> i32;
     fn inventory_space(&self) -> i32;
-    fn is_consumable(&self, level: i32) -> bool;
+    fn is_consumable(&self) -> bool;
+    fn is_consumable_at(&self, level: i32) -> bool;
     fn damage_increase_against_with(&self, monster: &MonsterSchema, weapon: &ItemSchema) -> f32;
     fn damage_reduction_against(&self, monster: &MonsterSchema) -> f32;
 }
@@ -524,7 +526,11 @@ impl ItemSchemaExt for ItemSchema {
             .unwrap_or(0)
     }
 
-    fn is_consumable(&self, level: i32) -> bool {
+    fn is_consumable(&self) -> bool {
+        self.is_of_type(Type::Consumable)
+    }
+
+    fn is_consumable_at(&self, level: i32) -> bool {
         self.is_of_type(Type::Consumable)
             && self.heal() > 0
             && self.level <= level
@@ -557,6 +563,10 @@ impl ItemSchemaExt for ItemSchema {
                     FightSimulator::average_dmg(monster.attack_damage(t), 0, self.resistance(t))
                 })
                 .sum::<f32>()
+    }
+
+    fn is_craftable(&self) -> bool {
+        self.craft_schema().is_some()
     }
 }
 

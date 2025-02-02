@@ -14,7 +14,6 @@ use std::{
 #[derive(Default)]
 pub struct Inventory {
     data: Arc<RwLock<CharacterSchema>>,
-
     reservations: RwLock<Vec<Arc<InventoryReservation>>>,
 }
 
@@ -87,6 +86,13 @@ impl Inventory {
             .map_or(0, |i| i.quantity)
     }
 
+    pub fn contains_mats_for(&self, item: &str, quantity: i32) -> bool {
+        ITEMS
+            .mats_of(item)
+            .iter()
+            .all(|m| self.total_of(&m.code) >= m.quantity * quantity)
+    }
+
     pub fn consumable_food(&self) -> Vec<Arc<ItemSchema>> {
         self.data
             .read()
@@ -97,7 +103,7 @@ impl Inventory {
             .filter_map(|i| {
                 ITEMS
                     .get(&i.code)
-                    .filter(|i| i.is_consumable(self.data.read().unwrap().level))
+                    .filter(|i| i.is_consumable_at(self.data.read().unwrap().level))
             })
             .collect_vec()
     }

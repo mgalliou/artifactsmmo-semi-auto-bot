@@ -1,9 +1,17 @@
 use super::{base_character::RequestError, BaseCharacter, HasCharacterData};
 use crate::{
-    inventory::Inventory, maps::MapSchemaExt, monsters::MonsterSchemaExt,
-    resources::ResourceSchemaExt, MAPS,
+    gear::Slot,
+    inventory::Inventory,
+    items::ItemSchemaExt,
+    maps::{ContentType, MapSchemaExt},
+    monsters::MonsterSchemaExt,
+    resources::ResourceSchemaExt,
+    BANK, ITEMS, MAPS,
 };
-use artifactsmmo_openapi::models::{CharacterSchema, FightSchema, MapSchema, SkillDataSchema};
+use artifactsmmo_openapi::models::{
+    CharacterSchema, FightSchema, MapSchema, RecyclingItemsSchema, RewardsSchema, SimpleItemSchema,
+    SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema,
+};
 use std::sync::{Arc, RwLock};
 use thiserror::Error;
 
@@ -54,76 +62,247 @@ impl SmartCharacter {
         Ok(self.inner.action_move(map.x, map.y)?)
     }
 
-    pub fn rest(&self) -> Result<FightSchema, RestError> {
-        todo!()
+    pub fn rest(&self) -> Result<(), RestError> {
+        if self.health() < self.max_health() {
+            self.inner.action_rest()?;
+        }
+        Ok(())
     }
 
-    pub fn r#use(&self) -> Result<FightSchema, UseError> {
-        todo!()
+    pub fn r#use(&self, item_code: &str, quantity: i32) -> Result<(), UseError> {
+        let Some(item) = ITEMS.get(item_code) else {
+            return Err(UseError::ItemNotFound);
+        };
+        if !item.is_consumable() {
+            return Err(UseError::ItemNotConsumable);
+        }
+        if self.inventory.total_of(item_code) < quantity {
+            return Err(UseError::InsufficientQuantity);
+        }
+        if self.level() < item.level {
+            return Err(UseError::InsufficientCharacterLevel);
+        }
+        Ok(self.inner.action_use_item(item_code, quantity)?)
     }
 
-    pub fn craft(&self) -> Result<FightSchema, CraftError> {
-        todo!()
+    pub fn craft(&self, item_code: &str, quantity: i32) -> Result<SkillInfoSchema, CraftError> {
+        let Some(item) = ITEMS.get(item_code) else {
+            return Err(CraftError::ItemNotFound);
+        };
+        let Some(skill) = item.skill_to_craft() else {
+            return Err(CraftError::ItemNotCraftable);
+        };
+        if self.skill_level(skill) < item.level {
+            return Err(CraftError::InsufficientSkillLevel);
+        }
+        if !self.inventory.contains_mats_for(item_code, quantity) {
+            return Err(CraftError::InsufficientMaterials);
+        }
+        // TODO: check if InssuficientInventorySpace can happen
+        if !self.map().content_code_is(skill.as_ref()) {
+            return Err(CraftError::NoWorkshopOnMap);
+        }
+        Ok(self.inner.action_craft(item_code, quantity)?)
     }
 
-    pub fn recycle(&self) -> Result<FightSchema, RecycleError> {
-        todo!()
+    pub fn recycle(
+        &self,
+        item_code: &str,
+        quantity: i32,
+    ) -> Result<RecyclingItemsSchema, RecycleError> {
+        let Some(item) = ITEMS.get(item_code) else {
+            return Err(RecycleError::ItemNotFound);
+        };
+        let Some(skill) = item.skill_to_craft() else {
+            return Err(RecycleError::ItemNotRecyclable);
+        };
+        if self.skill_level(skill) < item.level {
+            return Err(RecycleError::InsufficientSkillLevel);
+        }
+        if self.inventory.total_of(item_code) < quantity {
+            return Err(RecycleError::InsufficientQuantity);
+        }
+        if self.inventory.free_space() < item.recycled_quantity() {
+            return Err(RecycleError::InsufficientInventorySpace);
+        }
+        if !self.map().content_code_is(skill.as_ref()) {
+            return Err(RecycleError::NoWorkshopOnMap);
+        }
+        Ok(self.inner.action_recycle(item_code, quantity)?)
     }
 
-    pub fn delete(&self) -> Result<FightSchema, DeleteError> {
-        todo!()
+    pub fn delete(&self, item_code: &str, quantity: i32) -> Result<SimpleItemSchema, DeleteError> {
+        if ITEMS.get(item_code).is_none() {
+            return Err(DeleteError::ItemNotFound);
+        };
+        if self.inventory.total_of(item_code) < quantity {
+            return Err(DeleteError::InsufficientQuantity);
+        }
+        Ok(self.inner.action_delete(item_code, quantity)?)
     }
 
-    pub fn withdraw(&self) -> Result<FightSchema, WithdrawError> {
-        todo!()
+    pub fn withdraw(
+        &self,
+        item_code: &str,
+        quantity: i32,
+    ) -> Result<SimpleItemSchema, WithdrawError> {
+        if ITEMS.get(item_code).is_none() {
+            return Err(WithdrawError::ItemNotFound);
+        };
+        if BANK.total_of(item_code) < quantity {
+            return Err(WithdrawError::InsufficientQuantity);
+        }
+        if self.inventory.free_space() < quantity {
+            return Err(WithdrawError::InsufficientInventorySpace);
+        }
+        if !self.map().content_type_is(ContentType::Bank) {
+            return Err(WithdrawError::NoBankOnMap);
+        }
+        Ok(self.inner.action_withdraw(item_code, quantity)?)
     }
 
-    pub fn deposit_item(&self) -> Result<FightSchema, DepositError> {
-        todo!()
+    pub fn deposit_item(
+        &self,
+        item_code: &str,
+        quantity: i32,
+    ) -> Result<SimpleItemSchema, DepositError> {
+        if ITEMS.get(item_code).is_none() {
+            return Err(DepositError::ItemNotFound);
+        };
+        if self.inventory.total_of(item_code) < quantity {
+            return Err(DepositError::InsufficientQuantity);
+        }
+        if BANK.total_of(item_code) <= 0 && BANK.free_slots() <= 0 {
+            return Err(DepositError::InsufficientBankSpace);
+        }
+        if !self.map().content_type_is(ContentType::Bank) {
+            return Err(DepositError::NoBankOnMap);
+        }
+        Ok(self.inner.action_deposit(item_code, quantity)?)
     }
 
-    pub fn withdraw_gold(&self) -> Result<FightSchema, WithdrawError> {
-        todo!()
+    pub fn withdraw_gold(&self, quantity: i32) -> Result<i32, GoldWithdrawError> {
+        if BANK.gold() < quantity {
+            return Err(GoldWithdrawError::InsufficientQuantity);
+        }
+        if !self.map().content_type_is(ContentType::Bank) {
+            return Err(GoldWithdrawError::NoBankOnMap);
+        }
+        Ok(self.inner.action_withdraw_gold(quantity)?)
     }
 
-    pub fn deposit_gold(&self) -> Result<FightSchema, GoldDepositError> {
-        todo!()
+    pub fn deposit_gold(&self, quantity: i32) -> Result<i32, GoldDepositError> {
+        if self.gold() < quantity {
+            return Err(GoldDepositError::InsufficientQuantity);
+        }
+        if !self.map().content_type_is(ContentType::Bank) {
+            return Err(GoldDepositError::NoBankOnMap);
+        }
+        Ok(self.inner.action_deposit_gold(quantity)?)
     }
 
-    pub fn expand_bank(&self) -> Result<FightSchema, BankExpansionError> {
-        todo!()
+    pub fn expand_bank(&self) -> Result<i32, BankExpansionError> {
+        if self.gold() < BANK.details().next_expansion_cost {
+            return Err(BankExpansionError::InsufficientGold);
+        }
+        if !self.map().content_type_is(ContentType::Bank) {
+            return Err(BankExpansionError::NoBankOnMap);
+        }
+        Ok(self.inner.action_expand_bank()?)
     }
 
-    pub fn equip(&self) -> Result<FightSchema, EquipError> {
-        todo!()
+    pub fn equip(&self, item_code: &str, slot: Slot, quantity: i32) -> Result<(), EquipError> {
+        let Some(item) = ITEMS.get(item_code) else {
+            return Err(EquipError::ItemNotFound);
+        };
+        if self.inventory.total_of(item_code) < quantity {
+            return Err(EquipError::InsufficientQuantity);
+        }
+        if let Some(equiped) = self.gear().slot(slot) {
+            if equiped.code == item_code {
+                if slot.max_quantity() <= 1 {
+                    return Err(EquipError::ItemAlreadyEquiped);
+                } else if self.quantity_in_slot(slot) + quantity > slot.max_quantity() {
+                    return Err(EquipError::QuantityGreaterThanSlotMaxixum);
+                }
+            } else {
+                return Err(EquipError::SlotNotEmpty);
+            }
+        }
+        if self.level() < item.level {
+            return Err(EquipError::InsufficientCharacterLevel);
+        }
+        if self.inventory.free_space() + item.inventory_space() <= 0 {
+            return Err(EquipError::InsufficientInventorySpace);
+        }
+        Ok(self.inner.action_equip(item_code, slot, quantity)?)
     }
 
-    pub fn unequip(&self) -> Result<FightSchema, UnequipError> {
-        todo!()
+    pub fn unequip(&self, slot: Slot, quantity: i32) -> Result<(), UnequipError> {
+        if self.gear().slot(slot).is_none() {
+            return Err(UnequipError::SlotEmpty);
+        }
+        if self.quantity_in_slot(slot) < quantity {
+            return Err(UnequipError::InsufficientQuantity);
+        }
+        if self.inventory.free_space() < quantity {
+            return Err(UnequipError::InsufficientInventorySpace);
+        }
+        Ok(self.inner.action_unequip(slot, quantity)?)
     }
 
-    pub fn accept_task(&self) -> Result<FightSchema, TaskAcceptationError> {
-        todo!()
+    pub fn accept_task(&self) -> Result<TaskSchema, TaskAcceptationError> {
+        if !self.task().is_empty() {
+            return Err(TaskAcceptationError::TaskAlreadyInProgress);
+        }
+        if !self.map().content_type_is(ContentType::TasksMaster) {
+            return Err(TaskAcceptationError::NoTasksMasterOnMap);
+        }
+        Ok(self.inner.action_accept_task()?)
     }
 
-    pub fn task_trade(&self) -> Result<FightSchema, TaskTradeError> {
-        todo!()
+    pub fn task_trade(
+        &self,
+        item_code: &str,
+        quantity: i32,
+    ) -> Result<TaskTradeSchema, TaskTradeError> {
+        if ITEMS.get(item_code).is_none() {
+            return Err(TaskTradeError::ItemNotFound);
+        };
+        if self.task_finished() {
+            return Err(TaskTradeError::TaskAlreadyCompleted);
+        }
+        if item_code != self.task() {
+            return Err(TaskTradeError::WrongTask);
+        }
+        if self.inventory.total_of(item_code) < quantity {
+            return Err(TaskTradeError::InsufficientQuantity);
+        }
+        if self.task_missing() < quantity {
+            return Err(TaskTradeError::SuperfluousQuantity);
+        }
+        if !self.map().content_type_is(ContentType::TasksMaster) {
+            return Err(TaskTradeError::NoTasksMasterOnMap);
+        } else if !self.map().content_code_is("items") {
+            return Err(TaskTradeError::WrongTasksMaster);
+        }
+        Ok(self.inner.action_task_trade(item_code, quantity)?)
     }
 
-    pub fn complete_task(&self) -> Result<FightSchema, TaskCompletionError> {
-        todo!()
+    pub fn complete_task(&self) -> Result<RewardsSchema, TaskCompletionError> {
+        Ok(self.inner.action_complete_task()?)
     }
 
-    pub fn cancel_task(&self) -> Result<FightSchema, TaskCancellationError> {
-        todo!()
+    pub fn cancel_task(&self) -> Result<(), TaskCancellationError> {
+        Ok(self.inner.action_cancel_task()?)
     }
 
-    pub fn exchange_tasks_coin(&self) -> Result<FightSchema, TasksCoinExchangeError> {
-        todo!()
+    pub fn exchange_tasks_coin(&self) -> Result<RewardsSchema, TasksCoinExchangeError> {
+        Ok(self.inner.action_task_exchange()?)
     }
 
-    pub fn exchange_gift(&self) -> Result<FightSchema, GiftExchangeError> {
-        todo!()
+    pub fn exchange_gift(&self) -> Result<RewardsSchema, GiftExchangeError> {
+        Ok(self.inner.action_gift_exchange()?)
     }
 
     fn map(&self) -> Arc<MapSchema> {
@@ -164,6 +343,114 @@ impl From<RequestError> for MoveError {
     }
 }
 
+impl From<RequestError> for RestError {
+    fn from(value: RequestError) -> Self {
+        todo!()
+    }
+}
+
+impl From<RequestError> for UseError {
+    fn from(value: RequestError) -> Self {
+        todo!()
+    }
+}
+
+impl From<RequestError> for CraftError {
+    fn from(value: RequestError) -> Self {
+        todo!()
+    }
+}
+
+impl From<RequestError> for RecycleError {
+    fn from(value: RequestError) -> Self {
+        todo!()
+    }
+}
+
+impl From<RequestError> for DeleteError {
+    fn from(value: RequestError) -> Self {
+        todo!()
+    }
+}
+
+impl From<RequestError> for WithdrawError {
+    fn from(value: RequestError) -> Self {
+        todo!()
+    }
+}
+
+impl From<RequestError> for DepositError {
+    fn from(value: RequestError) -> Self {
+        todo!()
+    }
+}
+
+impl From<RequestError> for GoldWithdrawError {
+    fn from(value: RequestError) -> Self {
+        todo!()
+    }
+}
+
+impl From<RequestError> for GoldDepositError {
+    fn from(value: RequestError) -> Self {
+        todo!()
+    }
+}
+
+impl From<RequestError> for BankExpansionError {
+    fn from(value: RequestError) -> Self {
+        todo!()
+    }
+}
+
+impl From<RequestError> for EquipError {
+    fn from(value: RequestError) -> Self {
+        todo!()
+    }
+}
+
+impl From<RequestError> for UnequipError {
+    fn from(value: RequestError) -> Self {
+        todo!()
+    }
+}
+
+impl From<RequestError> for TaskAcceptationError {
+    fn from(value: RequestError) -> Self {
+        todo!()
+    }
+}
+
+impl From<RequestError> for TaskTradeError {
+    fn from(value: RequestError) -> Self {
+        todo!()
+    }
+}
+
+impl From<RequestError> for TaskCancellationError {
+    fn from(value: RequestError) -> Self {
+        todo!()
+    }
+}
+
+impl From<RequestError> for TaskCompletionError {
+    fn from(value: RequestError) -> Self {
+        todo!()
+    }
+}
+
+impl From<RequestError> for TasksCoinExchangeError {
+    fn from(value: RequestError) -> Self {
+        todo!()
+    }
+}
+
+impl From<RequestError> for GiftExchangeError {
+    fn from(value: RequestError) -> Self {
+        todo!()
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum GatherError {
     #[error("Insufficient inventory space")]
@@ -197,8 +484,10 @@ pub enum UseError {
 
 #[derive(Debug, Error)]
 pub enum CraftError {
-    #[error("Craft not found")]
-    CraftNotFound,
+    #[error("Item not found")]
+    ItemNotFound,
+    #[error("Item not craftable")]
+    ItemNotCraftable,
     #[error("Insufficient materials")]
     InsufficientMaterials,
     #[error("Insufficient skill level")]
@@ -275,10 +564,10 @@ pub enum GoldDepositError {
 
 #[derive(Debug, Error)]
 pub enum BankExpansionError {
-    #[error("No bank on map")]
-    NoBankOnMap,
     #[error("Insufficient gold on character")]
     InsufficientGold,
+    #[error("No bank on map")]
+    NoBankOnMap,
 }
 
 #[derive(Debug, Error)]
@@ -289,20 +578,22 @@ pub enum EquipError {
     InsufficientQuantity,
     #[error("Item already equiped")]
     ItemAlreadyEquiped,
-}
-
-#[derive(Debug, Error)]
-pub enum UnequipError {
-    #[error("Item not found")]
-    ItemNotFound,
-    #[error("Insufficient quantity")]
-    InsufficientQuantity,
-    #[error("Item already equiped")]
-    ItemAlreadyEquiped,
+    #[error("Quantity greater than slot max quantity")]
+    QuantityGreaterThanSlotMaxixum,
     #[error("Slot not empty")]
     SlotNotEmpty,
     #[error("Insufficient character level")]
     InsufficientCharacterLevel,
+    #[error("Insufficient inventory space")]
+    InsufficientInventorySpace,
+}
+
+#[derive(Debug, Error)]
+pub enum UnequipError {
+    #[error("Slot is empty")]
+    SlotEmpty,
+    #[error("Insufficient quantity")]
+    InsufficientQuantity,
     #[error("Insufficient inventory space")]
     InsufficientInventorySpace,
 }
@@ -317,6 +608,8 @@ pub enum TaskAcceptationError {
 
 #[derive(Debug, Error)]
 pub enum TaskTradeError {
+    #[error("Item not found")]
+    ItemNotFound,
     #[error("WrongTask")]
     WrongTask,
     #[error("Task already completed")]
@@ -327,6 +620,8 @@ pub enum TaskTradeError {
     InsufficientQuantity,
     #[error("No tasks master on map")]
     NoTasksMasterOnMap,
+    #[error("Wrong tasks master")]
+    WrongTasksMaster,
 }
 
 #[derive(Debug, Error)]
