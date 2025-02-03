@@ -26,22 +26,24 @@ use log::{debug, error, info, warn};
 use std::{
     cmp::Ordering,
     fmt::Display,
-    sync::{Arc, RwLock, RwLockWriteGuard},
+    sync::{Arc, RwLockWriteGuard},
     thread::sleep,
     time::Duration,
 };
 use thiserror::Error;
+
+use super::CharacterData;
 
 /// First layer of abstraction around the character API.
 /// It is responsible for handling the character action requests responce and errors
 /// by updating character and bank data, and retrying requests in case of errors.
 #[derive(Default)]
 pub struct CharacterRequestHandler {
-    data: Arc<RwLock<CharacterSchema>>,
+    data: CharacterData,
 }
 
 impl CharacterRequestHandler {
-    pub fn new(data: &Arc<RwLock<CharacterSchema>>) -> Self {
+    pub fn new(data: &CharacterData) -> Self {
         Self { data: data.clone() }
     }
 
@@ -491,7 +493,7 @@ impl CharacterRequestHandler {
 }
 
 impl HasCharacterData for CharacterRequestHandler {
-    fn data(&self) -> Arc<RwLock<CharacterSchema>> {
+    fn data(&self) -> CharacterData {
         self.data.clone()
     }
 }

@@ -18,8 +18,10 @@ pub mod inventory;
 pub mod request_handler;
 pub mod skill;
 
+pub type CharacterData = Arc<RwLock<CharacterSchema>>;
+
 pub trait HasCharacterData {
-    fn data(&self) -> Arc<RwLock<CharacterSchema>>;
+    fn data(&self) -> CharacterData;
 
     fn name(&self) -> String {
         self.data().read().unwrap().name.to_owned()

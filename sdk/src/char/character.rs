@@ -1,6 +1,6 @@
 use super::{
-    inventory::Inventory, request_handler::RequestError, CharacterRequestHandler, HasCharacterData,
-    Skill,
+    inventory::Inventory, request_handler::RequestError, CharacterData, CharacterRequestHandler,
+    HasCharacterData, Skill,
 };
 use crate::{
     account::ACCOUNT,
@@ -23,9 +23,9 @@ use crate::{
     CharConfig, FightSimulator, Goal,
 };
 use artifactsmmo_openapi::models::{
-    CharacterSchema, FightResult, FightSchema, ItemSchema, MapContentSchema, MapSchema,
-    MonsterSchema, RecyclingItemsSchema, ResourceSchema, RewardsSchema, SimpleItemSchema,
-    SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
+    FightResult, FightSchema, ItemSchema, MapContentSchema, MapSchema, MonsterSchema,
+    RecyclingItemsSchema, ResourceSchema, RewardsSchema, SimpleItemSchema, SkillDataSchema,
+    SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
 };
 use itertools::Itertools;
 use log::{error, info, warn};
@@ -48,7 +48,7 @@ pub struct Character {
 }
 
 impl Character {
-    pub fn new(id: usize, data: &Arc<RwLock<CharacterSchema>>) -> Self {
+    pub fn new(id: usize, data: &CharacterData) -> Self {
         Self {
             id,
             inner: CharacterRequestHandler::new(data),
@@ -1948,7 +1948,7 @@ impl Character {
 }
 
 impl HasCharacterData for Character {
-    fn data(&self) -> Arc<RwLock<CharacterSchema>> {
+    fn data(&self) -> CharacterData {
         self.inner.data().clone()
     }
 }

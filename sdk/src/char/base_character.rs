@@ -1,6 +1,6 @@
 use super::{
-    base_inventory::BaseInventory, request_handler::RequestError, CharacterRequestHandler,
-    HasCharacterData,
+    base_inventory::BaseInventory, request_handler::RequestError, CharacterData,
+    CharacterRequestHandler, HasCharacterData,
 };
 use crate::{
     gear::Slot,
@@ -11,10 +11,10 @@ use crate::{
     BANK, ITEMS, MAPS,
 };
 use artifactsmmo_openapi::models::{
-    CharacterSchema, FightSchema, MapSchema, RecyclingItemsSchema, RewardsSchema, SimpleItemSchema,
-    SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema,
+    FightSchema, MapSchema, RecyclingItemsSchema, RewardsSchema, SimpleItemSchema, SkillDataSchema,
+    SkillInfoSchema, TaskSchema, TaskTradeSchema,
 };
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use thiserror::Error;
 
 pub struct BaseCharacter {
@@ -24,7 +24,7 @@ pub struct BaseCharacter {
 }
 
 impl BaseCharacter {
-    pub fn new(id: usize, data: &Arc<RwLock<CharacterSchema>>) -> Self {
+    pub fn new(id: usize, data: &CharacterData) -> Self {
         Self {
             id,
             inner: CharacterRequestHandler::new(data),
@@ -348,7 +348,7 @@ impl BaseCharacter {
 }
 
 impl HasCharacterData for BaseCharacter {
-    fn data(&self) -> Arc<RwLock<CharacterSchema>> {
+    fn data(&self) -> CharacterData {
         self.inner.data()
     }
 }

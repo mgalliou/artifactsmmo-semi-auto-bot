@@ -1,14 +1,16 @@
 use crate::{items::ItemSchemaExt, ITEMS};
-use artifactsmmo_openapi::models::{CharacterSchema, ItemSchema};
+use artifactsmmo_openapi::models::ItemSchema;
 use itertools::Itertools;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+
+use super::CharacterData;
 
 pub struct BaseInventory {
-    data: Arc<RwLock<CharacterSchema>>,
+    data: CharacterData,
 }
 
 impl BaseInventory {
-    pub fn new(data: &Arc<RwLock<CharacterSchema>>) -> Self {
+    pub fn new(data: &CharacterData) -> Self {
         Self { data: data.clone() }
     }
 

@@ -1,13 +1,10 @@
 use crate::{
-    char::{Character, HasCharacterData, Skill},
+    char::{Character, CharacterData, HasCharacterData, Skill},
     game_config::GAME_CONFIG,
     items::ItemSource,
     API, ITEMS,
 };
-use artifactsmmo_openapi::{
-    apis::configuration::Configuration,
-    models::{CharacterSchema, SimpleItemSchema},
-};
+use artifactsmmo_openapi::{apis::configuration::Configuration, models::SimpleItemSchema};
 use itertools::Itertools;
 use std::sync::{Arc, LazyLock, RwLock};
 
@@ -157,7 +154,7 @@ impl Account {
             .min()
     }
 
-    fn get_characters_data(&self) -> Vec<Arc<RwLock<CharacterSchema>>> {
+    fn get_characters_data(&self) -> Vec<CharacterData> {
         API.my_character
             .characters()
             .unwrap()

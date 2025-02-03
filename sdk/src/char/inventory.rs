@@ -2,7 +2,7 @@ use crate::{
     char::CharacterError,
     items::{ItemSchemaExt, ITEMS},
 };
-use artifactsmmo_openapi::models::{CharacterSchema, InventorySlot, ItemSchema};
+use artifactsmmo_openapi::models::{InventorySlot, ItemSchema};
 use core::fmt;
 use itertools::Itertools;
 use log::info;
@@ -11,14 +11,16 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+use super::CharacterData;
+
 #[derive(Default)]
 pub struct Inventory {
-    data: Arc<RwLock<CharacterSchema>>,
+    data: CharacterData,
     reservations: RwLock<Vec<Arc<InventoryReservation>>>,
 }
 
 impl Inventory {
-    pub fn new(data: &Arc<RwLock<CharacterSchema>>) -> Self {
+    pub fn new(data: &CharacterData) -> Self {
         Inventory {
             data: data.clone(),
             reservations: RwLock::new(vec![]),
