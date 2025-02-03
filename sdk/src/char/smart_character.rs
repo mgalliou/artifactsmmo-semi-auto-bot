@@ -290,24 +290,58 @@ impl SmartCharacter {
     }
 
     pub fn complete_task(&self) -> Result<RewardsSchema, TaskCompletionError> {
+        let Some(task_type) = self.task_type() else {
+            return Err(TaskCompletionError::NoCurrentTask);
+        };
+        if !self.task_finished() {
+            return Err(TaskCompletionError::TaskNotFullfilled);
+        }
+        if self.inventory.free_space() < 2 {
+            return Err(TaskCompletionError::InsufficientInventorySpace);
+        }
+        if !self.map().content_type_is(ContentType::TasksMaster) {
+            return Err(TaskCompletionError::NoTasksMasterOnMap);
+        } else if !self.map().content_code_is(&task_type.to_string()) {
+            return Err(TaskCompletionError::WrongTasksMaster);
+        }
         Ok(self.inner.action_complete_task()?)
     }
 
     pub fn cancel_task(&self) -> Result<(), TaskCancellationError> {
+        let Some(task_type) = self.task_type() else {
+            return Err(TaskCancellationError::NoCurrentTask);
+        };
+        if self.inventory.total_of("tasks_coin") < 1 {
+            return Err(TaskCancellationError::InsufficientTasksCoin);
+        }
+        if !self.map().content_type_is(ContentType::TasksMaster) {
+            return Err(TaskCancellationError::NoTasksMasterOnMap);
+        } else if !self.map().content_code_is(&task_type.to_string()) {
+            return Err(TaskCancellationError::WrongTasksMaster);
+        }
         Ok(self.inner.action_cancel_task()?)
     }
 
     pub fn exchange_tasks_coin(&self) -> Result<RewardsSchema, TasksCoinExchangeError> {
+        if self.inventory.total_of("tasks_coin") < 6 {
+            return Err(TasksCoinExchangeError::InsufficientTasksCoinQuantity);
+        }
+        if !self.map().content_type_is(ContentType::TasksMaster) {
+            return Err(TasksCoinExchangeError::NoTasksMasterOnMap);
+        }
+        // TODO: check for conditions when InsufficientInventorySpace can happen
         Ok(self.inner.action_task_exchange()?)
     }
 
     pub fn exchange_gift(&self) -> Result<RewardsSchema, GiftExchangeError> {
+        if self.inventory.total_of("tasks_coin") < 1 {
+            return Err(GiftExchangeError::InsufficientGiftQuantity);
+        }
+        if !self.map().content_type_is(ContentType::SantaClaus) {
+            return Err(GiftExchangeError::NoSantaClausOnMap);
+        }
+        // TODO: check for conditions when InsufficientInventorySpace can happen
         Ok(self.inner.action_gift_exchange()?)
-    }
-
-    fn map(&self) -> Arc<MapSchema> {
-        let (x, y) = self.inner.position();
-        MAPS.get(x, y).unwrap()
     }
 }
 
@@ -627,13 +661,15 @@ pub enum TaskTradeError {
 #[derive(Debug, Error)]
 pub enum TaskCompletionError {
     #[error("No current task")]
-    NotCurrentTask,
+    NoCurrentTask,
     #[error("Task not fullfilled")]
     TaskNotFullfilled,
     #[error("Insufficient inventory space")]
     InsufficientInventorySpace,
     #[error("No tasks master on map")]
     NoTasksMasterOnMap,
+    #[error("Wrong tasks master")]
+    WrongTasksMaster,
 }
 
 #[derive(Debug, Error)]
@@ -644,12 +680,14 @@ pub enum TaskCancellationError {
     InsufficientTasksCoin,
     #[error("No tasks master on map")]
     NoTasksMasterOnMap,
+    #[error("Wrong tasks master")]
+    WrongTasksMaster,
 }
 
 #[derive(Debug, Error)]
 pub enum TasksCoinExchangeError {
     #[error("Insufficient tasks coin quantity")]
-    InsufficientTasksCoin,
+    InsufficientTasksCoinQuantity,
     #[error("Insufficient inventory space")]
     InsufficientInventorySpace,
     #[error("No tasks master on map")]
@@ -657,4 +695,11 @@ pub enum TasksCoinExchangeError {
 }
 
 #[derive(Debug, Error)]
-pub enum GiftExchangeError {}
+pub enum GiftExchangeError {
+    #[error("Insufficient gift quantity")]
+    InsufficientGiftQuantity,
+    #[error("Insufficient inventory space")]
+    InsufficientInventorySpace,
+    #[error("No Santa Claus on map")]
+    NoSantaClausOnMap,
+}

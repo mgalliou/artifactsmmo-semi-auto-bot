@@ -1,8 +1,8 @@
 use crate::{
     gear::{Gear, Slot},
-    ITEMS,
+    ITEMS, MAPS,
 };
-use artifactsmmo_openapi::models::{CharacterSchema, ItemSchema, TaskType};
+use artifactsmmo_openapi::models::{CharacterSchema, ItemSchema, MapSchema, TaskType};
 use chrono::{DateTime, Utc};
 use std::sync::{Arc, RwLock};
 
@@ -33,6 +33,11 @@ pub trait HasCharacterData {
 
     fn level(&self) -> i32 {
         self.data().read().unwrap().level
+    }
+
+    fn map(&self) -> Arc<MapSchema> {
+        let (x, y) = self.position();
+        MAPS.get(x, y).unwrap()
     }
 
     fn skill_xp(&self, skill: Skill) -> i32 {
