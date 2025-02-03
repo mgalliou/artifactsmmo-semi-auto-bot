@@ -1,4 +1,5 @@
 use artifactsmmo_api_wrapper::ArtifactApi;
+use artifactsmmo_openapi::models::{FightSchema, RewardsSchema, SkillDataSchema, SkillInfoSchema};
 use fs_extra::file::{read_to_string, write_all};
 use game_config::GAME_CONFIG;
 use log::error;
@@ -42,25 +43,6 @@ pub mod tasks_rewards;
 pub(crate) static API: LazyLock<ArtifactApi> =
     LazyLock::new(|| ArtifactApi::new(&GAME_CONFIG.base_url, &GAME_CONFIG.token));
 
-#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
-pub struct ApiErrorResponseSchema {
-    error: ApiErrorSchema,
-}
-
-impl Display for ApiErrorResponseSchema {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{} ({})", self.error.message, self.error.code)
-    }
-}
-
-#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
-pub struct ApiErrorSchema {
-    code: i32,
-    message: String,
-}
-
-pub trait ApiRequestError {}
-
 pub trait PersistedData<D: for<'a> Deserialize<'a> + Serialize> {
     const PATH: &'static str;
 
@@ -88,4 +70,45 @@ pub trait PersistedData<D: for<'a> Deserialize<'a> + Serialize> {
         )?)
     }
     fn refresh_data(&self);
+}
+
+pub trait HasDrops {
+    fn amount_of(&self, item: &str) -> i32;
+}
+
+impl HasDrops for FightSchema {
+    fn amount_of(&self, item: &str) -> i32 {
+        self.drops
+            .iter()
+            .find(|i| i.code == item)
+            .map_or(0, |i| i.quantity)
+    }
+}
+
+impl HasDrops for SkillDataSchema {
+    fn amount_of(&self, item: &str) -> i32 {
+        self.details
+            .items
+            .iter()
+            .find(|i| i.code == item)
+            .map_or(0, |i| i.quantity)
+    }
+}
+
+impl HasDrops for SkillInfoSchema {
+    fn amount_of(&self, item: &str) -> i32 {
+        self.items
+            .iter()
+            .find(|i| i.code == item)
+            .map_or(0, |i| i.quantity)
+    }
+}
+
+impl HasDrops for RewardsSchema {
+    fn amount_of(&self, item: &str) -> i32 {
+        self.items
+            .iter()
+            .find(|i| i.code == item)
+            .map_or(0, |i| i.quantity)
+    }
 }

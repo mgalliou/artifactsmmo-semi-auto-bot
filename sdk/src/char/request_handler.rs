@@ -5,7 +5,7 @@ use crate::{
     game::SERVER,
     gear::Slot,
     maps::MapSchemaExt,
-    ApiErrorResponseSchema, API,
+    API,
 };
 use artifactsmmo_openapi::{
     apis::Error,
@@ -23,9 +23,10 @@ use artifactsmmo_openapi::{
 use chrono::Utc;
 use downcast_rs::{impl_downcast, Downcast};
 use log::{debug, error, info, warn};
+use serde::{Deserialize, Serialize};
 use std::{
     cmp::Ordering,
-    fmt::Display,
+    fmt::{self, Display, Formatter},
     sync::{Arc, RwLockWriteGuard},
     thread::sleep,
     time::Duration,
@@ -498,34 +499,6 @@ impl HasCharacterData for CharacterRequestHandler {
     }
 }
 
-#[derive(Error, Debug)]
-pub enum RequestError {
-    #[error("reqwest error: {0}")]
-    Reqwest(reqwest::Error),
-    #[error("serde error: {0}")]
-    Serde(serde_json::Error),
-    #[error("io error: {0}")]
-    Io(std::io::Error),
-    #[error("response error: {0}")]
-    ResponseError(ApiErrorResponseSchema),
-    #[error("downcast error")]
-    DowncastError,
-}
-
-impl<T> From<Error<T>> for RequestError {
-    fn from(value: Error<T>) -> Self {
-        match value {
-            Error::Reqwest(e) => RequestError::Reqwest(e),
-            Error::Serde(e) => RequestError::Serde(e),
-            Error::Io(e) => RequestError::Io(e),
-            Error::ResponseError(res) => match serde_json::from_str(&res.content) {
-                Ok(e) => RequestError::ResponseError(e),
-                Err(e) => RequestError::Serde(e),
-            },
-        }
-    }
-}
-
 trait ResponseSchema: Downcast {
     fn character(&self) -> &CharacterSchema;
     fn pretty(&self) -> String;
@@ -812,43 +785,49 @@ impl Display for DropSchemas<'_> {
     }
 }
 
-pub trait HasDrops {
-    fn amount_of(&self, item: &str) -> i32;
+#[derive(Error, Debug)]
+pub enum RequestError {
+    #[error("reqwest error: {0}")]
+    Reqwest(reqwest::Error),
+    #[error("serde error: {0}")]
+    Serde(serde_json::Error),
+    #[error("io error: {0}")]
+    Io(std::io::Error),
+    #[error("response error: {0}")]
+    ResponseError(ApiErrorResponseSchema),
+    #[error("downcast error")]
+    DowncastError,
 }
 
-impl HasDrops for FightSchema {
-    fn amount_of(&self, item: &str) -> i32 {
-        self.drops
-            .iter()
-            .find(|i| i.code == item)
-            .map_or(0, |i| i.quantity)
+impl<T> From<Error<T>> for RequestError {
+    fn from(value: Error<T>) -> Self {
+        match value {
+            Error::Reqwest(e) => RequestError::Reqwest(e),
+            Error::Serde(e) => RequestError::Serde(e),
+            Error::Io(e) => RequestError::Io(e),
+            Error::ResponseError(res) => match serde_json::from_str(&res.content) {
+                Ok(e) => RequestError::ResponseError(e),
+                Err(e) => RequestError::Serde(e),
+            },
+        }
     }
 }
 
-impl HasDrops for SkillDataSchema {
-    fn amount_of(&self, item: &str) -> i32 {
-        self.details
-            .items
-            .iter()
-            .find(|i| i.code == item)
-            .map_or(0, |i| i.quantity)
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ApiErrorResponseSchema {
+    error: ApiErrorSchema,
+}
+
+impl Display for ApiErrorResponseSchema {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{} ({})", self.error.message, self.error.code)
     }
 }
 
-impl HasDrops for SkillInfoSchema {
-    fn amount_of(&self, item: &str) -> i32 {
-        self.items
-            .iter()
-            .find(|i| i.code == item)
-            .map_or(0, |i| i.quantity)
-    }
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ApiErrorSchema {
+    code: i32,
+    message: String,
 }
 
-impl HasDrops for RewardsSchema {
-    fn amount_of(&self, item: &str) -> i32 {
-        self.items
-            .iter()
-            .find(|i| i.code == item)
-            .map_or(0, |i| i.quantity)
-    }
-}
+pub trait ApiRequestError {}
