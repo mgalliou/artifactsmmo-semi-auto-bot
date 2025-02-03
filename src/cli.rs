@@ -135,7 +135,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>) -> Result<()> {
         Commands::Char { i } => {
             character.clone_from(&ACCOUNT.get_character(i as usize));
             if let Some(char) = character.clone() {
-                bail!("character '{}' selected", char.base.name());
+                bail!("character '{}' selected", char.name());
             } else {
                 bail!("character not found");
             }
@@ -298,7 +298,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>) -> Result<()> {
             let Some(char) = character else {
                 bail!("no character selected");
             };
-            let (x, y) = char.base.position();
+            let (x, y) = char.position();
             println!("{:?}", MAPS.get(x, y).unwrap());
         }
         Commands::Task => {
