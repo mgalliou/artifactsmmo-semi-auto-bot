@@ -4,11 +4,7 @@ use fs_extra::file::{read_to_string, write_all};
 use game_config::GAME_CONFIG;
 use log::error;
 use serde::{Deserialize, Serialize};
-use std::{
-    fmt::{self, Display, Formatter},
-    path::Path,
-    sync::LazyLock,
-};
+use std::{path::Path, sync::LazyLock};
 
 pub use account::ACCOUNT;
 pub use bank::BANK;

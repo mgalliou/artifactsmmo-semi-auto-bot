@@ -210,12 +210,12 @@ impl CharacterRequestHandler {
             Err(e) => {
                 drop(bank_content);
                 drop(bank_details);
-                self.handle_action_error(action, e)
+                self.handle_request_error(action, e)
             }
         }
     }
 
-    pub fn action_move(&self, x: i32, y: i32) -> Result<MapSchema, RequestError> {
+    pub fn request_move(&self, x: i32, y: i32) -> Result<MapSchema, RequestError> {
         self.request_action(Action::Move { x, y })
             .and_then(|r| {
                 r.downcast::<CharacterMovementResponseSchema>()
@@ -224,7 +224,7 @@ impl CharacterRequestHandler {
             .map(|s| *s.data.destination)
     }
 
-    pub fn action_fight(&self) -> Result<FightSchema, RequestError> {
+    pub fn request_fight(&self) -> Result<FightSchema, RequestError> {
         self.request_action(Action::Fight)
             .and_then(|r| {
                 r.downcast::<CharacterFightResponseSchema>()
@@ -233,7 +233,7 @@ impl CharacterRequestHandler {
             .map(|s| *s.data.fight)
     }
 
-    pub fn action_rest(&self) -> Result<i32, RequestError> {
+    pub fn request_rest(&self) -> Result<i32, RequestError> {
         self.request_action(Action::Rest)
             .and_then(|r| {
                 r.downcast::<CharacterRestResponseSchema>()
@@ -242,12 +242,12 @@ impl CharacterRequestHandler {
             .map(|s| s.data.hp_restored)
     }
 
-    pub fn action_use_item(&self, item: &str, quantity: i32) -> Result<(), RequestError> {
+    pub fn request_use_item(&self, item: &str, quantity: i32) -> Result<(), RequestError> {
         self.request_action(Action::UseItem { item, quantity })
             .map(|_| ())
     }
 
-    pub fn action_gather(&self) -> Result<SkillDataSchema, RequestError> {
+    pub fn request_gather(&self) -> Result<SkillDataSchema, RequestError> {
         self.request_action(Action::Gather)
             .and_then(|r| {
                 r.downcast::<SkillResponseSchema>()
@@ -256,7 +256,11 @@ impl CharacterRequestHandler {
             .map(|s| *s.data)
     }
 
-    pub fn action_craft(&self, item: &str, quantity: i32) -> Result<SkillInfoSchema, RequestError> {
+    pub fn request_craft(
+        &self,
+        item: &str,
+        quantity: i32,
+    ) -> Result<SkillInfoSchema, RequestError> {
         self.request_action(Action::Craft { item, quantity })
             .and_then(|r| {
                 r.downcast::<SkillResponseSchema>()
@@ -265,7 +269,7 @@ impl CharacterRequestHandler {
             .map(|s| *s.data.details)
     }
 
-    pub fn action_delete(
+    pub fn request_delete(
         &self,
         item: &str,
         quantity: i32,
@@ -278,7 +282,7 @@ impl CharacterRequestHandler {
             .map(|s| *s.data.item)
     }
 
-    pub fn action_recycle(
+    pub fn request_recycle(
         &self,
         item: &str,
         quantity: i32,
@@ -291,7 +295,7 @@ impl CharacterRequestHandler {
             .map(|s| *s.data.details)
     }
 
-    pub fn action_deposit(
+    pub fn request_deposit(
         &self,
         item: &str,
         quantity: i32,
@@ -303,7 +307,7 @@ impl CharacterRequestHandler {
             })
     }
 
-    pub fn action_withdraw(
+    pub fn request_withdraw(
         &self,
         item: &str,
         quantity: i32,
@@ -315,7 +319,7 @@ impl CharacterRequestHandler {
             })
     }
 
-    pub fn action_deposit_gold(&self, quantity: i32) -> Result<i32, RequestError> {
+    pub fn request_deposit_gold(&self, quantity: i32) -> Result<i32, RequestError> {
         self.request_action(Action::DepositGold { quantity })
             .and_then(|r| {
                 r.downcast::<BankGoldTransactionResponseSchema>()
@@ -324,7 +328,7 @@ impl CharacterRequestHandler {
             .map(|s| s.data.bank.quantity)
     }
 
-    pub fn action_withdraw_gold(&self, quantity: i32) -> Result<i32, RequestError> {
+    pub fn request_withdraw_gold(&self, quantity: i32) -> Result<i32, RequestError> {
         self.request_action(Action::WithdrawGold { quantity })
             .and_then(|r| {
                 r.downcast::<BankGoldTransactionResponseSchema>()
@@ -333,7 +337,7 @@ impl CharacterRequestHandler {
             .map(|s| s.data.bank.quantity)
     }
 
-    pub fn action_expand_bank(&self) -> Result<i32, RequestError> {
+    pub fn request_expand_bank(&self) -> Result<i32, RequestError> {
         self.request_action(Action::ExpandBank)
             .and_then(|r| {
                 r.downcast::<BankExtensionTransactionResponseSchema>()
@@ -342,7 +346,7 @@ impl CharacterRequestHandler {
             .map(|s| s.data.transaction.price)
     }
 
-    pub fn action_equip(&self, item: &str, slot: Slot, quantity: i32) -> Result<(), RequestError> {
+    pub fn request_equip(&self, item: &str, slot: Slot, quantity: i32) -> Result<(), RequestError> {
         self.request_action(Action::Equip {
             item,
             slot,
@@ -351,12 +355,12 @@ impl CharacterRequestHandler {
         .map(|_| ())
     }
 
-    pub fn action_unequip(&self, slot: Slot, quantity: i32) -> Result<(), RequestError> {
+    pub fn request_unequip(&self, slot: Slot, quantity: i32) -> Result<(), RequestError> {
         self.request_action(Action::Unequip { slot, quantity })
             .map(|_| ())
     }
 
-    pub fn action_accept_task(&self) -> Result<TaskSchema, RequestError> {
+    pub fn request_accept_task(&self) -> Result<TaskSchema, RequestError> {
         self.request_action(Action::AcceptTask)
             .and_then(|r| {
                 r.downcast::<TaskResponseSchema>()
@@ -365,7 +369,7 @@ impl CharacterRequestHandler {
             .map(|s| *s.data.task)
     }
 
-    pub fn action_complete_task(&self) -> Result<RewardsSchema, RequestError> {
+    pub fn request_complete_task(&self) -> Result<RewardsSchema, RequestError> {
         self.request_action(Action::CompleteTask)
             .and_then(|r| {
                 r.downcast::<RewardDataResponseSchema>()
@@ -374,11 +378,11 @@ impl CharacterRequestHandler {
             .map(|s| *s.data.rewards)
     }
 
-    pub fn action_cancel_task(&self) -> Result<(), RequestError> {
+    pub fn request_cancel_task(&self) -> Result<(), RequestError> {
         self.request_action(Action::CancelTask).map(|_| ())
     }
 
-    pub fn action_task_trade(
+    pub fn request_task_trade(
         &self,
         item: &str,
         quantity: i32,
@@ -391,7 +395,7 @@ impl CharacterRequestHandler {
             .map(|s| *s.data.trade)
     }
 
-    pub fn action_task_exchange(&self) -> Result<RewardsSchema, RequestError> {
+    pub fn request_task_exchange(&self) -> Result<RewardsSchema, RequestError> {
         self.request_action(Action::TaskExchange)
             .and_then(|r| {
                 r.downcast::<RewardDataResponseSchema>()
@@ -400,7 +404,7 @@ impl CharacterRequestHandler {
             .map(|s| *s.data.rewards)
     }
 
-    pub fn action_gift_exchange(&self) -> Result<RewardsSchema, RequestError> {
+    pub fn request_gift_exchange(&self) -> Result<RewardsSchema, RequestError> {
         self.request_action(Action::ChristmasExchange)
             .and_then(|r| {
                 r.downcast::<RewardDataResponseSchema>()
@@ -409,7 +413,7 @@ impl CharacterRequestHandler {
             .map(|s| *s.data.rewards)
     }
 
-    fn handle_action_error(
+    fn handle_request_error(
         &self,
         action: Action,
         e: RequestError,

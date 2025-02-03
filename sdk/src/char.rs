@@ -7,7 +7,6 @@ use chrono::{DateTime, Utc};
 use std::sync::{Arc, RwLock};
 
 pub use character::{Character, CharacterError};
-pub use request_handler::{CharacterRequestHandler, HasDrops};
 pub use skill::Skill;
 
 pub mod action;

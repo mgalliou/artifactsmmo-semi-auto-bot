@@ -1,11 +1,10 @@
 use super::{
-    inventory::Inventory, request_handler::RequestError, CharacterData, CharacterRequestHandler,
+    inventory::Inventory, request_handler::{CharacterRequestHandler, RequestError}, CharacterData, 
     HasCharacterData, Skill,
 };
 use crate::{
     account::ACCOUNT,
     bank::BANK,
-    char::request_handler::HasDrops,
     consts::{
         BANK_MIN_FREE_SLOT, CRAFT_TIME, GIFT, MAX_LEVEL, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
         TASKS_COIN, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE,
@@ -20,7 +19,7 @@ use crate::{
     monsters::MONSTERS,
     orderboard::{Order, Purpose, ORDER_BOARD},
     resources::RESOURCES,
-    CharConfig, FightSimulator, Goal,
+    CharConfig, FightSimulator, Goal, HasDrops,
 };
 use artifactsmmo_openapi::models::{
     FightResult, FightSchema, ItemSchema, MapContentSchema, MapSchema, MonsterSchema,
@@ -532,7 +531,7 @@ impl Character {
                 e
             );
         };
-        let res = self.inner.action_task_trade(&self.task(), q);
+        let res = self.inner.request_task_trade(&self.task(), q);
         self.inventory.decrease_reservation(&self.task(), q);
         Ok(res?)
     }
@@ -563,7 +562,7 @@ impl Character {
 
     fn accept_task(&self, r#type: TaskType) -> Result<TaskSchema, CharacterError> {
         self.move_to_closest_taskmaster(Some(r#type))?;
-        Ok(self.inner.action_accept_task()?)
+        Ok(self.inner.request_accept_task()?)
     }
 
     fn complete_task(&self) -> Result<RewardsSchema, CharacterError> {
@@ -574,7 +573,7 @@ impl Character {
             return Err(CharacterError::TaskNotFinished);
         }
         self.move_to_closest_taskmaster(self.task_type())?;
-        self.inner.action_complete_task().map_err(|e| e.into())
+        self.inner.request_complete_task().map_err(|e| e.into())
     }
 
     fn can_exchange_task(&self) -> Result<(), CharacterError> {
@@ -622,7 +621,7 @@ impl Character {
                 e
             );
         };
-        let result = self.inner.action_task_exchange().map_err(|e| e.into());
+        let result = self.inner.request_task_exchange().map_err(|e| e.into());
         self.inventory
             .decrease_reservation(TASKS_COIN, TASK_EXCHANGE_PRICE);
         result
@@ -663,7 +662,7 @@ impl Character {
                 e
             );
         };
-        let result = self.inner.action_gift_exchange().map_err(|e| e.into());
+        let result = self.inner.request_gift_exchange().map_err(|e| e.into());
         self.inventory.decrease_reservation(GIFT, 1);
         result
     }
@@ -691,7 +690,7 @@ impl Character {
                 e
             );
         };
-        let result = self.inner.action_cancel_task().map_err(|e| e.into());
+        let result = self.inner.request_cancel_task().map_err(|e| e.into());
         self.inventory
             .decrease_reservation(TASKS_COIN, TASK_CANCEL_PRICE);
         result
@@ -726,7 +725,7 @@ impl Character {
         if self.inner.position() == (x, y) {
             return Ok(self.map());
         }
-        Ok(self.inner.action_move(x, y).map(|_| self.map())?)
+        Ok(self.inner.request_move(x, y).map(|_| self.map())?)
     }
 
     /// Checks if an gear making the `Character` able to kill the given
@@ -754,7 +753,7 @@ impl Character {
             }
         }
         self.move_to_closest_map_with_content_code(&monster.code)?;
-        Ok(self.inner.action_fight()?)
+        Ok(self.inner.request_fight()?)
     }
 
     fn check_gear(&self, monster: &MonsterSchema) -> Result<(), CharacterError> {
@@ -777,7 +776,7 @@ impl Character {
 
     fn rest(&self) -> Result<(), CharacterError> {
         if self.health() < self.max_health() {
-            self.inner.action_rest()?;
+            self.inner.request_rest()?;
         }
         Ok(())
     }
@@ -795,7 +794,7 @@ impl Character {
         };
         self.check_for_tool(resource);
         self.move_to(map.x, map.y)?;
-        Ok(self.inner.action_gather()?)
+        Ok(self.inner.request_gather()?)
     }
 
     fn check_for_tool(&self, resource: &ResourceSchema) {
@@ -1062,7 +1061,7 @@ impl Character {
                 e
             );
         };
-        let craft = self.inner.action_craft(item, quantity);
+        let craft = self.inner.request_craft(item, quantity);
         mats.iter().for_each(|m| {
             self.inventory.decrease_reservation(&m.code, m.quantity);
         });
@@ -1121,7 +1120,7 @@ impl Character {
             self.withdraw_item(item, missing_quantity)?;
         }
         self.move_to_craft(item)?;
-        let result = self.inner.action_recycle(item, quantity);
+        let result = self.inner.request_recycle(item, quantity);
         self.inventory
             .decrease_reservation(&self.inner.task(), quantity);
         Ok(result?)
@@ -1156,7 +1155,7 @@ impl Character {
             self.deposit_all();
             self.withdraw_item(item, missing_quantity)?;
         }
-        let result = self.inner.action_delete(item, quantity);
+        let result = self.inner.request_delete(item, quantity);
         self.inventory
             .decrease_reservation(&self.inner.task(), quantity);
         Ok(result?)
@@ -1182,7 +1181,7 @@ impl Character {
                 )
             }
         }
-        let deposit = self.inner.action_deposit(item, quantity);
+        let deposit = self.inner.request_deposit(item, quantity);
         if deposit.is_ok() {
             if let Some(owner) = owner {
                 if let Err(e) = BANK.increase_reservation(item, quantity, &owner) {
@@ -1215,7 +1214,7 @@ impl Character {
             return Err(CharacterError::ItemNotFound);
         }
         self.move_to_closest_map_of_type(ContentType::Bank)?;
-        let result = self.inner.action_withdraw(item, quantity);
+        let result = self.inner.request_withdraw(item, quantity);
         if result.is_ok() {
             BANK.decrease_reservation(item, quantity, &self.inner.name());
             if let Err(e) = self.inventory.reserv(item, quantity) {
@@ -1295,7 +1294,7 @@ impl Character {
             return Err(CharacterError::InsuffisientGoldInInventory);
         }
         self.move_to_closest_map_of_type(ContentType::Bank)?;
-        Ok(self.inner.action_deposit_gold(amount)?)
+        Ok(self.inner.request_deposit_gold(amount)?)
     }
 
     pub fn expand_bank(&self) -> Result<i32, CharacterError> {
@@ -1307,7 +1306,7 @@ impl Character {
         };
         self.withdraw_gold(BANK.next_expansion_cost() - self.gold())?;
         self.move_to_closest_map_of_type(ContentType::Bank)?;
-        Ok(self.inner.action_expand_bank()?)
+        Ok(self.inner.request_expand_bank()?)
     }
 
     pub fn withdraw_gold(&self, amount: i32) -> Result<i32, CharacterError> {
@@ -1318,7 +1317,7 @@ impl Character {
             return Err(CharacterError::InsuffisientGoldInBank);
         };
         self.move_to_closest_map_of_type(ContentType::Bank)?;
-        Ok(self.inner.action_withdraw_gold(amount)?)
+        Ok(self.inner.request_withdraw_gold(amount)?)
     }
 
     pub fn empty_bank(&self) {
@@ -1342,7 +1341,7 @@ impl Character {
                         e
                     )
                 }
-                if let Err(e) = self.inner.action_delete(&i.code, quantity) {
+                if let Err(e) = self.inner.request_delete(&i.code, quantity) {
                     error!(
                         "{} error while delete item during bank emptying: {:?}",
                         self.inner.name(),
@@ -1405,7 +1404,7 @@ impl Character {
         let n = self.inventory.total_of(item);
         if n > 0 {
             info!("{}: recycling all '{}'.", self.inner.name(), item);
-            if let Err(e) = self.inner.action_recycle(item, n) {
+            if let Err(e) = self.inner.request_recycle(item, n) {
                 error!(
                     "{}: error while recycling all '{}': {:?}",
                     self.inner.name(),
@@ -1531,7 +1530,7 @@ impl Character {
             }
         }
         self.unequip_item(slot, self.quantity_in_slot(slot))?;
-        if let Err(e) = self.inner.action_equip(item, slot, quantity) {
+        if let Err(e) = self.inner.request_equip(item, slot, quantity) {
             error!(
                 "{}: failed to equip '{}'x{} in the '{:?}' slot: {:?}",
                 self.inner.name(),
@@ -1556,7 +1555,7 @@ impl Character {
         if equiped.health() >= self.inner.health() {
             self.rest()?;
         }
-        Ok(self.inner.action_unequip(slot, quantity)?)
+        Ok(self.inner.request_unequip(slot, quantity)?)
     }
 
     fn equip_item_from_bank_or_inventory(&self, item: &str, slot: Slot) {
@@ -1937,7 +1936,7 @@ impl Character {
                 if quantity > 0 {
                     if let Err(e) = self
                         .inner
-                        .action_use_item(&f.code, min(quantity, self.inventory.total_of(&f.code)))
+                        .request_use_item(&f.code, min(quantity, self.inventory.total_of(&f.code)))
                     {
                         error!("{} failed to use food: {:?}", self.inner.name(), e)
                     }
