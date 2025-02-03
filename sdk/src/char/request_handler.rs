@@ -183,7 +183,7 @@ impl CharacterRequestHandler {
         };
         match res {
             Ok(res) => {
-                info!("{}", res.pretty());
+                info!("{}", res.to_string());
                 self.update_data(res.character());
                 if let Some(s) = res.downcast_ref::<BankItemTransactionResponseSchema>() {
                     if let Some(mut content) = bank_content {
@@ -501,12 +501,12 @@ impl HasCharacterData for CharacterRequestHandler {
 
 trait ResponseSchema: Downcast {
     fn character(&self) -> &CharacterSchema;
-    fn pretty(&self) -> String;
+    fn to_string(&self) -> String;
 }
 impl_downcast!(ResponseSchema);
 
 impl ResponseSchema for CharacterMovementResponseSchema {
-    fn pretty(&self) -> String {
+    fn to_string(&self) -> String {
         format!(
             "{}: moved to {}. {}s",
             self.data.character.name,
@@ -521,7 +521,7 @@ impl ResponseSchema for CharacterMovementResponseSchema {
 }
 
 impl ResponseSchema for CharacterFightResponseSchema {
-    fn pretty(&self) -> String {
+    fn to_string(&self) -> String {
         match self.data.fight.result {
             FightResult::Win => format!(
                 "{} won a fight after {} turns ({}xp, {}g, [{}]). {}s",
@@ -547,7 +547,7 @@ impl ResponseSchema for CharacterFightResponseSchema {
 }
 
 impl ResponseSchema for CharacterRestResponseSchema {
-    fn pretty(&self) -> String {
+    fn to_string(&self) -> String {
         format!(
             "{}: rested and restored {}hp. {}s",
             self.data.character.name, self.data.hp_restored, self.data.cooldown.remaining_seconds
@@ -560,7 +560,7 @@ impl ResponseSchema for CharacterRestResponseSchema {
 }
 
 impl ResponseSchema for UseItemResponseSchema {
-    fn pretty(&self) -> String {
+    fn to_string(&self) -> String {
         format!(
             "{}: used item '{}'. {}s",
             self.data.character.name, self.data.item.code, self.data.cooldown.remaining_seconds
@@ -573,7 +573,7 @@ impl ResponseSchema for UseItemResponseSchema {
 }
 
 impl ResponseSchema for SkillResponseSchema {
-    fn pretty(&self) -> String {
+    fn to_string(&self) -> String {
         let reason = if self.data.cooldown.reason == ActionType::Crafting {
             "crafted"
         } else {
@@ -594,7 +594,7 @@ impl ResponseSchema for SkillResponseSchema {
 }
 
 impl ResponseSchema for DeleteItemResponseSchema {
-    fn pretty(&self) -> String {
+    fn to_string(&self) -> String {
         format!(
             "{}: deleted '{}'x{}",
             self.data.character.name, self.data.item.code, self.data.item.quantity
@@ -607,7 +607,7 @@ impl ResponseSchema for DeleteItemResponseSchema {
 }
 
 impl ResponseSchema for BankItemTransactionResponseSchema {
-    fn pretty(&self) -> String {
+    fn to_string(&self) -> String {
         if self.data.cooldown.reason == ActionType::Withdraw {
             format!(
                 "{}: withdrawed '{}' from the bank. {}s",
@@ -627,7 +627,7 @@ impl ResponseSchema for BankItemTransactionResponseSchema {
 }
 
 impl ResponseSchema for BankGoldTransactionResponseSchema {
-    fn pretty(&self) -> String {
+    fn to_string(&self) -> String {
         if self.data.cooldown.reason == ActionType::Withdraw {
             format!(
                 "{}: withdrawed gold from the bank. {}s",
@@ -647,7 +647,7 @@ impl ResponseSchema for BankGoldTransactionResponseSchema {
 }
 
 impl ResponseSchema for BankExtensionTransactionResponseSchema {
-    fn pretty(&self) -> String {
+    fn to_string(&self) -> String {
         format!(
             "{}: bought bank expansion for {} golds. {}s",
             self.data.character.name,
@@ -662,7 +662,7 @@ impl ResponseSchema for BankExtensionTransactionResponseSchema {
 }
 
 impl ResponseSchema for RecyclingResponseSchema {
-    fn pretty(&self) -> String {
+    fn to_string(&self) -> String {
         format!(
             "{}: recycled and received {}. {}s",
             self.data.character.name,
@@ -677,7 +677,7 @@ impl ResponseSchema for RecyclingResponseSchema {
 }
 
 impl ResponseSchema for EquipmentResponseSchema {
-    fn pretty(&self) -> String {
+    fn to_string(&self) -> String {
         if self.data.cooldown.reason == ActionType::Equip {
             format!(
                 "{}: equiped '{}' in the '{:?}' slot. {}s",
@@ -703,7 +703,7 @@ impl ResponseSchema for EquipmentResponseSchema {
 }
 
 impl ResponseSchema for TaskResponseSchema {
-    fn pretty(&self) -> String {
+    fn to_string(&self) -> String {
         format!(
             "{}: accepted new [{:?}] task: '{}'x{}. {}s",
             self.data.character.name,
@@ -720,7 +720,7 @@ impl ResponseSchema for TaskResponseSchema {
 }
 
 impl ResponseSchema for RewardDataResponseSchema {
-    fn pretty(&self) -> String {
+    fn to_string(&self) -> String {
         format!(
             "{}: completed task and was rewarded with [{:?}] and {}g. {}s",
             self.data.character.name,
@@ -736,7 +736,7 @@ impl ResponseSchema for RewardDataResponseSchema {
 }
 
 impl ResponseSchema for TaskCancelledResponseSchema {
-    fn pretty(&self) -> String {
+    fn to_string(&self) -> String {
         format!(
             "{}: cancelled current task. {}s",
             self.data.character.name, self.data.cooldown.remaining_seconds
@@ -749,7 +749,7 @@ impl ResponseSchema for TaskCancelledResponseSchema {
 }
 
 impl ResponseSchema for TaskTradeResponseSchema {
-    fn pretty(&self) -> String {
+    fn to_string(&self) -> String {
         format!(
             "{}: traded '{}'x{} with the taskmaster. {}s",
             self.data.character.name,
