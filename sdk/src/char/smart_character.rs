@@ -1,7 +1,6 @@
-use super::{base_character::RequestError, BaseCharacter, HasCharacterData};
+use super::{base_character::RequestError, inventory::Inventory, BaseCharacter, HasCharacterData};
 use crate::{
     gear::Slot,
-    inventory::Inventory,
     items::ItemSchemaExt,
     maps::{ContentType, MapSchemaExt},
     monsters::MonsterSchemaExt,
@@ -18,7 +17,7 @@ use thiserror::Error;
 pub struct SmartCharacter {
     pub id: usize,
     pub inner: BaseCharacter,
-    pub inventory: Arc<Inventory>,
+    pub inventory: Arc<BaseInventory>,
 }
 
 impl SmartCharacter {

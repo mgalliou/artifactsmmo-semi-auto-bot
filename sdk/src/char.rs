@@ -15,6 +15,8 @@ pub mod base_character;
 pub mod character;
 pub mod skill;
 pub mod smart_character;
+pub mod inventory;
+pub mod base_inventory;
 
 pub trait HasCharacterData {
     fn data(&self) -> Arc<RwLock<CharacterSchema>>;

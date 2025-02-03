@@ -1,4 +1,4 @@
-use super::{base_character::RequestError, BaseCharacter, HasCharacterData, Skill};
+use super::{base_character::RequestError, inventory::Inventory, BaseCharacter, HasCharacterData, Skill};
 use crate::{
     account::ACCOUNT,
     bank::BANK,
@@ -11,7 +11,6 @@ use crate::{
     game_config::GAME_CONFIG,
     gear::{Gear, Slot},
     gear_finder::{Filter, GEAR_FINDER},
-    inventory::Inventory,
     items::{ItemSchemaExt, ItemSource, Type, ITEMS},
     leveling_helper::LEVELING_HELPER,
     maps::{ContentType, MapSchemaExt, Maps, MAPS},
