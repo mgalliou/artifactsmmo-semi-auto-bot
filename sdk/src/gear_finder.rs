@@ -644,7 +644,7 @@ mod tests {
 
         let weapons = gear_finder.best_weapons_against(
             &char,
-            MONSTERS.get("vampire").unwrap(),
+            &MONSTERS.get("vampire").unwrap(),
             Default::default(),
         );
         assert_eq!(weapons, vec![ITEMS.get("death_knight_sword").unwrap()]);

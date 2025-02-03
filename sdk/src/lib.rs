@@ -20,8 +20,8 @@ pub use maps::MAPS;
 pub use monsters::MONSTERS;
 
 pub mod account;
-pub mod base_bank;
 pub mod bank;
+pub mod base_bank;
 pub mod char;
 pub mod consts;
 pub mod events;
@@ -39,7 +39,7 @@ pub mod resources;
 pub mod tasks;
 pub mod tasks_rewards;
 
-pub static API: LazyLock<ArtifactApi> =
+pub(crate) static API: LazyLock<ArtifactApi> =
     LazyLock::new(|| ArtifactApi::new(&GAME_CONFIG.base_url, &GAME_CONFIG.token));
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
@@ -62,8 +62,10 @@ pub struct ApiErrorSchema {
 pub trait ApiRequestError {}
 
 pub trait PersistedData<D: for<'a> Deserialize<'a> + Serialize> {
-    fn get_data() -> D {
-        if let Ok(data) = Self::retreive_data::<D>() {
+    const PATH: &'static str;
+
+    fn retrieve_data() -> D {
+        if let Ok(data) = Self::data_from_file::<D>() {
             data
         } else {
             let data = Self::data_from_api();
@@ -73,17 +75,17 @@ pub trait PersistedData<D: for<'a> Deserialize<'a> + Serialize> {
             data
         }
     }
-    fn path() -> &'static str;
     fn data_from_api() -> D;
-    fn retreive_data<T: for<'a> Deserialize<'a>>() -> Result<T, Box<dyn std::error::Error>> {
+    fn data_from_file<T: for<'a> Deserialize<'a>>() -> Result<T, Box<dyn std::error::Error>> {
         Ok(serde_json::from_str(&read_to_string(Path::new(
-            Self::path(),
+            Self::PATH,
         ))?)?)
     }
     fn persist_data<T: Serialize>(data: T) -> Result<(), Box<dyn std::error::Error>> {
         Ok(write_all(
-            Path::new(Self::path()),
+            Path::new(Self::PATH),
             &serde_json::to_string_pretty(&data)?,
         )?)
     }
+    fn refresh_data(&self);
 }

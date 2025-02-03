@@ -30,6 +30,8 @@ pub static ITEMS: LazyLock<Items> = LazyLock::new(Items::new);
 pub struct Items(RwLock<HashMap<String, Arc<ItemSchema>>>);
 
 impl PersistedData<HashMap<String, Arc<ItemSchema>>> for Items {
+    const PATH: &'static str = ".cache/items.json";
+
     fn data_from_api() -> HashMap<String, Arc<ItemSchema>> {
         API.items
             .all(None, None, None, None, None, None)
@@ -39,18 +41,14 @@ impl PersistedData<HashMap<String, Arc<ItemSchema>>> for Items {
             .collect()
     }
 
-    fn path() -> &'static str {
-        ".cache/items.json"
+    fn refresh_data(&self) {
+        *self.0.write().unwrap() = Self::data_from_api();
     }
 }
 
 impl Items {
     fn new() -> Self {
-        Self(RwLock::new(Self::get_data()))
-    }
-
-    fn refresh_data(&self) {
-        *self.0.write().unwrap() = Self::data_from_api();
+        Self(RwLock::new(Self::retrieve_data()))
     }
 
     /// Takes an item `code` and return its schema.
@@ -96,10 +94,14 @@ impl Items {
     pub fn crafted_from_resource(&self, resource: &str) -> Vec<Arc<ItemSchema>> {
         RESOURCES
             .get(resource)
-            .map(|r| &r.drops)
-            .into_iter()
+            .iter()
+            .flat_map(|r| {
+                r.drops
+                    .iter()
+                    .map(|drop| self.crafted_with_base_mat(&drop.code))
+                    .collect_vec()
+            })
             .flatten()
-            .flat_map(|i| self.crafted_with_base_mat(&i.code))
             .collect_vec()
     }
 
@@ -649,9 +651,9 @@ pub enum DamageType {
 }
 
 #[derive(Debug, Clone, PartialEq, EnumIs)]
-pub enum ItemSource<'a> {
-    Resource(&'a ResourceSchema),
-    Monster(&'a MonsterSchema),
+pub enum ItemSource {
+    Resource(Arc<ResourceSchema>),
+    Monster(Arc<MonsterSchema>),
     Craft,
     TaskReward,
     Task,
@@ -687,14 +689,14 @@ mod tests {
             ITEMS
                 .get("skull_staff")
                 .unwrap()
-                .attack_damage_against(MONSTERS.get("ogre").unwrap()),
+                .attack_damage_against(&MONSTERS.get("ogre").unwrap()),
             48.0
         );
         assert_eq!(
             ITEMS
                 .get("dreadful_staff")
                 .unwrap()
-                .attack_damage_against(MONSTERS.get("vampire").unwrap()),
+                .attack_damage_against(&MONSTERS.get("vampire").unwrap()),
             57.5
         );
     }
@@ -717,7 +719,7 @@ mod tests {
                 .get("steel_armor")
                 .unwrap()
                 .damage_increase_against_with(
-                    MONSTERS.get("chicken").unwrap(),
+                    &MONSTERS.get("chicken").unwrap(),
                     &ITEMS.get("steel_battleaxe").unwrap()
                 ),
             6.0
@@ -728,7 +730,7 @@ mod tests {
                 .get("steel_boots")
                 .unwrap()
                 .damage_increase_against_with(
-                    MONSTERS.get("ogre").unwrap(),
+                    &MONSTERS.get("ogre").unwrap(),
                     &ITEMS.get("skull_staff").unwrap()
                 ),
             0.0
@@ -741,7 +743,7 @@ mod tests {
             ITEMS
                 .get("steel_armor")
                 .unwrap()
-                .damage_reduction_against(MONSTERS.get("ogre").unwrap()),
+                .damage_reduction_against(&MONSTERS.get("ogre").unwrap()),
             4.0
         );
     }

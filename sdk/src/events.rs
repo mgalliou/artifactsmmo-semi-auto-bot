@@ -1,5 +1,5 @@
-use crate::{maps::MapSchemaExt, PersistedData, API};
-use artifactsmmo_openapi::models::{ActiveEventSchema, EventSchema, MapSchema};
+use crate::{PersistedData, API};
+use artifactsmmo_openapi::models::{ActiveEventSchema, EventSchema};
 use chrono::{DateTime, Duration, Utc};
 use itertools::Itertools;
 use log::debug;
@@ -8,39 +8,45 @@ use std::sync::{Arc, LazyLock, RwLock};
 pub static EVENTS: LazyLock<Events> = LazyLock::new(Events::new);
 
 pub struct Events {
-    pub data: Vec<EventSchema>,
-    pub active: Arc<RwLock<Vec<ActiveEventSchema>>>,
+    data: RwLock<Vec<Arc<EventSchema>>>,
+    active: RwLock<Vec<Arc<ActiveEventSchema>>>,
     last_refresh: RwLock<DateTime<Utc>>,
 }
 
-impl PersistedData<Vec<EventSchema>> for Events {
-    fn data_from_api() -> Vec<EventSchema> {
-        API.events.all().unwrap()
+impl PersistedData<Vec<Arc<EventSchema>>> for Events {
+    const PATH: &'static str = ".cache/events.json";
+
+    fn data_from_api() -> Vec<Arc<EventSchema>> {
+        API.events
+            .all()
+            .unwrap()
+            .into_iter()
+            .map(Arc::new)
+            .collect()
     }
 
-    fn path() -> &'static str {
-        ".cache/events.json"
+    fn refresh_data(&self) {
+        *self.data.write().unwrap() = Self::data_from_api();
     }
 }
 
 impl Events {
     fn new() -> Self {
         let events = Self {
-            data: Self::get_data(),
-            active: Arc::new(RwLock::new(vec![])),
+            data: RwLock::new(Self::retrieve_data()),
+            active: RwLock::new(vec![]),
             last_refresh: RwLock::new(DateTime::<Utc>::MIN_UTC),
         };
         events.refresh_active();
         events
     }
 
-    pub fn maps(&self) -> Vec<Arc<MapSchema>> {
-        self.active
-            .read()
-            .unwrap()
-            .iter()
-            .map(|e| Arc::new(*e.map.clone()))
-            .collect_vec()
+    pub fn all(&self) -> Vec<Arc<EventSchema>> {
+        self.data.read().unwrap().iter().cloned().collect_vec()
+    }
+
+    pub fn active(&self) -> Vec<Arc<ActiveEventSchema>> {
+        self.active.read().unwrap().iter().cloned().collect_vec()
     }
 
     pub fn refresh_active(&self) {
@@ -52,7 +58,7 @@ impl Events {
         let mut events = self.active.write().unwrap();
         self.update_last_refresh(now);
         if let Ok(new) = API.events.active() {
-            *events = new;
+            *events = new.into_iter().map(Arc::new).collect_vec();
             debug!("events refreshed.");
         }
     }
@@ -69,16 +75,6 @@ impl Events {
             .last_refresh
             .read()
             .expect("`last_refresh` to be readable")
-    }
-
-    pub fn of_type(&self, r#type: &str) -> Vec<ActiveEventSchema> {
-        self.active
-            .read()
-            .unwrap()
-            .iter()
-            .filter(|e| e.map.content().is_some_and(|c| c.r#type == r#type))
-            .cloned()
-            .collect_vec()
     }
 }
 

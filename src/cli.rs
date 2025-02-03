@@ -119,15 +119,13 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>) -> Result<()> {
         Commands::Events { action } => match action {
             EventsAction::List => {
                 EVENTS
-                    .data
+                    .all()
                     .iter()
                     .for_each(|e| println!("{}", e.to_string()));
             }
             EventsAction::Active => {
                 EVENTS
-                    .active
-                    .read()
-                    .unwrap()
+                    .all()
                     .iter()
                     .for_each(|e| println!("{}", e.to_string()));
             }
@@ -192,9 +190,9 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>) -> Result<()> {
             println!(
                 "{}",
                 if winning {
-                    GEAR_FINDER.best_winning_against(char, monster, filter)
+                    GEAR_FINDER.best_winning_against(char, &monster, filter)
                 } else {
-                    GEAR_FINDER.best_against(char, monster, filter)
+                    GEAR_FINDER.best_against(char, &monster, filter)
                 }
             );
         }
@@ -223,11 +221,11 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>) -> Result<()> {
                 utilities,
             };
             let gear = if winning {
-                GEAR_FINDER.best_winning_against(char, monster, filter)
+                GEAR_FINDER.best_winning_against(char, &monster, filter)
             } else {
                 GEAR_FINDER.best_against(
                     char,
-                    monster,
+                    &monster,
                     Filter {
                         available,
                         can_craft,
@@ -239,7 +237,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>) -> Result<()> {
                 )
             };
             println!("{}", gear);
-            let fight = FIGHT_SIMULATOR.simulate(char.level(), 0, &gear, monster, true);
+            let fight = FIGHT_SIMULATOR.simulate(char.level(), 0, &gear, &monster, true);
             println!("{:?}", fight)
         }
         Commands::Deposit { item, quantity } => {

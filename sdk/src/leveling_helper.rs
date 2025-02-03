@@ -169,7 +169,7 @@ impl LevelingHelper {
             .map(|(i, _)| i)
     }
 
-    pub fn best_resource(&self, level: i32, skill: Skill) -> Option<&ResourceSchema> {
+    pub fn best_resource(&self, level: i32, skill: Skill) -> Option<Arc<ResourceSchema>> {
         RESOURCES
             .all()
             .into_iter()
@@ -182,7 +182,7 @@ impl LevelingHelper {
             .max_by_key(|r| r.level)
     }
 
-    pub fn best_monster(&self, char: &Character) -> Option<&MonsterSchema> {
+    pub fn best_monster(&self, char: &Character) -> Option<Arc<MonsterSchema>> {
         MONSTERS
             .all()
             .into_iter()

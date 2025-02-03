@@ -66,7 +66,7 @@ impl Character {
                 self.deposit_all();
                 continue;
             }
-            MAPS.refresh();
+            MAPS.refresh_from_events();
             self.order_food();
             if self.handle_goals() {
                 continue;
@@ -153,7 +153,7 @@ impl Character {
         let Some(resource) = LEVELING_HELPER.best_resource(self.skill_level(*skill), *skill) else {
             return Err(CharacterError::ResourceNotFound);
         };
-        self.gather_resource(resource)?;
+        self.gather_resource(&resource)?;
         Ok(())
     }
 
@@ -496,7 +496,7 @@ impl Character {
         let Some(monster) = MONSTERS.get(&self.task()) else {
             return self.trade_task().map(|_| ());
         };
-        match self.kill_monster(monster) {
+        match self.kill_monster(&monster) {
             Ok(_) => Ok(()),
             Err(e) => {
                 if let CharacterError::GearTooWeak { monster_code: _ } = e {
@@ -718,7 +718,7 @@ impl Character {
         let Some(monster) = LEVELING_HELPER.best_monster(self) else {
             return Err(CharacterError::MonsterNotFound);
         };
-        self.kill_monster(monster)?;
+        self.kill_monster(&monster)?;
         Ok(())
     }
 

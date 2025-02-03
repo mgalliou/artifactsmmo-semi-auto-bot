@@ -12,7 +12,7 @@ pub static MAPS: LazyLock<Maps> = LazyLock::new(Maps::new);
 pub struct Maps(HashMap<(i32, i32), RwLock<Arc<MapSchema>>>);
 
 impl Maps {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self(
             API.maps
                 .all(None, None)
@@ -23,8 +23,12 @@ impl Maps {
         )
     }
 
-    pub fn refresh(&self) {
-        EVENTS.active.read().unwrap().iter().for_each(|e| {
+    pub fn get(&self, x: i32, y: i32) -> Option<Arc<MapSchema>> {
+        Some(self.0.get(&(x, y))?.read().unwrap().clone())
+    }
+
+    pub fn refresh_from_events(&self) {
+        EVENTS.active().iter().for_each(|e| {
             if DateTime::parse_from_rfc3339(&e.expiration).unwrap() < Utc::now() {
                 if let Some(map) = self.0.get(&(e.map.x, e.map.y)) {
                     let mut new_map = (*map.read().unwrap().clone()).clone();
@@ -35,7 +39,7 @@ impl Maps {
             }
         });
         EVENTS.refresh_active();
-        EVENTS.active.read().unwrap().iter().for_each(|e| {
+        EVENTS.active().iter().for_each(|e| {
             if DateTime::parse_from_rfc3339(&e.expiration).unwrap() > Utc::now() {
                 if let Some(map) = self.0.get(&(e.map.x, e.map.y)) {
                     let mut new_map = (*map.read().unwrap().clone()).clone();
@@ -45,10 +49,6 @@ impl Maps {
                 }
             }
         });
-    }
-
-    pub fn get(&self, x: i32, y: i32) -> Option<Arc<MapSchema>> {
-        Some(self.0.get(&(x, y))?.read().unwrap().clone())
     }
 
     pub fn closest_from_amoung(
@@ -110,8 +110,8 @@ pub trait MapSchemaExt {
     fn content_code_is(&self, code: &str) -> bool;
     fn content_type_is(&self, r#type: ContentType) -> bool;
     fn pretty(&self) -> String;
-    fn monster(&self) -> Option<&MonsterSchema>;
-    fn resource(&self) -> Option<&ResourceSchema>;
+    fn monster(&self) -> Option<Arc<MonsterSchema>>;
+    fn resource(&self) -> Option<Arc<ResourceSchema>>;
 }
 
 impl MapSchemaExt for MapSchema {
@@ -135,11 +135,11 @@ impl MapSchemaExt for MapSchema {
         }
     }
 
-    fn monster(&self) -> Option<&MonsterSchema> {
+    fn monster(&self) -> Option<Arc<MonsterSchema>> {
         MONSTERS.get(&self.content()?.code)
     }
 
-    fn resource(&self) -> Option<&ResourceSchema> {
+    fn resource(&self) -> Option<Arc<ResourceSchema>> {
         RESOURCES.get(&self.content()?.code)
     }
 }

@@ -1,49 +1,54 @@
-use std::{collections::HashMap, sync::LazyLock};
 use crate::{events::EVENTS, PersistedData, API};
 use artifactsmmo_openapi::models::ResourceSchema;
 use itertools::Itertools;
+use std::{
+    collections::HashMap,
+    sync::{Arc, LazyLock, RwLock},
+};
 
 pub static RESOURCES: LazyLock<Resources> = LazyLock::new(Resources::new);
 
-pub struct Resources(HashMap<String, ResourceSchema>);
+pub struct Resources(RwLock<HashMap<String, Arc<ResourceSchema>>>);
 
-impl PersistedData<HashMap<String, ResourceSchema>> for Resources {
-    fn data_from_api() -> HashMap<String, ResourceSchema> {
+impl PersistedData<HashMap<String, Arc<ResourceSchema>>> for Resources {
+    const PATH: &'static str = ".cache/resources.json";
+
+    fn data_from_api() -> HashMap<String, Arc<ResourceSchema>> {
         API.resources
             .all(None, None, None, None)
             .unwrap()
             .into_iter()
-            .map(|m| (m.code.clone(), m))
+            .map(|r| (r.code.clone(), Arc::new(r)))
             .collect()
     }
 
-    fn path() -> &'static str {
-        ".cache/resources.json"
+    fn refresh_data(&self) {
+        *self.0.write().unwrap() = Self::data_from_api();
     }
 }
 
 impl Resources {
     fn new() -> Self {
-        Self(Self::get_data())
+        Self(RwLock::new(Self::retrieve_data()))
     }
 
-    pub fn get(&self, code: &str) -> Option<&ResourceSchema> {
-        self.0.get(code)
+    pub fn get(&self, code: &str) -> Option<Arc<ResourceSchema>> {
+        self.0.read().unwrap().get(code).cloned()
     }
 
-    pub fn all(&self) -> Vec<&ResourceSchema> {
-        self.0.values().collect_vec()
+    pub fn all(&self) -> Vec<Arc<ResourceSchema>> {
+        self.0.read().unwrap().values().cloned().collect_vec()
     }
 
-    pub fn dropping(&self, item: &str) -> Vec<&ResourceSchema> {
-        self.0
-            .values()
+    pub fn dropping(&self, item: &str) -> Vec<Arc<ResourceSchema>> {
+        self.all()
+            .into_iter()
             .filter(|m| m.drops.iter().any(|d| d.code == item))
             .collect_vec()
     }
 
     pub fn is_event(&self, code: &str) -> bool {
-        EVENTS.data.iter().any(|e| e.content.code == code)
+        EVENTS.all().iter().any(|e| e.content.code == code)
     }
 }
 

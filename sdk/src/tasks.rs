@@ -1,27 +1,35 @@
 use crate::{PersistedData, API};
 use artifactsmmo_openapi::models::TaskFullSchema;
-use std::sync::LazyLock;
+use itertools::Itertools;
+use std::sync::{Arc, LazyLock, RwLock};
 
 pub static TASKS: LazyLock<Tasks> = LazyLock::new(Tasks::new);
 
-pub struct Tasks(Vec<TaskFullSchema>);
+pub struct Tasks(RwLock<Vec<Arc<TaskFullSchema>>>);
 
-impl PersistedData<Vec<TaskFullSchema>> for Tasks {
-    fn data_from_api() -> Vec<TaskFullSchema> {
-        API.tasks.all(None, None, None, None).unwrap()
+impl PersistedData<Vec<Arc<TaskFullSchema>>> for Tasks {
+    const PATH: &'static str = ".cache/tasks.json";
+
+    fn data_from_api() -> Vec<Arc<TaskFullSchema>> {
+        API.tasks
+            .all(None, None, None, None)
+            .unwrap()
+            .into_iter()
+            .map(Arc::new)
+            .collect_vec()
     }
 
-    fn path() -> &'static str {
-        ".cache/tasks.json"
+    fn refresh_data(&self) {
+        *self.0.write().unwrap() = Self::data_from_api();
     }
 }
 
 impl Tasks {
     fn new() -> Self {
-        Self(Self::get_data())
+        Self(RwLock::new(Self::retrieve_data()))
     }
 
-    pub fn all(&self) -> &Vec<TaskFullSchema> {
-        &self.0
+    pub fn all(&self) -> Vec<Arc<TaskFullSchema>> {
+        self.0.read().unwrap().iter().cloned().collect_vec()
     }
 }

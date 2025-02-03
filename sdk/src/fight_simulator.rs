@@ -136,7 +136,7 @@ mod tests {
             utility1: None,
             utility2: None,
         };
-        let fight = simulator.simulate(30, 0, &gear, MONSTERS.get("death_knight").unwrap(), false);
+        let fight = simulator.simulate(30, 0, &gear, &MONSTERS.get("death_knight").unwrap(), false);
         println!("{:?}", fight);
         assert_eq!(fight.result, FightResult::Win);
     }
@@ -164,7 +164,7 @@ mod tests {
             40,
             0,
             &gear,
-            MONSTERS.get("cultist_emperor").unwrap(),
+            &MONSTERS.get("cultist_emperor").unwrap(),
             false,
         );
         println!("{:?}", fight);
