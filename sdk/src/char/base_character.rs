@@ -1,852 +1,707 @@
+use super::{
+    base_inventory::BaseInventory, request_handler::RequestError, CharacterRequestHandler,
+    HasCharacterData,
+};
 use crate::{
-    base_bank::BASE_BANK,
-    char::{action::Action, HasCharacterData},
-    consts::BANK_EXTENSION_SIZE,
-    game::SERVER,
     gear::Slot,
-    maps::MapSchemaExt,
-    ApiErrorResponseSchema, API,
+    items::ItemSchemaExt,
+    maps::{ContentType, MapSchemaExt},
+    monsters::MonsterSchemaExt,
+    resources::ResourceSchemaExt,
+    BANK, ITEMS, MAPS,
 };
-use artifactsmmo_openapi::{
-    apis::Error,
-    models::{
-        ActionType, BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema,
-        BankItemTransactionResponseSchema, BankSchema, CharacterFightResponseSchema,
-        CharacterMovementResponseSchema, CharacterRestResponseSchema, CharacterSchema,
-        DeleteItemResponseSchema, DropSchema, EquipmentResponseSchema, FightResult, FightSchema,
-        MapSchema, RecyclingItemsSchema, RecyclingResponseSchema, RewardDataResponseSchema,
-        RewardsSchema, SimpleItemSchema, SkillDataSchema, SkillInfoSchema, SkillResponseSchema,
-        TaskCancelledResponseSchema, TaskResponseSchema, TaskSchema, TaskTradeResponseSchema,
-        TaskTradeSchema, UseItemResponseSchema,
-    },
+use artifactsmmo_openapi::models::{
+    CharacterSchema, FightSchema, MapSchema, RecyclingItemsSchema, RewardsSchema, SimpleItemSchema,
+    SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema,
 };
-use chrono::Utc;
-use downcast_rs::{impl_downcast, Downcast};
-use log::{debug, error, info, warn};
-use std::{
-    cmp::Ordering,
-    fmt::Display,
-    sync::{Arc, RwLock, RwLockWriteGuard},
-    thread::sleep,
-    time::Duration,
-};
+use std::sync::{Arc, RwLock};
 use thiserror::Error;
 
-/// First layer of abstraction around the character API.
-/// It is responsible for handling the character action requests responce and errors
-/// by updating character and bank data, and retrying requests in case of errors.
-#[derive(Default)]
 pub struct BaseCharacter {
-    data: Arc<RwLock<CharacterSchema>>,
+    pub id: usize,
+    pub inner: CharacterRequestHandler,
+    pub inventory: Arc<BaseInventory>,
 }
 
 impl BaseCharacter {
-    pub fn new(data: &Arc<RwLock<CharacterSchema>>) -> Self {
-        Self { data: data.clone() }
+    pub fn new(id: usize, data: &Arc<RwLock<CharacterSchema>>) -> Self {
+        Self {
+            id,
+            inner: CharacterRequestHandler::new(data),
+            inventory: Arc::new(BaseInventory::new(data)),
+        }
     }
 
-    fn request_action(&self, action: Action) -> Result<Box<dyn ResponseSchema>, RequestError> {
-        let mut bank_content: Option<RwLockWriteGuard<'_, Arc<Vec<SimpleItemSchema>>>> = None;
-        let mut bank_details: Option<RwLockWriteGuard<'_, Arc<BankSchema>>> = None;
-
-        self.wait_for_cooldown();
-        if action.is_deposit() || action.is_withdraw() {
-            bank_content = Some(
-                BASE_BANK
-                    .content
-                    .write()
-                    .expect("bank_content to be writable"),
-            );
-        }
-        if action.is_deposit_gold() || action.is_withdraw_gold() || action.is_expand_bank() {
-            bank_details = Some(
-                BASE_BANK
-                    .details
-                    .write()
-                    .expect("bank_details to be writable"),
-            );
-        }
-        let res: Result<Box<dyn ResponseSchema>, RequestError> = match action {
-            Action::Move { x, y } => API
-                .my_character
-                .move_to(&self.name(), x, y)
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::Fight => API
-                .my_character
-                .fight(&self.name())
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::Rest => API
-                .my_character
-                .rest(&self.name())
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::UseItem { item, quantity } => API
-                .my_character
-                .use_item(&self.name(), item, quantity)
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::Gather => API
-                .my_character
-                .gather(&self.name())
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::Craft { item, quantity } => API
-                .my_character
-                .craft(&self.name(), item, quantity)
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::Recycle { item, quantity } => API
-                .my_character
-                .recycle(&self.name(), item, quantity)
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::Delete { item, quantity } => API
-                .my_character
-                .delete(&self.name(), item, quantity)
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::Deposit { item, quantity } => API
-                .my_character
-                .deposit(&self.name(), item, quantity)
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::Withdraw { item, quantity } => API
-                .my_character
-                .withdraw(&self.name(), item, quantity)
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::DepositGold { quantity } => API
-                .my_character
-                .deposit_gold(&self.name(), quantity)
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::WithdrawGold { quantity } => API
-                .my_character
-                .withdraw_gold(&self.name(), quantity)
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::ExpandBank => API
-                .my_character
-                .expand_bank(&self.name())
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::Equip {
-                item,
-                slot,
-                quantity,
-            } => API
-                .my_character
-                .equip(&self.name(), item, slot.into(), Some(quantity))
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::Unequip { slot, quantity } => {
-                API.my_character
-                    .unequip(&self.name(), slot.into(), Some(quantity))
-            }
-            .map(|r| r.into())
-            .map_err(|e| e.into()),
-            Action::AcceptTask => API
-                .my_character
-                .accept_task(&self.name())
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::TaskTrade { item, quantity } => API
-                .my_character
-                .trade_task(&self.name(), item, quantity)
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::CompleteTask => API
-                .my_character
-                .complete_task(&self.name())
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::CancelTask => API
-                .my_character
-                .cancel_task(&self.name())
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::TaskExchange => API
-                .my_character
-                .task_exchange(&self.name())
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::ChristmasExchange => API
-                .my_character
-                .christmas_exchange(&self.name())
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
+    pub fn fight(&self) -> Result<FightSchema, FightError> {
+        let map = self.map();
+        let Some(monster) = map.monster() else {
+            return Err(FightError::NoMonsterOnMap);
         };
-        match res {
-            Ok(res) => {
-                info!("{}", res.pretty());
-                self.update_data(res.character());
-                if let Some(s) = res.downcast_ref::<BankItemTransactionResponseSchema>() {
-                    if let Some(mut content) = bank_content {
-                        *content = s.data.bank.clone().into();
-                    }
-                } else if let Some(s) = res.downcast_ref::<BankGoldTransactionResponseSchema>() {
-                    if let Some(mut details) = bank_details {
-                        let mut new_details = (*details.clone()).clone();
-                        new_details.gold = s.data.bank.quantity;
-                        *details = Arc::new(new_details);
-                    }
-                } else if res
-                    .downcast_ref::<BankExtensionTransactionResponseSchema>()
-                    .is_some()
-                {
-                    if let Some(mut details) = bank_details {
-                        let mut new_details = (*details.clone()).clone();
-                        new_details.slots += BANK_EXTENSION_SIZE;
-                        *details = Arc::new(new_details);
-                    }
-                };
-                Ok(res)
-            }
-            Err(e) => {
-                drop(bank_content);
-                drop(bank_details);
-                self.handle_action_error(action, e)
-            }
+        if self.inventory.free_space() < monster.max_drop_quantity() {
+            return Err(FightError::InsufficientInventorySpace);
         }
+        Ok(self.inner.action_fight()?)
     }
 
-    pub fn action_move(&self, x: i32, y: i32) -> Result<MapSchema, RequestError> {
-        self.request_action(Action::Move { x, y })
-            .and_then(|r| {
-                r.downcast::<CharacterMovementResponseSchema>()
-                    .map_err(|_| RequestError::DowncastError)
-            })
-            .map(|s| *s.data.destination)
-    }
-
-    pub fn action_fight(&self) -> Result<FightSchema, RequestError> {
-        self.request_action(Action::Fight)
-            .and_then(|r| {
-                r.downcast::<CharacterFightResponseSchema>()
-                    .map_err(|_| RequestError::DowncastError)
-            })
-            .map(|s| *s.data.fight)
-    }
-
-    pub fn action_rest(&self) -> Result<i32, RequestError> {
-        self.request_action(Action::Rest)
-            .and_then(|r| {
-                r.downcast::<CharacterRestResponseSchema>()
-                    .map_err(|_| RequestError::DowncastError)
-            })
-            .map(|s| s.data.hp_restored)
-    }
-
-    pub fn action_use_item(&self, item: &str, quantity: i32) -> Result<(), RequestError> {
-        self.request_action(Action::UseItem { item, quantity })
-            .map(|_| ())
-    }
-
-    pub fn action_gather(&self) -> Result<SkillDataSchema, RequestError> {
-        self.request_action(Action::Gather)
-            .and_then(|r| {
-                r.downcast::<SkillResponseSchema>()
-                    .map_err(|_| RequestError::DowncastError)
-            })
-            .map(|s| *s.data)
-    }
-
-    pub fn action_craft(&self, item: &str, quantity: i32) -> Result<SkillInfoSchema, RequestError> {
-        self.request_action(Action::Craft { item, quantity })
-            .and_then(|r| {
-                r.downcast::<SkillResponseSchema>()
-                    .map_err(|_| RequestError::DowncastError)
-            })
-            .map(|s| *s.data.details)
-    }
-
-    pub fn action_delete(
-        &self,
-        item: &str,
-        quantity: i32,
-    ) -> Result<SimpleItemSchema, RequestError> {
-        self.request_action(Action::Delete { item, quantity })
-            .and_then(|r| {
-                r.downcast::<DeleteItemResponseSchema>()
-                    .map_err(|_| RequestError::DowncastError)
-            })
-            .map(|s| *s.data.item)
-    }
-
-    pub fn action_recycle(
-        &self,
-        item: &str,
-        quantity: i32,
-    ) -> Result<RecyclingItemsSchema, RequestError> {
-        self.request_action(Action::Recycle { item, quantity })
-            .and_then(|r| {
-                r.downcast::<RecyclingResponseSchema>()
-                    .map_err(|_| RequestError::DowncastError)
-            })
-            .map(|s| *s.data.details)
-    }
-
-    pub fn action_deposit(
-        &self,
-        item: &str,
-        quantity: i32,
-    ) -> Result<SimpleItemSchema, RequestError> {
-        self.request_action(Action::Deposit { item, quantity })
-            .map(|_| SimpleItemSchema {
-                code: item.to_owned(),
-                quantity,
-            })
-    }
-
-    pub fn action_withdraw(
-        &self,
-        item: &str,
-        quantity: i32,
-    ) -> Result<SimpleItemSchema, RequestError> {
-        self.request_action(Action::Withdraw { item, quantity })
-            .map(|_| SimpleItemSchema {
-                code: item.to_owned(),
-                quantity,
-            })
-    }
-
-    pub fn action_deposit_gold(&self, quantity: i32) -> Result<i32, RequestError> {
-        self.request_action(Action::DepositGold { quantity })
-            .and_then(|r| {
-                r.downcast::<BankGoldTransactionResponseSchema>()
-                    .map_err(|_| RequestError::DowncastError)
-            })
-            .map(|s| s.data.bank.quantity)
-    }
-
-    pub fn action_withdraw_gold(&self, quantity: i32) -> Result<i32, RequestError> {
-        self.request_action(Action::WithdrawGold { quantity })
-            .and_then(|r| {
-                r.downcast::<BankGoldTransactionResponseSchema>()
-                    .map_err(|_| RequestError::DowncastError)
-            })
-            .map(|s| s.data.bank.quantity)
-    }
-
-    pub fn action_expand_bank(&self) -> Result<i32, RequestError> {
-        self.request_action(Action::ExpandBank)
-            .and_then(|r| {
-                r.downcast::<BankExtensionTransactionResponseSchema>()
-                    .map_err(|_| RequestError::DowncastError)
-            })
-            .map(|s| s.data.transaction.price)
-    }
-
-    pub fn action_equip(&self, item: &str, slot: Slot, quantity: i32) -> Result<(), RequestError> {
-        self.request_action(Action::Equip {
-            item,
-            slot,
-            quantity,
-        })
-        .map(|_| ())
-    }
-
-    pub fn action_unequip(&self, slot: Slot, quantity: i32) -> Result<(), RequestError> {
-        self.request_action(Action::Unequip { slot, quantity })
-            .map(|_| ())
-    }
-
-    pub fn action_accept_task(&self) -> Result<TaskSchema, RequestError> {
-        self.request_action(Action::AcceptTask)
-            .and_then(|r| {
-                r.downcast::<TaskResponseSchema>()
-                    .map_err(|_| RequestError::DowncastError)
-            })
-            .map(|s| *s.data.task)
-    }
-
-    pub fn action_complete_task(&self) -> Result<RewardsSchema, RequestError> {
-        self.request_action(Action::CompleteTask)
-            .and_then(|r| {
-                r.downcast::<RewardDataResponseSchema>()
-                    .map_err(|_| RequestError::DowncastError)
-            })
-            .map(|s| *s.data.rewards)
-    }
-
-    pub fn action_cancel_task(&self) -> Result<(), RequestError> {
-        self.request_action(Action::CancelTask).map(|_| ())
-    }
-
-    pub fn action_task_trade(
-        &self,
-        item: &str,
-        quantity: i32,
-    ) -> Result<TaskTradeSchema, RequestError> {
-        self.request_action(Action::TaskTrade { item, quantity })
-            .and_then(|r| {
-                r.downcast::<TaskTradeResponseSchema>()
-                    .map_err(|_| RequestError::DowncastError)
-            })
-            .map(|s| *s.data.trade)
-    }
-
-    pub fn action_task_exchange(&self) -> Result<RewardsSchema, RequestError> {
-        self.request_action(Action::TaskExchange)
-            .and_then(|r| {
-                r.downcast::<RewardDataResponseSchema>()
-                    .map_err(|_| RequestError::DowncastError)
-            })
-            .map(|s| *s.data.rewards)
-    }
-
-    pub fn action_gift_exchange(&self) -> Result<RewardsSchema, RequestError> {
-        self.request_action(Action::ChristmasExchange)
-            .and_then(|r| {
-                r.downcast::<RewardDataResponseSchema>()
-                    .map_err(|_| RequestError::DowncastError)
-            })
-            .map(|s| *s.data.rewards)
-    }
-
-    fn handle_action_error(
-        &self,
-        action: Action,
-        e: RequestError,
-    ) -> Result<Box<dyn ResponseSchema>, RequestError> {
-        error!(
-            "{}: request error during action {:?}: {:?}",
-            self.name(),
-            action,
-            e
-        );
-        match e {
-            RequestError::ResponseError(ref res) => {
-                if res.error.code == 499 {
-                    error!(
-                        "{}: code 499 received, resyncronizing server time",
-                        self.name()
-                    );
-                    SERVER.update_offset();
-                    return self.request_action(action);
-                }
-                if res.error.code == 500 || res.error.code == 520 {
-                    error!(
-                        "{}: unknown error ({}), retrying in 10 secondes.",
-                        self.name(),
-                        res.error.code
-                    );
-                    sleep(Duration::from_secs(10));
-                    return self.request_action(action);
-                }
-            }
-            RequestError::Reqwest(ref req) => {
-                if req.is_timeout() {
-                    error!("{}: request timed-out, retrying...", self.name());
-                    return self.request_action(action);
-                }
-            }
-            RequestError::Serde(_) | RequestError::Io(_) | RequestError::DowncastError => {
-                warn!("{}: refreshing data", self.name());
-                self.refresh_data()
-            }
-        }
-        Err(e)
-    }
-
-    fn wait_for_cooldown(&self) {
-        let s = self.remaining_cooldown();
-        if s.is_zero() {
-            return;
-        }
-        debug!(
-            "{}: cooling down for {}.{} secondes.",
-            self.name(),
-            s.as_secs(),
-            s.subsec_millis()
-        );
-        sleep(s);
-    }
-
-    /// Returns the remaining cooldown duration of the `Character`.
-    fn remaining_cooldown(&self) -> Duration {
-        if let Some(exp) = self.cooldown_expiration() {
-            let synced = Utc::now() - *SERVER.server_offset.read().unwrap();
-            if synced.cmp(&exp.to_utc()) == Ordering::Less {
-                return (exp.to_utc() - synced).to_std().unwrap();
-            }
-        }
-        Duration::from_secs(0)
-    }
-
-    /// Refresh the `Character` schema from API.
-    pub fn refresh_data(&self) {
-        let Ok(resp) = API.character.get(&self.name()) else {
-            return;
+    pub fn gather(&self) -> Result<SkillDataSchema, GatherError> {
+        let map = self.map();
+        let Some(resource) = map.resource() else {
+            return Err(GatherError::NoResourceOnMap);
         };
-        self.update_data(&resp.data)
+        if self.skill_level(resource.skill.into()) < resource.level {
+            return Err(GatherError::InsufficientSkillLevel);
+        }
+        if self.inventory.free_space() < resource.max_drop_quantity() {
+            return Err(GatherError::InsufficientInventorySpace);
+        }
+        Ok(self.inner.action_gather()?)
     }
 
-    /// Update the `Character` schema with the given `schema.
-    pub fn update_data(&self, schema: &CharacterSchema) {
-        self.data.write().unwrap().clone_from(schema)
+    pub fn r#move(&self, x: i32, y: i32) -> Result<MapSchema, MoveError> {
+        let Some(map) = MAPS.get(x, y) else {
+            return Err(MoveError::MapNotFound);
+        };
+        Ok(self.inner.action_move(map.x, map.y)?)
+    }
+
+    pub fn rest(&self) -> Result<(), RestError> {
+        if self.health() < self.max_health() {
+            self.inner.action_rest()?;
+        }
+        Ok(())
+    }
+
+    pub fn r#use(&self, item_code: &str, quantity: i32) -> Result<(), UseError> {
+        let Some(item) = ITEMS.get(item_code) else {
+            return Err(UseError::ItemNotFound);
+        };
+        if !item.is_consumable() {
+            return Err(UseError::ItemNotConsumable);
+        }
+        if self.inventory.total_of(item_code) < quantity {
+            return Err(UseError::InsufficientQuantity);
+        }
+        if self.level() < item.level {
+            return Err(UseError::InsufficientCharacterLevel);
+        }
+        Ok(self.inner.action_use_item(item_code, quantity)?)
+    }
+
+    pub fn craft(&self, item_code: &str, quantity: i32) -> Result<SkillInfoSchema, CraftError> {
+        let Some(item) = ITEMS.get(item_code) else {
+            return Err(CraftError::ItemNotFound);
+        };
+        let Some(skill) = item.skill_to_craft() else {
+            return Err(CraftError::ItemNotCraftable);
+        };
+        if self.skill_level(skill) < item.level {
+            return Err(CraftError::InsufficientSkillLevel);
+        }
+        if !self.inventory.contains_mats_for(item_code, quantity) {
+            return Err(CraftError::InsufficientMaterials);
+        }
+        // TODO: check if InssuficientInventorySpace can happen
+        if !self.map().content_code_is(skill.as_ref()) {
+            return Err(CraftError::NoWorkshopOnMap);
+        }
+        Ok(self.inner.action_craft(item_code, quantity)?)
+    }
+
+    pub fn recycle(
+        &self,
+        item_code: &str,
+        quantity: i32,
+    ) -> Result<RecyclingItemsSchema, RecycleError> {
+        let Some(item) = ITEMS.get(item_code) else {
+            return Err(RecycleError::ItemNotFound);
+        };
+        let Some(skill) = item.skill_to_craft() else {
+            return Err(RecycleError::ItemNotRecyclable);
+        };
+        if self.skill_level(skill) < item.level {
+            return Err(RecycleError::InsufficientSkillLevel);
+        }
+        if self.inventory.total_of(item_code) < quantity {
+            return Err(RecycleError::InsufficientQuantity);
+        }
+        if self.inventory.free_space() < item.recycled_quantity() {
+            return Err(RecycleError::InsufficientInventorySpace);
+        }
+        if !self.map().content_code_is(skill.as_ref()) {
+            return Err(RecycleError::NoWorkshopOnMap);
+        }
+        Ok(self.inner.action_recycle(item_code, quantity)?)
+    }
+
+    pub fn delete(&self, item_code: &str, quantity: i32) -> Result<SimpleItemSchema, DeleteError> {
+        if ITEMS.get(item_code).is_none() {
+            return Err(DeleteError::ItemNotFound);
+        };
+        if self.inventory.total_of(item_code) < quantity {
+            return Err(DeleteError::InsufficientQuantity);
+        }
+        Ok(self.inner.action_delete(item_code, quantity)?)
+    }
+
+    pub fn withdraw(
+        &self,
+        item_code: &str,
+        quantity: i32,
+    ) -> Result<SimpleItemSchema, WithdrawError> {
+        if ITEMS.get(item_code).is_none() {
+            return Err(WithdrawError::ItemNotFound);
+        };
+        if BANK.total_of(item_code) < quantity {
+            return Err(WithdrawError::InsufficientQuantity);
+        }
+        if self.inventory.free_space() < quantity {
+            return Err(WithdrawError::InsufficientInventorySpace);
+        }
+        if !self.map().content_type_is(ContentType::Bank) {
+            return Err(WithdrawError::NoBankOnMap);
+        }
+        Ok(self.inner.action_withdraw(item_code, quantity)?)
+    }
+
+    pub fn deposit_item(
+        &self,
+        item_code: &str,
+        quantity: i32,
+    ) -> Result<SimpleItemSchema, DepositError> {
+        if ITEMS.get(item_code).is_none() {
+            return Err(DepositError::ItemNotFound);
+        };
+        if self.inventory.total_of(item_code) < quantity {
+            return Err(DepositError::InsufficientQuantity);
+        }
+        if BANK.total_of(item_code) <= 0 && BANK.free_slots() <= 0 {
+            return Err(DepositError::InsufficientBankSpace);
+        }
+        if !self.map().content_type_is(ContentType::Bank) {
+            return Err(DepositError::NoBankOnMap);
+        }
+        Ok(self.inner.action_deposit(item_code, quantity)?)
+    }
+
+    pub fn withdraw_gold(&self, quantity: i32) -> Result<i32, GoldWithdrawError> {
+        if BANK.gold() < quantity {
+            return Err(GoldWithdrawError::InsufficientQuantity);
+        }
+        if !self.map().content_type_is(ContentType::Bank) {
+            return Err(GoldWithdrawError::NoBankOnMap);
+        }
+        Ok(self.inner.action_withdraw_gold(quantity)?)
+    }
+
+    pub fn deposit_gold(&self, quantity: i32) -> Result<i32, GoldDepositError> {
+        if self.gold() < quantity {
+            return Err(GoldDepositError::InsufficientQuantity);
+        }
+        if !self.map().content_type_is(ContentType::Bank) {
+            return Err(GoldDepositError::NoBankOnMap);
+        }
+        Ok(self.inner.action_deposit_gold(quantity)?)
+    }
+
+    pub fn expand_bank(&self) -> Result<i32, BankExpansionError> {
+        if self.gold() < BANK.details().next_expansion_cost {
+            return Err(BankExpansionError::InsufficientGold);
+        }
+        if !self.map().content_type_is(ContentType::Bank) {
+            return Err(BankExpansionError::NoBankOnMap);
+        }
+        Ok(self.inner.action_expand_bank()?)
+    }
+
+    pub fn equip(&self, item_code: &str, slot: Slot, quantity: i32) -> Result<(), EquipError> {
+        let Some(item) = ITEMS.get(item_code) else {
+            return Err(EquipError::ItemNotFound);
+        };
+        if self.inventory.total_of(item_code) < quantity {
+            return Err(EquipError::InsufficientQuantity);
+        }
+        if let Some(equiped) = self.gear().slot(slot) {
+            if equiped.code == item_code {
+                if slot.max_quantity() <= 1 {
+                    return Err(EquipError::ItemAlreadyEquiped);
+                } else if self.quantity_in_slot(slot) + quantity > slot.max_quantity() {
+                    return Err(EquipError::QuantityGreaterThanSlotMaxixum);
+                }
+            } else {
+                return Err(EquipError::SlotNotEmpty);
+            }
+        }
+        if self.level() < item.level {
+            return Err(EquipError::InsufficientCharacterLevel);
+        }
+        if self.inventory.free_space() + item.inventory_space() <= 0 {
+            return Err(EquipError::InsufficientInventorySpace);
+        }
+        Ok(self.inner.action_equip(item_code, slot, quantity)?)
+    }
+
+    pub fn unequip(&self, slot: Slot, quantity: i32) -> Result<(), UnequipError> {
+        if self.gear().slot(slot).is_none() {
+            return Err(UnequipError::SlotEmpty);
+        }
+        if self.quantity_in_slot(slot) < quantity {
+            return Err(UnequipError::InsufficientQuantity);
+        }
+        if self.inventory.free_space() < quantity {
+            return Err(UnequipError::InsufficientInventorySpace);
+        }
+        Ok(self.inner.action_unequip(slot, quantity)?)
+    }
+
+    pub fn accept_task(&self) -> Result<TaskSchema, TaskAcceptationError> {
+        if !self.task().is_empty() {
+            return Err(TaskAcceptationError::TaskAlreadyInProgress);
+        }
+        if !self.map().content_type_is(ContentType::TasksMaster) {
+            return Err(TaskAcceptationError::NoTasksMasterOnMap);
+        }
+        Ok(self.inner.action_accept_task()?)
+    }
+
+    pub fn task_trade(
+        &self,
+        item_code: &str,
+        quantity: i32,
+    ) -> Result<TaskTradeSchema, TaskTradeError> {
+        if ITEMS.get(item_code).is_none() {
+            return Err(TaskTradeError::ItemNotFound);
+        };
+        if self.task_finished() {
+            return Err(TaskTradeError::TaskAlreadyCompleted);
+        }
+        if item_code != self.task() {
+            return Err(TaskTradeError::WrongTask);
+        }
+        if self.inventory.total_of(item_code) < quantity {
+            return Err(TaskTradeError::InsufficientQuantity);
+        }
+        if self.task_missing() < quantity {
+            return Err(TaskTradeError::SuperfluousQuantity);
+        }
+        if !self.map().content_type_is(ContentType::TasksMaster) {
+            return Err(TaskTradeError::NoTasksMasterOnMap);
+        } else if !self.map().content_code_is("items") {
+            return Err(TaskTradeError::WrongTasksMaster);
+        }
+        Ok(self.inner.action_task_trade(item_code, quantity)?)
+    }
+
+    pub fn complete_task(&self) -> Result<RewardsSchema, TaskCompletionError> {
+        let Some(task_type) = self.task_type() else {
+            return Err(TaskCompletionError::NoCurrentTask);
+        };
+        if !self.task_finished() {
+            return Err(TaskCompletionError::TaskNotFullfilled);
+        }
+        if self.inventory.free_space() < 2 {
+            return Err(TaskCompletionError::InsufficientInventorySpace);
+        }
+        if !self.map().content_type_is(ContentType::TasksMaster) {
+            return Err(TaskCompletionError::NoTasksMasterOnMap);
+        } else if !self.map().content_code_is(&task_type.to_string()) {
+            return Err(TaskCompletionError::WrongTasksMaster);
+        }
+        Ok(self.inner.action_complete_task()?)
+    }
+
+    pub fn cancel_task(&self) -> Result<(), TaskCancellationError> {
+        let Some(task_type) = self.task_type() else {
+            return Err(TaskCancellationError::NoCurrentTask);
+        };
+        if self.inventory.total_of("tasks_coin") < 1 {
+            return Err(TaskCancellationError::InsufficientTasksCoin);
+        }
+        if !self.map().content_type_is(ContentType::TasksMaster) {
+            return Err(TaskCancellationError::NoTasksMasterOnMap);
+        } else if !self.map().content_code_is(&task_type.to_string()) {
+            return Err(TaskCancellationError::WrongTasksMaster);
+        }
+        Ok(self.inner.action_cancel_task()?)
+    }
+
+    pub fn exchange_tasks_coin(&self) -> Result<RewardsSchema, TasksCoinExchangeError> {
+        if self.inventory.total_of("tasks_coin") < 6 {
+            return Err(TasksCoinExchangeError::InsufficientTasksCoinQuantity);
+        }
+        if !self.map().content_type_is(ContentType::TasksMaster) {
+            return Err(TasksCoinExchangeError::NoTasksMasterOnMap);
+        }
+        // TODO: check for conditions when InsufficientInventorySpace can happen
+        Ok(self.inner.action_task_exchange()?)
+    }
+
+    pub fn exchange_gift(&self) -> Result<RewardsSchema, GiftExchangeError> {
+        if self.inventory.total_of("tasks_coin") < 1 {
+            return Err(GiftExchangeError::InsufficientGiftQuantity);
+        }
+        if !self.map().content_type_is(ContentType::SantaClaus) {
+            return Err(GiftExchangeError::NoSantaClausOnMap);
+        }
+        // TODO: check for conditions when InsufficientInventorySpace can happen
+        Ok(self.inner.action_gift_exchange()?)
     }
 }
 
 impl HasCharacterData for BaseCharacter {
     fn data(&self) -> Arc<RwLock<CharacterSchema>> {
-        self.data.clone()
+        self.inner.data()
     }
 }
 
-#[derive(Error, Debug)]
-pub enum RequestError {
-    #[error("reqwest error: {0}")]
-    Reqwest(reqwest::Error),
-    #[error("serde error: {0}")]
-    Serde(serde_json::Error),
-    #[error("io error: {0}")]
-    Io(std::io::Error),
-    #[error("response error: {0}")]
-    ResponseError(ApiErrorResponseSchema),
-    #[error("downcast error")]
-    DowncastError,
+#[derive(Debug, Error)]
+pub enum FightError {
+    #[error("Insufficient inventory space")]
+    InsufficientInventorySpace,
+    #[error("No monster on map")]
+    NoMonsterOnMap,
 }
 
-impl<T> From<Error<T>> for RequestError {
-    fn from(value: Error<T>) -> Self {
-        match value {
-            Error::Reqwest(e) => RequestError::Reqwest(e),
-            Error::Serde(e) => RequestError::Serde(e),
-            Error::Io(e) => RequestError::Io(e),
-            Error::ResponseError(res) => match serde_json::from_str(&res.content) {
-                Ok(e) => RequestError::ResponseError(e),
-                Err(e) => RequestError::Serde(e),
-            },
-        }
+impl From<RequestError> for FightError {
+    fn from(value: RequestError) -> Self {
+        todo!()
     }
 }
 
-trait ResponseSchema: Downcast {
-    fn character(&self) -> &CharacterSchema;
-    fn pretty(&self) -> String;
-}
-impl_downcast!(ResponseSchema);
-
-impl ResponseSchema for CharacterMovementResponseSchema {
-    fn pretty(&self) -> String {
-        format!(
-            "{}: moved to {}. {}s",
-            self.data.character.name,
-            self.data.destination.pretty(),
-            self.data.cooldown.remaining_seconds
-        )
-    }
-
-    fn character(&self) -> &CharacterSchema {
-        &self.data.character
+impl From<RequestError> for GatherError {
+    fn from(value: RequestError) -> Self {
+        todo!()
     }
 }
 
-impl ResponseSchema for CharacterFightResponseSchema {
-    fn pretty(&self) -> String {
-        match self.data.fight.result {
-            FightResult::Win => format!(
-                "{} won a fight after {} turns ({}xp, {}g, [{}]). {}s",
-                self.data.character.name,
-                self.data.fight.turns,
-                self.data.fight.xp,
-                self.data.fight.gold,
-                DropSchemas(&self.data.fight.drops),
-                self.data.cooldown.remaining_seconds
-            ),
-            FightResult::Loss => format!(
-                "{} lost a fight after {} turns. {}s",
-                self.data.character.name,
-                self.data.fight.turns,
-                self.data.cooldown.remaining_seconds
-            ),
-        }
-    }
-
-    fn character(&self) -> &CharacterSchema {
-        &self.data.character
+impl From<RequestError> for MoveError {
+    fn from(value: RequestError) -> Self {
+        todo!()
     }
 }
 
-impl ResponseSchema for CharacterRestResponseSchema {
-    fn pretty(&self) -> String {
-        format!(
-            "{}: rested and restored {}hp. {}s",
-            self.data.character.name, self.data.hp_restored, self.data.cooldown.remaining_seconds
-        )
-    }
-
-    fn character(&self) -> &CharacterSchema {
-        &self.data.character
+impl From<RequestError> for RestError {
+    fn from(value: RequestError) -> Self {
+        todo!()
     }
 }
 
-impl ResponseSchema for UseItemResponseSchema {
-    fn pretty(&self) -> String {
-        format!(
-            "{}: used item '{}'. {}s",
-            self.data.character.name, self.data.item.code, self.data.cooldown.remaining_seconds
-        )
-    }
-
-    fn character(&self) -> &CharacterSchema {
-        &self.data.character
+impl From<RequestError> for UseError {
+    fn from(value: RequestError) -> Self {
+        todo!()
     }
 }
 
-impl ResponseSchema for SkillResponseSchema {
-    fn pretty(&self) -> String {
-        let reason = if self.data.cooldown.reason == ActionType::Crafting {
-            "crafted"
-        } else {
-            "gathered"
-        };
-        format!(
-            "{}: {reason} [{}] ({}xp). {}s",
-            self.data.character.name,
-            DropSchemas(&self.data.details.items),
-            self.data.details.xp,
-            self.data.cooldown.remaining_seconds
-        )
-    }
-
-    fn character(&self) -> &CharacterSchema {
-        &self.data.character
+impl From<RequestError> for CraftError {
+    fn from(value: RequestError) -> Self {
+        todo!()
     }
 }
 
-impl ResponseSchema for DeleteItemResponseSchema {
-    fn pretty(&self) -> String {
-        format!(
-            "{}: deleted '{}'x{}",
-            self.data.character.name, self.data.item.code, self.data.item.quantity
-        )
-    }
-
-    fn character(&self) -> &CharacterSchema {
-        &self.data.character
+impl From<RequestError> for RecycleError {
+    fn from(value: RequestError) -> Self {
+        todo!()
     }
 }
 
-impl ResponseSchema for BankItemTransactionResponseSchema {
-    fn pretty(&self) -> String {
-        if self.data.cooldown.reason == ActionType::Withdraw {
-            format!(
-                "{}: withdrawed '{}' from the bank. {}s",
-                self.data.character.name, self.data.item.code, self.data.cooldown.remaining_seconds
-            )
-        } else {
-            format!(
-                "{}: deposited '{}' to the bank. {}s",
-                self.data.character.name, self.data.item.code, self.data.cooldown.remaining_seconds
-            )
-        }
-    }
-
-    fn character(&self) -> &CharacterSchema {
-        &self.data.character
+impl From<RequestError> for DeleteError {
+    fn from(value: RequestError) -> Self {
+        todo!()
     }
 }
 
-impl ResponseSchema for BankGoldTransactionResponseSchema {
-    fn pretty(&self) -> String {
-        if self.data.cooldown.reason == ActionType::Withdraw {
-            format!(
-                "{}: withdrawed gold from the bank. {}s",
-                self.data.character.name, self.data.cooldown.remaining_seconds
-            )
-        } else {
-            format!(
-                "{}: deposited gold to the bank. {}s",
-                self.data.character.name, self.data.cooldown.remaining_seconds
-            )
-        }
-    }
-
-    fn character(&self) -> &CharacterSchema {
-        &self.data.character
+impl From<RequestError> for WithdrawError {
+    fn from(value: RequestError) -> Self {
+        todo!()
     }
 }
 
-impl ResponseSchema for BankExtensionTransactionResponseSchema {
-    fn pretty(&self) -> String {
-        format!(
-            "{}: bought bank expansion for {} golds. {}s",
-            self.data.character.name,
-            self.data.transaction.price,
-            self.data.cooldown.remaining_seconds
-        )
-    }
-
-    fn character(&self) -> &CharacterSchema {
-        &self.data.character
+impl From<RequestError> for DepositError {
+    fn from(value: RequestError) -> Self {
+        todo!()
     }
 }
 
-impl ResponseSchema for RecyclingResponseSchema {
-    fn pretty(&self) -> String {
-        format!(
-            "{}: recycled and received {}. {}s",
-            self.data.character.name,
-            DropSchemas(&self.data.details.items,),
-            self.data.cooldown.remaining_seconds
-        )
-    }
-
-    fn character(&self) -> &CharacterSchema {
-        &self.data.character
+impl From<RequestError> for GoldWithdrawError {
+    fn from(value: RequestError) -> Self {
+        todo!()
     }
 }
 
-impl ResponseSchema for EquipmentResponseSchema {
-    fn pretty(&self) -> String {
-        if self.data.cooldown.reason == ActionType::Equip {
-            format!(
-                "{}: equiped '{}' in the '{:?}' slot. {}s",
-                &self.data.character.name,
-                &self.data.item.code,
-                &self.data.slot,
-                self.data.cooldown.remaining_seconds
-            )
-        } else {
-            format!(
-                "{}: unequiped '{}' from the '{:?}' slot. {}s",
-                &self.data.character.name,
-                &self.data.item.code,
-                &self.data.slot,
-                self.data.cooldown.remaining_seconds
-            )
-        }
-    }
-
-    fn character(&self) -> &CharacterSchema {
-        &self.data.character
+impl From<RequestError> for GoldDepositError {
+    fn from(value: RequestError) -> Self {
+        todo!()
     }
 }
 
-impl ResponseSchema for TaskResponseSchema {
-    fn pretty(&self) -> String {
-        format!(
-            "{}: accepted new [{:?}] task: '{}'x{}. {}s",
-            self.data.character.name,
-            self.data.task.r#type,
-            self.data.task.code,
-            self.data.task.total,
-            self.data.cooldown.remaining_seconds
-        )
-    }
-
-    fn character(&self) -> &CharacterSchema {
-        &self.data.character
+impl From<RequestError> for BankExpansionError {
+    fn from(value: RequestError) -> Self {
+        todo!()
     }
 }
 
-impl ResponseSchema for RewardDataResponseSchema {
-    fn pretty(&self) -> String {
-        format!(
-            "{}: completed task and was rewarded with [{:?}] and {}g. {}s",
-            self.data.character.name,
-            self.data.rewards.items,
-            self.data.rewards.gold,
-            self.data.cooldown.remaining_seconds
-        )
-    }
-
-    fn character(&self) -> &CharacterSchema {
-        &self.data.character
+impl From<RequestError> for EquipError {
+    fn from(value: RequestError) -> Self {
+        todo!()
     }
 }
 
-impl ResponseSchema for TaskCancelledResponseSchema {
-    fn pretty(&self) -> String {
-        format!(
-            "{}: cancelled current task. {}s",
-            self.data.character.name, self.data.cooldown.remaining_seconds
-        )
-    }
-
-    fn character(&self) -> &CharacterSchema {
-        &self.data.character
+impl From<RequestError> for UnequipError {
+    fn from(value: RequestError) -> Self {
+        todo!()
     }
 }
 
-impl ResponseSchema for TaskTradeResponseSchema {
-    fn pretty(&self) -> String {
-        format!(
-            "{}: traded '{}'x{} with the taskmaster. {}s",
-            self.data.character.name,
-            self.data.trade.code,
-            self.data.trade.quantity,
-            self.data.cooldown.remaining_seconds
-        )
-    }
-
-    fn character(&self) -> &CharacterSchema {
-        &self.data.character
+impl From<RequestError> for TaskAcceptationError {
+    fn from(value: RequestError) -> Self {
+        todo!()
     }
 }
 
-impl<T: ResponseSchema + 'static> From<T> for Box<dyn ResponseSchema> {
-    fn from(value: T) -> Self {
-        Box::new(value)
+impl From<RequestError> for TaskTradeError {
+    fn from(value: RequestError) -> Self {
+        todo!()
     }
 }
 
-struct DropSchemas<'a>(&'a Vec<DropSchema>);
-
-impl Display for DropSchemas<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut items: String = "".to_string();
-        for item in self.0 {
-            if !items.is_empty() {
-                items.push_str(", ");
-            }
-            items.push_str(&format!("'{}'x{}", item.code, item.quantity));
-        }
-        write!(f, "{}", items)
+impl From<RequestError> for TaskCancellationError {
+    fn from(value: RequestError) -> Self {
+        todo!()
     }
 }
 
-pub trait HasDrops {
-    fn amount_of(&self, item: &str) -> i32;
-}
-
-impl HasDrops for FightSchema {
-    fn amount_of(&self, item: &str) -> i32 {
-        self.drops
-            .iter()
-            .find(|i| i.code == item)
-            .map_or(0, |i| i.quantity)
+impl From<RequestError> for TaskCompletionError {
+    fn from(value: RequestError) -> Self {
+        todo!()
     }
 }
 
-impl HasDrops for SkillDataSchema {
-    fn amount_of(&self, item: &str) -> i32 {
-        self.details
-            .items
-            .iter()
-            .find(|i| i.code == item)
-            .map_or(0, |i| i.quantity)
+impl From<RequestError> for TasksCoinExchangeError {
+    fn from(value: RequestError) -> Self {
+        todo!()
     }
 }
 
-impl HasDrops for SkillInfoSchema {
-    fn amount_of(&self, item: &str) -> i32 {
-        self.items
-            .iter()
-            .find(|i| i.code == item)
-            .map_or(0, |i| i.quantity)
+impl From<RequestError> for GiftExchangeError {
+    fn from(value: RequestError) -> Self {
+        todo!()
     }
 }
 
-impl HasDrops for RewardsSchema {
-    fn amount_of(&self, item: &str) -> i32 {
-        self.items
-            .iter()
-            .find(|i| i.code == item)
-            .map_or(0, |i| i.quantity)
-    }
+#[derive(Debug, Error)]
+pub enum GatherError {
+    #[error("Insufficient inventory space")]
+    InsufficientInventorySpace,
+    #[error("No resource on map")]
+    NoResourceOnMap,
+    #[error("Insufficient skill level")]
+    InsufficientSkillLevel,
+}
+
+#[derive(Debug, Error)]
+pub enum MoveError {
+    #[error("MapNotFound")]
+    MapNotFound,
+}
+
+#[derive(Debug, Error)]
+pub enum RestError {}
+
+#[derive(Debug, Error)]
+pub enum UseError {
+    #[error("Item not found")]
+    ItemNotFound,
+    #[error("Item not equipped")]
+    ItemNotConsumable,
+    #[error("Insufficient quantity")]
+    InsufficientQuantity,
+    #[error("Insufficient character level")]
+    InsufficientCharacterLevel,
+}
+
+#[derive(Debug, Error)]
+pub enum CraftError {
+    #[error("Item not found")]
+    ItemNotFound,
+    #[error("Item not craftable")]
+    ItemNotCraftable,
+    #[error("Insufficient materials")]
+    InsufficientMaterials,
+    #[error("Insufficient skill level")]
+    InsufficientSkillLevel,
+    #[error("Insufficient inventory space")]
+    InsufficientInventorySpace,
+    #[error("Required workshop not on map")]
+    NoWorkshopOnMap,
+}
+
+#[derive(Debug, Error)]
+pub enum RecycleError {
+    #[error("Item not found")]
+    ItemNotFound,
+    #[error("Item not recyclable")]
+    ItemNotRecyclable,
+    #[error("Insufficient quantity")]
+    InsufficientQuantity,
+    #[error("Insufficient inventory space")]
+    InsufficientInventorySpace,
+    #[error("Insufficient skill level")]
+    InsufficientSkillLevel,
+    #[error("Required workshop not on map")]
+    NoWorkshopOnMap,
+}
+
+#[derive(Debug, Error)]
+pub enum DeleteError {
+    #[error("Item not found")]
+    ItemNotFound,
+    #[error("Insufficient quantity")]
+    InsufficientQuantity,
+}
+
+#[derive(Debug, Error)]
+pub enum WithdrawError {
+    #[error("Item not found")]
+    ItemNotFound,
+    #[error("Insufficient quantity")]
+    InsufficientQuantity,
+    #[error("Insufficient inventory space")]
+    InsufficientInventorySpace,
+    #[error("No bank on map")]
+    NoBankOnMap,
+}
+
+#[derive(Debug, Error)]
+pub enum DepositError {
+    #[error("Item not found")]
+    ItemNotFound,
+    #[error("Insufficient quantity")]
+    InsufficientQuantity,
+    #[error("Insufficient bank space")]
+    InsufficientBankSpace,
+    #[error("No bank on map")]
+    NoBankOnMap,
+}
+
+#[derive(Debug, Error)]
+pub enum GoldWithdrawError {
+    #[error("Insufficient gold in bank")]
+    InsufficientQuantity,
+    #[error("No bank on map")]
+    NoBankOnMap,
+}
+
+#[derive(Debug, Error)]
+pub enum GoldDepositError {
+    #[error("Insufficient gold on character")]
+    InsufficientQuantity,
+    #[error("No bank on map")]
+    NoBankOnMap,
+}
+
+#[derive(Debug, Error)]
+pub enum BankExpansionError {
+    #[error("Insufficient gold on character")]
+    InsufficientGold,
+    #[error("No bank on map")]
+    NoBankOnMap,
+}
+
+#[derive(Debug, Error)]
+pub enum EquipError {
+    #[error("Item not found")]
+    ItemNotFound,
+    #[error("Insufficient quantity")]
+    InsufficientQuantity,
+    #[error("Item already equiped")]
+    ItemAlreadyEquiped,
+    #[error("Quantity greater than slot max quantity")]
+    QuantityGreaterThanSlotMaxixum,
+    #[error("Slot not empty")]
+    SlotNotEmpty,
+    #[error("Insufficient character level")]
+    InsufficientCharacterLevel,
+    #[error("Insufficient inventory space")]
+    InsufficientInventorySpace,
+}
+
+#[derive(Debug, Error)]
+pub enum UnequipError {
+    #[error("Slot is empty")]
+    SlotEmpty,
+    #[error("Insufficient quantity")]
+    InsufficientQuantity,
+    #[error("Insufficient inventory space")]
+    InsufficientInventorySpace,
+}
+
+#[derive(Debug, Error)]
+pub enum TaskAcceptationError {
+    #[error("Task already in progress")]
+    TaskAlreadyInProgress,
+    #[error("No tasks master on map")]
+    NoTasksMasterOnMap,
+}
+
+#[derive(Debug, Error)]
+pub enum TaskTradeError {
+    #[error("Item not found")]
+    ItemNotFound,
+    #[error("WrongTask")]
+    WrongTask,
+    #[error("Task already completed")]
+    TaskAlreadyCompleted,
+    #[error("Superfluous quantity")]
+    SuperfluousQuantity,
+    #[error("InsufficientQuantity")]
+    InsufficientQuantity,
+    #[error("No tasks master on map")]
+    NoTasksMasterOnMap,
+    #[error("Wrong tasks master")]
+    WrongTasksMaster,
+}
+
+#[derive(Debug, Error)]
+pub enum TaskCompletionError {
+    #[error("No current task")]
+    NoCurrentTask,
+    #[error("Task not fullfilled")]
+    TaskNotFullfilled,
+    #[error("Insufficient inventory space")]
+    InsufficientInventorySpace,
+    #[error("No tasks master on map")]
+    NoTasksMasterOnMap,
+    #[error("Wrong tasks master")]
+    WrongTasksMaster,
+}
+
+#[derive(Debug, Error)]
+pub enum TaskCancellationError {
+    #[error("No current task")]
+    NoCurrentTask,
+    #[error("Insufficient tasks coin quantity")]
+    InsufficientTasksCoin,
+    #[error("No tasks master on map")]
+    NoTasksMasterOnMap,
+    #[error("Wrong tasks master")]
+    WrongTasksMaster,
+}
+
+#[derive(Debug, Error)]
+pub enum TasksCoinExchangeError {
+    #[error("Insufficient tasks coin quantity")]
+    InsufficientTasksCoinQuantity,
+    #[error("Insufficient inventory space")]
+    InsufficientInventorySpace,
+    #[error("No tasks master on map")]
+    NoTasksMasterOnMap,
+}
+
+#[derive(Debug, Error)]
+pub enum GiftExchangeError {
+    #[error("Insufficient gift quantity")]
+    InsufficientGiftQuantity,
+    #[error("Insufficient inventory space")]
+    InsufficientInventorySpace,
+    #[error("No Santa Claus on map")]
+    NoSantaClausOnMap,
 }

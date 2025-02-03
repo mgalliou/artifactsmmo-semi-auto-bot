@@ -1,8 +1,11 @@
-use super::{base_character::RequestError, inventory::Inventory, BaseCharacter, HasCharacterData, Skill};
+use super::{
+    inventory::Inventory, request_handler::RequestError, CharacterRequestHandler, HasCharacterData,
+    Skill,
+};
 use crate::{
     account::ACCOUNT,
     bank::BANK,
-    char::base_character::HasDrops,
+    char::request_handler::HasDrops,
     consts::{
         BANK_MIN_FREE_SLOT, CRAFT_TIME, GIFT, MAX_LEVEL, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
         TASKS_COIN, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE,
@@ -40,7 +43,7 @@ use thiserror::Error;
 #[derive(Default)]
 pub struct Character {
     pub id: usize,
-    pub inner: BaseCharacter,
+    pub inner: CharacterRequestHandler,
     pub inventory: Arc<Inventory>,
 }
 
@@ -48,7 +51,7 @@ impl Character {
     pub fn new(id: usize, data: &Arc<RwLock<CharacterSchema>>) -> Self {
         Self {
             id,
-            inner: BaseCharacter::new(data),
+            inner: CharacterRequestHandler::new(data),
             inventory: Arc::new(Inventory::new(data)),
         }
     }
@@ -1021,7 +1024,6 @@ impl Character {
         }
         Ok(())
     }
-
 
     /// Crafts the given `quantity` of the given item `code` if the required
     /// materials to craft them in one go are available in bank and deposit the crafted

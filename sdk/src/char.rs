@@ -6,17 +6,17 @@ use artifactsmmo_openapi::models::{CharacterSchema, ItemSchema, MapSchema, TaskT
 use chrono::{DateTime, Utc};
 use std::sync::{Arc, RwLock};
 
-pub use base_character::{BaseCharacter, HasDrops};
 pub use character::{Character, CharacterError};
+pub use request_handler::{CharacterRequestHandler, HasDrops};
 pub use skill::Skill;
 
 pub mod action;
 pub mod base_character;
-pub mod character;
-pub mod skill;
-pub mod smart_character;
-pub mod inventory;
 pub mod base_inventory;
+pub mod character;
+pub mod inventory;
+pub mod request_handler;
+pub mod skill;
 
 pub trait HasCharacterData {
     fn data(&self) -> Arc<RwLock<CharacterSchema>>;
