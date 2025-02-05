@@ -10,6 +10,7 @@ pub use monsters::MonstersApi;
 pub use my_characters::MyCharacterApi;
 pub use resources::ResourcesApi;
 pub use tasks::TasksApi;
+pub use server::ServerApi;
 
 pub mod bank;
 pub mod characters;
@@ -19,6 +20,7 @@ pub mod maps;
 pub mod monsters;
 pub mod my_characters;
 pub mod resources;
+pub mod server;
 pub mod tasks;
 
 pub struct ArtifactApi {
@@ -31,6 +33,7 @@ pub struct ArtifactApi {
     pub my_character: MyCharacterApi,
     pub resources: ResourcesApi,
     pub tasks: TasksApi,
+    pub server: ServerApi,
 }
 
 impl ArtifactApi {
@@ -51,6 +54,7 @@ impl ArtifactApi {
             my_character: MyCharacterApi::new(configuration.clone()),
             resources: ResourcesApi::new(configuration.clone()),
             tasks: TasksApi::new(configuration.clone()),
+            server: ServerApi::new(configuration.clone()),
         }
     }
 }
