@@ -819,7 +819,7 @@ impl<T> From<Error<T>> for RequestError {
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ApiErrorResponseSchema {
-    error: ApiErrorSchema,
+    pub error: ApiErrorSchema,
 }
 
 impl Display for ApiErrorResponseSchema {
@@ -830,8 +830,8 @@ impl Display for ApiErrorResponseSchema {
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ApiErrorSchema {
-    code: i32,
-    message: String,
+    pub code: i32,
+    pub message: String,
 }
 
 pub trait ApiRequestError {}
