@@ -1,8 +1,6 @@
-use crate::{
-    base_bank::BaseBank,
-    items::{ItemSchemaExt, ITEMS},
+use artifactsmmo_sdk::{
+    base_bank::BaseBank, items::ItemSchemaExt, models::{BankSchema, ItemSchema, SimpleItemSchema}, ITEMS
 };
-use artifactsmmo_openapi::models::{BankSchema, ItemSchema, SimpleItemSchema};
 use itertools::Itertools;
 use log::info;
 use std::{

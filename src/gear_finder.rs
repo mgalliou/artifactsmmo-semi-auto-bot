@@ -1,11 +1,7 @@
-use crate::{
-    account::ACCOUNT,
-    char::{Character, HasCharacterData, Skill},
-    fight_simulator::{FightSimulator, FIGHT_SIMULATOR},
-    gear::Gear,
-    items::{ItemSchemaExt, Type, ITEMS},
+use crate::{account::ACCOUNT, character::Character};
+use artifactsmmo_sdk::{
+    char::{HasCharacterData, Skill}, fight_simulator::FIGHT_SIMULATOR, gear::Gear, items::{ItemSchemaExt, Type}, models::{FightResult, ItemSchema, MonsterSchema}, FightSimulator, ITEMS
 };
-use artifactsmmo_openapi::models::{FightResult, ItemSchema, MonsterSchema};
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use std::{
@@ -633,10 +629,9 @@ impl ArtifactSet {
 
 #[cfg(test)]
 mod tests {
-    use artifactsmmo_openapi::models::CharacterSchema;
+    use artifactsmmo_sdk::{models::CharacterSchema, ITEMS, MONSTERS};
 
     use super::*;
-    use crate::monsters::MONSTERS;
 
     #[test]
     fn best_weapons_against() {

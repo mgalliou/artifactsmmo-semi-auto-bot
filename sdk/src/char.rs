@@ -6,14 +6,11 @@ use artifactsmmo_openapi::models::{CharacterSchema, ItemSchema, MapSchema, TaskT
 use chrono::{DateTime, Utc};
 use std::{collections::HashMap, sync::{Arc, LazyLock, RwLock}};
 
-pub use character::{Character, CharacterError};
 pub use skill::Skill;
 
 pub mod action;
 pub mod base_character;
 pub mod base_inventory;
-pub mod character;
-pub mod inventory;
 pub mod request_handler;
 pub mod skill;
 

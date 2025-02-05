@@ -1,13 +1,10 @@
 use anyhow::Result;
-use artifactsmmo_playground::cli;
-use artifactsmmo_sdk::{
-    orderboard::{Purpose, ORDER_BOARD},
-    GAME,
-};
+use artifactsmmo_playground::{cli, bot::GAME as BOT, bot_config::BOT_CONFIG, orderboard::{Purpose, ORDER_BOARD}};
 use log::LevelFilter;
 
 fn main() -> Result<()> {
     simple_logging::log_to_file("artifactsmmo.log", LevelFilter::Info)?;
+    artifactsmmo_sdk::init(&BOT_CONFIG.base_url, &BOT_CONFIG.token);
     //game.orderboard
     //    .add(None, "lizard_skin", 1000, Purpose::Cli)?;
     //game.orderboard
@@ -18,6 +15,6 @@ fn main() -> Result<()> {
     ORDER_BOARD.add(None, "magic_wood", 6000, Purpose::Cli)?;
     //game.orderboard.add(None, "carrot", 1000, Purpose::Cli);
     //game.orderboard.add(None, "frozen_pickaxe", 5, Purpose::Cli)?;
-    GAME.run_characters();
+    BOT.run_characters();
     cli::run()
 }

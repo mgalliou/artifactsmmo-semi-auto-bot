@@ -1,28 +1,32 @@
-use super::{
-    inventory::Inventory, request_handler::{CharacterRequestHandler, RequestError}, CharacterData, 
-    HasCharacterData, Skill,
-};
 use crate::{
     account::ACCOUNT,
     bank::BANK,
+    bot_config::{CharConfig, Goal, BOT_CONFIG},
+    gear_finder::{Filter, GEAR_FINDER},
+    inventory::Inventory,
+    leveling_helper::LEVELING_HELPER,
+    orderboard::{Order, Purpose, ORDER_BOARD},
+};
+use artifactsmmo_sdk::{
+    char::{
+        request_handler::{CharacterRequestHandler, RequestError},
+        CharacterData, HasCharacterData, Skill,
+    },
     consts::{
         BANK_MIN_FREE_SLOT, CRAFT_TIME, GIFT, MAX_LEVEL, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
         TASKS_COIN, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE,
     },
     fight_simulator::FIGHT_SIMULATOR,
-    game_config::GAME_CONFIG,
     gear::{Gear, Slot},
-    gear_finder::{Filter, GEAR_FINDER},
-    items::{ItemSchemaExt, ItemSource, Type, ITEMS},
-    leveling_helper::LEVELING_HELPER,
-    maps::{ContentType, MapSchemaExt, Maps, MAPS},
-    monsters::MONSTERS,
-    orderboard::{Order, Purpose, ORDER_BOARD},
+    items::{ItemSchemaExt, ItemSource, Type},
+    maps::{ContentType, MapSchemaExt, Maps},
+    models::{
+        CharacterSchema, FightResult, FightSchema, ItemSchema, MapContentSchema, MapSchema,
+        MonsterSchema, RecyclingItemsSchema, ResourceSchema, RewardsSchema, SimpleItemSchema,
+        SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
+    },
     resources::RESOURCES,
-    CharConfig, FightSimulator, Goal, HasDrops,
-};
-use artifactsmmo_openapi::models::{
-    CharacterSchema, FightResult, FightSchema, ItemSchema, MapContentSchema, MapSchema, MonsterSchema, RecyclingItemsSchema, ResourceSchema, RewardsSchema, SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType
+    FightSimulator, HasDrops, ITEMS, MAPS, MONSTERS,
 };
 use itertools::Itertools;
 use log::{error, info, warn};
@@ -807,7 +811,7 @@ impl Character {
                     ..Default::default()
                 },
             ) {
-                available = Some(tool.clone());
+                available = Some((*tool).clone());
                 self.reserv_if_needed_and_available(Slot::Weapon, &tool.code, 1);
             }
             self.order_best_tool(resource.skill.into());
@@ -1650,7 +1654,7 @@ impl Character {
     }
 
     pub fn conf(&self) -> &RwLock<CharConfig> {
-        GAME_CONFIG.characters.get(self.id).unwrap()
+        BOT_CONFIG.characters.get(self.id).unwrap()
     }
 
     #[allow(dead_code)]

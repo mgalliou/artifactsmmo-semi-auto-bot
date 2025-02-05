@@ -1,24 +1,21 @@
-use crate::char::skill::Skill;
-use artifactsmmo_openapi::models::TaskType;
-use figment::{
-    providers::{Format, Toml},
-    Figment,
-};
+use artifactsmmo_sdk::{char::Skill, models::TaskType};
+use figment::providers::{Format, Toml};
+use figment::Figment;
 use serde::Deserialize;
 use std::sync::{LazyLock, RwLock};
 use std::{collections::HashSet, fmt::Display};
 use strum_macros::{AsRefStr, EnumIs, EnumIter, EnumString};
 
-pub static GAME_CONFIG: LazyLock<GameConfig> = LazyLock::new(GameConfig::from_file);
+pub static BOT_CONFIG: LazyLock<BotConfig> = LazyLock::new(BotConfig::from_file);
 
 #[derive(Debug, Default, Deserialize)]
-pub struct GameConfig {
+pub struct BotConfig {
     pub base_url: String,
     pub token: String,
     pub characters: Vec<RwLock<CharConfig>>,
 }
 
-impl GameConfig {
+impl BotConfig {
     fn from_file() -> Self {
         Figment::new()
             .merge(Toml::file_exact("ArtifactsMMO.toml"))

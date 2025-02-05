@@ -1,43 +1,43 @@
 use artifactsmmo_api_wrapper::ArtifactApi;
 use artifactsmmo_openapi::models::{FightSchema, RewardsSchema, SkillDataSchema, SkillInfoSchema};
 use fs_extra::file::{read_to_string, write_all};
-use game_config::GAME_CONFIG;
 use log::error;
 use serde::{Deserialize, Serialize};
-use std::{path::Path, sync::LazyLock};
+use std::{
+    path::Path,
+    sync::{LazyLock, OnceLock},
+};
 
-pub use account::ACCOUNT;
-pub use bank::BANK;
+pub use artifactsmmo_openapi::models;
 pub use fight_simulator::FightSimulator;
-pub use game::GAME;
-pub use game_config::{CharConfig, GameConfig, Goal};
 pub use items::ITEMS;
-pub use leveling_helper::LevelingHelper;
 pub use maps::MAPS;
 pub use monsters::MONSTERS;
 
-pub mod account;
-pub mod bank;
 pub mod base_bank;
 pub mod char;
 pub mod consts;
 pub mod events;
 pub mod fight_simulator;
-pub mod game;
-pub mod game_config;
 pub mod gear;
-pub mod gear_finder;
 pub mod items;
-pub mod leveling_helper;
 pub mod maps;
 pub mod monsters;
-pub mod orderboard;
 pub mod resources;
+pub mod server;
 pub mod tasks;
 pub mod tasks_rewards;
 
+static BASE_URL: OnceLock<String> = OnceLock::new();
+static TOKEN: OnceLock<String> = OnceLock::new();
+
 pub(crate) static API: LazyLock<ArtifactApi> =
-    LazyLock::new(|| ArtifactApi::new(&GAME_CONFIG.base_url, &GAME_CONFIG.token));
+    LazyLock::new(|| ArtifactApi::new(BASE_URL.get().unwrap(), TOKEN.get().unwrap()));
+
+pub fn init(base_url: &str, token: &str) {
+    BASE_URL.get_or_init(|| base_url.to_string());
+    TOKEN.get_or_init(|| token.to_string());
+}
 
 pub trait PersistedData<D: for<'a> Deserialize<'a> + Serialize> {
     const PATH: &'static str;

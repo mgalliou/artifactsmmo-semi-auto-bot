@@ -1,69 +1,31 @@
-use crate::{account::ACCOUNT, game_config::GAME_CONFIG};
-use artifactsmmo_openapi::{
-    apis::{
-        configuration::Configuration,
-        default_api::{get_status_get, GetStatusGetError},
-        Error,
-    },
-    models::StatusResponseSchema,
-};
+use crate::API;
+use artifactsmmo_openapi::models::StatusResponseSchema;
 use chrono::{DateTime, TimeDelta, Utc};
 use log::{debug, error};
-use std::{
-    sync::{LazyLock, RwLock},
-    thread::{sleep, Builder},
-    time::Duration,
-};
-
-pub static GAME: LazyLock<Game> = LazyLock::new(Game::new);
-
-pub struct Game {}
-
-impl Game {
-    fn new() -> Self {
-        Game {}
-    }
-
-    pub fn run_characters(&self) {
-        for c in ACCOUNT.characters() {
-            sleep(Duration::from_millis(250));
-            if let Err(e) = Builder::new().spawn(move || {
-                c.run_loop();
-            }) {
-                error!("failed to spawn character thread: {}", e);
-            }
-        }
-    }
-}
+use std::sync::{LazyLock, RwLock};
 
 pub static SERVER: LazyLock<Server> = LazyLock::new(Server::new);
 
 #[derive(Default)]
 pub struct Server {
-    pub configuration: Configuration,
     pub server_offset: RwLock<TimeDelta>,
 }
 
 impl Server {
     fn new() -> Self {
-        let mut conf = Configuration::new();
-        conf.base_path = GAME_CONFIG.base_url.to_owned();
         let server = Self {
-            configuration: conf,
             server_offset: RwLock::new(TimeDelta::default()),
         };
         server.update_offset();
         server
     }
 
-    pub fn status(&self) -> Result<StatusResponseSchema, Error<GetStatusGetError>> {
-        get_status_get(&self.configuration)
+    pub fn status(&self) -> Option<StatusResponseSchema> {
+        API.server.status()
     }
 
     pub fn time(&self) -> Option<DateTime<Utc>> {
-        let Ok(status) = self.status() else {
-            return None;
-        };
+        let status = self.status()?;
         let Ok(time) = DateTime::parse_from_rfc3339(&status.data.server_time) else {
             return None;
         };

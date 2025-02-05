@@ -1,4 +1,4 @@
-use crate::{account::ACCOUNT, char::skill::Skill, gear::Slot, items::ITEMS};
+use artifactsmmo_sdk::{char::Skill, gear::Slot, ITEMS};
 use itertools::Itertools;
 use log::{debug, info};
 use std::{
@@ -9,6 +9,8 @@ use std::{
 use strum::IntoEnumIterator;
 use strum_macros::{EnumIs, EnumIter};
 use thiserror::Error;
+
+use crate::account::ACCOUNT;
 
 pub static ORDER_BOARD: LazyLock<OrderBoard> = LazyLock::new(OrderBoard::new);
 

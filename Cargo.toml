@@ -4,12 +4,20 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-log = "0.4.25"
-simple-logging = "2.0.2"
 anyhow = "1.0.94"
-rustyline = "14.0.0"
-clap = { version = "4.5.21", features = ["derive"] }
 artifactsmmo-sdk = { path = "sdk", version = "0.1.0" }
+clap = { version = "4.5.21", features = ["derive"] }
+figment = { version = "0.10.19", features = ["toml"] }
+itertools = "0.14.0"
+log = "0.4.25"
+ordered-float = "4.6.0"
+rayon = "1.10.0"
+rustyline = "14.0.0"
+serde = "1.0.217"
+simple-logging = "2.0.2"
+strum = "0.26.3"
+strum_macros = "0.26.4"
+thiserror = "2.0.11"
 
 [target.x86_64-pc-windows-msvc]
 rustflags = ["-C", "link-arg=-fuse-ld=lld"]

@@ -1,28 +1,24 @@
-use crate::{
-    char::{Character, HasCharacterData, Skill, CHARACTERS_DATA},
-    game_config::GAME_CONFIG,
+use artifactsmmo_sdk::{
+    char::{HasCharacterData, Skill, CHARACTERS_DATA},
     items::ItemSource,
+    models::SimpleItemSchema,
     ITEMS,
 };
-use artifactsmmo_openapi::{apis::configuration::Configuration, models::SimpleItemSchema};
 use itertools::Itertools;
 use std::sync::{Arc, LazyLock, RwLock};
+
+use crate::character::Character;
 
 pub static ACCOUNT: LazyLock<Account> = LazyLock::new(Account::new);
 
 #[derive(Default)]
 pub struct Account {
-    pub configuration: Configuration,
     pub characters: RwLock<Vec<Arc<Character>>>,
 }
 
 impl Account {
     fn new() -> Account {
-        let mut configuration = Configuration::new();
-        configuration.base_path = GAME_CONFIG.base_url.to_owned();
-        configuration.bearer_access_token = Some(GAME_CONFIG.token.to_owned());
         let account = Account {
-            configuration,
             characters: RwLock::new(vec![]),
         };
         account.init_characters();

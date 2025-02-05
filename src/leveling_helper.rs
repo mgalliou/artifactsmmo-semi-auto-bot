@@ -1,17 +1,15 @@
-use crate::account::ACCOUNT;
-use crate::bank::BANK;
-use crate::items::ITEMS;
-use crate::maps::MAPS;
-use crate::monsters::MONSTERS;
-use crate::resources::RESOURCES;
-use crate::{
-    char::{Character, HasCharacterData, Skill},
+use artifactsmmo_sdk::{
+    char::{HasCharacterData, Skill},
     items::ItemSchemaExt,
+    models::{ItemSchema, MonsterSchema, ResourceSchema},
+    resources::RESOURCES,
+    ITEMS, MAPS, MONSTERS,
 };
-use artifactsmmo_openapi::models::{ItemSchema, MonsterSchema, ResourceSchema};
 use itertools::Itertools;
 use rayon::iter::{ParallelBridge, ParallelIterator};
 use std::sync::{Arc, LazyLock};
+
+use crate::{account::ACCOUNT, bank::BANK, character::Character};
 
 pub static LEVELING_HELPER: LazyLock<LevelingHelper> = LazyLock::new(LevelingHelper::new);
 

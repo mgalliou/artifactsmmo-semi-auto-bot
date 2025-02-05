@@ -1,10 +1,11 @@
+use super::CharacterData;
 use crate::{
     base_bank::BASE_BANK,
     char::{action::Action, HasCharacterData},
     consts::BANK_EXTENSION_SIZE,
-    game::SERVER,
     gear::Slot,
     maps::MapSchemaExt,
+    server::SERVER,
     API,
 };
 use artifactsmmo_openapi::{
@@ -32,8 +33,6 @@ use std::{
     time::Duration,
 };
 use thiserror::Error;
-
-use super::CharacterData;
 
 /// First layer of abstraction around the character API.
 /// It is responsible for handling the character action requests responce and errors

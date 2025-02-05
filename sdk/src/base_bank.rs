@@ -22,6 +22,29 @@ impl BaseBank {
         return self.details.read().unwrap().clone();
     }
 
+    pub fn gold(&self) -> i32 {
+        self.details().gold
+    }
+
+    pub fn free_slots(&self) -> i32 {
+        self.details().slots - self.content().len() as i32
+    }
+
+    pub fn total_of(&self, item: &str) -> i32 {
+        self.content
+            .read()
+            .unwrap()
+            .iter()
+            .find_map(|i| {
+                if i.code == item {
+                    Some(i.quantity)
+                } else {
+                    None
+                }
+            })
+            .unwrap_or(0)
+    }
+
     pub fn content(&self) -> Arc<Vec<SimpleItemSchema>> {
         return self.content.read().unwrap().clone();
     }

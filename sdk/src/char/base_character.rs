@@ -4,12 +4,7 @@ use super::{
     CharacterData, HasCharacterData, CHARACTERS_DATA,
 };
 use crate::{
-    gear::Slot,
-    items::ItemSchemaExt,
-    maps::{ContentType, MapSchemaExt},
-    monsters::MonsterSchemaExt,
-    resources::ResourceSchemaExt,
-    BANK, ITEMS, MAPS,
+    base_bank::BASE_BANK, gear::Slot, items::ItemSchemaExt, maps::{ContentType, MapSchemaExt}, monsters::MonsterSchemaExt, resources::ResourceSchemaExt, ITEMS, MAPS
 };
 use artifactsmmo_openapi::models::{
     CharacterSchema, FightSchema, MapSchema, RecyclingItemsSchema, RewardsSchema, SimpleItemSchema,
@@ -161,7 +156,7 @@ impl BaseCharacter {
         if ITEMS.get(item_code).is_none() {
             return Err(WithdrawError::ItemNotFound);
         };
-        if BANK.total_of(item_code) < quantity {
+        if BASE_BANK.total_of(item_code) < quantity {
             return Err(WithdrawError::InsufficientQuantity);
         }
         if self.inventory.free_space() < quantity {
@@ -184,7 +179,7 @@ impl BaseCharacter {
         if self.inventory.total_of(item_code) < quantity {
             return Err(DepositError::InsufficientQuantity);
         }
-        if BANK.total_of(item_code) <= 0 && BANK.free_slots() <= 0 {
+        if BASE_BANK.total_of(item_code) <= 0 && BASE_BANK.free_slots() <= 0 {
             return Err(DepositError::InsufficientBankSpace);
         }
         if !self.map().content_type_is(ContentType::Bank) {
@@ -194,7 +189,7 @@ impl BaseCharacter {
     }
 
     pub fn withdraw_gold(&self, quantity: i32) -> Result<i32, GoldWithdrawError> {
-        if BANK.gold() < quantity {
+        if BASE_BANK.gold() < quantity {
             return Err(GoldWithdrawError::InsufficientGold);
         }
         if !self.map().content_type_is(ContentType::Bank) {
@@ -214,7 +209,7 @@ impl BaseCharacter {
     }
 
     pub fn expand_bank(&self) -> Result<i32, BankExpansionError> {
-        if self.gold() < BANK.details().next_expansion_cost {
+        if self.gold() < BASE_BANK.details().next_expansion_cost {
             return Err(BankExpansionError::InsufficientGold);
         }
         if !self.map().content_type_is(ContentType::Bank) {
