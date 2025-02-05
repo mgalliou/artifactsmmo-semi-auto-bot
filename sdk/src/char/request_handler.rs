@@ -44,8 +44,8 @@ pub struct CharacterRequestHandler {
 }
 
 impl CharacterRequestHandler {
-    pub fn new(data: &CharacterData) -> Self {
-        Self { data: data.clone() }
+    pub fn new(data: CharacterData) -> Self {
+        Self { data }
     }
 
     fn request_action(&self, action: Action) -> Result<Box<dyn ResponseSchema>, RequestError> {
@@ -184,7 +184,7 @@ impl CharacterRequestHandler {
         match res {
             Ok(res) => {
                 info!("{}", res.to_string());
-                self.update_data(res.character());
+                self.update_data(res.character().clone());
                 if let Some(s) = res.downcast_ref::<BankItemTransactionResponseSchema>() {
                     if let Some(mut content) = bank_content {
                         *content = s.data.bank.clone().into();
@@ -488,18 +488,18 @@ impl CharacterRequestHandler {
         let Ok(resp) = API.character.get(&self.name()) else {
             return;
         };
-        self.update_data(&resp.data)
+        self.update_data(*resp.data)
     }
 
     /// Update the `Character` schema with the given `schema.
-    pub fn update_data(&self, schema: &CharacterSchema) {
-        self.data.write().unwrap().clone_from(schema)
+    pub fn update_data(&self, schema: CharacterSchema) {
+        *self.data.write().unwrap() = Arc::new(schema)
     }
 }
 
 impl HasCharacterData for CharacterRequestHandler {
-    fn data(&self) -> CharacterData {
-        self.data.clone()
+    fn data(&self) -> Arc<CharacterSchema> {
+        self.data.read().unwrap().clone()
     }
 }
 

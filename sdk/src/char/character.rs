@@ -22,9 +22,7 @@ use crate::{
     CharConfig, FightSimulator, Goal, HasDrops,
 };
 use artifactsmmo_openapi::models::{
-    FightResult, FightSchema, ItemSchema, MapContentSchema, MapSchema, MonsterSchema,
-    RecyclingItemsSchema, ResourceSchema, RewardsSchema, SimpleItemSchema, SkillDataSchema,
-    SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
+    CharacterSchema, FightResult, FightSchema, ItemSchema, MapContentSchema, MapSchema, MonsterSchema, RecyclingItemsSchema, ResourceSchema, RewardsSchema, SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType
 };
 use itertools::Itertools;
 use log::{error, info, warn};
@@ -47,11 +45,11 @@ pub struct Character {
 }
 
 impl Character {
-    pub fn new(id: usize, data: &CharacterData) -> Self {
+    pub fn new(id: usize, data: CharacterData) -> Self {
         Self {
             id,
-            inner: CharacterRequestHandler::new(data),
-            inventory: Arc::new(Inventory::new(data)),
+            inner: CharacterRequestHandler::new(data.clone()),
+            inventory: Arc::new(Inventory::new(data.clone())),
         }
     }
 
@@ -1947,7 +1945,7 @@ impl Character {
 }
 
 impl HasCharacterData for Character {
-    fn data(&self) -> CharacterData {
+    fn data(&self) -> Arc<CharacterSchema> {
         self.inner.data().clone()
     }
 }

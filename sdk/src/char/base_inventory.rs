@@ -10,8 +10,8 @@ pub struct BaseInventory {
 }
 
 impl BaseInventory {
-    pub fn new(data: &CharacterData) -> Self {
-        Self { data: data.clone() }
+    pub fn new(data: CharacterData) -> Self {
+        Self { data }
     }
 
     /// Returns the amount of item in the `Character` inventory.

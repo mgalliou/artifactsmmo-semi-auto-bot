@@ -1,8 +1,8 @@
 use crate::{
-    char::{Character, CharacterData, HasCharacterData, Skill},
+    char::{Character, HasCharacterData, Skill, CHARACTERS_DATA},
     game_config::GAME_CONFIG,
     items::ItemSource,
-    API, ITEMS,
+    ITEMS,
 };
 use artifactsmmo_openapi::{apis::configuration::Configuration, models::SimpleItemSchema};
 use itertools::Itertools;
@@ -33,11 +33,9 @@ impl Account {
         let Ok(mut chars) = self.characters.write() else {
             return;
         };
-        *chars = self
-            .get_characters_data()
+        *chars = CHARACTERS_DATA
             .iter()
-            .enumerate()
-            .map(|(id, data)| Arc::new(Character::new(id, data)))
+            .map(|(id, data)| Arc::new(Character::new(*id, data.clone())))
             .collect_vec()
     }
 
@@ -152,15 +150,5 @@ impl Account {
                 ItemSource::Gift => Some(10000),
             })
             .min()
-    }
-
-    fn get_characters_data(&self) -> Vec<CharacterData> {
-        API.my_character
-            .characters()
-            .unwrap()
-            .data
-            .into_iter()
-            .map(|s| Arc::new(RwLock::new(s)))
-            .collect_vec()
     }
 }

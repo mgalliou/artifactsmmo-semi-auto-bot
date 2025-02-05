@@ -1,10 +1,10 @@
 use crate::{
     gear::{Gear, Slot},
-    ITEMS, MAPS,
+    API, ITEMS, MAPS,
 };
 use artifactsmmo_openapi::models::{CharacterSchema, ItemSchema, MapSchema, TaskType};
 use chrono::{DateTime, Utc};
-use std::sync::{Arc, RwLock};
+use std::{collections::HashMap, sync::{Arc, LazyLock, RwLock}};
 
 pub use character::{Character, CharacterError};
 pub use skill::Skill;
@@ -17,24 +17,34 @@ pub mod inventory;
 pub mod request_handler;
 pub mod skill;
 
-pub type CharacterData = Arc<RwLock<CharacterSchema>>;
+pub type CharacterData = Arc<RwLock<Arc<CharacterSchema>>>;
+
+pub static CHARACTERS_DATA: LazyLock<HashMap<usize, CharacterData>> = LazyLock::new(|| {
+    API.my_character
+        .characters()
+        .unwrap()
+        .data
+        .into_iter()
+        .enumerate()
+        .map(|(id, data)| (id, Arc::new(RwLock::new(Arc::new(data)))))
+        .collect::<_>()
+});
 
 pub trait HasCharacterData {
-    fn data(&self) -> CharacterData;
+    fn data(&self) -> Arc<CharacterSchema>;
 
     fn name(&self) -> String {
-        self.data().read().unwrap().name.to_owned()
+        self.data().name.to_owned()
     }
 
     /// Returns the `Character` position (coordinates).
     fn position(&self) -> (i32, i32) {
         let d = self.data();
-        let d = d.read().unwrap();
         (d.x, d.y)
     }
 
     fn level(&self) -> i32 {
-        self.data().read().unwrap().level
+        self.data().level
     }
 
     fn map(&self) -> Arc<MapSchema> {
@@ -44,7 +54,6 @@ pub trait HasCharacterData {
 
     fn skill_xp(&self, skill: Skill) -> i32 {
         let d = self.data();
-        let d = d.read().unwrap();
         match skill {
             Skill::Combat => d.xp,
             Skill::Mining => d.mining_xp,
@@ -59,8 +68,7 @@ pub trait HasCharacterData {
     }
 
     fn skill_max_xp(&self, skill: Skill) -> i32 {
-        let data = self.data();
-        let d = data.read().unwrap();
+        let d = self.data();
         match skill {
             Skill::Combat => d.max_xp,
             Skill::Mining => d.mining_max_xp,
@@ -75,11 +83,11 @@ pub trait HasCharacterData {
     }
 
     fn max_health(&self) -> i32 {
-        self.data().read().unwrap().max_hp
+        self.data().max_hp
     }
 
     fn health(&self) -> i32 {
-        self.data().read().unwrap().hp
+        self.data().hp
     }
 
     fn missing_hp(&self) -> i32 {
@@ -89,7 +97,6 @@ pub trait HasCharacterData {
     /// Returns the `Character` level in the given `skill`.
     fn skill_level(&self, skill: Skill) -> i32 {
         let d = self.data();
-        let d = d.read().unwrap();
         match skill {
             Skill::Combat => d.level,
             Skill::Mining => d.mining_level,
@@ -104,13 +111,13 @@ pub trait HasCharacterData {
     }
 
     fn gold(&self) -> i32 {
-        self.data().read().unwrap().gold
+        self.data().gold
     }
 
     fn quantity_in_slot(&self, s: Slot) -> i32 {
         match s {
-            Slot::Utility1 => self.data().read().unwrap().utility1_slot_quantity,
-            Slot::Utility2 => self.data().read().unwrap().utility2_slot_quantity,
+            Slot::Utility1 => self.data().utility1_slot_quantity,
+            Slot::Utility2 => self.data().utility2_slot_quantity,
             Slot::Weapon
             | Slot::Shield
             | Slot::Helmet
@@ -127,11 +134,11 @@ pub trait HasCharacterData {
     }
 
     fn task(&self) -> String {
-        self.data().read().unwrap().task.to_owned()
+        self.data().task.to_owned()
     }
 
     fn task_type(&self) -> Option<TaskType> {
-        match self.data().read().unwrap().task_type.as_str() {
+        match self.data().task_type.as_str() {
             "monsters" => Some(TaskType::Monsters),
             "items" => Some(TaskType::Items),
             _ => None,
@@ -139,11 +146,11 @@ pub trait HasCharacterData {
     }
 
     fn task_progress(&self) -> i32 {
-        self.data().read().unwrap().task_progress
+        self.data().task_progress
     }
 
     fn task_total(&self) -> i32 {
-        self.data().read().unwrap().task_total
+        self.data().task_total
     }
 
     fn task_missing(&self) -> i32 {
@@ -157,8 +164,6 @@ pub trait HasCharacterData {
     /// Returns the cooldown expiration timestamp of the `Character`.
     fn cooldown_expiration(&self) -> Option<DateTime<Utc>> {
         self.data()
-            .read()
-            .unwrap()
             .cooldown_expiration
             .as_ref()
             .map(|cd| DateTime::parse_from_rfc3339(cd).ok().map(|dt| dt.to_utc()))?
@@ -167,7 +172,6 @@ pub trait HasCharacterData {
     /// Returns the current `Gear` of the `Character`, containing item schemas.
     fn gear(&self) -> Gear {
         let d = self.data();
-        let d = d.read().unwrap();
         Gear {
             weapon: ITEMS.get(&d.weapon_slot),
             shield: ITEMS.get(&d.shield_slot),
@@ -189,7 +193,6 @@ pub trait HasCharacterData {
     /// Returns the item equiped in the `given` slot.
     fn equiped_in(&self, slot: Slot) -> Option<Arc<ItemSchema>> {
         let d = self.data();
-        let d = d.read().unwrap();
         ITEMS.get(match slot {
             Slot::Weapon => &d.weapon_slot,
             Slot::Shield => &d.shield_slot,

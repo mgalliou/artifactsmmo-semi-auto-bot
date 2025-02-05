@@ -20,9 +20,9 @@ pub struct Inventory {
 }
 
 impl Inventory {
-    pub fn new(data: &CharacterData) -> Self {
+    pub fn new(data: CharacterData) -> Self {
         Inventory {
-            data: data.clone(),
+            data,
             reservations: RwLock::new(vec![]),
         }
     }

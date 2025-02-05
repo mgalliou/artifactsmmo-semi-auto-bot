@@ -1,7 +1,7 @@
 use super::{
     base_inventory::BaseInventory,
     request_handler::{CharacterRequestHandler, RequestError},
-    CharacterData, HasCharacterData,
+    CharacterData, HasCharacterData, CHARACTERS_DATA,
 };
 use crate::{
     gear::Slot,
@@ -12,12 +12,22 @@ use crate::{
     BANK, ITEMS, MAPS,
 };
 use artifactsmmo_openapi::models::{
-    FightSchema, MapSchema, RecyclingItemsSchema, RewardsSchema, SimpleItemSchema, SkillDataSchema,
-    SkillInfoSchema, TaskSchema, TaskTradeSchema,
+    CharacterSchema, FightSchema, MapSchema, RecyclingItemsSchema, RewardsSchema, SimpleItemSchema,
+    SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema,
 };
 use derive_more::TryFrom;
-use std::sync::Arc;
+use std::{
+    collections::HashMap,
+    sync::{Arc, LazyLock},
+};
 use thiserror::Error;
+
+pub static BASE_CHARACTERS: LazyLock<HashMap<usize, Arc<BaseCharacter>>> = LazyLock::new(|| {
+    CHARACTERS_DATA
+        .iter()
+        .map(|(id, data)| (*id, Arc::new(BaseCharacter::new(*id, data.clone()))))
+        .collect::<_>()
+});
 
 pub struct BaseCharacter {
     pub id: usize,
@@ -26,11 +36,11 @@ pub struct BaseCharacter {
 }
 
 impl BaseCharacter {
-    pub fn new(id: usize, data: &CharacterData) -> Self {
+    pub fn new(id: usize, data: CharacterData) -> Self {
         Self {
             id,
-            inner: CharacterRequestHandler::new(data),
-            inventory: Arc::new(BaseInventory::new(data)),
+            inner: CharacterRequestHandler::new(data.clone()),
+            inventory: Arc::new(BaseInventory::new(data.clone())),
         }
     }
 
@@ -345,7 +355,7 @@ impl BaseCharacter {
 }
 
 impl HasCharacterData for BaseCharacter {
-    fn data(&self) -> CharacterData {
+    fn data(&self) -> Arc<CharacterSchema> {
         self.inner.data()
     }
 }

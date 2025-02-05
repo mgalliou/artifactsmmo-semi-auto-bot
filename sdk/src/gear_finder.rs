@@ -633,6 +633,8 @@ impl ArtifactSet {
 
 #[cfg(test)]
 mod tests {
+    use artifactsmmo_openapi::models::CharacterSchema;
+
     use super::*;
     use crate::monsters::MONSTERS;
 
@@ -640,7 +642,11 @@ mod tests {
     fn best_weapons_against() {
         let gear_finder = GearFinder::new();
         let char = Character::default();
-        char.data().write().unwrap().level = 30;
+        let data = CharacterSchema {
+            level: 30,
+            ..Default::default()
+        };
+        char.inner.update_data(data);
 
         let weapons = gear_finder.best_weapons_against(
             &char,
