@@ -15,6 +15,7 @@ use artifactsmmo_openapi::models::{
     FightSchema, MapSchema, RecyclingItemsSchema, RewardsSchema, SimpleItemSchema, SkillDataSchema,
     SkillInfoSchema, TaskSchema, TaskTradeSchema,
 };
+use derive_more::TryFrom;
 use std::sync::Arc;
 use thiserror::Error;
 
@@ -50,7 +51,7 @@ impl BaseCharacter {
             return Err(GatherError::NoResourceOnMap);
         };
         if self.skill_level(resource.skill.into()) < resource.level {
-            return Err(GatherError::InsufficientSkillLevel);
+            return Err(GatherError::SkillLevelInsufficient);
         }
         if self.inventory.free_space() < resource.max_drop_quantity() {
             return Err(GatherError::InsufficientInventorySpace);
@@ -272,9 +273,6 @@ impl BaseCharacter {
         if ITEMS.get(item_code).is_none() {
             return Err(TaskTradeError::ItemNotFound);
         };
-        if self.task_finished() {
-            return Err(TaskTradeError::TaskAlreadyCompleted);
-        }
         if item_code != self.task() {
             return Err(TaskTradeError::WrongTask);
         }
@@ -284,10 +282,10 @@ impl BaseCharacter {
         if self.task_missing() < quantity {
             return Err(TaskTradeError::SuperfluousQuantity);
         }
-        if !self.map().content_type_is(ContentType::TasksMaster) {
-            return Err(TaskTradeError::NoTasksMasterOnMap);
-        } else if !self.map().content_code_is("items") {
-            return Err(TaskTradeError::WrongTasksMaster);
+        if !self.map().content_type_is(ContentType::TasksMaster)
+            || !self.map().content_code_is("items")
+        {
+            return Err(TaskTradeError::WrongOrNoTasksMasterOnMap);
         }
         Ok(self.inner.request_task_trade(item_code, quantity)?)
     }
@@ -302,10 +300,10 @@ impl BaseCharacter {
         if self.inventory.free_space() < 2 {
             return Err(TaskCompletionError::InsufficientInventorySpace);
         }
-        if !self.map().content_type_is(ContentType::TasksMaster) {
-            return Err(TaskCompletionError::NoTasksMasterOnMap);
-        } else if !self.map().content_code_is(&task_type.to_string()) {
-            return Err(TaskCompletionError::WrongTasksMaster);
+        if !self.map().content_type_is(ContentType::TasksMaster)
+            || !self.map().content_code_is(&task_type.to_string())
+        {
+            return Err(TaskCompletionError::WrongOrNoTasksMasterOnMap);
         }
         Ok(self.inner.request_complete_task()?)
     }
@@ -315,12 +313,12 @@ impl BaseCharacter {
             return Err(TaskCancellationError::NoCurrentTask);
         };
         if self.inventory.total_of("tasks_coin") < 1 {
-            return Err(TaskCancellationError::InsufficientTasksCoin);
+            return Err(TaskCancellationError::InsufficientTasksCoinQuantity);
         }
-        if !self.map().content_type_is(ContentType::TasksMaster) {
-            return Err(TaskCancellationError::NoTasksMasterOnMap);
-        } else if !self.map().content_code_is(&task_type.to_string()) {
-            return Err(TaskCancellationError::WrongTasksMaster);
+        if !self.map().content_type_is(ContentType::TasksMaster)
+            || !self.map().content_code_is(&task_type.to_string())
+        {
+            return Err(TaskCancellationError::WrongOrNoTasksMasterOnMap);
         }
         Ok(self.inner.request_cancel_task()?)
     }
@@ -355,34 +353,37 @@ impl HasCharacterData for BaseCharacter {
 }
 
 const ENTITY_NOT_FOUND: isize = 404;
-const INSUFFICIENT_GOLD_IN_BANK: isize = 460;
+const BANK_GOLD_INSUFFICIENT: isize = 460;
+//const TRANSACTION_ALREADY_IN_PROGRESS: isize = 461;
 const BANK_FULL: isize = 462;
 const ITEM_NOT_RECYCLABLE: isize = 473;
 const WRONG_TASK: isize = 474;
 const TASK_ALREADY_COMPLETED_OR_TOO_MANY_ITEM_TRADED: isize = 475;
 const ITEM_NOT_CONSUMABLE: isize = 476;
-const MISSING_OR_INSUFFICIENT_QUANTITY: isize = 478;
+const MISSING_ITEM_OR_INSUFFICIENT_QUANTITY: isize = 478;
 const SUPERFLOUS_UTILITY_QUANTITY: isize = 484;
 const ITEM_ALREADY_EQUIPED: isize = 485;
-const ACTION_ALREADY_IN_PROGRESS: isize = 486;
+//const ACTION_ALREADY_IN_PROGRESS: isize = 486;
 const NO_TASK: isize = 487;
 const TASK_NOT_COMPLETED: isize = 488;
 const TASK_ALREADY_IN_PROGRESS: isize = 489;
 const INVALID_SLOT_STATE: isize = 491;
-const INSUFFICIENT_GOLD_ON_CHARACTER: isize = 492;
-const NOT_SKILL_LEVEL_REQUIRED: isize = 493;
+const CHARACTER_GOLD_INSUFFICIENT: isize = 492;
+const SKILL_LEVEL_INSUFFICIENT: isize = 493;
 const CHARACTER_LEVEL_INSUFFICIENT: isize = 496;
 const INVENTORY_FULL: isize = 497;
-const CHARACTER_NOT_FOUND: isize = 498;
-const CHARACTER_ON_COOLDOWN: isize = 499;
+//const CHARACTER_NOT_FOUND: isize = 498;
+//const CHARACTER_ON_COOLDOWN: isize = 499;
 const ENTITY_NOT_FOUND_ON_MAP: isize = 598;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, TryFrom)]
+#[try_from(repr)]
+#[repr(isize)]
 pub enum FightError {
     #[error("Insufficient inventory space")]
-    InsufficientInventorySpace,
+    InsufficientInventorySpace = INVENTORY_FULL,
     #[error("No monster on map")]
-    NoMonsterOnMap,
+    NoMonsterOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(RequestError),
 }
@@ -390,26 +391,23 @@ pub enum FightError {
 impl From<RequestError> for FightError {
     fn from(value: RequestError) -> Self {
         if let RequestError::ResponseError(ref schema) = value {
-            match schema.error.code as isize {
-                INVENTORY_FULL => return Self::InsufficientInventorySpace,
-                ENTITY_NOT_FOUND_ON_MAP => {
-                    return Self::NoMonsterOnMap;
-                }
-                _ => {}
-            }
-        }
+            return Self::try_from(schema.error.code as isize)
+                .unwrap_or(Self::UnhandledError(value));
+        };
         Self::UnhandledError(value)
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, TryFrom)]
+#[try_from(repr)]
+#[repr(isize)]
 pub enum GatherError {
     #[error("Insufficient inventory space")]
-    InsufficientInventorySpace,
+    InsufficientInventorySpace = INVENTORY_FULL,
     #[error("No resource on map")]
-    NoResourceOnMap,
+    NoResourceOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error("Insufficient skill level")]
-    InsufficientSkillLevel,
+    SkillLevelInsufficient = SKILL_LEVEL_INSUFFICIENT,
     #[error(transparent)]
     UnhandledError(RequestError),
 }
@@ -417,21 +415,19 @@ pub enum GatherError {
 impl From<RequestError> for GatherError {
     fn from(value: RequestError) -> Self {
         if let RequestError::ResponseError(ref schema) = value {
-            match schema.error.code as isize {
-                INVENTORY_FULL => return Self::InsufficientInventorySpace,
-                NOT_SKILL_LEVEL_REQUIRED => return Self::InsufficientSkillLevel,
-                ENTITY_NOT_FOUND_ON_MAP => return Self::NoResourceOnMap,
-                _ => {}
-            }
-        }
+            return Self::try_from(schema.error.code as isize)
+                .unwrap_or(Self::UnhandledError(value));
+        };
         Self::UnhandledError(value)
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, TryFrom)]
+#[try_from(repr)]
+#[repr(isize)]
 pub enum MoveError {
     #[error("MapNotFound")]
-    MapNotFound,
+    MapNotFound = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(RequestError),
 }
@@ -439,15 +435,16 @@ pub enum MoveError {
 impl From<RequestError> for MoveError {
     fn from(value: RequestError) -> Self {
         if let RequestError::ResponseError(ref schema) = value {
-            if schema.error.code as isize == ENTITY_NOT_FOUND {
-                return Self::MapNotFound;
-            }
-        }
+            return Self::try_from(schema.error.code as isize)
+                .unwrap_or(Self::UnhandledError(value));
+        };
         Self::UnhandledError(value)
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, TryFrom)]
+#[try_from(repr)]
+#[repr(isize)]
 pub enum RestError {
     #[error(transparent)]
     UnhandledError(RequestError),
@@ -455,20 +452,26 @@ pub enum RestError {
 
 impl From<RequestError> for RestError {
     fn from(value: RequestError) -> Self {
+        if let RequestError::ResponseError(ref schema) = value {
+            return Self::try_from(schema.error.code as isize)
+                .unwrap_or(Self::UnhandledError(value));
+        };
         Self::UnhandledError(value)
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, TryFrom)]
+#[try_from(repr)]
+#[repr(isize)]
 pub enum UseError {
     #[error("Item not found")]
-    ItemNotFound,
+    ItemNotFound = ENTITY_NOT_FOUND,
     #[error("Item not equipped")]
-    ItemNotConsumable,
+    ItemNotConsumable = ITEM_NOT_CONSUMABLE,
     #[error("Insufficient quantity")]
-    InsufficientQuantity,
+    InsufficientQuantity = MISSING_ITEM_OR_INSUFFICIENT_QUANTITY,
     #[error("Insufficient character level")]
-    InsufficientCharacterLevel,
+    InsufficientCharacterLevel = CHARACTER_LEVEL_INSUFFICIENT,
     #[error(transparent)]
     UnhandledError(RequestError),
 }
@@ -476,32 +479,29 @@ pub enum UseError {
 impl From<RequestError> for UseError {
     fn from(value: RequestError) -> Self {
         if let RequestError::ResponseError(ref schema) = value {
-            match schema.error.code as isize {
-                ENTITY_NOT_FOUND => return Self::ItemNotFound,
-                ITEM_NOT_CONSUMABLE => return Self::ItemNotConsumable,
-                MISSING_OR_INSUFFICIENT_QUANTITY => return Self::InsufficientQuantity,
-                CHARACTER_LEVEL_INSUFFICIENT => return Self::InsufficientCharacterLevel,
-                _ => {}
-            }
-        }
+            return Self::try_from(schema.error.code as isize)
+                .unwrap_or(Self::UnhandledError(value));
+        };
         Self::UnhandledError(value)
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, TryFrom)]
+#[try_from(repr)]
+#[repr(isize)]
 pub enum CraftError {
     #[error("Item not found")]
     ItemNotFound,
     #[error("Item not craftable")]
-    ItemNotCraftable,
+    ItemNotCraftable = ENTITY_NOT_FOUND,
     #[error("Insufficient materials")]
-    InsufficientMaterials,
+    InsufficientMaterials = MISSING_ITEM_OR_INSUFFICIENT_QUANTITY,
     #[error("Insufficient skill level")]
-    InsufficientSkillLevel,
+    InsufficientSkillLevel = SKILL_LEVEL_INSUFFICIENT,
     #[error("Insufficient inventory space")]
-    InsufficientInventorySpace,
+    InsufficientInventorySpace = INVENTORY_FULL,
     #[error("Required workshop not on map")]
-    NoWorkshopOnMap,
+    NoWorkshopOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(RequestError),
 }
@@ -509,33 +509,29 @@ pub enum CraftError {
 impl From<RequestError> for CraftError {
     fn from(value: RequestError) -> Self {
         if let RequestError::ResponseError(ref schema) = value {
-            match schema.error.code as isize {
-                ENTITY_NOT_FOUND => return Self::ItemNotCraftable,
-                MISSING_OR_INSUFFICIENT_QUANTITY => return Self::InsufficientMaterials,
-                NOT_SKILL_LEVEL_REQUIRED => return Self::InsufficientSkillLevel,
-                INVENTORY_FULL => return Self::InsufficientInventorySpace,
-                ENTITY_NOT_FOUND_ON_MAP => return Self::NoWorkshopOnMap,
-                _ => {}
-            }
-        }
+            return Self::try_from(schema.error.code as isize)
+                .unwrap_or(Self::UnhandledError(value));
+        };
         Self::UnhandledError(value)
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, TryFrom)]
+#[try_from(repr)]
+#[repr(isize)]
 pub enum RecycleError {
     #[error("Item not found")]
-    ItemNotFound,
+    ItemNotFound = ENTITY_NOT_FOUND,
     #[error("Item not recyclable")]
-    ItemNotRecyclable,
+    ItemNotRecyclable = ITEM_NOT_RECYCLABLE,
     #[error("Insufficient quantity")]
-    InsufficientQuantity,
+    InsufficientQuantity = MISSING_ITEM_OR_INSUFFICIENT_QUANTITY,
     #[error("Insufficient inventory space")]
-    InsufficientInventorySpace,
+    InsufficientInventorySpace = INVENTORY_FULL,
     #[error("Insufficient skill level")]
-    InsufficientSkillLevel,
+    InsufficientSkillLevel = SKILL_LEVEL_INSUFFICIENT,
     #[error("Required workshop not on map")]
-    NoWorkshopOnMap,
+    NoWorkshopOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(RequestError),
 }
@@ -543,26 +539,21 @@ pub enum RecycleError {
 impl From<RequestError> for RecycleError {
     fn from(value: RequestError) -> Self {
         if let RequestError::ResponseError(ref schema) = value {
-            match schema.error.code as isize {
-                ENTITY_NOT_FOUND => return Self::ItemNotFound,
-                ITEM_NOT_RECYCLABLE => return Self::ItemNotRecyclable,
-                MISSING_OR_INSUFFICIENT_QUANTITY => return Self::InsufficientQuantity,
-                NOT_SKILL_LEVEL_REQUIRED => return Self::InsufficientSkillLevel,
-                INVENTORY_FULL => return Self::InsufficientInventorySpace,
-                ENTITY_NOT_FOUND_ON_MAP => return Self::NoWorkshopOnMap,
-                _ => {}
-            }
-        }
+            return Self::try_from(schema.error.code as isize)
+                .unwrap_or(Self::UnhandledError(value));
+        };
         Self::UnhandledError(value)
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, TryFrom)]
+#[try_from(repr)]
+#[repr(isize)]
 pub enum DeleteError {
     #[error("Item not found")]
-    ItemNotFound,
+    ItemNotFound = ENTITY_NOT_FOUND,
     #[error("Insufficient quantity")]
-    InsufficientQuantity,
+    InsufficientQuantity = MISSING_ITEM_OR_INSUFFICIENT_QUANTITY,
     #[error(transparent)]
     UnhandledError(RequestError),
 }
@@ -570,26 +561,25 @@ pub enum DeleteError {
 impl From<RequestError> for DeleteError {
     fn from(value: RequestError) -> Self {
         if let RequestError::ResponseError(ref schema) = value {
-            match schema.error.code as isize {
-                ENTITY_NOT_FOUND => return Self::ItemNotFound,
-                MISSING_OR_INSUFFICIENT_QUANTITY => return Self::InsufficientQuantity,
-                _ => {}
-            }
-        }
+            return Self::try_from(schema.error.code as isize)
+                .unwrap_or(Self::UnhandledError(value));
+        };
         Self::UnhandledError(value)
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, TryFrom)]
+#[try_from(repr)]
+#[repr(isize)]
 pub enum WithdrawError {
     #[error("Item not found")]
-    ItemNotFound,
+    ItemNotFound = ENTITY_NOT_FOUND,
     #[error("Insufficient quantity")]
-    InsufficientQuantity,
+    InsufficientQuantity = MISSING_ITEM_OR_INSUFFICIENT_QUANTITY,
     #[error("Insufficient inventory space")]
-    InsufficientInventorySpace,
+    InsufficientInventorySpace = INVENTORY_FULL,
     #[error("No bank on map")]
-    NoBankOnMap,
+    NoBankOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(RequestError),
 }
@@ -597,28 +587,25 @@ pub enum WithdrawError {
 impl From<RequestError> for WithdrawError {
     fn from(value: RequestError) -> Self {
         if let RequestError::ResponseError(ref schema) = value {
-            match schema.error.code as isize {
-                ENTITY_NOT_FOUND => return Self::ItemNotFound,
-                MISSING_OR_INSUFFICIENT_QUANTITY => return Self::InsufficientQuantity,
-                INVENTORY_FULL => return Self::InsufficientInventorySpace,
-                ENTITY_NOT_FOUND_ON_MAP => return Self::NoBankOnMap,
-                _ => {}
-            }
-        }
+            return Self::try_from(schema.error.code as isize)
+                .unwrap_or(Self::UnhandledError(value));
+        };
         Self::UnhandledError(value)
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, TryFrom)]
+#[try_from(repr)]
+#[repr(isize)]
 pub enum DepositError {
     #[error("Item not found")]
-    ItemNotFound,
+    ItemNotFound = ENTITY_NOT_FOUND,
     #[error("Insufficient quantity")]
-    InsufficientQuantity,
+    InsufficientQuantity = MISSING_ITEM_OR_INSUFFICIENT_QUANTITY,
     #[error("Insufficient bank space")]
-    InsufficientBankSpace,
+    InsufficientBankSpace = BANK_FULL,
     #[error("No bank on map")]
-    NoBankOnMap,
+    NoBankOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(RequestError),
 }
@@ -626,25 +613,21 @@ pub enum DepositError {
 impl From<RequestError> for DepositError {
     fn from(value: RequestError) -> Self {
         if let RequestError::ResponseError(ref schema) = value {
-            match schema.error.code as isize {
-                ENTITY_NOT_FOUND => return Self::ItemNotFound,
-                MISSING_OR_INSUFFICIENT_QUANTITY => return Self::InsufficientQuantity,
-                BANK_FULL => return Self::InsufficientBankSpace,
-
-                ENTITY_NOT_FOUND_ON_MAP => return Self::NoBankOnMap,
-                _ => {}
-            }
-        }
+            return Self::try_from(schema.error.code as isize)
+                .unwrap_or(Self::UnhandledError(value));
+        };
         Self::UnhandledError(value)
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, TryFrom)]
+#[try_from(repr)]
+#[repr(isize)]
 pub enum GoldWithdrawError {
     #[error("Insufficient gold in bank")]
-    InsufficientGold,
+    InsufficientGold = BANK_GOLD_INSUFFICIENT,
     #[error("No bank on map")]
-    NoBankOnMap,
+    NoBankOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(RequestError),
 }
@@ -652,23 +635,21 @@ pub enum GoldWithdrawError {
 impl From<RequestError> for GoldWithdrawError {
     fn from(value: RequestError) -> Self {
         if let RequestError::ResponseError(ref schema) = value {
-            match schema.error.code as isize {
-                INSUFFICIENT_GOLD_IN_BANK => return Self::InsufficientGold,
-
-                ENTITY_NOT_FOUND_ON_MAP => return Self::NoBankOnMap,
-                _ => {}
-            }
-        }
+            return Self::try_from(schema.error.code as isize)
+                .unwrap_or(Self::UnhandledError(value));
+        };
         Self::UnhandledError(value)
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, TryFrom)]
+#[try_from(repr)]
+#[repr(isize)]
 pub enum GoldDepositError {
     #[error("Insufficient gold on character")]
-    InsufficientGold,
+    InsufficientGold = CHARACTER_GOLD_INSUFFICIENT,
     #[error("No bank on map")]
-    NoBankOnMap,
+    NoBankOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(RequestError),
 }
@@ -676,23 +657,21 @@ pub enum GoldDepositError {
 impl From<RequestError> for GoldDepositError {
     fn from(value: RequestError) -> Self {
         if let RequestError::ResponseError(ref schema) = value {
-            match schema.error.code as isize {
-                INSUFFICIENT_GOLD_ON_CHARACTER => return Self::InsufficientGold,
-
-                ENTITY_NOT_FOUND_ON_MAP => return Self::NoBankOnMap,
-                _ => {}
-            }
-        }
+            return Self::try_from(schema.error.code as isize)
+                .unwrap_or(Self::UnhandledError(value));
+        };
         Self::UnhandledError(value)
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, TryFrom)]
+#[try_from(repr)]
+#[repr(isize)]
 pub enum BankExpansionError {
     #[error("Insufficient gold on character")]
-    InsufficientGold,
+    InsufficientGold = CHARACTER_GOLD_INSUFFICIENT,
     #[error("No bank on map")]
-    NoBankOnMap,
+    NoBankOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(RequestError),
 }
@@ -700,33 +679,31 @@ pub enum BankExpansionError {
 impl From<RequestError> for BankExpansionError {
     fn from(value: RequestError) -> Self {
         if let RequestError::ResponseError(ref schema) = value {
-            match schema.error.code as isize {
-                INSUFFICIENT_GOLD_ON_CHARACTER => return Self::InsufficientGold,
-
-                ENTITY_NOT_FOUND_ON_MAP => return Self::NoBankOnMap,
-                _ => {}
-            }
-        }
+            return Self::try_from(schema.error.code as isize)
+                .unwrap_or(Self::UnhandledError(value));
+        };
         Self::UnhandledError(value)
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, TryFrom)]
+#[try_from(repr)]
+#[repr(isize)]
 pub enum EquipError {
     #[error("Item not found")]
-    ItemNotFound,
+    ItemNotFound = ENTITY_NOT_FOUND,
     #[error("Insufficient quantity")]
-    InsufficientQuantity,
+    InsufficientQuantity = MISSING_ITEM_OR_INSUFFICIENT_QUANTITY,
     #[error("Item already equiped")]
-    ItemAlreadyEquiped,
+    ItemAlreadyEquiped = ITEM_ALREADY_EQUIPED,
     #[error("Quantity greater than slot max quantity")]
-    QuantityGreaterThanSlotMaxixum,
+    QuantityGreaterThanSlotMaxixum = SUPERFLOUS_UTILITY_QUANTITY,
     #[error("Slot not empty")]
-    SlotNotEmpty,
+    SlotNotEmpty = INVALID_SLOT_STATE,
     #[error("Insufficient character level")]
-    InsufficientCharacterLevel,
+    InsufficientCharacterLevel = CHARACTER_LEVEL_INSUFFICIENT,
     #[error("Insufficient inventory space")]
-    InsufficientInventorySpace,
+    InsufficientInventorySpace = INVENTORY_FULL,
     #[error(transparent)]
     UnhandledError(RequestError),
 }
@@ -734,29 +711,23 @@ pub enum EquipError {
 impl From<RequestError> for EquipError {
     fn from(value: RequestError) -> Self {
         if let RequestError::ResponseError(ref schema) = value {
-            match schema.error.code as isize {
-                ENTITY_NOT_FOUND => return Self::ItemNotFound,
-                MISSING_OR_INSUFFICIENT_QUANTITY => return Self::InsufficientQuantity,
-                ITEM_ALREADY_EQUIPED => return Self::ItemAlreadyEquiped,
-                SUPERFLOUS_UTILITY_QUANTITY => return Self::QuantityGreaterThanSlotMaxixum,
-                INVALID_SLOT_STATE => return Self::SlotNotEmpty,
-                CHARACTER_LEVEL_INSUFFICIENT => return Self::InsufficientCharacterLevel,
-                INVENTORY_FULL => return Self::InsufficientInventorySpace,
-                _ => {}
-            }
-        }
+            return Self::try_from(schema.error.code as isize)
+                .unwrap_or(Self::UnhandledError(value));
+        };
         Self::UnhandledError(value)
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, TryFrom)]
+#[try_from(repr)]
+#[repr(isize)]
 pub enum UnequipError {
     #[error("Slot is empty")]
-    SlotEmpty,
+    SlotEmpty = INVALID_SLOT_STATE,
     #[error("Insufficient quantity")]
-    InsufficientQuantity,
+    InsufficientQuantity = MISSING_ITEM_OR_INSUFFICIENT_QUANTITY,
     #[error("Insufficient inventory space")]
-    InsufficientInventorySpace,
+    InsufficientInventorySpace = INVENTORY_FULL,
     #[error(transparent)]
     UnhandledError(RequestError),
 }
@@ -764,18 +735,15 @@ pub enum UnequipError {
 impl From<RequestError> for UnequipError {
     fn from(value: RequestError) -> Self {
         if let RequestError::ResponseError(ref schema) = value {
-            match schema.error.code as isize {
-                INVALID_SLOT_STATE => return Self::SlotEmpty,
-                MISSING_OR_INSUFFICIENT_QUANTITY => return Self::InsufficientQuantity,
-                INVENTORY_FULL => return Self::InsufficientInventorySpace,
-                _ => {}
-            }
-        }
+            return Self::try_from(schema.error.code as isize)
+                .unwrap_or(Self::UnhandledError(value));
+        };
         Self::UnhandledError(value)
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, TryFrom)]
+#[try_from(repr)]
 #[repr(isize)]
 pub enum TaskAcceptationError {
     #[error("Task already in progress")]
@@ -789,32 +757,27 @@ pub enum TaskAcceptationError {
 impl From<RequestError> for TaskAcceptationError {
     fn from(value: RequestError) -> Self {
         if let RequestError::ResponseError(ref schema) = value {
-            match schema.error.code as isize {
-                TASK_ALREADY_IN_PROGRESS => return Self::TaskAlreadyInProgress,
-                ENTITY_NOT_FOUND_ON_MAP => return Self::NoTasksMasterOnMap,
-                _ => {}
-            }
+            return Self::try_from(schema.error.code as isize)
+                .unwrap_or(Self::UnhandledError(value));
         };
         Self::UnhandledError(value)
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, TryFrom)]
+#[try_from(repr)]
+#[repr(isize)]
 pub enum TaskTradeError {
     #[error("Item not found")]
-    ItemNotFound,
+    ItemNotFound = ENTITY_NOT_FOUND,
     #[error("WrongTask")]
-    WrongTask,
-    #[error("Task already completed")]
-    TaskAlreadyCompleted,
+    WrongTask = WRONG_TASK,
     #[error("Superfluous quantity")]
-    SuperfluousQuantity,
+    SuperfluousQuantity = TASK_ALREADY_COMPLETED_OR_TOO_MANY_ITEM_TRADED,
     #[error("InsufficientQuantity")]
-    InsufficientQuantity,
-    #[error("No tasks master on map")]
-    NoTasksMasterOnMap,
-    #[error("Wrong tasks master")]
-    WrongTasksMaster,
+    InsufficientQuantity = MISSING_ITEM_OR_INSUFFICIENT_QUANTITY,
+    #[error("Wrong or no tasks master on map")]
+    WrongOrNoTasksMasterOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(RequestError),
 }
@@ -822,31 +785,25 @@ pub enum TaskTradeError {
 impl From<RequestError> for TaskTradeError {
     fn from(value: RequestError) -> Self {
         if let RequestError::ResponseError(ref schema) = value {
-            match schema.error.code as isize {
-                ENTITY_NOT_FOUND => return Self::ItemNotFound,
-                WRONG_TASK => return Self::WrongTask,
-                TASK_ALREADY_COMPLETED_OR_TOO_MANY_ITEM_TRADED => return Self::SuperfluousQuantity,
-                MISSING_OR_INSUFFICIENT_QUANTITY => return Self::InsufficientQuantity,
-                ENTITY_NOT_FOUND_ON_MAP => return Self::NoTasksMasterOnMap,
-                _ => {}
-            }
+            return Self::try_from(schema.error.code as isize)
+                .unwrap_or(Self::UnhandledError(value));
         };
         Self::UnhandledError(value)
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, TryFrom)]
+#[try_from(repr)]
+#[repr(isize)]
 pub enum TaskCompletionError {
     #[error("No current task")]
-    NoCurrentTask,
+    NoCurrentTask = NO_TASK,
     #[error("Task not fullfilled")]
-    TaskNotFullfilled,
+    TaskNotFullfilled = TASK_NOT_COMPLETED,
     #[error("Insufficient inventory space")]
-    InsufficientInventorySpace,
-    #[error("No tasks master on map")]
-    NoTasksMasterOnMap,
-    #[error("Wrong tasks master")]
-    WrongTasksMaster,
+    InsufficientInventorySpace = INVENTORY_FULL,
+    #[error("Wrong or no tasks master on map")]
+    WrongOrNoTasksMasterOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(RequestError),
 }
@@ -854,28 +811,23 @@ pub enum TaskCompletionError {
 impl From<RequestError> for TaskCompletionError {
     fn from(value: RequestError) -> Self {
         if let RequestError::ResponseError(ref schema) = value {
-            match schema.error.code as isize {
-                NO_TASK => return Self::NoCurrentTask,
-                TASK_NOT_COMPLETED => return Self::TaskNotFullfilled,
-                INVENTORY_FULL => return Self::InsufficientInventorySpace,
-                ENTITY_NOT_FOUND_ON_MAP => return Self::NoTasksMasterOnMap,
-                _ => {}
-            }
+            return Self::try_from(schema.error.code as isize)
+                .unwrap_or(Self::UnhandledError(value));
         };
         Self::UnhandledError(value)
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, TryFrom)]
+#[try_from(repr)]
+#[repr(isize)]
 pub enum TaskCancellationError {
     #[error("No current task")]
-    NoCurrentTask,
+    NoCurrentTask = NO_TASK,
     #[error("Insufficient tasks coin quantity")]
-    InsufficientTasksCoin,
-    #[error("No tasks master on map")]
-    NoTasksMasterOnMap,
-    #[error("Wrong tasks master")]
-    WrongTasksMaster,
+    InsufficientTasksCoinQuantity = MISSING_ITEM_OR_INSUFFICIENT_QUANTITY,
+    #[error("Wrong or no tasks master on map")]
+    WrongOrNoTasksMasterOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(RequestError),
 }
@@ -883,24 +835,23 @@ pub enum TaskCancellationError {
 impl From<RequestError> for TaskCancellationError {
     fn from(value: RequestError) -> Self {
         if let RequestError::ResponseError(ref schema) = value {
-            match schema.error.code as isize {
-                MISSING_OR_INSUFFICIENT_QUANTITY => return Self::InsufficientTasksCoin,
-                ENTITY_NOT_FOUND_ON_MAP => return Self::NoTasksMasterOnMap,
-                _ => {}
-            }
+            return Self::try_from(schema.error.code as isize)
+                .unwrap_or(Self::UnhandledError(value));
         };
         Self::UnhandledError(value)
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, TryFrom)]
+#[try_from(repr)]
+#[repr(isize)]
 pub enum TasksCoinExchangeError {
     #[error("Insufficient tasks coin quantity")]
-    InsufficientTasksCoinQuantity,
+    InsufficientTasksCoinQuantity = MISSING_ITEM_OR_INSUFFICIENT_QUANTITY,
     #[error("Insufficient inventory space")]
-    InsufficientInventorySpace,
+    InsufficientInventorySpace = INVENTORY_FULL,
     #[error("No tasks master on map")]
-    NoTasksMasterOnMap,
+    NoTasksMasterOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(RequestError),
 }
@@ -908,25 +859,23 @@ pub enum TasksCoinExchangeError {
 impl From<RequestError> for TasksCoinExchangeError {
     fn from(value: RequestError) -> Self {
         if let RequestError::ResponseError(ref schema) = value {
-            match schema.error.code as isize {
-                MISSING_OR_INSUFFICIENT_QUANTITY => return Self::InsufficientTasksCoinQuantity,
-                INVENTORY_FULL => return Self::InsufficientInventorySpace,
-                ENTITY_NOT_FOUND_ON_MAP => return Self::NoTasksMasterOnMap,
-                _ => {}
-            }
+            return Self::try_from(schema.error.code as isize)
+                .unwrap_or(Self::UnhandledError(value));
         };
         Self::UnhandledError(value)
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, TryFrom)]
+#[try_from(repr)]
+#[repr(isize)]
 pub enum GiftExchangeError {
     #[error("Insufficient gift quantity")]
-    InsufficientGiftQuantity,
+    InsufficientGiftQuantity = MISSING_ITEM_OR_INSUFFICIENT_QUANTITY,
     #[error("Insufficient inventory space")]
-    InsufficientInventorySpace,
+    InsufficientInventorySpace = INVENTORY_FULL,
     #[error("No Santa Claus on map")]
-    NoSantaClausOnMap,
+    NoSantaClausOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(RequestError),
 }
@@ -934,12 +883,8 @@ pub enum GiftExchangeError {
 impl From<RequestError> for GiftExchangeError {
     fn from(value: RequestError) -> Self {
         if let RequestError::ResponseError(ref schema) = value {
-            match schema.error.code as isize {
-                MISSING_OR_INSUFFICIENT_QUANTITY => return Self::InsufficientGiftQuantity,
-                INVENTORY_FULL => return Self::InsufficientInventorySpace,
-                ENTITY_NOT_FOUND_ON_MAP => return Self::NoSantaClausOnMap,
-                _ => {}
-            }
+            return Self::try_from(schema.error.code as isize)
+                .unwrap_or(Self::UnhandledError(value));
         };
         Self::UnhandledError(value)
     }
