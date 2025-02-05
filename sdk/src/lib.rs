@@ -35,7 +35,7 @@ pub(crate) static API: LazyLock<ArtifactApi> = LazyLock::new(|| {
     let Some(base_url) = BASE_URL.get() else {
         panic!("SDK not initialized");
     };
-    let Some(token) = BASE_URL.get() else {
+    let Some(token) = TOKEN.get() else {
         panic!("SDK not initialized");
     };
     ArtifactApi::new(base_url.to_owned(), token.to_owned())

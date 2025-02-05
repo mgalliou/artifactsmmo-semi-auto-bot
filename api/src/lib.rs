@@ -9,8 +9,8 @@ pub use maps::MapsApi;
 pub use monsters::MonstersApi;
 pub use my_characters::MyCharacterApi;
 pub use resources::ResourcesApi;
-pub use tasks::TasksApi;
 pub use server::ServerApi;
+pub use tasks::TasksApi;
 
 pub mod bank;
 pub mod characters;
@@ -37,24 +37,28 @@ pub struct ArtifactApi {
 }
 
 impl ArtifactApi {
-    pub fn new(base_path: &str, token: &str) -> Self {
-        let configuration = Arc::new({
-            let mut configuration = Configuration::new();
-            configuration.base_path = base_path.to_owned();
-            configuration.bearer_access_token = Some(token.to_owned());
-            configuration
+    pub fn new(base_path: String, token: String) -> Self {
+        let conf = Arc::new({
+            let mut c = Configuration::new();
+            c.base_path = base_path;
+            c
+        });
+        let auth_conf = Arc::new({
+            let mut c = (*conf.clone()).clone();
+            c.bearer_access_token = Some(token);
+            c
         });
         Self {
-            bank: BankApi::new(configuration.clone()),
-            character: CharactersApi::new(configuration.clone()),
-            events: EventsApi::new(configuration.clone()),
-            items: ItemsApi::new(configuration.clone()),
-            maps: MapsApi::new(configuration.clone()),
-            monsters: MonstersApi::new(configuration.clone()),
-            my_character: MyCharacterApi::new(configuration.clone()),
-            resources: ResourcesApi::new(configuration.clone()),
-            tasks: TasksApi::new(configuration.clone()),
-            server: ServerApi::new(configuration.clone()),
+            bank: BankApi::new(auth_conf.clone()),
+            character: CharactersApi::new(conf.clone()),
+            events: EventsApi::new(conf.clone()),
+            items: ItemsApi::new(conf.clone()),
+            maps: MapsApi::new(conf.clone()),
+            monsters: MonstersApi::new(conf.clone()),
+            my_character: MyCharacterApi::new(auth_conf.clone()),
+            resources: ResourcesApi::new(conf.clone()),
+            tasks: TasksApi::new(conf.clone()),
+            server: ServerApi::new(conf.clone()),
         }
     }
 }
