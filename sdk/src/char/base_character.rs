@@ -35,8 +35,7 @@ impl BaseCharacter {
     }
 
     pub fn fight(&self) -> Result<FightSchema, FightError> {
-        let map = self.map();
-        let Some(monster) = map.monster() else {
+        let Some(monster) = self.map().monster() else {
             return Err(FightError::NoMonsterOnMap);
         };
         if self.inventory.free_space() < monster.max_drop_quantity() {
@@ -46,8 +45,7 @@ impl BaseCharacter {
     }
 
     pub fn gather(&self) -> Result<SkillDataSchema, GatherError> {
-        let map = self.map();
-        let Some(resource) = map.resource() else {
+        let Some(resource) = self.map().resource() else {
             return Err(GatherError::NoResourceOnMap);
         };
         if self.skill_level(resource.skill.into()) < resource.level {

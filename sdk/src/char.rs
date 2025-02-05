@@ -28,10 +28,9 @@ pub trait HasCharacterData {
 
     /// Returns the `Character` position (coordinates).
     fn position(&self) -> (i32, i32) {
-        let binding = self.data();
-        let d = binding.read().unwrap();
-        let (x, y) = (d.x, d.y);
-        (x, y)
+        let d = self.data();
+        let d = d.read().unwrap();
+        (d.x, d.y)
     }
 
     fn level(&self) -> i32 {
@@ -44,8 +43,8 @@ pub trait HasCharacterData {
     }
 
     fn skill_xp(&self, skill: Skill) -> i32 {
-        let binding = self.data();
-        let d = binding.read().unwrap();
+        let d = self.data();
+        let d = d.read().unwrap();
         match skill {
             Skill::Combat => d.xp,
             Skill::Mining => d.mining_xp,
@@ -60,8 +59,8 @@ pub trait HasCharacterData {
     }
 
     fn skill_max_xp(&self, skill: Skill) -> i32 {
-        let binding = self.data();
-        let d = binding.read().unwrap();
+        let data = self.data();
+        let d = data.read().unwrap();
         match skill {
             Skill::Combat => d.max_xp,
             Skill::Mining => d.mining_max_xp,
@@ -89,8 +88,8 @@ pub trait HasCharacterData {
 
     /// Returns the `Character` level in the given `skill`.
     fn skill_level(&self, skill: Skill) -> i32 {
-        let binding = self.data();
-        let d = binding.read().unwrap();
+        let d = self.data();
+        let d = d.read().unwrap();
         match skill {
             Skill::Combat => d.level,
             Skill::Mining => d.mining_level,
@@ -167,8 +166,8 @@ pub trait HasCharacterData {
 
     /// Returns the current `Gear` of the `Character`, containing item schemas.
     fn gear(&self) -> Gear {
-        let binding = self.data();
-        let d = binding.read().unwrap();
+        let d = self.data();
+        let d = d.read().unwrap();
         Gear {
             weapon: ITEMS.get(&d.weapon_slot),
             shield: ITEMS.get(&d.shield_slot),
@@ -189,8 +188,8 @@ pub trait HasCharacterData {
 
     /// Returns the item equiped in the `given` slot.
     fn equiped_in(&self, slot: Slot) -> Option<Arc<ItemSchema>> {
-        let binding = self.data();
-        let d = binding.read().unwrap();
+        let d = self.data();
+        let d = d.read().unwrap();
         ITEMS.get(match slot {
             Slot::Weapon => &d.weapon_slot,
             Slot::Shield => &d.shield_slot,
