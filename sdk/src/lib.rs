@@ -31,8 +31,15 @@ pub mod tasks_rewards;
 static BASE_URL: OnceLock<String> = OnceLock::new();
 static TOKEN: OnceLock<String> = OnceLock::new();
 
-pub(crate) static API: LazyLock<ArtifactApi> =
-    LazyLock::new(|| ArtifactApi::new(BASE_URL.get().unwrap(), TOKEN.get().unwrap()));
+pub(crate) static API: LazyLock<ArtifactApi> = LazyLock::new(|| {
+    let Some(base_url) = BASE_URL.get() else {
+        panic!("SDK not initialized");
+    };
+    let Some(token) = BASE_URL.get() else {
+        panic!("SDK not initialized");
+    };
+    ArtifactApi::new(base_url.to_owned(), token.to_owned())
+});
 
 pub fn init(base_url: &str, token: &str) {
     BASE_URL.get_or_init(|| base_url.to_string());
