@@ -1,5 +1,10 @@
 use anyhow::Result;
-use artifactsmmo_playground::{cli, bot::GAME as BOT, bot_config::BOT_CONFIG, orderboard::{Purpose, ORDER_BOARD}};
+use artifactsmmo_playground::{
+    bot::Bot,
+    bot_config::BOT_CONFIG,
+    cli,
+    orderboard::{Purpose, ORDER_BOARD},
+};
 use log::LevelFilter;
 
 fn main() -> Result<()> {
@@ -15,6 +20,6 @@ fn main() -> Result<()> {
     ORDER_BOARD.add(None, "magic_wood", 6000, Purpose::Cli)?;
     //game.orderboard.add(None, "carrot", 1000, Purpose::Cli);
     //game.orderboard.add(None, "frozen_pickaxe", 5, Purpose::Cli)?;
-    BOT.run_characters();
+    Bot::run_characters();
     cli::run()
 }

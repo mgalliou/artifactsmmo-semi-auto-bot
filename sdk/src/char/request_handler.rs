@@ -832,5 +832,3 @@ pub struct ApiErrorSchema {
     pub code: i32,
     pub message: String,
 }
-
-pub trait ApiRequestError {}
