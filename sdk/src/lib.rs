@@ -32,12 +32,8 @@ static BASE_URL: OnceLock<String> = OnceLock::new();
 static TOKEN: OnceLock<String> = OnceLock::new();
 
 pub(crate) static API: LazyLock<ArtifactApi> = LazyLock::new(|| {
-    let Some(base_url) = BASE_URL.get() else {
-        panic!("SDK not initialized");
-    };
-    let Some(token) = TOKEN.get() else {
-        panic!("SDK not initialized");
-    };
+    let base_url = BASE_URL.get_or_init(|| "https://api.artifactsmmo.com".to_owned());
+    let token = TOKEN.get_or_init(|| "".to_owned());
     ArtifactApi::new(base_url.to_owned(), token.to_owned())
 });
 
