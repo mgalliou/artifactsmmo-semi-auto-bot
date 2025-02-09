@@ -4,13 +4,20 @@ use super::{
     CharacterData, HasCharacterData, CHARACTERS_DATA,
 };
 use crate::{
-    base_bank::BASE_BANK, gear::Slot, items::ItemSchemaExt, maps::{ContentType, MapSchemaExt}, monsters::MonsterSchemaExt, resources::ResourceSchemaExt, ITEMS, MAPS
+    base_bank::BASE_BANK,
+    gear::Slot,
+    items::ItemSchemaExt,
+    maps::{ContentType, MapSchemaExt},
+    monsters::MonsterSchemaExt,
+    resources::ResourceSchemaExt,
+    ITEMS, MAPS,
 };
 use artifactsmmo_openapi::models::{
     CharacterSchema, FightSchema, MapSchema, RecyclingItemsSchema, RewardsSchema, SimpleItemSchema,
     SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema,
 };
 use derive_more::TryFrom;
+use sdk_derive::FromRequestError;
 use std::{
     collections::HashMap,
     sync::{Arc, LazyLock},
@@ -168,7 +175,7 @@ impl BaseCharacter {
         Ok(self.inner.request_withdraw(item_code, quantity)?)
     }
 
-    pub fn deposit_item(
+    pub fn deposit(
         &self,
         item_code: &str,
         quantity: i32,
@@ -379,7 +386,7 @@ const INVENTORY_FULL: isize = 497;
 //const CHARACTER_ON_COOLDOWN: isize = 499;
 const ENTITY_NOT_FOUND_ON_MAP: isize = 598;
 
-#[derive(Debug, Error, TryFrom)]
+#[derive(Debug, Error, TryFrom, FromRequestError)]
 #[try_from(repr)]
 #[repr(isize)]
 pub enum FightError {
@@ -391,17 +398,7 @@ pub enum FightError {
     UnhandledError(RequestError),
 }
 
-impl From<RequestError> for FightError {
-    fn from(value: RequestError) -> Self {
-        if let RequestError::ResponseError(ref schema) = value {
-            return Self::try_from(schema.error.code as isize)
-                .unwrap_or(Self::UnhandledError(value));
-        };
-        Self::UnhandledError(value)
-    }
-}
-
-#[derive(Debug, Error, TryFrom)]
+#[derive(Debug, Error, TryFrom, FromRequestError)]
 #[try_from(repr)]
 #[repr(isize)]
 pub enum GatherError {
@@ -415,17 +412,7 @@ pub enum GatherError {
     UnhandledError(RequestError),
 }
 
-impl From<RequestError> for GatherError {
-    fn from(value: RequestError) -> Self {
-        if let RequestError::ResponseError(ref schema) = value {
-            return Self::try_from(schema.error.code as isize)
-                .unwrap_or(Self::UnhandledError(value));
-        };
-        Self::UnhandledError(value)
-    }
-}
-
-#[derive(Debug, Error, TryFrom)]
+#[derive(Debug, Error, TryFrom, FromRequestError)]
 #[try_from(repr)]
 #[repr(isize)]
 pub enum MoveError {
@@ -435,17 +422,7 @@ pub enum MoveError {
     UnhandledError(RequestError),
 }
 
-impl From<RequestError> for MoveError {
-    fn from(value: RequestError) -> Self {
-        if let RequestError::ResponseError(ref schema) = value {
-            return Self::try_from(schema.error.code as isize)
-                .unwrap_or(Self::UnhandledError(value));
-        };
-        Self::UnhandledError(value)
-    }
-}
-
-#[derive(Debug, Error, TryFrom)]
+#[derive(Debug, Error, TryFrom, FromRequestError)]
 #[try_from(repr)]
 #[repr(isize)]
 pub enum RestError {
@@ -453,17 +430,7 @@ pub enum RestError {
     UnhandledError(RequestError),
 }
 
-impl From<RequestError> for RestError {
-    fn from(value: RequestError) -> Self {
-        if let RequestError::ResponseError(ref schema) = value {
-            return Self::try_from(schema.error.code as isize)
-                .unwrap_or(Self::UnhandledError(value));
-        };
-        Self::UnhandledError(value)
-    }
-}
-
-#[derive(Debug, Error, TryFrom)]
+#[derive(Debug, Error, TryFrom, FromRequestError)]
 #[try_from(repr)]
 #[repr(isize)]
 pub enum UseError {
@@ -479,17 +446,7 @@ pub enum UseError {
     UnhandledError(RequestError),
 }
 
-impl From<RequestError> for UseError {
-    fn from(value: RequestError) -> Self {
-        if let RequestError::ResponseError(ref schema) = value {
-            return Self::try_from(schema.error.code as isize)
-                .unwrap_or(Self::UnhandledError(value));
-        };
-        Self::UnhandledError(value)
-    }
-}
-
-#[derive(Debug, Error, TryFrom)]
+#[derive(Debug, Error, TryFrom, FromRequestError)]
 #[try_from(repr)]
 #[repr(isize)]
 pub enum CraftError {
@@ -509,17 +466,7 @@ pub enum CraftError {
     UnhandledError(RequestError),
 }
 
-impl From<RequestError> for CraftError {
-    fn from(value: RequestError) -> Self {
-        if let RequestError::ResponseError(ref schema) = value {
-            return Self::try_from(schema.error.code as isize)
-                .unwrap_or(Self::UnhandledError(value));
-        };
-        Self::UnhandledError(value)
-    }
-}
-
-#[derive(Debug, Error, TryFrom)]
+#[derive(Debug, Error, TryFrom, FromRequestError)]
 #[try_from(repr)]
 #[repr(isize)]
 pub enum RecycleError {
@@ -539,17 +486,7 @@ pub enum RecycleError {
     UnhandledError(RequestError),
 }
 
-impl From<RequestError> for RecycleError {
-    fn from(value: RequestError) -> Self {
-        if let RequestError::ResponseError(ref schema) = value {
-            return Self::try_from(schema.error.code as isize)
-                .unwrap_or(Self::UnhandledError(value));
-        };
-        Self::UnhandledError(value)
-    }
-}
-
-#[derive(Debug, Error, TryFrom)]
+#[derive(Debug, Error, TryFrom, FromRequestError)]
 #[try_from(repr)]
 #[repr(isize)]
 pub enum DeleteError {
@@ -561,17 +498,7 @@ pub enum DeleteError {
     UnhandledError(RequestError),
 }
 
-impl From<RequestError> for DeleteError {
-    fn from(value: RequestError) -> Self {
-        if let RequestError::ResponseError(ref schema) = value {
-            return Self::try_from(schema.error.code as isize)
-                .unwrap_or(Self::UnhandledError(value));
-        };
-        Self::UnhandledError(value)
-    }
-}
-
-#[derive(Debug, Error, TryFrom)]
+#[derive(Debug, Error, TryFrom, FromRequestError)]
 #[try_from(repr)]
 #[repr(isize)]
 pub enum WithdrawError {
@@ -587,17 +514,7 @@ pub enum WithdrawError {
     UnhandledError(RequestError),
 }
 
-impl From<RequestError> for WithdrawError {
-    fn from(value: RequestError) -> Self {
-        if let RequestError::ResponseError(ref schema) = value {
-            return Self::try_from(schema.error.code as isize)
-                .unwrap_or(Self::UnhandledError(value));
-        };
-        Self::UnhandledError(value)
-    }
-}
-
-#[derive(Debug, Error, TryFrom)]
+#[derive(Debug, Error, TryFrom, FromRequestError)]
 #[try_from(repr)]
 #[repr(isize)]
 pub enum DepositError {
@@ -613,17 +530,7 @@ pub enum DepositError {
     UnhandledError(RequestError),
 }
 
-impl From<RequestError> for DepositError {
-    fn from(value: RequestError) -> Self {
-        if let RequestError::ResponseError(ref schema) = value {
-            return Self::try_from(schema.error.code as isize)
-                .unwrap_or(Self::UnhandledError(value));
-        };
-        Self::UnhandledError(value)
-    }
-}
-
-#[derive(Debug, Error, TryFrom)]
+#[derive(Debug, Error, TryFrom, FromRequestError)]
 #[try_from(repr)]
 #[repr(isize)]
 pub enum GoldWithdrawError {
@@ -635,17 +542,7 @@ pub enum GoldWithdrawError {
     UnhandledError(RequestError),
 }
 
-impl From<RequestError> for GoldWithdrawError {
-    fn from(value: RequestError) -> Self {
-        if let RequestError::ResponseError(ref schema) = value {
-            return Self::try_from(schema.error.code as isize)
-                .unwrap_or(Self::UnhandledError(value));
-        };
-        Self::UnhandledError(value)
-    }
-}
-
-#[derive(Debug, Error, TryFrom)]
+#[derive(Debug, Error, TryFrom, FromRequestError)]
 #[try_from(repr)]
 #[repr(isize)]
 pub enum GoldDepositError {
@@ -657,17 +554,7 @@ pub enum GoldDepositError {
     UnhandledError(RequestError),
 }
 
-impl From<RequestError> for GoldDepositError {
-    fn from(value: RequestError) -> Self {
-        if let RequestError::ResponseError(ref schema) = value {
-            return Self::try_from(schema.error.code as isize)
-                .unwrap_or(Self::UnhandledError(value));
-        };
-        Self::UnhandledError(value)
-    }
-}
-
-#[derive(Debug, Error, TryFrom)]
+#[derive(Debug, Error, TryFrom, FromRequestError)]
 #[try_from(repr)]
 #[repr(isize)]
 pub enum BankExpansionError {
@@ -679,17 +566,7 @@ pub enum BankExpansionError {
     UnhandledError(RequestError),
 }
 
-impl From<RequestError> for BankExpansionError {
-    fn from(value: RequestError) -> Self {
-        if let RequestError::ResponseError(ref schema) = value {
-            return Self::try_from(schema.error.code as isize)
-                .unwrap_or(Self::UnhandledError(value));
-        };
-        Self::UnhandledError(value)
-    }
-}
-
-#[derive(Debug, Error, TryFrom)]
+#[derive(Debug, Error, TryFrom, FromRequestError)]
 #[try_from(repr)]
 #[repr(isize)]
 pub enum EquipError {
@@ -711,17 +588,7 @@ pub enum EquipError {
     UnhandledError(RequestError),
 }
 
-impl From<RequestError> for EquipError {
-    fn from(value: RequestError) -> Self {
-        if let RequestError::ResponseError(ref schema) = value {
-            return Self::try_from(schema.error.code as isize)
-                .unwrap_or(Self::UnhandledError(value));
-        };
-        Self::UnhandledError(value)
-    }
-}
-
-#[derive(Debug, Error, TryFrom)]
+#[derive(Debug, Error, TryFrom, FromRequestError)]
 #[try_from(repr)]
 #[repr(isize)]
 pub enum UnequipError {
@@ -735,17 +602,7 @@ pub enum UnequipError {
     UnhandledError(RequestError),
 }
 
-impl From<RequestError> for UnequipError {
-    fn from(value: RequestError) -> Self {
-        if let RequestError::ResponseError(ref schema) = value {
-            return Self::try_from(schema.error.code as isize)
-                .unwrap_or(Self::UnhandledError(value));
-        };
-        Self::UnhandledError(value)
-    }
-}
-
-#[derive(Debug, Error, TryFrom)]
+#[derive(Debug, Error, TryFrom, FromRequestError)]
 #[try_from(repr)]
 #[repr(isize)]
 pub enum TaskAcceptationError {
@@ -757,17 +614,7 @@ pub enum TaskAcceptationError {
     UnhandledError(RequestError),
 }
 
-impl From<RequestError> for TaskAcceptationError {
-    fn from(value: RequestError) -> Self {
-        if let RequestError::ResponseError(ref schema) = value {
-            return Self::try_from(schema.error.code as isize)
-                .unwrap_or(Self::UnhandledError(value));
-        };
-        Self::UnhandledError(value)
-    }
-}
-
-#[derive(Debug, Error, TryFrom)]
+#[derive(Debug, Error, TryFrom, FromRequestError)]
 #[try_from(repr)]
 #[repr(isize)]
 pub enum TaskTradeError {
@@ -785,17 +632,7 @@ pub enum TaskTradeError {
     UnhandledError(RequestError),
 }
 
-impl From<RequestError> for TaskTradeError {
-    fn from(value: RequestError) -> Self {
-        if let RequestError::ResponseError(ref schema) = value {
-            return Self::try_from(schema.error.code as isize)
-                .unwrap_or(Self::UnhandledError(value));
-        };
-        Self::UnhandledError(value)
-    }
-}
-
-#[derive(Debug, Error, TryFrom)]
+#[derive(Debug, Error, TryFrom, FromRequestError)]
 #[try_from(repr)]
 #[repr(isize)]
 pub enum TaskCompletionError {
@@ -811,17 +648,7 @@ pub enum TaskCompletionError {
     UnhandledError(RequestError),
 }
 
-impl From<RequestError> for TaskCompletionError {
-    fn from(value: RequestError) -> Self {
-        if let RequestError::ResponseError(ref schema) = value {
-            return Self::try_from(schema.error.code as isize)
-                .unwrap_or(Self::UnhandledError(value));
-        };
-        Self::UnhandledError(value)
-    }
-}
-
-#[derive(Debug, Error, TryFrom)]
+#[derive(Debug, Error, TryFrom, FromRequestError)]
 #[try_from(repr)]
 #[repr(isize)]
 pub enum TaskCancellationError {
@@ -835,17 +662,7 @@ pub enum TaskCancellationError {
     UnhandledError(RequestError),
 }
 
-impl From<RequestError> for TaskCancellationError {
-    fn from(value: RequestError) -> Self {
-        if let RequestError::ResponseError(ref schema) = value {
-            return Self::try_from(schema.error.code as isize)
-                .unwrap_or(Self::UnhandledError(value));
-        };
-        Self::UnhandledError(value)
-    }
-}
-
-#[derive(Debug, Error, TryFrom)]
+#[derive(Debug, Error, TryFrom, FromRequestError)]
 #[try_from(repr)]
 #[repr(isize)]
 pub enum TasksCoinExchangeError {
@@ -859,17 +676,7 @@ pub enum TasksCoinExchangeError {
     UnhandledError(RequestError),
 }
 
-impl From<RequestError> for TasksCoinExchangeError {
-    fn from(value: RequestError) -> Self {
-        if let RequestError::ResponseError(ref schema) = value {
-            return Self::try_from(schema.error.code as isize)
-                .unwrap_or(Self::UnhandledError(value));
-        };
-        Self::UnhandledError(value)
-    }
-}
-
-#[derive(Debug, Error, TryFrom)]
+#[derive(Debug, Error, TryFrom, FromRequestError)]
 #[try_from(repr)]
 #[repr(isize)]
 pub enum GiftExchangeError {
@@ -881,14 +688,4 @@ pub enum GiftExchangeError {
     NoSantaClausOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(RequestError),
-}
-
-impl From<RequestError> for GiftExchangeError {
-    fn from(value: RequestError) -> Self {
-        if let RequestError::ResponseError(ref schema) = value {
-            return Self::try_from(schema.error.code as isize)
-                .unwrap_or(Self::UnhandledError(value));
-        };
-        Self::UnhandledError(value)
-    }
 }
