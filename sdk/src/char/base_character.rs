@@ -47,16 +47,26 @@ impl BaseCharacter {
     }
 
     pub fn fight(&self) -> Result<FightSchema, FightError> {
+        self.can_fight()?;
+        Ok(self.inner.request_fight()?)
+    }
+
+    pub fn can_fight(&self) -> Result<(), FightError> {
         let Some(monster) = self.map().monster() else {
             return Err(FightError::NoMonsterOnMap);
         };
         if self.inventory.free_space() < monster.max_drop_quantity() {
             return Err(FightError::InsufficientInventorySpace);
         }
-        Ok(self.inner.request_fight()?)
+        Ok(())
     }
 
     pub fn gather(&self) -> Result<SkillDataSchema, GatherError> {
+        self.can_gather()?;
+        Ok(self.inner.request_gather()?)
+    }
+
+    pub fn can_gather(&self) -> Result<(), GatherError> {
         let Some(resource) = self.map().resource() else {
             return Err(GatherError::NoResourceOnMap);
         };
@@ -66,24 +76,34 @@ impl BaseCharacter {
         if self.inventory.free_space() < resource.max_drop_quantity() {
             return Err(GatherError::InsufficientInventorySpace);
         }
-        Ok(self.inner.request_gather()?)
+        Ok(())
     }
 
     pub fn r#move(&self, x: i32, y: i32) -> Result<MapSchema, MoveError> {
-        let Some(map) = MAPS.get(x, y) else {
-            return Err(MoveError::MapNotFound);
-        };
-        Ok(self.inner.request_move(map.x, map.y)?)
+        self.can_move(x, y)?;
+        Ok(self.inner.request_move(x, y)?)
     }
 
-    pub fn rest(&self) -> Result<(), RestError> {
-        if self.health() < self.max_health() {
-            self.inner.request_rest()?;
+    pub fn can_move(&self, x: i32, y: i32) -> Result<(), MoveError> {
+        if MAPS.get(x, y).is_none() {
+            return Err(MoveError::MapNotFound);
         }
         Ok(())
     }
 
+    pub fn rest(&self) -> Result<i32, RestError> {
+        if self.health() < self.max_health() {
+            return Ok(self.inner.request_rest()?);
+        }
+        Ok(0)
+    }
+
     pub fn r#use(&self, item_code: &str, quantity: i32) -> Result<(), UseError> {
+        self.can_use(item_code, quantity)?;
+        Ok(self.inner.request_use_item(item_code, quantity)?)
+    }
+
+    pub fn can_use(&self, item_code: &str, quantity: i32) -> Result<(), UseError> {
         let Some(item) = ITEMS.get(item_code) else {
             return Err(UseError::ItemNotFound);
         };
@@ -96,10 +116,15 @@ impl BaseCharacter {
         if self.level() < item.level {
             return Err(UseError::InsufficientCharacterLevel);
         }
-        Ok(self.inner.request_use_item(item_code, quantity)?)
+        Ok(())
     }
 
     pub fn craft(&self, item_code: &str, quantity: i32) -> Result<SkillInfoSchema, CraftError> {
+        self.can_craft(item_code, quantity)?;
+        Ok(self.inner.request_craft(item_code, quantity)?)
+    }
+
+    pub fn can_craft(&self, item_code: &str, quantity: i32) -> Result<(), CraftError> {
         let Some(item) = ITEMS.get(item_code) else {
             return Err(CraftError::ItemNotFound);
         };
@@ -116,7 +141,7 @@ impl BaseCharacter {
         if !self.map().content_code_is(skill.as_ref()) {
             return Err(CraftError::NoWorkshopOnMap);
         }
-        Ok(self.inner.request_craft(item_code, quantity)?)
+        Ok(())
     }
 
     pub fn recycle(
@@ -124,6 +149,11 @@ impl BaseCharacter {
         item_code: &str,
         quantity: i32,
     ) -> Result<RecyclingItemsSchema, RecycleError> {
+        self.can_recycle(item_code, quantity)?;
+        Ok(self.inner.request_recycle(item_code, quantity)?)
+    }
+
+    pub fn can_recycle(&self, item_code: &str, quantity: i32) -> Result<(), RecycleError> {
         let Some(item) = ITEMS.get(item_code) else {
             return Err(RecycleError::ItemNotFound);
         };
@@ -136,23 +166,28 @@ impl BaseCharacter {
         if self.inventory.total_of(item_code) < quantity {
             return Err(RecycleError::InsufficientQuantity);
         }
-        if self.inventory.free_space() < item.recycled_quantity() {
+        if self.inventory.free_space() + 1 < item.recycled_quantity() {
             return Err(RecycleError::InsufficientInventorySpace);
         }
         if !self.map().content_code_is(skill.as_ref()) {
             return Err(RecycleError::NoWorkshopOnMap);
         }
-        Ok(self.inner.request_recycle(item_code, quantity)?)
+        Ok(())
     }
 
     pub fn delete(&self, item_code: &str, quantity: i32) -> Result<SimpleItemSchema, DeleteError> {
+        self.can_delete(item_code, quantity)?;
+        Ok(self.inner.request_delete(item_code, quantity)?)
+    }
+
+    pub fn can_delete(&self, item_code: &str, quantity: i32) -> Result<(), DeleteError> {
         if ITEMS.get(item_code).is_none() {
             return Err(DeleteError::ItemNotFound);
         };
         if self.inventory.total_of(item_code) < quantity {
             return Err(DeleteError::InsufficientQuantity);
         }
-        Ok(self.inner.request_delete(item_code, quantity)?)
+        Ok(())
     }
 
     pub fn withdraw(
@@ -160,6 +195,11 @@ impl BaseCharacter {
         item_code: &str,
         quantity: i32,
     ) -> Result<SimpleItemSchema, WithdrawError> {
+        self.can_withdraw(item_code, quantity)?;
+        Ok(self.inner.request_withdraw(item_code, quantity)?)
+    }
+
+    pub fn can_withdraw(&self, item_code: &str, quantity: i32) -> Result<(), WithdrawError> {
         if ITEMS.get(item_code).is_none() {
             return Err(WithdrawError::ItemNotFound);
         };
@@ -172,7 +212,7 @@ impl BaseCharacter {
         if !self.map().content_type_is(ContentType::Bank) {
             return Err(WithdrawError::NoBankOnMap);
         }
-        Ok(self.inner.request_withdraw(item_code, quantity)?)
+        Ok(())
     }
 
     pub fn deposit(
@@ -180,6 +220,11 @@ impl BaseCharacter {
         item_code: &str,
         quantity: i32,
     ) -> Result<SimpleItemSchema, DepositError> {
+        self.can_deposit(item_code, quantity)?;
+        Ok(self.inner.request_deposit(item_code, quantity)?)
+    }
+
+    fn can_deposit(&self, item_code: &str, quantity: i32) -> Result<(), DepositError> {
         if ITEMS.get(item_code).is_none() {
             return Err(DepositError::ItemNotFound);
         };
@@ -192,40 +237,60 @@ impl BaseCharacter {
         if !self.map().content_type_is(ContentType::Bank) {
             return Err(DepositError::NoBankOnMap);
         }
-        Ok(self.inner.request_deposit(item_code, quantity)?)
+        Ok(())
     }
 
     pub fn withdraw_gold(&self, quantity: i32) -> Result<i32, GoldWithdrawError> {
+        self.can_withdraw_gold(quantity)?;
+        Ok(self.inner.request_withdraw_gold(quantity)?)
+    }
+
+    pub fn can_withdraw_gold(&self, quantity: i32) -> Result<(), GoldWithdrawError> {
         if BASE_BANK.gold() < quantity {
             return Err(GoldWithdrawError::InsufficientGold);
         }
         if !self.map().content_type_is(ContentType::Bank) {
             return Err(GoldWithdrawError::NoBankOnMap);
         }
-        Ok(self.inner.request_withdraw_gold(quantity)?)
+        Ok(())
     }
 
     pub fn deposit_gold(&self, quantity: i32) -> Result<i32, GoldDepositError> {
+        self.can_deposit_gold(quantity)?;
+        Ok(self.inner.request_deposit_gold(quantity)?)
+    }
+
+    pub fn can_deposit_gold(&self, quantity: i32) -> Result<(), GoldDepositError> {
         if self.gold() < quantity {
             return Err(GoldDepositError::InsufficientGold);
         }
         if !self.map().content_type_is(ContentType::Bank) {
             return Err(GoldDepositError::NoBankOnMap);
         }
-        Ok(self.inner.request_deposit_gold(quantity)?)
+        Ok(())
     }
 
     pub fn expand_bank(&self) -> Result<i32, BankExpansionError> {
+        self.can_expand_bank()?;
+        Ok(self.inner.request_expand_bank()?)
+    }
+
+    pub fn can_expand_bank(&self) -> Result<(), BankExpansionError> {
         if self.gold() < BASE_BANK.details().next_expansion_cost {
             return Err(BankExpansionError::InsufficientGold);
         }
         if !self.map().content_type_is(ContentType::Bank) {
             return Err(BankExpansionError::NoBankOnMap);
         }
-        Ok(self.inner.request_expand_bank()?)
+        Ok(())
     }
 
     pub fn equip(&self, item_code: &str, slot: Slot, quantity: i32) -> Result<(), EquipError> {
+        self.can_equip(item_code, slot, quantity)?;
+        Ok(self.inner.request_equip(item_code, slot, quantity)?)
+    }
+
+    pub fn can_equip(&self, item_code: &str, slot: Slot, quantity: i32) -> Result<(), EquipError> {
         let Some(item) = ITEMS.get(item_code) else {
             return Err(EquipError::ItemNotFound);
         };
@@ -249,10 +314,15 @@ impl BaseCharacter {
         if self.inventory.free_space() + item.inventory_space() <= 0 {
             return Err(EquipError::InsufficientInventorySpace);
         }
-        Ok(self.inner.request_equip(item_code, slot, quantity)?)
+        Ok(())
     }
 
     pub fn unequip(&self, slot: Slot, quantity: i32) -> Result<(), UnequipError> {
+        self.can_unequip(slot, quantity)?;
+        Ok(self.inner.request_unequip(slot, quantity)?)
+    }
+
+    pub fn can_unequip(&self, slot: Slot, quantity: i32) -> Result<(), UnequipError> {
         if self.gear().slot(slot).is_none() {
             return Err(UnequipError::SlotEmpty);
         }
@@ -262,17 +332,22 @@ impl BaseCharacter {
         if self.inventory.free_space() < quantity {
             return Err(UnequipError::InsufficientInventorySpace);
         }
-        Ok(self.inner.request_unequip(slot, quantity)?)
+        Ok(())
     }
 
     pub fn accept_task(&self) -> Result<TaskSchema, TaskAcceptationError> {
+        self.can_accept_task()?;
+        Ok(self.inner.request_accept_task()?)
+    }
+
+    pub fn can_accept_task(&self) -> Result<(), TaskAcceptationError> {
         if !self.task().is_empty() {
             return Err(TaskAcceptationError::TaskAlreadyInProgress);
         }
         if !self.map().content_type_is(ContentType::TasksMaster) {
             return Err(TaskAcceptationError::NoTasksMasterOnMap);
         }
-        Ok(self.inner.request_accept_task()?)
+        Ok(())
     }
 
     pub fn task_trade(
@@ -280,6 +355,11 @@ impl BaseCharacter {
         item_code: &str,
         quantity: i32,
     ) -> Result<TaskTradeSchema, TaskTradeError> {
+        self.can_task_trade(item_code, quantity)?;
+        Ok(self.inner.request_task_trade(item_code, quantity)?)
+    }
+
+    pub fn can_task_trade(&self, item_code: &str, quantity: i32) -> Result<(), TaskTradeError> {
         if ITEMS.get(item_code).is_none() {
             return Err(TaskTradeError::ItemNotFound);
         };
@@ -297,10 +377,15 @@ impl BaseCharacter {
         {
             return Err(TaskTradeError::WrongOrNoTasksMasterOnMap);
         }
-        Ok(self.inner.request_task_trade(item_code, quantity)?)
+        Ok(())
     }
 
     pub fn complete_task(&self) -> Result<RewardsSchema, TaskCompletionError> {
+        self.can_complete_task()?;
+        Ok(self.inner.request_complete_task()?)
+    }
+
+    pub fn can_complete_task(&self) -> Result<(), TaskCompletionError> {
         let Some(task_type) = self.task_type() else {
             return Err(TaskCompletionError::NoCurrentTask);
         };
@@ -315,10 +400,15 @@ impl BaseCharacter {
         {
             return Err(TaskCompletionError::WrongOrNoTasksMasterOnMap);
         }
-        Ok(self.inner.request_complete_task()?)
+        Ok(())
     }
 
     pub fn cancel_task(&self) -> Result<(), TaskCancellationError> {
+        self.can_cancel_task()?;
+        Ok(self.inner.request_cancel_task()?)
+    }
+
+    pub fn can_cancel_task(&self) -> Result<(), TaskCancellationError> {
         let Some(task_type) = self.task_type() else {
             return Err(TaskCancellationError::NoCurrentTask);
         };
@@ -330,10 +420,15 @@ impl BaseCharacter {
         {
             return Err(TaskCancellationError::WrongOrNoTasksMasterOnMap);
         }
-        Ok(self.inner.request_cancel_task()?)
+        Ok(())
     }
 
     pub fn exchange_tasks_coin(&self) -> Result<RewardsSchema, TasksCoinExchangeError> {
+        self.can_exchange_tasks_coin()?;
+        Ok(self.inner.request_task_exchange()?)
+    }
+
+    pub fn can_exchange_tasks_coin(&self) -> Result<(), TasksCoinExchangeError> {
         if self.inventory.total_of("tasks_coin") < 6 {
             return Err(TasksCoinExchangeError::InsufficientTasksCoinQuantity);
         }
@@ -341,10 +436,15 @@ impl BaseCharacter {
             return Err(TasksCoinExchangeError::NoTasksMasterOnMap);
         }
         // TODO: check for conditions when InsufficientInventorySpace can happen
-        Ok(self.inner.request_task_exchange()?)
+        Ok(())
     }
 
     pub fn exchange_gift(&self) -> Result<RewardsSchema, GiftExchangeError> {
+        self.can_exchange_gift()?;
+        Ok(self.inner.request_gift_exchange()?)
+    }
+
+    pub fn can_exchange_gift(&self) -> Result<(), GiftExchangeError> {
         if self.inventory.total_of("tasks_coin") < 1 {
             return Err(GiftExchangeError::InsufficientGiftQuantity);
         }
@@ -352,7 +452,7 @@ impl BaseCharacter {
             return Err(GiftExchangeError::NoSantaClausOnMap);
         }
         // TODO: check for conditions when InsufficientInventorySpace can happen
-        Ok(self.inner.request_gift_exchange()?)
+        Ok(())
     }
 }
 
