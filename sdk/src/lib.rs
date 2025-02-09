@@ -20,6 +20,7 @@ pub mod consts;
 pub mod events;
 pub mod fight_simulator;
 pub mod gear;
+pub mod item_code;
 pub mod items;
 pub mod maps;
 pub mod monsters;
