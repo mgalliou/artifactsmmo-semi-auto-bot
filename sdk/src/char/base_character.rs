@@ -33,7 +33,7 @@ pub static BASE_CHARACTERS: LazyLock<HashMap<usize, Arc<BaseCharacter>>> = LazyL
 
 pub struct BaseCharacter {
     pub id: usize,
-    pub inner: CharacterRequestHandler,
+    inner: CharacterRequestHandler,
     pub inventory: Arc<BaseInventory>,
 }
 
@@ -788,4 +788,137 @@ pub enum GiftExchangeError {
     NoSantaClausOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(RequestError),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use artifactsmmo_openapi::models::InventorySlot;
+    use std::sync::RwLock;
+
+    fn create_char(schema: CharacterSchema) -> BaseCharacter {
+        BaseCharacter::new(1, Arc::new(RwLock::new(Arc::new(schema))))
+    }
+
+    #[test]
+    fn can_fight() {
+        // monster on 0,2 is "cow"
+        let char = create_char(CharacterSchema {
+            x: 0,
+            y: 2,
+            inventory_max_items: 100,
+            ..Default::default()
+        });
+        assert!(char.can_fight().is_ok());
+        let char = create_char(CharacterSchema {
+            x: 0,
+            y: 2,
+            inventory_max_items: &char.map().monster().unwrap().max_drop_quantity() - 1,
+            ..Default::default()
+        });
+        assert!(matches!(
+            char.can_fight(),
+            Err(FightError::InsufficientInventorySpace)
+        ));
+    }
+
+    #[test]
+    fn can_gather() {
+        let char = create_char(CharacterSchema {
+            x: 2,
+            y: 0,
+            mining_level: 1,
+            inventory_max_items: 100,
+            ..Default::default()
+        });
+        assert!(char.can_gather().is_ok());
+        let char = create_char(CharacterSchema {
+            x: 0,
+            y: 0,
+            mining_level: 1,
+            ..Default::default()
+        });
+        assert!(matches!(
+            char.can_gather(),
+            Err(GatherError::NoResourceOnMap)
+        ));
+        let char = create_char(CharacterSchema {
+            x: 1,
+            y: 7,
+            mining_level: 1,
+            ..Default::default()
+        });
+        assert!(matches!(
+            char.can_gather(),
+            Err(GatherError::SkillLevelInsufficient)
+        ));
+        let char = create_char(CharacterSchema {
+            x: 2,
+            y: 0,
+            mining_level: 1,
+            inventory_max_items: MAPS
+                .get(2, 0)
+                .unwrap()
+                .resource()
+                .unwrap()
+                .max_drop_quantity()
+                - 1,
+            ..Default::default()
+        });
+        assert!(matches!(
+            char.can_gather(),
+            Err(GatherError::InsufficientInventorySpace)
+        ));
+    }
+
+    #[test]
+    fn can_move() {
+        let char = create_char(CharacterSchema::default());
+        assert!(char.can_move(0, 0).is_ok());
+        assert!(matches!(
+            char.can_move(1000, 0),
+            Err(MoveError::MapNotFound)
+        ));
+    }
+
+    #[test]
+    fn can_use() {
+        let item1 = "cooked_chicken";
+        let item2 = "cooked_shrimp";
+        let char = create_char(CharacterSchema {
+            level: 5,
+            inventory: Some(vec![
+                InventorySlot {
+                    slot: 0,
+                    code: item1.to_owned(),
+                    quantity: 1,
+                },
+                InventorySlot {
+                    slot: 1,
+                    code: item2.to_owned(),
+                    quantity: 1,
+                },
+            ]),
+            ..Default::default()
+        });
+        assert!(matches!(
+            char.can_use("random_item", 1),
+            Err(UseError::ItemNotFound)
+        ));
+        assert!(matches!(
+            char.can_use("copper", 1),
+            Err(UseError::ItemNotConsumable)
+        ));
+        assert!(matches!(
+            char.can_use(item1, 5),
+            Err(UseError::InsufficientQuantity)
+        ));
+        assert!(matches!(
+            char.can_use(item2, 1),
+            Err(UseError::InsufficientCharacterLevel)
+        ));
+        assert!(char.can_use(item1, 1).is_ok());
+    }
+
+    //TODO: add more tests
 }

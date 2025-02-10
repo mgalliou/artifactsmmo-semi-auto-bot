@@ -667,20 +667,21 @@ mod tests {
 
     #[test]
     fn potential_upgrade() {
-        assert_eq!(
-            ITEMS
-                .potential_upgrade(10, "copper_armor")
-                .iter()
-                .map(|i| &i.code)
-                .collect_vec(),
-            vec![
-                "feather_coat",
-                "copper_armor",
-                "leather_armor",
-                "iron_armor",
-                "adventurer_vest"
-            ]
-        )
+        let mut upgrades = ITEMS
+            .potential_upgrade(10, "copper_armor")
+            .iter()
+            .map(|i| i.code.to_owned())
+            .collect_vec();
+        let mut sample = vec![
+            "feather_coat",
+            "copper_armor",
+            "leather_armor",
+            "iron_armor",
+            "adventurer_vest",
+        ];
+        upgrades.sort();
+        sample.sort();
+        assert_eq!(sample, upgrades)
     }
 
     #[test]

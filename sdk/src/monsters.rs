@@ -101,3 +101,13 @@ impl MonsterSchemaExt for MonsterSchema {
         self.drops.iter().map(|i| i.max_quantity).sum()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn max_drop_quantity() {
+        assert_eq!(MONSTERS.get("cow").unwrap().max_drop_quantity(), 4);
+    }
+}
