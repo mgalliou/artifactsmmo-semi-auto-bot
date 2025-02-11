@@ -160,13 +160,16 @@ impl BaseCharacter {
         let Some(skill) = item.skill_to_craft() else {
             return Err(RecycleError::ItemNotRecyclable);
         };
+        if skill.is_cooking() || skill.is_alchemy() {
+            return Err(RecycleError::ItemNotRecyclable);
+        }
         if self.skill_level(skill) < item.level {
             return Err(RecycleError::InsufficientSkillLevel);
         }
         if self.inventory.total_of(item_code) < quantity {
             return Err(RecycleError::InsufficientQuantity);
         }
-        if self.inventory.free_space() + 1 < item.recycled_quantity() {
+        if self.inventory.free_space() + quantity < item.recycled_quantity() {
             return Err(RecycleError::InsufficientInventorySpace);
         }
         if !self.map().content_code_is(skill.as_ref()) {
@@ -796,21 +799,23 @@ mod tests {
     use artifactsmmo_openapi::models::InventorySlot;
     use std::sync::RwLock;
 
-    fn create_char(schema: CharacterSchema) -> BaseCharacter {
-        BaseCharacter::new(1, Arc::new(RwLock::new(Arc::new(schema))))
+    impl From<CharacterSchema> for BaseCharacter {
+        fn from(value: CharacterSchema) -> Self {
+            Self::new(1, Arc::new(RwLock::new(Arc::new(value))))
+        }
     }
 
     #[test]
     fn can_fight() {
         // monster on 0,2 is "cow"
-        let char = create_char(CharacterSchema {
+        let char = BaseCharacter::from(CharacterSchema {
             x: 0,
             y: 2,
             inventory_max_items: 100,
             ..Default::default()
         });
         assert!(char.can_fight().is_ok());
-        let char = create_char(CharacterSchema {
+        let char = BaseCharacter::from(CharacterSchema {
             x: 0,
             y: 2,
             inventory_max_items: &char.map().monster().unwrap().max_drop_quantity() - 1,
@@ -824,7 +829,7 @@ mod tests {
 
     #[test]
     fn can_gather() {
-        let char = create_char(CharacterSchema {
+        let char = BaseCharacter::from(CharacterSchema {
             x: 2,
             y: 0,
             mining_level: 1,
@@ -832,7 +837,7 @@ mod tests {
             ..Default::default()
         });
         assert!(char.can_gather().is_ok());
-        let char = create_char(CharacterSchema {
+        let char = BaseCharacter::from(CharacterSchema {
             x: 0,
             y: 0,
             mining_level: 1,
@@ -842,7 +847,7 @@ mod tests {
             char.can_gather(),
             Err(GatherError::NoResourceOnMap)
         ));
-        let char = create_char(CharacterSchema {
+        let char = BaseCharacter::from(CharacterSchema {
             x: 1,
             y: 7,
             mining_level: 1,
@@ -852,7 +857,7 @@ mod tests {
             char.can_gather(),
             Err(GatherError::SkillLevelInsufficient)
         ));
-        let char = create_char(CharacterSchema {
+        let char = BaseCharacter::from(CharacterSchema {
             x: 2,
             y: 0,
             mining_level: 1,
@@ -873,7 +878,7 @@ mod tests {
 
     #[test]
     fn can_move() {
-        let char = create_char(CharacterSchema::default());
+        let char = BaseCharacter::from(CharacterSchema::default());
         assert!(char.can_move(0, 0).is_ok());
         assert!(matches!(
             char.can_move(1000, 0),
@@ -885,7 +890,7 @@ mod tests {
     fn can_use() {
         let item1 = "cooked_chicken";
         let item2 = "cooked_shrimp";
-        let char = create_char(CharacterSchema {
+        let char = BaseCharacter::from(CharacterSchema {
             level: 5,
             inventory: Some(vec![
                 InventorySlot {
@@ -920,5 +925,204 @@ mod tests {
         assert!(char.can_use(item1, 1).is_ok());
     }
 
+    #[test]
+    fn can_craft() {
+        let char = BaseCharacter::from(CharacterSchema {
+            cooking_level: 1,
+            inventory: Some(vec![
+                InventorySlot {
+                    slot: 0,
+                    code: "gudgeon".to_string(),
+                    quantity: 1,
+                },
+                InventorySlot {
+                    slot: 1,
+                    code: "shrimp".to_string(),
+                    quantity: 1,
+                },
+            ]),
+            inventory_max_items: 100,
+            ..Default::default()
+        });
+        assert!(matches!(
+            char.can_craft("random_item", 1),
+            Err(CraftError::ItemNotFound)
+        ));
+        assert!(matches!(
+            char.can_craft("copper_ore", 1),
+            Err(CraftError::ItemNotCraftable)
+        ));
+        assert!(matches!(
+            char.can_craft("cooked_chicken", 1),
+            Err(CraftError::InsufficientMaterials)
+        ));
+        assert!(matches!(
+            char.can_craft("cooked_gudgeon", 5),
+            Err(CraftError::InsufficientMaterials)
+        ));
+        assert!(matches!(
+            char.can_craft("cooked_shrimp", 1),
+            Err(CraftError::InsufficientSkillLevel)
+        ));
+        assert!(matches!(
+            char.can_craft("cooked_gudgeon", 1),
+            Err(CraftError::NoWorkshopOnMap)
+        ));
+        let char = BaseCharacter::from(CharacterSchema {
+            cooking_level: 1,
+            inventory: Some(vec![InventorySlot {
+                slot: 0,
+                code: "gudgeon".to_string(),
+                quantity: 1,
+            }]),
+            inventory_max_items: 100,
+            x: 1,
+            y: 1,
+            ..Default::default()
+        });
+        assert!(char.can_craft("cooked_gudgeon", 1).is_ok());
+    }
+
+    #[test]
+    fn can_recycle() {
+        let char = BaseCharacter::from(CharacterSchema {
+            cooking_level: 1,
+            weaponcrafting_level: 1,
+            inventory: Some(vec![
+                InventorySlot {
+                    slot: 0,
+                    code: "copper_dagger".to_string(),
+                    quantity: 1,
+                },
+                InventorySlot {
+                    slot: 1,
+                    code: "iron_sword".to_string(),
+                    quantity: 1,
+                },
+                InventorySlot {
+                    slot: 2,
+                    code: "cooked_gudgeon".to_string(),
+                    quantity: 1,
+                },
+            ]),
+            inventory_max_items: 100,
+            ..Default::default()
+        });
+        assert!(matches!(
+            char.can_recycle("random_item", 1),
+            Err(RecycleError::ItemNotFound)
+        ));
+        assert!(matches!(
+            char.can_recycle("cooked_gudgeon", 1),
+            Err(RecycleError::ItemNotRecyclable)
+        ));
+        assert!(matches!(
+            char.can_recycle("wooden_staff", 1),
+            Err(RecycleError::InsufficientQuantity)
+        ));
+        assert!(matches!(
+            char.can_recycle("iron_sword", 1),
+            Err(RecycleError::InsufficientSkillLevel)
+        ));
+        assert!(matches!(
+            char.can_recycle("copper_dagger", 1),
+            Err(RecycleError::NoWorkshopOnMap)
+        ));
+        let char = BaseCharacter::from(CharacterSchema {
+            weaponcrafting_level: 1,
+            inventory: Some(vec![InventorySlot {
+                slot: 0,
+                code: "copper_dagger".to_string(),
+                quantity: 1,
+            }]),
+            inventory_max_items: 1,
+            x: 2,
+            y: 1,
+            ..Default::default()
+        });
+        assert!(matches!(
+            char.can_recycle("copper_dagger", 1),
+            Err(RecycleError::InsufficientInventorySpace)
+        ));
+        let char = BaseCharacter::from(CharacterSchema {
+            weaponcrafting_level: 1,
+            inventory: Some(vec![InventorySlot {
+                slot: 0,
+                code: "copper_dagger".to_string(),
+                quantity: 1,
+            }]),
+            inventory_max_items: 100,
+            x: 2,
+            y: 1,
+            ..Default::default()
+        });
+        assert!(char.can_recycle("copper_dagger", 1).is_ok());
+    }
+
+    #[test]
+    fn can_delete() {
+        let char = BaseCharacter::from(CharacterSchema {
+            cooking_level: 1,
+            weaponcrafting_level: 1,
+            inventory: Some(vec![InventorySlot {
+                slot: 0,
+                code: "copper_dagger".to_string(),
+                quantity: 1,
+            }]),
+            inventory_max_items: 100,
+            ..Default::default()
+        });
+        assert!(matches!(
+            char.can_delete("random_item", 1),
+            Err(DeleteError::ItemNotFound)
+        ));
+        assert!(matches!(
+            char.can_delete("copper_dagger", 2),
+            Err(DeleteError::InsufficientQuantity)
+        ));
+        assert!(char.can_delete("copper_dagger", 1).is_ok());
+    }
+
+    #[test]
+    fn can_withdraw() {
+        let char = BaseCharacter::from(CharacterSchema {
+            inventory_max_items: 100,
+            ..Default::default()
+        });
+        BASE_BANK.update_content(vec![
+            SimpleItemSchema {
+                code: "copper_dagger".to_string(),
+                quantity: 1,
+            },
+            SimpleItemSchema {
+                code: "iron_sword".to_string(),
+                quantity: 101,
+            },
+        ]);
+        assert!(matches!(
+            char.can_withdraw("random_item", 1),
+            Err(WithdrawError::ItemNotFound)
+        ));
+        assert!(matches!(
+            char.can_withdraw("copper_dagger", 2),
+            Err(WithdrawError::InsufficientQuantity)
+        ));
+        assert!(matches!(
+            char.can_withdraw("iron_sword", 101),
+            Err(WithdrawError::InsufficientInventorySpace)
+        ));
+        assert!(matches!(
+            char.can_withdraw("iron_sword", 10),
+            Err(WithdrawError::NoBankOnMap)
+        ));
+        let char = BaseCharacter::from(CharacterSchema {
+            inventory_max_items: 100,
+            x:4,
+            y:1,
+            ..Default::default()
+        });
+        assert!(char.can_withdraw("iron_sword", 10).is_ok());
+
+    }
     //TODO: add more tests
 }
