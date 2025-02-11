@@ -4,7 +4,7 @@ use super::{
     CharacterData, HasCharacterData, CHARACTERS_DATA,
 };
 use crate::{
-    base_bank::BASE_BANK,
+    base_bank::{BaseBank, BASE_BANK},
     gear::Slot,
     items::ItemSchemaExt,
     maps::{ContentType, MapSchemaExt},
@@ -27,7 +27,12 @@ use thiserror::Error;
 pub static BASE_CHARACTERS: LazyLock<HashMap<usize, Arc<BaseCharacter>>> = LazyLock::new(|| {
     CHARACTERS_DATA
         .iter()
-        .map(|(id, data)| (*id, Arc::new(BaseCharacter::new(*id, data.clone()))))
+        .map(|(id, data)| {
+            (
+                *id,
+                Arc::new(BaseCharacter::new(*id, data.clone(), BASE_BANK.clone())),
+            )
+        })
         .collect::<_>()
 });
 
@@ -35,14 +40,16 @@ pub struct BaseCharacter {
     pub id: usize,
     inner: CharacterRequestHandler,
     pub inventory: Arc<BaseInventory>,
+    bank: Arc<BaseBank>,
 }
 
 impl BaseCharacter {
-    pub fn new(id: usize, data: CharacterData) -> Self {
+    pub fn new(id: usize, data: CharacterData, bank: Arc<BaseBank>) -> Self {
         Self {
             id,
             inner: CharacterRequestHandler::new(data.clone()),
             inventory: Arc::new(BaseInventory::new(data.clone())),
+            bank,
         }
     }
 
@@ -206,7 +213,7 @@ impl BaseCharacter {
         if ITEMS.get(item_code).is_none() {
             return Err(WithdrawError::ItemNotFound);
         };
-        if BASE_BANK.total_of(item_code) < quantity {
+        if self.bank.total_of(item_code) < quantity {
             return Err(WithdrawError::InsufficientQuantity);
         }
         if self.inventory.free_space() < quantity {
@@ -234,7 +241,7 @@ impl BaseCharacter {
         if self.inventory.total_of(item_code) < quantity {
             return Err(DepositError::InsufficientQuantity);
         }
-        if BASE_BANK.total_of(item_code) <= 0 && BASE_BANK.free_slots() <= 0 {
+        if self.bank.total_of(item_code) <= 0 && self.bank.free_slots() <= 0 {
             return Err(DepositError::InsufficientBankSpace);
         }
         if !self.map().content_type_is(ContentType::Bank) {
@@ -249,7 +256,7 @@ impl BaseCharacter {
     }
 
     pub fn can_withdraw_gold(&self, quantity: i32) -> Result<(), GoldWithdrawError> {
-        if BASE_BANK.gold() < quantity {
+        if self.bank.gold() < quantity {
             return Err(GoldWithdrawError::InsufficientGold);
         }
         if !self.map().content_type_is(ContentType::Bank) {
@@ -279,7 +286,7 @@ impl BaseCharacter {
     }
 
     pub fn can_expand_bank(&self) -> Result<(), BankExpansionError> {
-        if self.gold() < BASE_BANK.details().next_expansion_cost {
+        if self.gold() < self.bank.details().next_expansion_cost {
             return Err(BankExpansionError::InsufficientGold);
         }
         if !self.map().content_type_is(ContentType::Bank) {
@@ -801,7 +808,11 @@ mod tests {
 
     impl From<CharacterSchema> for BaseCharacter {
         fn from(value: CharacterSchema) -> Self {
-            Self::new(1, Arc::new(RwLock::new(Arc::new(value))))
+            Self::new(
+                1,
+                Arc::new(RwLock::new(Arc::new(value))),
+                Arc::new(BaseBank::default()),
+            )
         }
     }
 
@@ -1089,7 +1100,7 @@ mod tests {
             inventory_max_items: 100,
             ..Default::default()
         });
-        BASE_BANK.update_content(vec![
+        char.bank.update_content(vec![
             SimpleItemSchema {
                 code: "copper_dagger".to_string(),
                 quantity: 1,
@@ -1117,12 +1128,21 @@ mod tests {
         ));
         let char = BaseCharacter::from(CharacterSchema {
             inventory_max_items: 100,
-            x:4,
-            y:1,
+            x: 4,
+            y: 1,
             ..Default::default()
         });
+        char.bank.update_content(vec![
+            SimpleItemSchema {
+                code: "copper_dagger".to_string(),
+                quantity: 1,
+            },
+            SimpleItemSchema {
+                code: "iron_sword".to_string(),
+                quantity: 101,
+            },
+        ]);
         assert!(char.can_withdraw("iron_sword", 10).is_ok());
-
     }
     //TODO: add more tests
 }

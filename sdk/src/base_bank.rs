@@ -8,7 +8,7 @@ pub struct BaseBank {
     pub content: RwLock<Arc<Vec<SimpleItemSchema>>>,
 }
 
-pub static BASE_BANK: LazyLock<BaseBank> = LazyLock::new(BaseBank::new);
+pub static BASE_BANK: LazyLock<Arc<BaseBank>> = LazyLock::new(|| Arc::new(BaseBank::new()));
 
 impl BaseBank {
     pub fn new() -> Self {
