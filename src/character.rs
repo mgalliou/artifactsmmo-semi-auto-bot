@@ -19,9 +19,9 @@ use artifactsmmo_sdk::{
     fight_simulator::FIGHT_SIMULATOR,
     gear::{Gear, Slot},
     items::{ItemSchemaExt, ItemSource, Type},
-    maps::{ContentType, MapSchemaExt, Maps},
+    maps::{ContentType, MapSchemaExt},
     models::{
-        CharacterSchema, FightResult, FightSchema, ItemSchema, MapContentSchema, MapSchema,
+        CharacterSchema, FightResult, FightSchema, ItemSchema, MapSchema,
         MonsterSchema, RecyclingItemsSchema, ResourceSchema, RewardsSchema, SimpleItemSchema,
         SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
     },
@@ -791,7 +791,7 @@ impl Character {
         resource: &ResourceSchema,
     ) -> Result<SkillDataSchema, CharacterError> {
         self.can_gather(resource)?;
-        let Some(map) = self.closest_map_with_content_code(&resource.code) else {
+        let Some(map) = self.map().closest_with_content_code(&resource.code) else {
             return Err(CharacterError::MapNotFound);
         };
         self.check_for_tool(resource);
@@ -1417,11 +1417,12 @@ impl Character {
         }
         n
     }
+
     fn move_to_closest_map_of_type(
         &self,
         r#type: ContentType,
     ) -> Result<Arc<MapSchema>, CharacterError> {
-        let Some(map) = self.closest_map_of_type(r#type) else {
+        let Some(map) = self.map().closest_of_type(r#type) else {
             return Err(CharacterError::MapNotFound);
         };
         self.move_to(map.x, map.y)
@@ -1431,76 +1432,20 @@ impl Character {
         &self,
         r#type: Option<TaskType>,
     ) -> Result<Arc<MapSchema>, CharacterError> {
-        if let Some(r#type) = r#type {
-            self.move_to_closest_map_with_content_schema(&MapContentSchema {
-                r#type: ContentType::TasksMaster.to_string(),
-                code: r#type.to_string(),
-            })
-        } else {
-            self.move_to_closest_map_of_type(ContentType::TasksMaster)
-        }
+        let Some(map) = self.map().closest_tasksmaster(r#type) else {
+            return Err(CharacterError::MapNotFound);
+        };
+        self.move_to(map.x, map.y)
     }
 
     fn move_to_closest_map_with_content_code(
         &self,
         code: &str,
     ) -> Result<Arc<MapSchema>, CharacterError> {
-        let Some(map) = self.closest_map_with_content_code(code) else {
+        let Some(map) = self.map().closest_with_content_code(code) else {
             return Err(CharacterError::MapNotFound);
         };
-        let (x, y) = (map.x, map.y);
-        self.move_to(x, y)
-    }
-
-    fn move_to_closest_map_with_content_schema(
-        &self,
-        schema: &MapContentSchema,
-    ) -> Result<Arc<MapSchema>, CharacterError> {
-        let Some(map) = self.closest_map_with_content_schema(schema) else {
-            return Err(CharacterError::FailedToMove);
-        };
         self.move_to(map.x, map.y)
-    }
-
-    /// Returns the closest map from the `Character` containing the given
-    /// content `type`.
-    fn closest_map_of_type(&self, r#type: ContentType) -> Option<Arc<MapSchema>> {
-        let maps = MAPS.of_type(r#type);
-        if maps.is_empty() {
-            return None;
-        }
-        self.closest_map_among(maps)
-    }
-
-    /// Returns the closest map from the `Character` containing the given
-    /// content `code`.
-    fn closest_map_with_content_code(&self, code: &str) -> Option<Arc<MapSchema>> {
-        let maps = MAPS.with_content_code(code);
-        if maps.is_empty() {
-            return None;
-        }
-        self.closest_map_among(maps)
-    }
-
-    /// Returns the closest map from the `Character` containing the given
-    /// content schema.
-    fn closest_map_with_content_schema(&self, schema: &MapContentSchema) -> Option<Arc<MapSchema>> {
-        let maps = MAPS.with_content_schema(schema);
-        if maps.is_empty() {
-            return None;
-        }
-        self.closest_map_among(maps)
-    }
-
-    /// Returns the closest map from the `Character` among the `maps` given.
-    fn closest_map_among(&self, maps: Vec<Arc<MapSchema>>) -> Option<Arc<MapSchema>> {
-        let (x, y) = self.inner.position();
-        Maps::closest_from_amoung(x, y, maps)
-    }
-
-    fn map(&self) -> Arc<MapSchema> {
-        let (x, y) = self.inner.position();
-        MAPS.get(x, y).unwrap()
     }
 
     /// Moves the `Character` to the crafting station corresponding to the skill
