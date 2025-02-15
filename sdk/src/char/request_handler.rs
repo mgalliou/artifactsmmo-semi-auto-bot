@@ -68,119 +68,7 @@ impl CharacterRequestHandler {
                     .expect("bank_details to be writable"),
             );
         }
-        let res: Result<Box<dyn ResponseSchema>, RequestError> = match action {
-            Action::Move { x, y } => API
-                .my_character
-                .move_to(&self.name(), x, y)
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::Fight => API
-                .my_character
-                .fight(&self.name())
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::Rest => API
-                .my_character
-                .rest(&self.name())
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::UseItem { item, quantity } => API
-                .my_character
-                .use_item(&self.name(), item, quantity)
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::Gather => API
-                .my_character
-                .gather(&self.name())
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::Craft { item, quantity } => API
-                .my_character
-                .craft(&self.name(), item, quantity)
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::Recycle { item, quantity } => API
-                .my_character
-                .recycle(&self.name(), item, quantity)
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::Delete { item, quantity } => API
-                .my_character
-                .delete(&self.name(), item, quantity)
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::Deposit { item, quantity } => API
-                .my_character
-                .deposit(&self.name(), item, quantity)
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::Withdraw { item, quantity } => API
-                .my_character
-                .withdraw(&self.name(), item, quantity)
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::DepositGold { quantity } => API
-                .my_character
-                .deposit_gold(&self.name(), quantity)
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::WithdrawGold { quantity } => API
-                .my_character
-                .withdraw_gold(&self.name(), quantity)
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::ExpandBank => API
-                .my_character
-                .expand_bank(&self.name())
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::Equip {
-                item,
-                slot,
-                quantity,
-            } => API
-                .my_character
-                .equip(&self.name(), item, slot.into(), Some(quantity))
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::Unequip { slot, quantity } => {
-                API.my_character
-                    .unequip(&self.name(), slot.into(), Some(quantity))
-            }
-            .map(|r| r.into())
-            .map_err(|e| e.into()),
-            Action::AcceptTask => API
-                .my_character
-                .accept_task(&self.name())
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::TaskTrade { item, quantity } => API
-                .my_character
-                .trade_task(&self.name(), item, quantity)
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::CompleteTask => API
-                .my_character
-                .complete_task(&self.name())
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::CancelTask => API
-                .my_character
-                .cancel_task(&self.name())
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::TaskExchange => API
-                .my_character
-                .task_exchange(&self.name())
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-            Action::ChristmasExchange => API
-                .my_character
-                .christmas_exchange(&self.name())
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
-        };
-        match res {
+        match action.request(&self.name(), &API) {
             Ok(res) => {
                 info!("{}", res.to_string());
                 self.update_data(res.character().clone());
@@ -502,7 +390,7 @@ impl HasCharacterData for CharacterRequestHandler {
     }
 }
 
-trait ResponseSchema: Downcast {
+pub trait ResponseSchema: Downcast {
     fn character(&self) -> &CharacterSchema;
     fn to_string(&self) -> String;
 }
