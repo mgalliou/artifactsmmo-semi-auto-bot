@@ -11,7 +11,7 @@ use crate::{
     FightSimulator, PersistedData, API,
 };
 use artifactsmmo_openapi::models::{
-    CraftSchema, ItemEffectSchema, ItemSchema, MonsterSchema, ResourceSchema, SimpleItemSchema,
+    CraftSchema, ItemSchema, MonsterSchema, ResourceSchema, SimpleEffectSchema, SimpleItemSchema,
 };
 use itertools::Itertools;
 use log::debug;
@@ -307,22 +307,22 @@ impl Items {
         if code == TASKS_COIN {
             sources.push(ItemSource::Task);
         }
-        if [
-            "blue_candy",
-            "green_candy",
-            "red_candy",
-            "yellow_candy",
-            "christmas_cane",
-            "christmas_star",
-            "frozen_gloves",
-            "frozen_axe",
-            "frozen_fishing_rod",
-            "frozen_pickaxe",
-        ]
-        .contains(&code)
-        {
-            sources.push(ItemSource::Gift);
-        }
+        //if [
+        //    "blue_candy",
+        //    "green_candy",
+        //    "red_candy",
+        //    "yellow_candy",
+        //    "christmas_cane",
+        //    "christmas_star",
+        //    "frozen_gloves",
+        //    "frozen_axe",
+        //    "frozen_fishing_rod",
+        //    "frozen_pickaxe",
+        //]
+        //.contains(&code)
+        //{
+        //    sources.push(ItemSource::Gift);
+        //}
         sources
     }
 
@@ -339,7 +339,7 @@ impl Items {
                     .sum(),
                 ItemSource::TaskReward => 20000,
                 ItemSource::Task => 20000,
-                ItemSource::Gift => 10000,
+                //ItemSource::Gift => 10000,
             })
             .min()
     }
@@ -352,7 +352,7 @@ impl Items {
                 ItemSource::Craft => false,
                 ItemSource::TaskReward => false,
                 ItemSource::Task => false,
-                ItemSource::Gift => false,
+                //ItemSource::Gift => false,
             })
         })
     }
@@ -370,7 +370,7 @@ pub trait ItemSchemaExt {
     fn recycled_quantity(&self) -> i32;
     fn craft_schema(&self) -> Option<CraftSchema>;
     fn skill_to_craft(&self) -> Option<Skill>;
-    fn effects(&self) -> Vec<&ItemEffectSchema>;
+    fn effects(&self) -> Vec<&SimpleEffectSchema>;
     fn attack_damage(&self, r#type: DamageType) -> i32;
     fn attack_damage_against(&self, monster: &MonsterSchema) -> f32;
     fn damage_increase(&self, r#type: DamageType) -> i32;
@@ -443,14 +443,14 @@ impl ItemSchemaExt for ItemSchema {
             .map(Skill::from)
     }
 
-    fn effects(&self) -> Vec<&ItemEffectSchema> {
+    fn effects(&self) -> Vec<&SimpleEffectSchema> {
         self.effects.iter().flatten().collect_vec()
     }
 
     fn attack_damage(&self, r#type: DamageType) -> i32 {
         self.effects()
             .iter()
-            .find(|e| e.name == "attack_".to_string() + r#type.as_ref())
+            .find(|e| e.code == "attack_".to_string() + r#type.as_ref())
             .map(|e| e.value)
             .unwrap_or(0)
     }
@@ -458,7 +458,7 @@ impl ItemSchemaExt for ItemSchema {
     fn resistance(&self, r#type: DamageType) -> i32 {
         self.effects()
             .iter()
-            .find(|e| e.name == "res_".to_string() + r#type.as_ref())
+            .find(|e| e.code == "res_".to_string() + r#type.as_ref())
             .map(|e| e.value)
             .unwrap_or(0)
     }
@@ -473,8 +473,8 @@ impl ItemSchemaExt for ItemSchema {
         self.effects()
             .iter()
             .find(|e| {
-                e.name == "dmg_".to_string() + r#type.as_ref()
-                    || e.name == "boost_dmg_".to_string() + r#type.as_ref()
+                e.code == "dmg_".to_string() + r#type.as_ref()
+                    || e.code == "boost_dmg_".to_string() + r#type.as_ref()
             })
             .map(|e| e.value)
             .unwrap_or(0)
@@ -483,7 +483,7 @@ impl ItemSchemaExt for ItemSchema {
     fn health(&self) -> i32 {
         self.effects()
             .iter()
-            .find(|e| e.name == "hp" || e.name == "boost_hp")
+            .find(|e| e.code == "hp" || e.code == "boost_hp")
             .map(|e| e.value)
             .unwrap_or(0)
     }
@@ -491,7 +491,7 @@ impl ItemSchemaExt for ItemSchema {
     fn haste(&self) -> i32 {
         self.effects()
             .iter()
-            .find(|e| e.name == "haste")
+            .find(|e| e.code == "haste")
             .map(|e| e.value)
             .unwrap_or(0)
     }
@@ -503,28 +503,28 @@ impl ItemSchemaExt for ItemSchema {
     fn skill_cooldown_reduction(&self, skill: Skill) -> i32 {
         self.effects()
             .iter()
-            .find_map(|e| (e.name == skill.as_ref()).then_some(e.value))
+            .find_map(|e| (e.code == skill.as_ref()).then_some(e.value))
             .unwrap_or(0)
     }
 
     fn heal(&self) -> i32 {
         self.effects()
             .iter()
-            .find_map(|e| (e.name == "heal").then_some(e.value))
+            .find_map(|e| (e.code == "heal").then_some(e.value))
             .unwrap_or(0)
     }
 
     fn restore(&self) -> i32 {
         self.effects()
             .iter()
-            .find_map(|e| (e.name == "restore").then_some(e.value))
+            .find_map(|e| (e.code == "restore").then_some(e.value))
             .unwrap_or(0)
     }
 
     fn inventory_space(&self) -> i32 {
         self.effects()
             .iter()
-            .find_map(|e| (e.name == "inventory_space").then_some(e.value))
+            .find_map(|e| (e.code == "inventory_space").then_some(e.value))
             .unwrap_or(0)
     }
 
@@ -594,6 +594,8 @@ pub enum Type {
     Artifact,
     Currency,
     Utility,
+    Bag,
+    Rune,
 }
 
 impl From<Slot> for Type {
@@ -613,6 +615,8 @@ impl From<Slot> for Type {
             Slot::Artifact3 => Self::Artifact,
             Slot::Utility1 => Self::Utility,
             Slot::Utility2 => Self::Utility,
+            Slot::Bag => Self::Bag,
+            Slot::Rune => Self::Rune,
         }
     }
 }
@@ -657,7 +661,7 @@ pub enum ItemSource {
     Craft,
     TaskReward,
     Task,
-    Gift,
+    //Gift,
 }
 
 #[cfg(test)]
@@ -749,17 +753,17 @@ mod tests {
         );
     }
 
-    #[test]
-    fn gift_source() {
-        assert_eq!(
-            ITEMS.sources_of("christmas_star").first(),
-            Some(&ItemSource::Gift)
-        );
-        assert_eq!(
-            ITEMS.best_source_of("gift"),
-            Some(&ItemSource::Monster(MONSTERS.get("gingerbread").unwrap())).cloned()
-        );
-    }
+    //#[test]
+    //fn gift_source() {
+    //    assert_eq!(
+    //        ITEMS.sources_of("christmas_star").first(),
+    //        Some(&ItemSource::Gift)
+    //    );
+    //    assert_eq!(
+    //        ITEMS.best_source_of("gift"),
+    //        Some(&ItemSource::Monster(MONSTERS.get("gingerbread").unwrap())).cloned()
+    //    );
+    //}
 
     #[test]
     fn best_consumable_foods() {

@@ -60,7 +60,7 @@ pub enum Action<'a> {
     CompleteTask,
     CancelTask,
     TaskExchange,
-    ChristmasExchange,
+    //ChristmasExchange,
 }
 
 impl Action<'_> {
@@ -175,11 +175,11 @@ impl Action<'_> {
                 .task_exchange(name)
                 .map(|r| r.into())
                 .map_err(|e| e.into()),
-            Action::ChristmasExchange => api
-                .my_character
-                .christmas_exchange(name)
-                .map(|r| r.into())
-                .map_err(|e| e.into()),
+            //Action::ChristmasExchange => api
+            //    .my_character
+            //    .christmas_exchange(name)
+            //    .map(|r| r.into())
+            //    .map_err(|e| e.into()),
         }
     }
 }

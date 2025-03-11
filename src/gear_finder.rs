@@ -551,9 +551,9 @@ impl GearFinder {
         {
             return false;
         }
-        if !filter.from_gift && ITEMS.best_source_of(&i.code).is_some_and(|s| s.is_gift()) {
-            return false;
-        }
+        //if !filter.from_gift && ITEMS.best_source_of(&i.code).is_some_and(|s| s.is_gift()) {
+        //    return false;
+        //}
         true
     }
 }
@@ -564,7 +564,7 @@ pub struct Filter {
     pub from_monster: bool,
     pub from_task: bool,
     pub can_craft: bool,
-    pub from_gift: bool,
+    //pub from_gift: bool,
     pub utilities: bool,
 }
 
@@ -575,7 +575,7 @@ impl Default for Filter {
             can_craft: false,
             from_task: true,
             from_monster: true,
-            from_gift: false,
+            //from_gift: false,
             utilities: false,
         }
     }

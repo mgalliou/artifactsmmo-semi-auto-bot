@@ -291,14 +291,14 @@ impl CharacterRequestHandler {
             .map(|s| *s.data.rewards)
     }
 
-    pub fn request_gift_exchange(&self) -> Result<RewardsSchema, RequestError> {
-        self.request_action(Action::ChristmasExchange)
-            .and_then(|r| {
-                r.downcast::<RewardDataResponseSchema>()
-                    .map_err(|_| RequestError::DowncastError)
-            })
-            .map(|s| *s.data.rewards)
-    }
+    //pub fn request_gift_exchange(&self) -> Result<RewardsSchema, RequestError> {
+    //    self.request_action(Action::ChristmasExchange)
+    //        .and_then(|r| {
+    //            r.downcast::<RewardDataResponseSchema>()
+    //                .map_err(|_| RequestError::DowncastError)
+    //        })
+    //        .map(|s| *s.data.rewards)
+    //}
 
     fn handle_request_error(
         &self,

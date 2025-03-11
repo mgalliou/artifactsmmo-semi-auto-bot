@@ -163,7 +163,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>) -> Result<()> {
             can_craft,
             from_task,
             from_monster,
-            from_gift,
+            //from_gift,
             available,
             utilities,
             winning,
@@ -180,7 +180,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>) -> Result<()> {
                 can_craft,
                 from_task,
                 from_monster,
-                from_gift,
+                //from_gift,
                 utilities,
             };
             println!(
@@ -196,7 +196,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>) -> Result<()> {
             available,
             can_craft,
             from_task,
-            from_gift,
+            //from_gift,
             from_monster,
             utilities,
             winning,
@@ -213,7 +213,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>) -> Result<()> {
                 can_craft,
                 from_task,
                 from_monster,
-                from_gift,
+                //from_gift,
                 utilities,
             };
             let gear = if winning {
@@ -227,7 +227,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>) -> Result<()> {
                         can_craft,
                         from_task,
                         from_monster,
-                        from_gift,
+                        //from_gift,
                         utilities,
                     },
                 )
@@ -375,8 +375,8 @@ enum Commands {
         can_craft: bool,
         #[arg(short = 't', long)]
         from_task: bool,
-        #[arg(short = 'g', long)]
-        from_gift: bool,
+        //#[arg(short = 'g', long)]
+        //from_gift: bool,
         #[arg(short = 'm', long)]
         from_monster: bool,
         #[arg(short = 'u', long)]
@@ -393,8 +393,8 @@ enum Commands {
         can_craft: bool,
         #[arg(short = 't', long)]
         from_task: bool,
-        #[arg(short = 'g', long)]
-        from_gift: bool,
+        //#[arg(short = 'g', long)]
+        //from_gift: bool,
         #[arg(short = 'm', long)]
         from_monster: bool,
         #[arg(short = 'u', long)]

@@ -4,7 +4,10 @@ use crate::{
 };
 use artifactsmmo_openapi::models::{CharacterSchema, ItemSchema, MapSchema, TaskType};
 use chrono::{DateTime, Utc};
-use std::{collections::HashMap, sync::{Arc, LazyLock, RwLock}};
+use std::{
+    collections::HashMap,
+    sync::{Arc, LazyLock, RwLock},
+};
 
 pub use skill::Skill;
 
@@ -126,7 +129,9 @@ pub trait HasCharacterData {
             | Slot::Amulet
             | Slot::Artifact1
             | Slot::Artifact2
-            | Slot::Artifact3 => 1,
+            | Slot::Artifact3
+            | Slot::Bag
+            | Slot::Rune => 1,
         }
     }
 
@@ -205,6 +210,8 @@ pub trait HasCharacterData {
             Slot::Artifact3 => &d.artifact3_slot,
             Slot::Utility1 => &d.utility1_slot,
             Slot::Utility2 => &d.utility2_slot,
+            Slot::Bag => &d.bag_slot,
+            Slot::Rune => &d.rune_slot,
         })
     }
 }

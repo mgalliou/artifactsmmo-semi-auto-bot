@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 artifactsmmo-api-wrapper = { path = "../api/", version = "0.1.0" }
-artifactsmmo-openapi = { path = "../../artifactsmmo-openapi/", version = "3.2.0" }
+artifactsmmo-openapi = { path = "../../artifactsmmo-openapi/", version = "4.0.0" }
 chrono = "0.4.38"
 derive_more = { version = "2.0.1", features = ["try_from"] }
 downcast-rs = "1.2.1"

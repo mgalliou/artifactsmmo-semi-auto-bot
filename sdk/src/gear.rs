@@ -134,6 +134,7 @@ impl Gear {
             Slot::Artifact3 => self.artifact3.clone(),
             Slot::Utility1 => self.utility1.clone(),
             Slot::Utility2 => self.utility2.clone(),
+            _ => None,
         }
     }
 
@@ -344,6 +345,8 @@ pub enum Slot {
     Artifact3,
     Utility1,
     Utility2,
+    Bag,
+    Rune,
 }
 
 impl Slot {
@@ -360,7 +363,9 @@ impl Slot {
             | Slot::Amulet
             | Slot::Artifact1
             | Slot::Artifact2
-            | Slot::Artifact3 => 1,
+            | Slot::Artifact3
+            | Slot::Bag
+            | Slot::Rune => 1,
             Slot::Utility1 => 100,
             Slot::Utility2 => 100,
         }
@@ -384,6 +389,8 @@ impl From<ItemSlot> for Slot {
             ItemSlot::Artifact3 => Self::Artifact3,
             ItemSlot::Utility1 => Self::Utility1,
             ItemSlot::Utility2 => Self::Utility2,
+            ItemSlot::Bag => Self::Bag,
+            ItemSlot::Rune => Self::Rune,
         }
     }
 }
@@ -405,6 +412,8 @@ impl From<Slot> for ItemSlot {
             Slot::Artifact3 => Self::Artifact3,
             Slot::Utility1 => Self::Utility1,
             Slot::Utility2 => Self::Utility2,
+            Slot::Bag => Self::Bag,
+            Slot::Rune => Self::Rune,
         }
     }
 }

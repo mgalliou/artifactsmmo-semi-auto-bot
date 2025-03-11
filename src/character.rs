@@ -13,7 +13,7 @@ use artifactsmmo_sdk::{
         CharacterData, HasCharacterData, Skill,
     },
     consts::{
-        BANK_MIN_FREE_SLOT, CRAFT_TIME, GIFT, MAX_LEVEL, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
+        BANK_MIN_FREE_SLOT, CRAFT_TIME, MAX_LEVEL, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
         TASKS_COIN, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE,
     },
     fight_simulator::FIGHT_SIMULATOR,
@@ -227,7 +227,7 @@ impl Character {
             ItemSource::Craft => self.can_craft(&order.item).is_ok(),
             ItemSource::TaskReward => order.in_progress() <= 0,
             ItemSource::Task => true,
-            ItemSource::Gift => true,
+            //ItemSource::Gift => true,
         })
     }
 
@@ -282,7 +282,7 @@ impl Character {
                 self.has_available(TASKS_COIN) >= TASK_EXCHANGE_PRICE + MIN_COIN_THRESHOLD
             }
             ItemSource::Task => self.has_available(&self.task()) >= self.task_missing(),
-            ItemSource::Gift => self.has_available(GIFT) > 0,
+            //ItemSource::Gift => self.has_available(GIFT) > 0,
         })
     }
 
@@ -316,7 +316,7 @@ impl Character {
                 ItemSource::Craft => self.progress_crafting_order(order),
                 ItemSource::TaskReward => self.progress_task_reward_order(order),
                 ItemSource::Task => self.progress_task_order(order),
-                ItemSource::Gift => self.progress_gift_order(order),
+                //ItemSource::Gift => self.progress_gift_order(order),
             })
     }
 
@@ -424,33 +424,33 @@ impl Character {
         }
     }
 
-    fn progress_gift_order(&self, order: &Order) -> Option<i32> {
-        match self.can_exchange_gift() {
-            Ok(()) => {
-                order.inc_in_progress(1);
-                let exchanged = self.exchange_gift().map(|r| r.amount_of(&order.item)).ok();
-                order.dec_in_progress(1);
-                exchanged
-            }
-            Err(e) => {
-                if ORDER_BOARD.total_missing_for(order) <= 0 {
-                    return None;
-                }
-                if let CharacterError::NotEnoughGift = e {
-                    let q = 1 - if ORDER_BOARD.is_ordered(GIFT) {
-                        0
-                    } else {
-                        self.has_in_bank_or_inv(GIFT)
-                    };
-                    return ORDER_BOARD
-                        .add(None, GIFT, q, order.purpose.to_owned())
-                        .ok()
-                        .map(|_| 0);
-                }
-                None
-            }
-        }
-    }
+    //fn progress_gift_order(&self, order: &Order) -> Option<i32> {
+    //    match self.can_exchange_gift() {
+    //        Ok(()) => {
+    //            order.inc_in_progress(1);
+    //            let exchanged = self.exchange_gift().map(|r| r.amount_of(&order.item)).ok();
+    //            order.dec_in_progress(1);
+    //            exchanged
+    //        }
+    //        Err(e) => {
+    //            if ORDER_BOARD.total_missing_for(order) <= 0 {
+    //                return None;
+    //            }
+    //            if let CharacterError::NotEnoughGift = e {
+    //                let q = 1 - if ORDER_BOARD.is_ordered(GIFT) {
+    //                    0
+    //                } else {
+    //                    self.has_in_bank_or_inv(GIFT)
+    //                };
+    //                return ORDER_BOARD
+    //                    .add(None, GIFT, q, order.purpose.to_owned())
+    //                    .ok()
+    //                    .map(|_| 0);
+    //            }
+    //            None
+    //        }
+    //    }
+    //}
 
     /// Deposit items requiered by the given `order` if needed.
     /// Returns true if items has be deposited.
@@ -629,45 +629,45 @@ impl Character {
         result
     }
 
-    fn can_exchange_gift(&self) -> Result<(), CharacterError> {
-        if self.inventory.total_of(GIFT) + BANK.has_available(GIFT, Some(&self.inner.name())) < 1 {
-            return Err(CharacterError::NotEnoughGift);
-        }
-        Ok(())
-    }
+    //fn can_exchange_gift(&self) -> Result<(), CharacterError> {
+    //    if self.inventory.total_of(GIFT) + BANK.has_available(GIFT, Some(&self.inner.name())) < 1 {
+    //        return Err(CharacterError::NotEnoughGift);
+    //    }
+    //    Ok(())
+    //}
 
-    fn exchange_gift(&self) -> Result<RewardsSchema, CharacterError> {
-        self.can_exchange_gift()?;
-        let quantity = min(
-            self.inventory.max_items() / 2,
-            BANK.has_available(GIFT, Some(&self.inner.name())),
-        );
-        if self.inventory.total_of(GIFT) >= 1 {
-            if let Err(e) = self.inventory.reserv(GIFT, self.inventory.total_of(GIFT)) {
-                error!(
-                    "{}: error while reserving gift in inventory: {}",
-                    self.inner.name(),
-                    e
-                );
-            }
-        } else {
-            if BANK.reserv(GIFT, quantity, &self.inner.name()).is_err() {
-                return Err(CharacterError::NotEnoughGift);
-            }
-            self.deposit_all();
-            self.withdraw_item(GIFT, quantity)?;
-        }
-        if let Err(e) = self.move_to_closest_map_of_type(ContentType::SantaClaus) {
-            error!(
-                "{}: error while moving to santa claus: {:?}",
-                self.inner.name(),
-                e
-            );
-        };
-        let result = self.inner.request_gift_exchange().map_err(|e| e.into());
-        self.inventory.decrease_reservation(GIFT, 1);
-        result
-    }
+    //fn exchange_gift(&self) -> Result<RewardsSchema, CharacterError> {
+    //    self.can_exchange_gift()?;
+    //    let quantity = min(
+    //        self.inventory.max_items() / 2,
+    //        BANK.has_available(GIFT, Some(&self.inner.name())),
+    //    );
+    //    if self.inventory.total_of(GIFT) >= 1 {
+    //        if let Err(e) = self.inventory.reserv(GIFT, self.inventory.total_of(GIFT)) {
+    //            error!(
+    //                "{}: error while reserving gift in inventory: {}",
+    //                self.inner.name(),
+    //                e
+    //            );
+    //        }
+    //    } else {
+    //        if BANK.reserv(GIFT, quantity, &self.inner.name()).is_err() {
+    //            return Err(CharacterError::NotEnoughGift);
+    //        }
+    //        self.deposit_all();
+    //        self.withdraw_item(GIFT, quantity)?;
+    //    }
+    //    if let Err(e) = self.move_to_closest_map_of_type(ContentType::SantaClaus) {
+    //        error!(
+    //            "{}: error while moving to santa claus: {:?}",
+    //            self.inner.name(),
+    //            e
+    //        );
+    //    };
+    //    let result = self.inner.request_gift_exchange().map_err(|e| e.into());
+    //    self.inventory.decrease_reservation(GIFT, 1);
+    //    result
+    //}
 
     fn cancel_task(&self) -> Result<(), CharacterError> {
         if BANK.has_available(TASKS_COIN, Some(&self.inner.name()))
@@ -907,7 +907,7 @@ impl Character {
                 ),
                 ItemSource::TaskReward => Some(2000),
                 ItemSource::Task => Some(2000),
-                ItemSource::Gift => Some(1000),
+                //ItemSource::Gift => Some(1000),
             })
             .min()
     }

@@ -449,10 +449,10 @@ impl BaseCharacter {
         Ok(())
     }
 
-    pub fn exchange_gift(&self) -> Result<RewardsSchema, GiftExchangeError> {
-        self.can_exchange_gift()?;
-        Ok(self.inner.request_gift_exchange()?)
-    }
+    //pub fn exchange_gift(&self) -> Result<RewardsSchema, GiftExchangeError> {
+    //    self.can_exchange_gift()?;
+    //    Ok(self.inner.request_gift_exchange()?)
+    //}
 
     pub fn can_exchange_gift(&self) -> Result<(), GiftExchangeError> {
         if self.inventory.total_of("tasks_coin") < 1 {

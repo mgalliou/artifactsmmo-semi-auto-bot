@@ -1,3 +1,7 @@
+[workspace]
+resolver = "2"
+members = ["api", "sdk"]
+
 [package]
 name = "artifactsmmo-semi-auto-bot"
 version = "0.1.0"
