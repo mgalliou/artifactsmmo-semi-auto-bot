@@ -1,9 +1,9 @@
-pub mod bot;
 pub mod account;
 pub mod bank;
+pub mod bot;
+pub mod bot_config;
 pub mod character;
 pub mod cli;
-pub mod bot_config;
 pub mod gear_finder;
 pub mod inventory;
 pub mod leveling_helper;

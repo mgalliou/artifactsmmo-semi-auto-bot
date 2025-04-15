@@ -1,5 +1,8 @@
 use artifactsmmo_sdk::{
-    base_bank::BaseBank, items::ItemSchemaExt, models::{BankSchema, ItemSchema, SimpleItemSchema}, ITEMS
+    base_bank::BaseBank,
+    items::ItemSchemaExt,
+    models::{BankSchema, ItemSchema, SimpleItemSchema},
+    ITEMS,
 };
 use itertools::Itertools;
 use log::info;

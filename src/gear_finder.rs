@@ -1,6 +1,11 @@
 use crate::{account::ACCOUNT, character::Character};
 use artifactsmmo_sdk::{
-    char::{HasCharacterData, Skill}, fight_simulator::FIGHT_SIMULATOR, gear::Gear, items::{ItemSchemaExt, Type}, models::{FightResult, ItemSchema, MonsterSchema}, FightSimulator, ITEMS
+    char::{HasCharacterData, Skill},
+    fight_simulator::FIGHT_SIMULATOR,
+    gear::Gear,
+    items::{ItemSchemaExt, Type},
+    models::{FightResult, ItemSchema, MonsterSchema},
+    FightSimulator, ITEMS, RESOURCES,
 };
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
@@ -529,6 +534,18 @@ impl GearFinder {
             .into_iter()
             .filter(|i| self.is_eligible(i, filter, char) && i.skill_cooldown_reduction(skill) < 0)
             .min_by_key(|i| i.skill_cooldown_reduction(skill))
+    }
+
+    pub fn best_tool_for_resource(&self, item: &str, level: i32) -> Option<Arc<ItemSchema>> {
+        match RESOURCES.get(item) {
+            //TODO improve filtering
+            Some(resource) => ITEMS
+                .equipable_at_level(level, Type::Weapon)
+                .into_iter()
+                .filter(|i| i.skill_cooldown_reduction(resource.skill.into()) < 0)
+                .min_by_key(|i| i.skill_cooldown_reduction(Skill::from(resource.skill))),
+            None => None,
+        }
     }
 
     fn is_eligible(&self, i: &ItemSchema, filter: Filter, char: &Character) -> bool {

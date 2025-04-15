@@ -1,12 +1,17 @@
+use crate::character::CharacterError;
+use artifactsmmo_sdk::{
+    char::CharacterData,
+    items::ItemSchemaExt,
+    models::{InventorySlot, ItemSchema},
+    ITEMS,
+};
 use core::fmt;
-use artifactsmmo_sdk::{char::CharacterData, items::ItemSchemaExt, models::{InventorySlot, ItemSchema}, ITEMS};
 use itertools::Itertools;
 use log::info;
 use std::{
     fmt::{Display, Formatter},
     sync::{Arc, RwLock},
 };
-use crate::character::CharacterError;
 
 #[derive(Default)]
 pub struct Inventory {

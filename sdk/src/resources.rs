@@ -1,20 +1,24 @@
-use crate::{events::EVENTS, PersistedData, API};
+use crate::{events::Events, PersistedData};
+use artifactsmmo_api_wrapper::ArtifactApi;
 use artifactsmmo_openapi::models::ResourceSchema;
 use itertools::Itertools;
 use std::{
     collections::HashMap,
-    sync::{Arc, LazyLock, RwLock},
+    sync::{Arc, RwLock},
 };
 
-pub static RESOURCES: LazyLock<Resources> = LazyLock::new(Resources::new);
-
-pub struct Resources(RwLock<HashMap<String, Arc<ResourceSchema>>>);
+pub struct Resources {
+    data: RwLock<HashMap<String, Arc<ResourceSchema>>>,
+    api: Arc<ArtifactApi>,
+    events: Arc<Events>,
+}
 
 impl PersistedData<HashMap<String, Arc<ResourceSchema>>> for Resources {
     const PATH: &'static str = ".cache/resources.json";
 
-    fn data_from_api() -> HashMap<String, Arc<ResourceSchema>> {
-        API.resources
+    fn data_from_api(&self) -> HashMap<String, Arc<ResourceSchema>> {
+        self.api
+            .resources
             .all(None, None, None, None)
             .unwrap()
             .into_iter()
@@ -23,21 +27,27 @@ impl PersistedData<HashMap<String, Arc<ResourceSchema>>> for Resources {
     }
 
     fn refresh_data(&self) {
-        *self.0.write().unwrap() = Self::data_from_api();
+        *self.data.write().unwrap() = self.data_from_api();
     }
 }
 
 impl Resources {
-    fn new() -> Self {
-        Self(RwLock::new(Self::retrieve_data()))
+    pub(crate) fn new(api: Arc<ArtifactApi>, events: Arc<Events>) -> Self {
+        let resources = Self {
+            data: Default::default(),
+            api,
+            events,
+        };
+        *resources.data.write().unwrap() = resources.retrieve_data();
+        resources
     }
 
     pub fn get(&self, code: &str) -> Option<Arc<ResourceSchema>> {
-        self.0.read().unwrap().get(code).cloned()
+        self.data.read().unwrap().get(code).cloned()
     }
 
     pub fn all(&self) -> Vec<Arc<ResourceSchema>> {
-        self.0.read().unwrap().values().cloned().collect_vec()
+        self.data.read().unwrap().values().cloned().collect_vec()
     }
 
     pub fn dropping(&self, item: &str) -> Vec<Arc<ResourceSchema>> {
@@ -48,7 +58,7 @@ impl Resources {
     }
 
     pub fn is_event(&self, code: &str) -> bool {
-        EVENTS.all().iter().any(|e| e.content.code == code)
+        self.events.all().iter().any(|e| e.content.code == code)
     }
 }
 

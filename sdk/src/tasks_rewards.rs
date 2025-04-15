@@ -1,17 +1,20 @@
-use crate::{PersistedData, API};
+use crate::PersistedData;
+use artifactsmmo_api_wrapper::ArtifactApi;
 use artifactsmmo_openapi::models::DropRateSchema;
 use itertools::Itertools;
-use std::sync::{Arc, LazyLock, RwLock};
+use std::sync::{Arc, RwLock};
 
-pub static TASKS_REWARDS: LazyLock<TasksRewards> = LazyLock::new(TasksRewards::new);
-
-pub struct TasksRewards(RwLock<Vec<Arc<DropRateSchema>>>);
+pub struct TasksRewards {
+    data: RwLock<Vec<Arc<DropRateSchema>>>,
+    api: Arc<ArtifactApi>,
+}
 
 impl PersistedData<Vec<Arc<DropRateSchema>>> for TasksRewards {
     const PATH: &'static str = ".cache/tasks_rewards.json";
 
-    fn data_from_api() -> Vec<Arc<DropRateSchema>> {
-        API.tasks
+    fn data_from_api(&self) -> Vec<Arc<DropRateSchema>> {
+        self.api
+            .tasks
             .rewards()
             .unwrap()
             .into_iter()
@@ -20,16 +23,21 @@ impl PersistedData<Vec<Arc<DropRateSchema>>> for TasksRewards {
     }
 
     fn refresh_data(&self) {
-        *self.0.write().unwrap() = Self::data_from_api();
+        *self.data.write().unwrap() = self.data_from_api();
     }
 }
 
 impl TasksRewards {
-    fn new() -> Self {
-        Self(RwLock::new(Self::retrieve_data()))
+    pub(crate) fn new(api: Arc<ArtifactApi>) -> Self {
+        let rewards = Self {
+            data: Default::default(),
+            api,
+        };
+        *rewards.data.write().unwrap() = rewards.retrieve_data();
+        rewards
     }
 
     pub fn all(&self) -> Vec<Arc<DropRateSchema>> {
-        self.0.read().unwrap().iter().cloned().collect_vec()
+        self.data.read().unwrap().iter().cloned().collect_vec()
     }
 }

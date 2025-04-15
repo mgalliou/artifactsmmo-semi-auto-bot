@@ -1,18 +1,21 @@
 use artifactsmmo_api_wrapper::ArtifactApi;
 use artifactsmmo_openapi::models::{FightSchema, RewardsSchema, SkillDataSchema, SkillInfoSchema};
+use events::Events;
 use fs_extra::file::{read_to_string, write_all};
+use items::Items;
 use log::error;
+use maps::Maps;
+use monsters::Monsters;
+use resources::Resources;
 use serde::{Deserialize, Serialize};
 use std::{
     path::Path,
-    sync::{LazyLock, OnceLock},
+    sync::{Arc, LazyLock, OnceLock},
 };
+use tasks_rewards::TasksRewards;
 
 pub use artifactsmmo_openapi::models;
 pub use fight_simulator::FightSimulator;
-pub use items::ITEMS;
-pub use maps::MAPS;
-pub use monsters::MONSTERS;
 
 pub mod base_bank;
 pub mod char;
@@ -32,11 +35,28 @@ pub mod tasks_rewards;
 static BASE_URL: OnceLock<String> = OnceLock::new();
 static TOKEN: OnceLock<String> = OnceLock::new();
 
-pub(crate) static API: LazyLock<ArtifactApi> = LazyLock::new(|| {
+pub(crate) static API: LazyLock<Arc<ArtifactApi>> = LazyLock::new(|| {
     let base_url = BASE_URL.get_or_init(|| "https://api.artifactsmmo.com".to_owned());
     let token = TOKEN.get_or_init(|| "".to_owned());
-    ArtifactApi::new(base_url.to_owned(), token.to_owned())
+    Arc::new(ArtifactApi::new(base_url.to_owned(), token.to_owned()))
 });
+
+pub static EVENTS: LazyLock<Arc<Events>> = LazyLock::new(|| Arc::new(Events::new(API.clone())));
+pub static RESOURCES: LazyLock<Arc<Resources>> =
+    LazyLock::new(|| Arc::new(Resources::new(API.clone(), EVENTS.clone())));
+pub static MONSTERS: LazyLock<Arc<Monsters>> =
+    LazyLock::new(|| Arc::new(Monsters::new(API.clone(), EVENTS.clone())));
+pub static TASKS_REWARDS: LazyLock<Arc<TasksRewards>> =
+    LazyLock::new(|| Arc::new(TasksRewards::new(API.clone())));
+pub static ITEMS: LazyLock<Items> = LazyLock::new(|| {
+    Items::new(
+        API.clone(),
+        RESOURCES.clone(),
+        MONSTERS.clone(),
+        TASKS_REWARDS.clone(),
+    )
+});
+pub static MAPS: LazyLock<Maps> = LazyLock::new(|| Maps::new(API.clone(), EVENTS.clone()));
 
 pub fn init(base_url: &str, token: &str) {
     BASE_URL.get_or_init(|| base_url.to_string());
@@ -46,19 +66,19 @@ pub fn init(base_url: &str, token: &str) {
 pub trait PersistedData<D: for<'a> Deserialize<'a> + Serialize> {
     const PATH: &'static str;
 
-    fn retrieve_data() -> D {
-        if let Ok(data) = Self::data_from_file::<D>() {
+    fn retrieve_data(&self) -> D {
+        if let Ok(data) = self.data_from_file::<D>() {
             data
         } else {
-            let data = Self::data_from_api();
+            let data = self.data_from_api();
             if let Err(e) = Self::persist_data(&data) {
                 error!("failed to persist data: {}", e);
             }
             data
         }
     }
-    fn data_from_api() -> D;
-    fn data_from_file<T: for<'a> Deserialize<'a>>() -> Result<T, Box<dyn std::error::Error>> {
+    fn data_from_api(&self) -> D;
+    fn data_from_file<T: for<'a> Deserialize<'a>>(&self) -> Result<T, Box<dyn std::error::Error>> {
         Ok(serde_json::from_str(&read_to_string(Path::new(
             Self::PATH,
         ))?)?)

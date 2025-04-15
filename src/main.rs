@@ -1,5 +1,10 @@
-use artifactsmmo_semi_auto_bot::{bot::Bot, bot_config::BOT_CONFIG, cli, orderboard::{Purpose, ORDER_BOARD}};
 use anyhow::Result;
+use artifactsmmo_semi_auto_bot::{
+    bot::Bot,
+    bot_config::BOT_CONFIG,
+    cli,
+    orderboard::{Purpose, ORDER_BOARD},
+};
 use log::LevelFilter;
 
 fn main() -> Result<()> {

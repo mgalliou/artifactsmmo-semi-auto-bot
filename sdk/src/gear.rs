@@ -420,8 +420,9 @@ impl From<Slot> for ItemSlot {
 
 #[cfg(test)]
 mod tests {
+    use crate::ITEMS;
+
     use super::*;
-    use crate::items::ITEMS;
 
     #[test]
     fn check_gear_alignment_is_working() {

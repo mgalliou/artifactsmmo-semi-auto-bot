@@ -2,8 +2,7 @@ use artifactsmmo_sdk::{
     char::{HasCharacterData, Skill},
     items::ItemSchemaExt,
     models::{ItemSchema, MonsterSchema, ResourceSchema},
-    resources::RESOURCES,
-    ITEMS, MAPS, MONSTERS,
+    ITEMS, MAPS, MONSTERS, RESOURCES,
 };
 use itertools::Itertools;
 use rayon::iter::{ParallelBridge, ParallelIterator};

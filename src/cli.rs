@@ -1,12 +1,22 @@
 use anyhow::{bail, Result};
 use artifactsmmo_sdk::{
-    char::{HasCharacterData, Skill}, events::{EventSchemaExt, EVENTS}, fight_simulator::FIGHT_SIMULATOR, ITEMS, MAPS, MONSTERS
+    char::{HasCharacterData, Skill},
+    events::EventSchemaExt,
+    fight_simulator::FIGHT_SIMULATOR,
+    EVENTS, ITEMS, MAPS, MONSTERS,
 };
 use clap::{value_parser, Parser, Subcommand};
 use rustyline::{error::ReadlineError, DefaultEditor};
 use std::{process::exit, str::FromStr, sync::Arc};
 
-use crate::{account::ACCOUNT, bank::BANK, character::{Character, PostCraftAction}, gear_finder::{Filter, GEAR_FINDER}, leveling_helper::LEVELING_HELPER, orderboard::{Purpose, ORDER_BOARD}};
+use crate::{
+    account::ACCOUNT,
+    bank::BANK,
+    character::{Character, PostCraftAction},
+    gear_finder::{Filter, GEAR_FINDER},
+    leveling_helper::LEVELING_HELPER,
+    orderboard::{Purpose, ORDER_BOARD},
+};
 
 pub fn run() -> Result<()> {
     let mut rl = DefaultEditor::new()?;

@@ -1,20 +1,24 @@
-use crate::{events::EVENTS, items::DamageType, PersistedData, API};
+use crate::{events::Events, items::DamageType, PersistedData};
+use artifactsmmo_api_wrapper::ArtifactApi;
 use artifactsmmo_openapi::models::MonsterSchema;
 use itertools::Itertools;
 use std::{
     collections::HashMap,
-    sync::{Arc, LazyLock, RwLock},
+    sync::{Arc, RwLock},
 };
 
-pub static MONSTERS: LazyLock<Monsters> = LazyLock::new(Monsters::new);
-
-pub struct Monsters(RwLock<HashMap<String, Arc<MonsterSchema>>>);
+pub struct Monsters {
+    data: RwLock<HashMap<String, Arc<MonsterSchema>>>,
+    api: Arc<ArtifactApi>,
+    events: Arc<Events>,
+}
 
 impl PersistedData<HashMap<String, Arc<MonsterSchema>>> for Monsters {
     const PATH: &'static str = ".cache/monsters.json";
 
-    fn data_from_api() -> HashMap<String, Arc<MonsterSchema>> {
-        API.monsters
+    fn data_from_api(&self) -> HashMap<String, Arc<MonsterSchema>> {
+        self.api
+            .monsters
             .all(None, None, None)
             .unwrap()
             .into_iter()
@@ -23,21 +27,27 @@ impl PersistedData<HashMap<String, Arc<MonsterSchema>>> for Monsters {
     }
 
     fn refresh_data(&self) {
-        *self.0.write().unwrap() = Self::data_from_api();
+        *self.data.write().unwrap() = self.data_from_api();
     }
 }
 
 impl Monsters {
-    fn new() -> Self {
-        Self(RwLock::new(Self::retrieve_data()))
+    pub(crate) fn new(api: Arc<ArtifactApi>, events: Arc<Events>) -> Self {
+        let monsters = Self {
+            data: Default::default(),
+            api,
+            events,
+        };
+        *monsters.data.write().unwrap() = monsters.retrieve_data();
+        monsters
     }
 
     pub fn get(&self, code: &str) -> Option<Arc<MonsterSchema>> {
-        self.0.read().unwrap().get(code).cloned()
+        self.data.read().unwrap().get(code).cloned()
     }
 
     pub fn all(&self) -> Vec<Arc<MonsterSchema>> {
-        self.0.read().unwrap().values().cloned().collect_vec()
+        self.data.read().unwrap().values().cloned().collect_vec()
     }
 
     pub fn dropping(&self, item: &str) -> Vec<Arc<MonsterSchema>> {
@@ -63,7 +73,7 @@ impl Monsters {
     }
 
     pub fn is_event(&self, code: &str) -> bool {
-        EVENTS.all().iter().any(|e| e.content.code == code)
+        self.events.all().iter().any(|e| e.content.code == code)
     }
 }
 
@@ -104,6 +114,8 @@ impl MonsterSchemaExt for MonsterSchema {
 
 #[cfg(test)]
 mod tests {
+    use crate::MONSTERS;
+
     use super::*;
 
     #[test]

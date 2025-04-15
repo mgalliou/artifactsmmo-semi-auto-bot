@@ -18,12 +18,13 @@ use artifactsmmo_sdk::{
     },
     fight_simulator::FIGHT_SIMULATOR,
     gear::{Gear, Slot},
-    items::{ItemSchemaExt, ItemSource, Type},
+    items::{ItemSchemaExt, ItemSource},
     maps::MapSchemaExt,
     models::{
-        CharacterSchema, FightResult, FightSchema, ItemSchema, MapContentType, MapSchema, MonsterSchema, RecyclingItemsSchema, ResourceSchema, RewardsSchema, SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType
+        CharacterSchema, FightResult, FightSchema, ItemSchema, MapContentType, MapSchema,
+        MonsterSchema, RecyclingItemsSchema, ResourceSchema, RewardsSchema, SimpleItemSchema,
+        SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
     },
-    resources::RESOURCES,
     FightSimulator, HasDrops, ITEMS, MAPS, MONSTERS,
 };
 use itertools::Itertools;
@@ -876,7 +877,7 @@ impl Character {
         if self.can_gather(resource).is_err() {
             return None;
         }
-        let tool = self.best_tool_for_resource(&resource.code);
+        let tool = GEAR_FINDER.best_tool_for_resource(&resource.code, self.level());
         let time = FIGHT_SIMULATOR.gather(
             self.skill_level(resource.skill.into()),
             resource.level,
@@ -1555,18 +1556,6 @@ impl Character {
                     );
                 }
             }
-        }
-    }
-
-    fn best_tool_for_resource(&self, item: &str) -> Option<Arc<ItemSchema>> {
-        match RESOURCES.get(item) {
-            //TODO improve filtering
-            Some(resource) => ITEMS
-                .equipable_at_level(self.level(), Type::Weapon)
-                .into_iter()
-                .filter(|i| i.skill_cooldown_reduction(resource.skill.into()) < 0)
-                .min_by_key(|i| i.skill_cooldown_reduction(Skill::from(resource.skill))),
-            None => None,
         }
     }
 

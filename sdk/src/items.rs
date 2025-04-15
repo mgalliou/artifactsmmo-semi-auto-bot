@@ -5,11 +5,12 @@ use crate::{
         MAGICAL_CURE, TASKS_COIN,
     },
     gear::Slot,
-    monsters::{MonsterSchemaExt, MONSTERS},
-    resources::{ResourceSchemaExt, RESOURCES},
-    tasks_rewards::TASKS_REWARDS,
-    FightSimulator, PersistedData, API,
+    monsters::{MonsterSchemaExt, Monsters},
+    resources::{ResourceSchemaExt, Resources},
+    tasks_rewards::TasksRewards,
+    FightSimulator, PersistedData,
 };
+use artifactsmmo_api_wrapper::ArtifactApi;
 use artifactsmmo_openapi::models::{
     CraftSchema, ItemSchema, MonsterSchema, ResourceSchema, SimpleEffectSchema, SimpleItemSchema,
 };
@@ -19,21 +20,26 @@ use std::{
     collections::HashMap,
     fmt,
     str::FromStr,
-    sync::{Arc, LazyLock, RwLock},
+    sync::{Arc, RwLock},
     vec::Vec,
 };
 use strum::IntoEnumIterator;
 use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
 
-pub static ITEMS: LazyLock<Items> = LazyLock::new(Items::new);
-
-pub struct Items(RwLock<HashMap<String, Arc<ItemSchema>>>);
+pub struct Items {
+    data: RwLock<HashMap<String, Arc<ItemSchema>>>,
+    api: Arc<ArtifactApi>,
+    resources: Arc<Resources>,
+    monsters: Arc<Monsters>,
+    tasks_rewards: Arc<TasksRewards>,
+}
 
 impl PersistedData<HashMap<String, Arc<ItemSchema>>> for Items {
     const PATH: &'static str = ".cache/items.json";
 
-    fn data_from_api() -> HashMap<String, Arc<ItemSchema>> {
-        API.items
+    fn data_from_api(&self) -> HashMap<String, Arc<ItemSchema>> {
+        self.api
+            .items
             .all(None, None, None, None, None, None)
             .unwrap()
             .into_iter()
@@ -42,22 +48,35 @@ impl PersistedData<HashMap<String, Arc<ItemSchema>>> for Items {
     }
 
     fn refresh_data(&self) {
-        *self.0.write().unwrap() = Self::data_from_api();
+        *self.data.write().unwrap() = self.data_from_api();
     }
 }
 
 impl Items {
-    fn new() -> Self {
-        Self(RwLock::new(Self::retrieve_data()))
+    pub(crate) fn new(
+        api: Arc<ArtifactApi>,
+        resources: Arc<Resources>,
+        monsters: Arc<Monsters>,
+        tasks_rewards: Arc<TasksRewards>,
+    ) -> Self {
+        let items = Self {
+            data: Default::default(),
+            api,
+            resources,
+            monsters,
+            tasks_rewards,
+        };
+        *items.data.write().unwrap() = items.retrieve_data();
+        items
     }
 
     /// Takes an item `code` and return its schema.
     pub fn get(&self, code: &str) -> Option<Arc<ItemSchema>> {
-        self.0.read().unwrap().get(code).cloned()
+        self.data.read().unwrap().get(code).cloned()
     }
 
     pub fn all(&self) -> Vec<Arc<ItemSchema>> {
-        self.0.read().unwrap().values().cloned().collect_vec()
+        self.data.read().unwrap().values().cloned().collect_vec()
     }
 
     /// Takes an item `code` and return the mats required to craft it.
@@ -92,7 +111,7 @@ impl Items {
     /// Takes an `resource` code and returns the items that can be crafted
     /// from the base mats it drops.
     pub fn crafted_from_resource(&self, resource: &str) -> Vec<Arc<ItemSchema>> {
-        RESOURCES
+        self.resources
             .get(resource)
             .iter()
             .flat_map(|r| {
@@ -188,11 +207,11 @@ impl Items {
     /// Takes an item `code` and returns the best (lowest value) drop rate from
     /// `Monsters` or `Resources`
     pub fn drop_rate(&self, code: &str) -> i32 {
-        MONSTERS
+        self.monsters
             .dropping(code)
             .iter()
             .flat_map(|m| &m.drops)
-            .chain(RESOURCES.dropping(code).iter().flat_map(|m| &m.drops))
+            .chain(self.resources.dropping(code).iter().flat_map(|m| &m.drops))
             .find(|d| d.code == code)
             .map_or(0, |d| {
                 (d.rate as f32 * ((d.min_quantity + d.max_quantity) as f32 / 2.0)).round() as i32
@@ -266,7 +285,9 @@ impl Items {
     /// or the character level/skill_level/gear.
     pub fn best_source_of(&self, code: &str) -> Option<ItemSource> {
         if code == "gift" {
-            return Some(ItemSource::Monster(MONSTERS.get("gingerbread").unwrap()));
+            return Some(ItemSource::Monster(
+                self.monsters.get("gingerbread").unwrap(),
+            ));
         }
         let sources = self.sources_of(code);
         if sources.iter().all(|s| s.is_resource() || s.is_monster()) {
@@ -286,13 +307,14 @@ impl Items {
     }
 
     pub fn sources_of(&self, code: &str) -> Vec<ItemSource> {
-        let mut sources = RESOURCES
+        let mut sources = self
+            .resources
             .dropping(code)
             .into_iter()
             .map(ItemSource::Resource)
             .collect_vec();
         sources.extend(
-            MONSTERS
+            self.monsters
                 .dropping(code)
                 .into_iter()
                 .map(ItemSource::Monster)
@@ -301,7 +323,7 @@ impl Items {
         if self.get(code).is_some_and(|i| i.craft_schema().is_some()) {
             sources.push(ItemSource::Craft);
         }
-        if TASKS_REWARDS.all().iter().any(|r| r.code == code) {
+        if self.tasks_rewards.all().iter().any(|r| r.code == code) {
             sources.push(ItemSource::TaskReward);
         }
         if code == TASKS_COIN {
@@ -347,8 +369,8 @@ impl Items {
     pub fn is_from_event(&self, code: &str) -> bool {
         self.get(code).map_or(false, |i| {
             self.sources_of(&i.code).iter().any(|s| match s {
-                ItemSource::Resource(r) => RESOURCES.is_event(&r.code),
-                ItemSource::Monster(m) => MONSTERS.is_event(&m.code),
+                ItemSource::Resource(r) => self.resources.is_event(&r.code),
+                ItemSource::Monster(m) => self.monsters.is_event(&m.code),
                 ItemSource::Craft => false,
                 ItemSource::TaskReward => false,
                 ItemSource::Task => false,
@@ -666,8 +688,9 @@ pub enum ItemSource {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::monsters::MONSTERS;
+    use itertools::Itertools;
+
+    use crate::{items::ItemSchemaExt, ITEMS, MONSTERS};
 
     #[test]
     fn potential_upgrade() {

@@ -1,37 +1,41 @@
-use crate::{char::Skill, events::EVENTS, resources::RESOURCES, API, MONSTERS};
+use crate::{char::Skill, events::Events, EVENTS, MAPS, MONSTERS, RESOURCES};
+use artifactsmmo_api_wrapper::ArtifactApi;
 use artifactsmmo_openapi::models::{
     MapContentSchema, MapContentType, MapSchema, MonsterSchema, ResourceSchema, TaskType,
 };
 use chrono::{DateTime, Utc};
 use std::{
     collections::HashMap,
-    sync::{Arc, LazyLock, RwLock},
+    sync::{Arc, RwLock},
 };
 
-pub static MAPS: LazyLock<Maps> = LazyLock::new(Maps::new);
-
-pub struct Maps(HashMap<(i32, i32), RwLock<Arc<MapSchema>>>);
+pub struct Maps {
+    data: HashMap<(i32, i32), RwLock<Arc<MapSchema>>>,
+    events: Arc<Events>,
+}
 
 impl Maps {
-    fn new() -> Self {
-        Self(
-            API.maps
+    pub(crate) fn new(api: Arc<ArtifactApi>, events: Arc<Events>) -> Self {
+        Self {
+            data: api
+                .maps
                 .all(None, None)
                 .unwrap()
                 .into_iter()
                 .map(|m| ((m.x, m.y), RwLock::new(Arc::new(m))))
                 .collect(),
-        )
+            events,
+        }
     }
 
     pub fn get(&self, x: i32, y: i32) -> Option<Arc<MapSchema>> {
-        Some(self.0.get(&(x, y))?.read().unwrap().clone())
+        Some(self.data.get(&(x, y))?.read().unwrap().clone())
     }
 
     pub fn refresh_from_events(&self) {
-        EVENTS.active().iter().for_each(|e| {
+        self.events.active().iter().for_each(|e| {
             if DateTime::parse_from_rfc3339(&e.expiration).unwrap() < Utc::now() {
-                if let Some(map) = self.0.get(&(e.map.x, e.map.y)) {
+                if let Some(map) = self.data.get(&(e.map.x, e.map.y)) {
                     let mut new_map = (*map.read().unwrap().clone()).clone();
                     new_map.content = None;
                     new_map.skin = e.previous_skin.clone();
@@ -42,7 +46,7 @@ impl Maps {
         EVENTS.refresh_active();
         EVENTS.active().iter().for_each(|e| {
             if DateTime::parse_from_rfc3339(&e.expiration).unwrap() > Utc::now() {
-                if let Some(map) = self.0.get(&(e.map.x, e.map.y)) {
+                if let Some(map) = self.data.get(&(e.map.x, e.map.y)) {
                     let mut new_map = (*map.read().unwrap().clone()).clone();
                     new_map.content = e.map.content.clone();
                     new_map.skin = e.map.skin.clone();
@@ -62,7 +66,7 @@ impl Maps {
     }
 
     pub fn of_type(&self, r#type: MapContentType) -> Vec<Arc<MapSchema>> {
-        self.0
+        self.data
             .values()
             .filter(|m| {
                 m.read()
@@ -76,7 +80,7 @@ impl Maps {
     }
 
     pub fn with_content_code(&self, code: &str) -> Vec<Arc<MapSchema>> {
-        self.0
+        self.data
             .values()
             .filter(|m| m.read().unwrap().content_code_is(code))
             .map(|m| m.read().unwrap().clone())
@@ -84,7 +88,7 @@ impl Maps {
     }
 
     pub fn with_content_schema(&self, schema: &MapContentSchema) -> Vec<Arc<MapSchema>> {
-        self.0
+        self.data
             .values()
             .filter(|m| m.read().unwrap().content().is_some_and(|c| c == schema))
             .map(|m| m.read().unwrap().clone())

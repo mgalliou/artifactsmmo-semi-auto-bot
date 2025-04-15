@@ -1,14 +1,14 @@
 use crate::{PersistedData, API};
+use artifactsmmo_api_wrapper::ArtifactApi;
 use artifactsmmo_openapi::models::{ActiveEventSchema, EventSchema};
 use chrono::{DateTime, Duration, Utc};
 use itertools::Itertools;
 use log::debug;
-use std::sync::{Arc, LazyLock, RwLock};
-
-pub static EVENTS: LazyLock<Events> = LazyLock::new(Events::new);
+use std::sync::{Arc, RwLock};
 
 pub struct Events {
     data: RwLock<Vec<Arc<EventSchema>>>,
+    api: Arc<ArtifactApi>,
     active: RwLock<Vec<Arc<ActiveEventSchema>>>,
     last_refresh: RwLock<DateTime<Utc>>,
 }
@@ -16,8 +16,9 @@ pub struct Events {
 impl PersistedData<Vec<Arc<EventSchema>>> for Events {
     const PATH: &'static str = ".cache/events.json";
 
-    fn data_from_api() -> Vec<Arc<EventSchema>> {
-        API.events
+    fn data_from_api(&self) -> Vec<Arc<EventSchema>> {
+        self.api
+            .events
             .all()
             .unwrap()
             .into_iter()
@@ -26,17 +27,19 @@ impl PersistedData<Vec<Arc<EventSchema>>> for Events {
     }
 
     fn refresh_data(&self) {
-        *self.data.write().unwrap() = Self::data_from_api();
+        *self.data.write().unwrap() = self.data_from_api();
     }
 }
 
 impl Events {
-    fn new() -> Self {
+    pub(crate) fn new(api: Arc<ArtifactApi>) -> Self {
         let events = Self {
-            data: RwLock::new(Self::retrieve_data()),
+            data: RwLock::new(vec![]),
+            api,
             active: RwLock::new(vec![]),
             last_refresh: RwLock::new(DateTime::<Utc>::MIN_UTC),
         };
+        *events.data.write().unwrap() = events.retrieve_data();
         events.refresh_active();
         events
     }

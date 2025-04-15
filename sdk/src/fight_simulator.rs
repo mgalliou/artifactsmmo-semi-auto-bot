@@ -107,8 +107,9 @@ pub struct Fight {
 
 #[cfg(test)]
 mod tests {
+    use crate::{ITEMS, MONSTERS};
+
     use super::*;
-    use crate::{items::ITEMS, monsters::MONSTERS};
 
     #[test]
     fn gather() {

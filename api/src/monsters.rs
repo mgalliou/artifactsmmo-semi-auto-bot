@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use artifactsmmo_openapi::{
     apis::{
         configuration::Configuration,
@@ -10,6 +9,7 @@ use artifactsmmo_openapi::{
     },
     models::{MonsterResponseSchema, MonsterSchema},
 };
+use std::sync::Arc;
 
 pub struct MonstersApi {
     configuration: Arc<Configuration>,
