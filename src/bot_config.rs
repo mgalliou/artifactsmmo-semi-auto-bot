@@ -1,9 +1,14 @@
 use artifactsmmo_sdk::{char::Skill, models::TaskType};
-use figment::providers::{Format, Toml};
-use figment::Figment;
+use figment::{
+    providers::{Format, Toml},
+    Figment,
+};
 use serde::Deserialize;
-use std::sync::{LazyLock, RwLock};
-use std::{collections::HashSet, fmt::Display};
+use std::{
+    collections::HashSet,
+    fmt::Display,
+    sync::{LazyLock, RwLock},
+};
 use strum_macros::{AsRefStr, EnumIs, EnumIter, EnumString};
 
 pub static BOT_CONFIG: LazyLock<BotConfig> = LazyLock::new(BotConfig::from_file);
@@ -12,6 +17,7 @@ pub static BOT_CONFIG: LazyLock<BotConfig> = LazyLock::new(BotConfig::from_file)
 pub struct BotConfig {
     pub base_url: String,
     pub token: String,
+    pub account_name: String,
     pub characters: Vec<RwLock<CharConfig>>,
 }
 

@@ -1,5 +1,5 @@
 use artifactsmmo_sdk::{
-    char::{HasCharacterData, Skill, CHARACTERS_DATA},
+    char::{Skill, HasCharacterData, CHARACTERS_DATA},
     items::ItemSource,
     models::SimpleItemSchema,
     ITEMS,

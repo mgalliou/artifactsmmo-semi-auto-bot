@@ -1,6 +1,7 @@
 use artifactsmmo_openapi::apis::configuration::Configuration;
 use std::sync::Arc;
 
+pub use account::AccountApi;
 pub use bank::BankApi;
 pub use characters::CharactersApi;
 pub use events::EventsApi;
@@ -12,6 +13,7 @@ pub use resources::ResourcesApi;
 pub use server::ServerApi;
 pub use tasks::TasksApi;
 
+pub mod account;
 pub mod bank;
 pub mod characters;
 pub mod events;
@@ -24,6 +26,7 @@ pub mod server;
 pub mod tasks;
 
 pub struct ArtifactApi {
+    pub account: AccountApi,
     pub bank: BankApi,
     pub character: CharactersApi,
     pub events: EventsApi,
@@ -49,6 +52,7 @@ impl ArtifactApi {
             c
         });
         Self {
+            account: AccountApi::new(auth_conf.clone()),
             bank: BankApi::new(auth_conf.clone()),
             character: CharactersApi::new(conf.clone()),
             events: EventsApi::new(conf.clone()),

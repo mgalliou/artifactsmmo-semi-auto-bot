@@ -34,6 +34,7 @@ pub mod tasks_rewards;
 
 static BASE_URL: OnceLock<String> = OnceLock::new();
 static TOKEN: OnceLock<String> = OnceLock::new();
+static ACCOUNT_NAME: OnceLock<String> = OnceLock::new();
 
 pub(crate) static API: LazyLock<Arc<ArtifactApi>> = LazyLock::new(|| {
     let base_url = BASE_URL.get_or_init(|| "https://api.artifactsmmo.com".to_owned());
@@ -58,9 +59,10 @@ pub static ITEMS: LazyLock<Items> = LazyLock::new(|| {
 });
 pub static MAPS: LazyLock<Maps> = LazyLock::new(|| Maps::new(API.clone(), EVENTS.clone()));
 
-pub fn init(base_url: &str, token: &str) {
-    BASE_URL.get_or_init(|| base_url.to_string());
-    TOKEN.get_or_init(|| token.to_string());
+pub fn init(base_url: String, token: String, account_name: String) {
+    BASE_URL.get_or_init(|| base_url);
+    TOKEN.get_or_init(|| token);
+    ACCOUNT_NAME.get_or_init(|| account_name);
 }
 
 pub trait PersistedData<D: for<'a> Deserialize<'a> + Serialize> {

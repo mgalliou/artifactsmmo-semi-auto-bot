@@ -1,6 +1,6 @@
 use crate::{
     gear::{Gear, Slot},
-    API, ITEMS, MAPS,
+    ACCOUNT_NAME, API, ITEMS, MAPS,
 };
 use artifactsmmo_openapi::models::{CharacterSchema, ItemSchema, MapSchema, TaskType};
 use chrono::{DateTime, Utc};
@@ -20,8 +20,8 @@ pub mod skill;
 pub type CharacterData = Arc<RwLock<Arc<CharacterSchema>>>;
 
 pub static CHARACTERS_DATA: LazyLock<HashMap<usize, CharacterData>> = LazyLock::new(|| {
-    API.my_character
-        .characters()
+    API.account
+        .characters(ACCOUNT_NAME.get().unwrap())
         .unwrap()
         .data
         .into_iter()

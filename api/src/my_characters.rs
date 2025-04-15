@@ -19,7 +19,7 @@ use artifactsmmo_openapi::{
             action_use_item_my_name_action_use_post,
             action_withdraw_bank_gold_my_name_action_bank_withdraw_gold_post,
             action_withdraw_bank_my_name_action_bank_withdraw_post,
-            get_my_characters_my_characters_get, ActionAcceptNewTaskMyNameActionTaskNewPostError,
+            ActionAcceptNewTaskMyNameActionTaskNewPostError,
             ActionBuyBankExpansionMyNameActionBankBuyExpansionPostError,
             ActionCompleteTaskMyNameActionTaskCompletePostError,
             ActionCraftingMyNameActionCraftingPostError,
@@ -35,7 +35,6 @@ use artifactsmmo_openapi::{
             ActionUnequipItemMyNameActionUnequipPostError, ActionUseItemMyNameActionUsePostError,
             ActionWithdrawBankGoldMyNameActionBankWithdrawGoldPostError,
             ActionWithdrawBankMyNameActionBankWithdrawPostError,
-            GetMyCharactersMyCharactersGetError,
         },
         Error,
     },
@@ -44,8 +43,8 @@ use artifactsmmo_openapi::{
         BankItemTransactionResponseSchema, CharacterFightResponseSchema,
         CharacterMovementResponseSchema, CharacterRestResponseSchema, CraftingSchema,
         DeleteItemResponseSchema, DepositWithdrawGoldSchema, DestinationSchema, EquipSchema,
-        EquipmentResponseSchema, ItemSlot, MyCharactersListSchema, RecyclingResponseSchema,
-        RecyclingSchema, RewardDataResponseSchema, SimpleItemSchema, SkillResponseSchema,
+        EquipmentResponseSchema, ItemSlot, RecyclingResponseSchema, RecyclingSchema,
+        RewardDataResponseSchema, SimpleItemSchema, SkillResponseSchema,
         TaskCancelledResponseSchema, TaskResponseSchema, TaskTradeResponseSchema, UnequipSchema,
         UseItemResponseSchema,
     },
@@ -59,12 +58,6 @@ pub struct MyCharacterApi {
 impl MyCharacterApi {
     pub(crate) fn new(configuration: Arc<Configuration>) -> Self {
         MyCharacterApi { configuration }
-    }
-
-    pub fn characters(
-        &self,
-    ) -> Result<MyCharactersListSchema, Error<GetMyCharactersMyCharactersGetError>> {
-        get_my_characters_my_characters_get(&self.configuration)
     }
 
     pub fn move_to(
@@ -296,10 +289,4 @@ impl MyCharacterApi {
     //> {
     //    action_christmas_exchange_my_name_action_christmas_exchange_post(&self.configuration, name)
     //}
-
-    pub fn all(
-        &self,
-    ) -> Result<MyCharactersListSchema, Error<GetMyCharactersMyCharactersGetError>> {
-        get_my_characters_my_characters_get(&self.configuration)
-    }
 }

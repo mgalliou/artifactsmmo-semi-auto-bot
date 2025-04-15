@@ -9,7 +9,11 @@ use log::LevelFilter;
 
 fn main() -> Result<()> {
     simple_logging::log_to_file("artifactsmmo.log", LevelFilter::Info)?;
-    artifactsmmo_sdk::init(&BOT_CONFIG.base_url, &BOT_CONFIG.token);
+    artifactsmmo_sdk::init(
+        BOT_CONFIG.base_url.clone(),
+        BOT_CONFIG.token.clone(),
+        BOT_CONFIG.account_name.clone(),
+    );
     //game.orderboard
     //    .add(None, "lizard_skin", 1000, Purpose::Cli)?;
     //game.orderboard
