@@ -26,7 +26,7 @@ impl EventsApi {
         let mut finished = false;
         while !finished {
             let resp =
-                get_all_events_events_get(&self.configuration, Some(current_page), Some(100));
+                get_all_events_events_get(&self.configuration, None, Some(current_page), Some(100));
             match resp {
                 Ok(resp) => {
                     events.extend(resp.data);

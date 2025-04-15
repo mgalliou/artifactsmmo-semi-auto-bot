@@ -7,14 +7,14 @@ use crate::{
     base_bank::{BaseBank, BASE_BANK},
     gear::Slot,
     items::ItemSchemaExt,
-    maps::{ContentType, MapSchemaExt},
+    maps::MapSchemaExt,
     monsters::MonsterSchemaExt,
     resources::ResourceSchemaExt,
     ITEMS, MAPS,
 };
 use artifactsmmo_openapi::models::{
-    CharacterSchema, FightSchema, MapSchema, RecyclingItemsSchema, RewardsSchema, SimpleItemSchema,
-    SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema,
+    CharacterSchema, FightSchema, MapContentType, MapSchema, RecyclingItemsSchema, RewardsSchema,
+    SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema,
 };
 use derive_more::TryFrom;
 use sdk_derive::FromRequestError;
@@ -219,7 +219,7 @@ impl BaseCharacter {
         if self.inventory.free_space() < quantity {
             return Err(WithdrawError::InsufficientInventorySpace);
         }
-        if !self.map().content_type_is(ContentType::Bank) {
+        if !self.map().content_type_is(MapContentType::Bank) {
             return Err(WithdrawError::NoBankOnMap);
         }
         Ok(())
@@ -244,7 +244,7 @@ impl BaseCharacter {
         if self.bank.total_of(item_code) <= 0 && self.bank.free_slots() <= 0 {
             return Err(DepositError::InsufficientBankSpace);
         }
-        if !self.map().content_type_is(ContentType::Bank) {
+        if !self.map().content_type_is(MapContentType::Bank) {
             return Err(DepositError::NoBankOnMap);
         }
         Ok(())
@@ -259,7 +259,7 @@ impl BaseCharacter {
         if self.bank.gold() < quantity {
             return Err(GoldWithdrawError::InsufficientGold);
         }
-        if !self.map().content_type_is(ContentType::Bank) {
+        if !self.map().content_type_is(MapContentType::Bank) {
             return Err(GoldWithdrawError::NoBankOnMap);
         }
         Ok(())
@@ -274,7 +274,7 @@ impl BaseCharacter {
         if self.gold() < quantity {
             return Err(GoldDepositError::InsufficientGold);
         }
-        if !self.map().content_type_is(ContentType::Bank) {
+        if !self.map().content_type_is(MapContentType::Bank) {
             return Err(GoldDepositError::NoBankOnMap);
         }
         Ok(())
@@ -289,7 +289,7 @@ impl BaseCharacter {
         if self.gold() < self.bank.details().next_expansion_cost {
             return Err(BankExpansionError::InsufficientGold);
         }
-        if !self.map().content_type_is(ContentType::Bank) {
+        if !self.map().content_type_is(MapContentType::Bank) {
             return Err(BankExpansionError::NoBankOnMap);
         }
         Ok(())
@@ -354,7 +354,7 @@ impl BaseCharacter {
         if !self.task().is_empty() {
             return Err(TaskAcceptationError::TaskAlreadyInProgress);
         }
-        if !self.map().content_type_is(ContentType::TasksMaster) {
+        if !self.map().content_type_is(MapContentType::TasksMaster) {
             return Err(TaskAcceptationError::NoTasksMasterOnMap);
         }
         Ok(())
@@ -382,7 +382,7 @@ impl BaseCharacter {
         if self.task_missing() < quantity {
             return Err(TaskTradeError::SuperfluousQuantity);
         }
-        if !self.map().content_type_is(ContentType::TasksMaster)
+        if !self.map().content_type_is(MapContentType::TasksMaster)
             || !self.map().content_code_is("items")
         {
             return Err(TaskTradeError::WrongOrNoTasksMasterOnMap);
@@ -405,7 +405,7 @@ impl BaseCharacter {
         if self.inventory.free_space() < 2 {
             return Err(TaskCompletionError::InsufficientInventorySpace);
         }
-        if !self.map().content_type_is(ContentType::TasksMaster)
+        if !self.map().content_type_is(MapContentType::TasksMaster)
             || !self.map().content_code_is(&task_type.to_string())
         {
             return Err(TaskCompletionError::WrongOrNoTasksMasterOnMap);
@@ -425,7 +425,7 @@ impl BaseCharacter {
         if self.inventory.total_of("tasks_coin") < 1 {
             return Err(TaskCancellationError::InsufficientTasksCoinQuantity);
         }
-        if !self.map().content_type_is(ContentType::TasksMaster)
+        if !self.map().content_type_is(MapContentType::TasksMaster)
             || !self.map().content_code_is(&task_type.to_string())
         {
             return Err(TaskCancellationError::WrongOrNoTasksMasterOnMap);
@@ -442,7 +442,7 @@ impl BaseCharacter {
         if self.inventory.total_of("tasks_coin") < 6 {
             return Err(TasksCoinExchangeError::InsufficientTasksCoinQuantity);
         }
-        if !self.map().content_type_is(ContentType::TasksMaster) {
+        if !self.map().content_type_is(MapContentType::TasksMaster) {
             return Err(TasksCoinExchangeError::NoTasksMasterOnMap);
         }
         // TODO: check for conditions when InsufficientInventorySpace can happen
@@ -454,16 +454,16 @@ impl BaseCharacter {
     //    Ok(self.inner.request_gift_exchange()?)
     //}
 
-    pub fn can_exchange_gift(&self) -> Result<(), GiftExchangeError> {
-        if self.inventory.total_of("tasks_coin") < 1 {
-            return Err(GiftExchangeError::InsufficientGiftQuantity);
-        }
-        if !self.map().content_type_is(ContentType::SantaClaus) {
-            return Err(GiftExchangeError::NoSantaClausOnMap);
-        }
-        // TODO: check for conditions when InsufficientInventorySpace can happen
-        Ok(())
-    }
+    // pub fn can_exchange_gift(&self) -> Result<(), GiftExchangeError> {
+    //     if self.inventory.total_of("tasks_coin") < 1 {
+    //         return Err(GiftExchangeError::InsufficientGiftQuantity);
+    //     }
+    //     if !self.map().content_type_is(MapContentType::SantaClaus) {
+    //         return Err(GiftExchangeError::NoSantaClausOnMap);
+    //     }
+    //     // TODO: check for conditions when InsufficientInventorySpace can happen
+    //     Ok(())
+    // }
 }
 
 impl HasCharacterData for BaseCharacter {

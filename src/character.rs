@@ -19,11 +19,9 @@ use artifactsmmo_sdk::{
     fight_simulator::FIGHT_SIMULATOR,
     gear::{Gear, Slot},
     items::{ItemSchemaExt, ItemSource, Type},
-    maps::{ContentType, MapSchemaExt},
+    maps::MapSchemaExt,
     models::{
-        CharacterSchema, FightResult, FightSchema, ItemSchema, MapSchema,
-        MonsterSchema, RecyclingItemsSchema, ResourceSchema, RewardsSchema, SimpleItemSchema,
-        SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
+        CharacterSchema, FightResult, FightSchema, ItemSchema, MapContentType, MapSchema, MonsterSchema, RecyclingItemsSchema, ResourceSchema, RewardsSchema, SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType
     },
     resources::RESOURCES,
     FightSimulator, HasDrops, ITEMS, MAPS, MONSTERS,
@@ -1173,7 +1171,7 @@ impl Character {
             // TODO: return a better error
             return Err(CharacterError::ItemNotFound);
         }
-        self.move_to_closest_map_of_type(ContentType::Bank)?;
+        self.move_to_closest_map_of_type(MapContentType::Bank)?;
         if BANK.free_slots() <= BANK_MIN_FREE_SLOT {
             if let Err(e) = self.expand_bank() {
                 error!(
@@ -1215,7 +1213,7 @@ impl Character {
             // TODO: return a better error
             return Err(CharacterError::ItemNotFound);
         }
-        self.move_to_closest_map_of_type(ContentType::Bank)?;
+        self.move_to_closest_map_of_type(MapContentType::Bank)?;
         let result = self.inner.request_withdraw(item, quantity);
         if result.is_ok() {
             BANK.decrease_reservation(item, quantity, &self.inner.name());
@@ -1295,7 +1293,7 @@ impl Character {
         if amount > self.gold() {
             return Err(CharacterError::InsuffisientGoldInInventory);
         }
-        self.move_to_closest_map_of_type(ContentType::Bank)?;
+        self.move_to_closest_map_of_type(MapContentType::Bank)?;
         Ok(self.inner.request_deposit_gold(amount)?)
     }
 
@@ -1307,7 +1305,7 @@ impl Character {
             return Err(CharacterError::InsuffisientGold);
         };
         self.withdraw_gold(BANK.next_expansion_cost() - self.gold())?;
-        self.move_to_closest_map_of_type(ContentType::Bank)?;
+        self.move_to_closest_map_of_type(MapContentType::Bank)?;
         Ok(self.inner.request_expand_bank()?)
     }
 
@@ -1318,12 +1316,12 @@ impl Character {
         if BANK.gold() < amount {
             return Err(CharacterError::InsuffisientGoldInBank);
         };
-        self.move_to_closest_map_of_type(ContentType::Bank)?;
+        self.move_to_closest_map_of_type(MapContentType::Bank)?;
         Ok(self.inner.request_withdraw_gold(amount)?)
     }
 
     pub fn empty_bank(&self) {
-        if let Err(e) = self.move_to_closest_map_of_type(ContentType::Bank) {
+        if let Err(e) = self.move_to_closest_map_of_type(MapContentType::Bank) {
             error!(
                 "{} failed to move to bank before emptying bank: {:?}",
                 self.inner.name(),
@@ -1420,7 +1418,7 @@ impl Character {
 
     fn move_to_closest_map_of_type(
         &self,
-        r#type: ContentType,
+        r#type: MapContentType,
     ) -> Result<Arc<MapSchema>, CharacterError> {
         let Some(map) = self.map().closest_of_type(r#type) else {
             return Err(CharacterError::MapNotFound);

@@ -1,13 +1,12 @@
 use crate::{char::Skill, events::EVENTS, resources::RESOURCES, API, MONSTERS};
 use artifactsmmo_openapi::models::{
-    MapContentSchema, MapSchema, MonsterSchema, ResourceSchema, TaskType,
+    MapContentSchema, MapContentType, MapSchema, MonsterSchema, ResourceSchema, TaskType,
 };
 use chrono::{DateTime, Utc};
 use std::{
     collections::HashMap,
     sync::{Arc, LazyLock, RwLock},
 };
-use strum_macros::{AsRefStr, Display};
 
 pub static MAPS: LazyLock<Maps> = LazyLock::new(Maps::new);
 
@@ -62,7 +61,7 @@ impl Maps {
             .min_by_key(|m| i32::abs(x - m.x) + i32::abs(y - m.y))
     }
 
-    pub fn of_type(&self, r#type: ContentType) -> Vec<Arc<MapSchema>> {
+    pub fn of_type(&self, r#type: MapContentType) -> Vec<Arc<MapSchema>> {
         self.0
             .values()
             .filter(|m| {
@@ -110,14 +109,14 @@ impl Maps {
 pub trait MapSchemaExt {
     fn content(&self) -> Option<&MapContentSchema>;
     fn content_code_is(&self, code: &str) -> bool;
-    fn content_type_is(&self, r#type: ContentType) -> bool;
+    fn content_type_is(&self, r#type: MapContentType) -> bool;
     fn pretty(&self) -> String;
     fn monster(&self) -> Option<Arc<MonsterSchema>>;
     fn resource(&self) -> Option<Arc<ResourceSchema>>;
     fn closest_among(&self, others: Vec<Arc<MapSchema>>) -> Option<Arc<MapSchema>>;
     fn closest_with_content_code(&self, code: &str) -> Option<Arc<MapSchema>>;
     fn closest_with_content_schema(&self, schema: &MapContentSchema) -> Option<Arc<MapSchema>>;
-    fn closest_of_type(&self, r#type: ContentType) -> Option<Arc<MapSchema>>;
+    fn closest_of_type(&self, r#type: MapContentType) -> Option<Arc<MapSchema>>;
     fn closest_tasksmaster(&self, r#type: Option<TaskType>) -> Option<Arc<MapSchema>>;
 }
 
@@ -130,7 +129,7 @@ impl MapSchemaExt for MapSchema {
         self.content.as_ref().is_some_and(|c| c.code == code)
     }
 
-    fn content_type_is(&self, r#type: ContentType) -> bool {
+    fn content_type_is(&self, r#type: MapContentType) -> bool {
         self.content.as_ref().is_some_and(|c| c.r#type == r#type)
     }
 
@@ -172,7 +171,7 @@ impl MapSchemaExt for MapSchema {
 
     /// Returns the closest map from the `Character` containing the given
     /// content `type`.
-    fn closest_of_type(&self, r#type: ContentType) -> Option<Arc<MapSchema>> {
+    fn closest_of_type(&self, r#type: MapContentType) -> Option<Arc<MapSchema>> {
         let maps = MAPS.of_type(r#type);
         if maps.is_empty() {
             return None;
@@ -183,40 +182,40 @@ impl MapSchemaExt for MapSchema {
     fn closest_tasksmaster(&self, r#type: Option<TaskType>) -> Option<Arc<MapSchema>> {
         if let Some(r#type) = r#type {
             self.closest_with_content_schema(&MapContentSchema {
-                r#type: ContentType::TasksMaster.to_string(),
+                r#type: MapContentType::TasksMaster,
                 code: r#type.to_string(),
             })
         } else {
-            self.closest_of_type(ContentType::TasksMaster)
+            self.closest_of_type(MapContentType::TasksMaster)
         }
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, AsRefStr, Display)]
-#[strum(serialize_all = "snake_case")]
-pub enum ContentType {
-    Monster,
-    Resource,
-    Workshop,
-    Bank,
-    GrandExchange,
-    TasksMaster,
-    SantaClaus,
-}
+// #[derive(Debug, Copy, Clone, PartialEq, AsRefStr, Display)]
+// #[strum(serialize_all = "snake_case")]
+// pub enum ContentType {
+//     Monster,
+//     Resource,
+//     Workshop,
+//     Bank,
+//     GrandExchange,
+//     TasksMaster,
+//     SantaClaus,
+// }
 
-impl PartialEq<ContentType> for String {
-    fn eq(&self, other: &ContentType) -> bool {
-        other.as_ref() == *self
-    }
-}
+// impl PartialEq<ContentType> for String {
+//     fn eq(&self, other: &ContentType) -> bool {
+//         other.as_ref() == *self
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    //use super::*;
 
-    #[test]
-    fn check_content_type_as_string() {
-        assert_eq!(ContentType::Monster.to_string(), "monster");
-        assert_eq!(ContentType::Monster.as_ref(), "monster");
-    }
+    // #[test]
+    // fn check_content_type_as_string() {
+    //     assert_eq!(ContentType::Monster.to_string(), "monster");
+    //     assert_eq!(ContentType::Monster.as_ref(), "monster");
+    // }
 }

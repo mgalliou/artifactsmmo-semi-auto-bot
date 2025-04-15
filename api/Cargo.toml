@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-artifactsmmo-openapi = { path = "../../artifactsmmo-openapi/", version = "4.0.0" }
+artifactsmmo-openapi = { path = "../../artifactsmmo-openapi/", version = "4.1.0" }
