@@ -1,3 +1,4 @@
+use account::Account;
 use artifactsmmo_api_wrapper::ArtifactApi;
 use artifactsmmo_openapi::models::{FightSchema, RewardsSchema, SkillDataSchema, SkillInfoSchema};
 use events::Events;
@@ -17,6 +18,7 @@ use tasks_rewards::TasksRewards;
 pub use artifactsmmo_openapi::models;
 pub use fight_simulator::FightSimulator;
 
+pub mod account;
 pub mod base_bank;
 pub mod char;
 pub mod consts;
@@ -57,7 +59,9 @@ pub static ITEMS: LazyLock<Items> = LazyLock::new(|| {
         TASKS_REWARDS.clone(),
     )
 });
-pub static MAPS: LazyLock<Maps> = LazyLock::new(|| Maps::new(API.clone(), EVENTS.clone()));
+pub static MAPS: LazyLock<Maps> = LazyLock::new(|| Maps::new(&API, EVENTS.clone()));
+pub static BASE_ACCOUNT: LazyLock<Account> =
+    LazyLock::new(|| Account::new(&API, ACCOUNT_NAME.get().unwrap()));
 
 pub fn init(base_url: String, token: String, account_name: String) {
     BASE_URL.get_or_init(|| base_url);

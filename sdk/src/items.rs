@@ -1,8 +1,14 @@
 use crate::{
-    char::Skill, consts::{
+    char::Skill,
+    consts::{
         ASTRALYTE_CRYSTAL, DIAMOND, ENCHANTED_FABRIC, FOOD_BLACK_LIST, JASPER_CRYSTAL,
         MAGICAL_CURE, TASKS_COIN,
-    }, gear::Slot, monsters::{MonsterSchemaExt, Monsters}, resources::{ResourceSchemaExt, Resources}, tasks_rewards::TasksRewards, FightSimulator, PersistedData
+    },
+    gear::Slot,
+    monsters::{MonsterSchemaExt, Monsters},
+    resources::{ResourceSchemaExt, Resources},
+    tasks_rewards::TasksRewards,
+    FightSimulator, PersistedData,
 };
 use artifactsmmo_api_wrapper::ArtifactApi;
 use artifactsmmo_openapi::models::{

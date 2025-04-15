@@ -15,7 +15,7 @@ pub struct Maps {
 }
 
 impl Maps {
-    pub(crate) fn new(api: Arc<ArtifactApi>, events: Arc<Events>) -> Self {
+    pub(crate) fn new(api: &Arc<ArtifactApi>, events: Arc<Events>) -> Self {
         Self {
             data: api
                 .maps

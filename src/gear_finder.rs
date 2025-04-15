@@ -1,6 +1,6 @@
 use crate::{account::ACCOUNT, character::Character};
 use artifactsmmo_sdk::{
-    char::{Skill, HasCharacterData},
+    char::{HasCharacterData, Skill},
     fight_simulator::FIGHT_SIMULATOR,
     gear::Gear,
     items::{ItemSchemaExt, Type},

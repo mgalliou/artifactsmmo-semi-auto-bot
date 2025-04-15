@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use artifactsmmo_sdk::{
-    char::{Skill, HasCharacterData},
+    char::{HasCharacterData, Skill},
     events::EventSchemaExt,
     fight_simulator::FIGHT_SIMULATOR,
     EVENTS, ITEMS, MAPS, MONSTERS,

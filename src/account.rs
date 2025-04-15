@@ -1,8 +1,8 @@
 use artifactsmmo_sdk::{
-    char::{Skill, HasCharacterData, CHARACTERS_DATA},
+    char::{HasCharacterData, Skill},
     items::ItemSource,
     models::SimpleItemSchema,
-    ITEMS,
+    BASE_ACCOUNT, ITEMS,
 };
 use itertools::Itertools;
 use std::sync::{Arc, LazyLock, RwLock};
@@ -29,7 +29,8 @@ impl Account {
         let Ok(mut chars) = self.characters.write() else {
             return;
         };
-        *chars = CHARACTERS_DATA
+        *chars = BASE_ACCOUNT
+            .characters()
             .iter()
             .map(|(id, data)| Arc::new(Character::new(*id, data.clone())))
             .collect_vec()

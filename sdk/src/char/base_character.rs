@@ -1,7 +1,7 @@
 use super::{
     base_inventory::BaseInventory,
     request_handler::{CharacterRequestHandler, RequestError},
-    CharacterData, HasCharacterData, CHARACTERS_DATA,
+    CharacterData, HasCharacterData,
 };
 use crate::{
     base_bank::{BaseBank, BASE_BANK},
@@ -10,7 +10,7 @@ use crate::{
     maps::MapSchemaExt,
     monsters::MonsterSchemaExt,
     resources::ResourceSchemaExt,
-    ITEMS, MAPS,
+    BASE_ACCOUNT, ITEMS, MAPS,
 };
 use artifactsmmo_openapi::models::{
     CharacterSchema, FightSchema, MapContentType, MapSchema, RecyclingItemsSchema, RewardsSchema,
@@ -25,7 +25,8 @@ use std::{
 use thiserror::Error;
 
 pub static BASE_CHARACTERS: LazyLock<HashMap<usize, Arc<BaseCharacter>>> = LazyLock::new(|| {
-    CHARACTERS_DATA
+    BASE_ACCOUNT
+        .characters()
         .iter()
         .map(|(id, data)| {
             (

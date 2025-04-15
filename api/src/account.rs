@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use artifactsmmo_openapi::{
     apis::{
         accounts_api::{
@@ -10,6 +9,7 @@ use artifactsmmo_openapi::{
     },
     models::CharactersListSchema,
 };
+use std::sync::Arc;
 
 pub struct AccountApi {
     configuration: Arc<Configuration>,

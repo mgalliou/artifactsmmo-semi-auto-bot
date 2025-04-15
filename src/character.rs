@@ -9,7 +9,8 @@ use crate::{
 };
 use artifactsmmo_sdk::{
     char::{
-        request_handler::{CharacterRequestHandler, RequestError}, Skill, CharacterData, HasCharacterData 
+        request_handler::{CharacterRequestHandler, RequestError},
+        CharacterData, HasCharacterData, Skill,
     },
     consts::{
         BANK_MIN_FREE_SLOT, CRAFT_TIME, MAX_LEVEL, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
