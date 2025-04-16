@@ -16,14 +16,13 @@ use std::{
 use tasks_rewards::TasksRewards;
 
 pub use artifactsmmo_openapi::models;
-pub use fight_simulator::FightSimulator;
+pub use simulator::Simulator;
 
 pub mod account;
 pub mod base_bank;
 pub mod char;
 pub mod consts;
 pub mod events;
-pub mod fight_simulator;
 pub mod gear;
 pub mod item_code;
 pub mod items;
@@ -31,6 +30,7 @@ pub mod maps;
 pub mod monsters;
 pub mod resources;
 pub mod server;
+pub mod simulator;
 pub mod tasks;
 pub mod tasks_rewards;
 

@@ -1,5 +1,5 @@
 use crate::{
-    fight_simulator::FightSimulator,
+    simulator::Simulator,
     items::{DamageType, ItemSchemaExt},
     monsters::MonsterSchemaExt,
 };
@@ -85,7 +85,7 @@ impl Gear {
                 self.weapon
                     .as_ref()
                     .map_or(0.0, |w| {
-                        FightSimulator::average_dmg(
+                        Simulator::average_dmg(
                             w.attack_damage(t),
                             self.damage_increase(t),
                             monster.resistance(t),
@@ -99,7 +99,7 @@ impl Gear {
     pub fn attack_damage_from(&self, monster: &MonsterSchema) -> i32 {
         DamageType::iter()
             .map(|t| {
-                FightSimulator::average_dmg(monster.attack_damage(t), 0, self.resistance(t)).round()
+                Simulator::average_dmg(monster.attack_damage(t), 0, self.resistance(t)).round()
                     as i32
             })
             .sum()

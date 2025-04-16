@@ -8,7 +8,7 @@ use crate::{
     monsters::{MonsterSchemaExt, Monsters},
     resources::{ResourceSchemaExt, Resources},
     tasks_rewards::TasksRewards,
-    FightSimulator, PersistedData,
+    Simulator, PersistedData,
 };
 use artifactsmmo_api_wrapper::ArtifactApi;
 use artifactsmmo_openapi::models::{
@@ -487,7 +487,7 @@ impl ItemSchemaExt for ItemSchema {
 
     fn attack_damage_against(&self, monster: &MonsterSchema) -> f32 {
         DamageType::iter()
-            .map(|t| FightSimulator::average_dmg(self.attack_damage(t), 0, monster.resistance(t)))
+            .map(|t| Simulator::average_dmg(self.attack_damage(t), 0, monster.resistance(t)))
             .sum()
     }
 
@@ -564,7 +564,7 @@ impl ItemSchemaExt for ItemSchema {
     fn damage_increase_against_with(&self, monster: &MonsterSchema, weapon: &ItemSchema) -> f32 {
         DamageType::iter()
             .map(|t| {
-                FightSimulator::average_dmg(
+                Simulator::average_dmg(
                     weapon.attack_damage(t),
                     self.damage_increase(t),
                     monster.resistance(t),
@@ -573,18 +573,18 @@ impl ItemSchemaExt for ItemSchema {
             .sum::<f32>()
             - DamageType::iter()
                 .map(|t| {
-                    FightSimulator::average_dmg(weapon.attack_damage(t), 0, monster.resistance(t))
+                    Simulator::average_dmg(weapon.attack_damage(t), 0, monster.resistance(t))
                 })
                 .sum::<f32>()
     }
 
     fn damage_reduction_against(&self, monster: &MonsterSchema) -> f32 {
         DamageType::iter()
-            .map(|t| FightSimulator::average_dmg(monster.attack_damage(t), 0, 0))
+            .map(|t| Simulator::average_dmg(monster.attack_damage(t), 0, 0))
             .sum::<f32>()
             - DamageType::iter()
                 .map(|t| {
-                    FightSimulator::average_dmg(monster.attack_damage(t), 0, self.resistance(t))
+                    Simulator::average_dmg(monster.attack_damage(t), 0, self.resistance(t))
                 })
                 .sum::<f32>()
     }

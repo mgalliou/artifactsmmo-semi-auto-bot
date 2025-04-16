@@ -1,9 +1,6 @@
 use anyhow::{bail, Result};
 use artifactsmmo_sdk::{
-    char::{HasCharacterData, Skill},
-    events::EventSchemaExt,
-    fight_simulator::FIGHT_SIMULATOR,
-    EVENTS, ITEMS, MAPS, MONSTERS,
+    char::{HasCharacterData, Skill}, events::EventSchemaExt, Simulator, EVENTS, ITEMS, MAPS, MONSTERS
 };
 use clap::{value_parser, Parser, Subcommand};
 use rustyline::{error::ReadlineError, DefaultEditor};
@@ -243,7 +240,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>) -> Result<()> {
                 )
             };
             println!("{}", gear);
-            let fight = FIGHT_SIMULATOR.simulate(char.level(), 0, &gear, &monster, true);
+            let fight = Simulator::fight(char.level(), 0, &gear, &monster, true);
             println!("{:?}", fight)
         }
         Commands::Deposit { item, quantity } => {

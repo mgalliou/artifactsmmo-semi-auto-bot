@@ -1,11 +1,10 @@
 use crate::{account::ACCOUNT, character::Character};
 use artifactsmmo_sdk::{
     char::{HasCharacterData, Skill},
-    fight_simulator::FIGHT_SIMULATOR,
     gear::Gear,
     items::{ItemSchemaExt, Type},
     models::{FightResult, ItemSchema, MonsterSchema},
-    FightSimulator, ITEMS, RESOURCES,
+    Simulator, ITEMS, RESOURCES,
 };
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
@@ -33,12 +32,12 @@ impl GearFinder {
             .into_iter()
             .map(|g| {
                 (
-                    FIGHT_SIMULATOR.simulate(char.level(), 0, &g, monster, false),
+                    Simulator::fight(char.level(), 0, &g, monster, false),
                     g,
                 )
             })
             .filter(|(f, _g)| f.result == FightResult::Win)
-            .min_set_by_key(|(f, _g)| f.cd + FightSimulator::time_to_rest(f.hp_lost))
+            .min_set_by_key(|(f, _g)| f.cd + Simulator::time_to_rest(f.hp_lost))
             .into_iter()
             .max_by_key(|(f, _g)| f.hp)
             .map(|(_f, g)| g)
@@ -55,11 +54,11 @@ impl GearFinder {
             .into_iter()
             .map(|g| {
                 (
-                    FIGHT_SIMULATOR.simulate(char.level(), 0, &g, monster, true),
+                    Simulator::fight(char.level(), 0, &g, monster, true),
                     g,
                 )
             })
-            .min_set_by_key(|(f, _g)| f.cd + FightSimulator::time_to_rest(f.hp_lost))
+            .min_set_by_key(|(f, _g)| f.cd + Simulator::time_to_rest(f.hp_lost))
             .into_iter()
             .max_by_key(|(f, _g)| f.hp)
             .map(|(_f, g)| g)

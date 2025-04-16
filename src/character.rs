@@ -16,7 +16,6 @@ use artifactsmmo_sdk::{
         BANK_MIN_FREE_SLOT, CRAFT_TIME, MAX_LEVEL, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
         TASKS_COIN, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE,
     },
-    fight_simulator::FIGHT_SIMULATOR,
     gear::{Gear, Slot},
     items::{ItemSchemaExt, ItemSource},
     maps::MapSchemaExt,
@@ -25,7 +24,7 @@ use artifactsmmo_sdk::{
         MonsterSchema, RecyclingItemsSchema, ResourceSchema, RewardsSchema, SimpleItemSchema,
         SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
     },
-    FightSimulator, HasDrops, ITEMS, MAPS, MONSTERS,
+    Simulator, HasDrops, ITEMS, MAPS, MONSTERS,
 };
 use itertools::Itertools;
 use log::{error, info, warn};
@@ -866,7 +865,7 @@ impl Character {
     pub fn time_to_kill(&self, monster: &MonsterSchema) -> Option<i32> {
         match self.can_kill(monster) {
             Ok(gear) => {
-                let fight = FIGHT_SIMULATOR.simulate(self.level(), 0, &gear, monster, false);
+                let fight = Simulator::fight(self.level(), 0, &gear, monster, false);
                 Some(fight.cd + (fight.hp_lost / 5 + if fight.hp_lost % 5 > 0 { 1 } else { 0 }))
             }
             Err(_) => None,
@@ -878,7 +877,7 @@ impl Character {
             return None;
         }
         let tool = GEAR_FINDER.best_tool_for_resource(&resource.code, self.level());
-        let time = FIGHT_SIMULATOR.gather(
+        let time = Simulator::gather(
             self.skill_level(resource.skill.into()),
             resource.level,
             tool.map_or(0, |t| t.skill_cooldown_reduction(resource.skill.into())),
@@ -948,22 +947,19 @@ impl Character {
     /// Checks if the `Character` could kill the given `monster` with the given
     /// `gear`
     fn can_kill_with(&self, monster: &MonsterSchema, gear: &Gear) -> bool {
-        FIGHT_SIMULATOR
-            .simulate(self.inner.level(), 0, gear, monster, false)
-            .result
+        Simulator::fight(self.inner.level(), 0, gear, monster, false).result
             == FightResult::Win
     }
 
     fn can_kill_now(&self, monster: &MonsterSchema) -> bool {
-        FIGHT_SIMULATOR
-            .simulate(
-                self.inner.level(),
-                self.inner.missing_hp(),
-                &self.gear(),
-                monster,
-                false,
-            )
-            .result
+        Simulator::fight(
+            self.inner.level(),
+            self.inner.missing_hp(),
+            &self.gear(),
+            monster,
+            false,
+        )
+        .result
             == FightResult::Win
     }
 
@@ -1863,7 +1859,7 @@ impl Character {
                 let mut quantity = self.missing_hp() / f.heal();
                 if ACCOUNT.time_to_get(&f.code).is_some_and(|t| {
                     t * (self.missing_hp() / f.heal())
-                        < FightSimulator::time_to_rest(self.missing_hp())
+                        < Simulator::time_to_rest(self.missing_hp())
                 }) {
                     quantity += 1;
                 };

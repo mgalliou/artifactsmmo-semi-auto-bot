@@ -1,20 +1,14 @@
-use crate::{
-    consts::{BASE_HP, HP_PER_LEVEL, MAX_TURN},
-    gear::Gear,
-    items::ItemSchemaExt,
-};
+use crate::{gear::Gear, items::ItemSchemaExt};
 use artifactsmmo_openapi::models::{FightResult, MonsterSchema};
-use std::{cmp::max, sync::LazyLock};
+use std::cmp::max;
 
-pub static FIGHT_SIMULATOR: LazyLock<FightSimulator> = LazyLock::new(FightSimulator::new);
+const BASE_HP: i32 = 115;
+const MAX_TURN: i32 = 100;
+const HP_PER_LEVEL: i32 = 5;
 
-pub struct FightSimulator {}
+pub struct Simulator {}
 
-impl FightSimulator {
-    fn new() -> Self {
-        Self {}
-    }
-
+impl Simulator {
     /// Compute the average damage an attack will do against the given `target_resistance`. Block
     /// chance is considered as a global damage reduction (30 resistence reduce the computed damage by
     /// 3%).
@@ -28,8 +22,7 @@ impl FightSimulator {
         dmg
     }
 
-    pub fn simulate(
-        &self,
+    pub fn fight(
         level: i32,
         missing_hp: i32,
         gear: &Gear,
@@ -81,14 +74,14 @@ impl FightSimulator {
         health / 5 + if health % 5 > 0 { 1 } else { 0 }
     }
 
-    pub fn compute_cd(haste: i32, turns: i32) -> i32 {
+    fn compute_cd(haste: i32, turns: i32) -> i32 {
         max(
             5,
             ((turns * 2) as f32 - (haste as f32 * 0.01) * (turns * 2) as f32).round() as i32,
         )
     }
 
-    pub fn gather(&self, skill_level: i32, resource_level: i32, cooldown_reduction: i32) -> i32 {
+    pub fn gather(skill_level: i32, resource_level: i32, cooldown_reduction: i32) -> i32 {
         ((25.0 - ((skill_level - resource_level) as f32 / 10.0))
             * (1.0 + cooldown_reduction as f32 / 100.0))
             .round() as i32
@@ -113,14 +106,11 @@ mod tests {
 
     #[test]
     fn gather() {
-        let simulator = FightSimulator::new();
-
-        assert_eq!(simulator.gather(17, 1, -10,), 21);
+        assert_eq!(Simulator::gather(17, 1, -10,), 21);
     }
 
     #[test]
     fn kill_deathnight() {
-        let simulator = FightSimulator::new();
         let gear = Gear {
             weapon: ITEMS.get("skull_staff"),
             shield: ITEMS.get("steel_shield"),
@@ -137,14 +127,13 @@ mod tests {
             utility1: None,
             utility2: None,
         };
-        let fight = simulator.simulate(30, 0, &gear, &MONSTERS.get("death_knight").unwrap(), false);
+        let fight = Simulator::fight(30, 0, &gear, &MONSTERS.get("death_knight").unwrap(), false);
         println!("{:?}", fight);
         assert_eq!(fight.result, FightResult::Win);
     }
 
     #[test]
     fn kill_cultist_emperor() {
-        let simulator = FightSimulator::new();
         let gear = Gear {
             weapon: ITEMS.get("magic_bow"),
             shield: ITEMS.get("gold_shield"),
@@ -161,7 +150,7 @@ mod tests {
             utility1: None,
             utility2: None,
         };
-        let fight = simulator.simulate(
+        let fight = Simulator::fight(
             40,
             0,
             &gear,
