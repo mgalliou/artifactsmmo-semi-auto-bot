@@ -2,7 +2,6 @@ use artifactsmmo_sdk::{
     char::{HasCharacterData, Skill},
     items::ItemSource,
     models::SimpleItemSchema,
-    BASE_ACCOUNT, ITEMS,
 };
 use itertools::Itertools;
 use std::sync::{Arc, LazyLock, RwLock};

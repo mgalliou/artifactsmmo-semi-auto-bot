@@ -1,6 +1,5 @@
 [workspace]
 resolver = "2"
-members = ["api", "sdk"]
 
 [package]
 name = "artifactsmmo-semi-auto-bot"
@@ -9,7 +8,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.97"
-artifactsmmo-sdk = { path = "sdk", version = "0.1.0" }
+artifactsmmo-sdk = { path = "../artifactsmmo-sdk" }
 clap = { version = "4.5.35", features = ["derive"] }
 figment = { version = "0.10.19", features = ["toml"] }
 itertools = "0.14.0"
