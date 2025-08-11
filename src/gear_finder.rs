@@ -1,41 +1,40 @@
-use crate::{account::ACCOUNT, character::Character};
+use crate::{account::AccountController, character::CharacterController};
 use artifactsmmo_sdk::{
     char::{HasCharacterData, Skill},
     gear::Gear,
     items::{ItemSchemaExt, Type},
     models::{FightResult, ItemSchema, MonsterSchema},
-    Simulator, ITEMS, RESOURCES,
+    Items, Resources, Simulator,
 };
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
-use std::{
-    collections::HashSet,
-    sync::{Arc, LazyLock},
-};
+use std::{collections::HashSet, sync::Arc};
 
-pub static GEAR_FINDER: LazyLock<GearFinder> = LazyLock::new(GearFinder::new);
-
-pub struct GearFinder {}
+#[derive(Default)]
+pub struct GearFinder {
+    items: Arc<Items>,
+    resources: Arc<Resources>,
+    account: Arc<AccountController>,
+}
 
 impl GearFinder {
-    fn new() -> Self {
-        Self {}
+    pub fn new(items: Arc<Items>, resources: Arc<Resources>, account: Arc<AccountController>) -> Self {
+        Self {
+            items,
+            resources,
+            account,
+        }
     }
 
     pub fn best_winning_against<'a>(
         &'a self,
-        char: &'a Character,
+        char: &'a CharacterController,
         monster: &'a MonsterSchema,
         filter: Filter,
     ) -> Gear {
         self.bests_against(char, monster, filter)
             .into_iter()
-            .map(|g| {
-                (
-                    Simulator::fight(char.level(), 0, &g, monster, false),
-                    g,
-                )
-            })
+            .map(|g| (Simulator::fight(char.level(), 0, &g, monster, false), g))
             .filter(|(f, _g)| f.result == FightResult::Win)
             .min_set_by_key(|(f, _g)| f.cd + Simulator::time_to_rest(f.hp_lost))
             .into_iter()
@@ -46,18 +45,13 @@ impl GearFinder {
 
     pub fn best_against<'a>(
         &'a self,
-        char: &'a Character,
+        char: &'a CharacterController,
         monster: &'a MonsterSchema,
         filter: Filter,
     ) -> Gear {
         self.bests_against(char, monster, filter)
             .into_iter()
-            .map(|g| {
-                (
-                    Simulator::fight(char.level(), 0, &g, monster, true),
-                    g,
-                )
-            })
+            .map(|g| (Simulator::fight(char.level(), 0, &g, monster, true), g))
             .min_set_by_key(|(f, _g)| f.cd + Simulator::time_to_rest(f.hp_lost))
             .into_iter()
             .max_by_key(|(f, _g)| f.hp)
@@ -67,7 +61,7 @@ impl GearFinder {
 
     pub fn bests_against<'a>(
         &'a self,
-        char: &'a Character,
+        char: &'a CharacterController,
         monster: &'a MonsterSchema,
         filter: Filter,
     ) -> Vec<Gear> {
@@ -79,11 +73,12 @@ impl GearFinder {
 
     pub fn best_weapons_against<'a>(
         &'a self,
-        char: &'a Character,
+        char: &'a CharacterController,
         monster: &'a MonsterSchema,
         filter: Filter,
     ) -> Vec<Arc<ItemSchema>> {
-        let equipables = ITEMS
+        let equipables = self
+            .items
             .equipable_at_level(char.level(), Type::Weapon)
             .into_iter()
             .filter(|i| !i.is_tool() && self.is_eligible(i, filter, char))
@@ -106,7 +101,7 @@ impl GearFinder {
 
     fn bests_against_with_weapon(
         &self,
-        char: &Character,
+        char: &CharacterController,
         monster: &MonsterSchema,
         filter: Filter,
         weapon: &Arc<ItemSchema>,
@@ -248,7 +243,7 @@ impl GearFinder {
 
     fn gen_rings_sets(
         &self,
-        char: &Character,
+        char: &CharacterController,
         monster: &MonsterSchema,
         weapon: &ItemSchema,
         filter: Filter,
@@ -288,7 +283,7 @@ impl GearFinder {
 
     fn gen_utilities_sets(
         &self,
-        char: &Character,
+        char: &CharacterController,
         monster: &MonsterSchema,
         weapon: &ItemSchema,
         filter: Filter,
@@ -314,7 +309,7 @@ impl GearFinder {
 
     fn gen_artifacts_sets(
         &self,
-        char: &Character,
+        char: &CharacterController,
         monster: &MonsterSchema,
         weapon: &ItemSchema,
         filter: Filter,
@@ -353,14 +348,14 @@ impl GearFinder {
     ) -> Option<Arc<ItemSchema>> {
         wrapper.iter().find_map(|w| match w {
             ItemWrapper::Armor(Some(armor)) => {
-                ITEMS
+                self.items
                     .get(armor)
                     .and_then(|i| if i.is_of_type(r#type) { Some(i) } else { None })
             }
             ItemWrapper::Armor(None) => None,
             ItemWrapper::Rings(ring_set) => {
                 if let Some(Some(ring)) = ring_set.rings.get(index) {
-                    ITEMS
+                    self.items
                         .get(ring)
                         .and_then(|i| if i.is_of_type(r#type) { Some(i) } else { None })
                 } else {
@@ -369,30 +364,26 @@ impl GearFinder {
             }
             ItemWrapper::Artifacts(set) => {
                 if let Some(Some(artifact)) = set.artifacts.get(index) {
-                    ITEMS.get(artifact).and_then(
-                        |i| {
-                            if i.is_of_type(r#type) {
-                                Some(i)
-                            } else {
-                                None
-                            }
-                        },
-                    )
+                    self.items.get(artifact).and_then(|i| {
+                        if i.is_of_type(r#type) {
+                            Some(i)
+                        } else {
+                            None
+                        }
+                    })
                 } else {
                     None
                 }
             }
             ItemWrapper::Utility(set) => {
                 if let Some(Some(utility)) = set.iter().collect_vec().get(index) {
-                    ITEMS.get(utility).and_then(
-                        |i| {
-                            if i.is_of_type(r#type) {
-                                Some(i)
-                            } else {
-                                None
-                            }
-                        },
-                    )
+                    self.items.get(utility).and_then(|i| {
+                        if i.is_of_type(r#type) {
+                            Some(i)
+                        } else {
+                            None
+                        }
+                    })
                 } else {
                     None
                 }
@@ -402,7 +393,7 @@ impl GearFinder {
 
     fn best_armors_against_with_weapon(
         &self,
-        char: &Character,
+        char: &CharacterController,
         monster: &MonsterSchema,
         weapon: &ItemSchema,
         r#type: Type,
@@ -410,7 +401,8 @@ impl GearFinder {
         black_list: Vec<String>,
     ) -> Vec<Option<String>> {
         let mut bests: Vec<Arc<ItemSchema>> = vec![];
-        let equipables = ITEMS
+        let equipables = self
+            .items
             .equipable_at_level(char.level(), r#type)
             .into_iter()
             .filter(|i| !black_list.contains(&i.code) && self.is_eligible(i, filter, char))
@@ -470,14 +462,15 @@ impl GearFinder {
 
     fn best_utilities_against_with_weapon(
         &self,
-        char: &Character,
+        char: &CharacterController,
         monster: &MonsterSchema,
         weapon: &ItemSchema,
         filter: Filter,
         black_list: Vec<&str>,
     ) -> Vec<Option<String>> {
         let mut upgrades: Vec<Arc<ItemSchema>> = vec![];
-        let equipables = ITEMS
+        let equipables = self
+            .items
             .equipable_at_level(char.level(), Type::Utility)
             .into_iter()
             .filter(|i| !black_list.contains(&i.code.as_str()) && self.is_eligible(i, filter, char))
@@ -524,11 +517,11 @@ impl GearFinder {
 
     pub fn best_tool(
         &self,
-        char: &Character,
+        char: &CharacterController,
         skill: Skill,
         filter: Filter,
     ) -> Option<Arc<ItemSchema>> {
-        ITEMS
+        self.items
             .equipable_at_level(char.level(), Type::Weapon)
             .into_iter()
             .filter(|i| self.is_eligible(i, filter, char) && i.skill_cooldown_reduction(skill) < 0)
@@ -536,9 +529,10 @@ impl GearFinder {
     }
 
     pub fn best_tool_for_resource(&self, item: &str, level: i32) -> Option<Arc<ItemSchema>> {
-        match RESOURCES.get(item) {
+        match self.resources.get(item) {
             //TODO improve filtering
-            Some(resource) => ITEMS
+            Some(resource) => self
+                .items
                 .equipable_at_level(level, Type::Weapon)
                 .into_iter()
                 .filter(|i| i.skill_cooldown_reduction(resource.skill.into()) < 0)
@@ -547,21 +541,22 @@ impl GearFinder {
         }
     }
 
-    fn is_eligible(&self, i: &ItemSchema, filter: Filter, char: &Character) -> bool {
+    fn is_eligible(&self, i: &ItemSchema, filter: Filter, char: &CharacterController) -> bool {
         if filter.available {
             return char.has_available(&i.code) > 0;
         }
         if i.code == "sanguine_edge_of_rosen" {
             return false;
         }
-        if filter.can_craft && i.craft_schema().is_some() && !ACCOUNT.can_craft(&i.code) {
+        if filter.can_craft && i.craft_schema().is_some() && !self.account.can_craft(&i.code) {
             return false;
         }
         if !filter.from_task && i.is_crafted_from_task() {
             return false;
         }
         if !filter.from_monster
-            && ITEMS
+            && self
+                .items
                 .best_source_of(&i.code)
                 .is_some_and(|s| s.is_monster())
         {
@@ -645,25 +640,25 @@ impl ArtifactSet {
 
 #[cfg(test)]
 mod tests {
-    use artifactsmmo_sdk::{models::CharacterSchema, ITEMS, MONSTERS};
+    use artifactsmmo_sdk::{models::CharacterSchema, Monsters};
 
     use super::*;
 
     #[test]
     fn best_weapons_against() {
-        let gear_finder = GearFinder::new();
-        let char = Character::default();
+        let gear_finder = GearFinder::default();
+        let char = CharacterController::default();
         let data = CharacterSchema {
             level: 30,
             ..Default::default()
         };
-        char.inner.update_data(data);
+        char.client.update_data(data);
 
         let weapons = gear_finder.best_weapons_against(
             &char,
-            &MONSTERS.get("vampire").unwrap(),
+            &Monsters::default().get("vampire").unwrap(),
             Default::default(),
         );
-        assert_eq!(weapons, vec![ITEMS.get("death_knight_sword").unwrap()]);
+        assert_eq!(weapons, vec![Items::default().get("death_knight_sword").unwrap()]);
     }
 }

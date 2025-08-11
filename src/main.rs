@@ -1,7 +1,7 @@
 use anyhow::Result;
+use artifactsmmo_sdk::Client;
 use artifactsmmo_semi_auto_bot::{
     bot::Bot,
-    bot_config::BOT_CONFIG,
     cli,
     orderboard::{Purpose, ORDER_BOARD},
 };
@@ -9,11 +9,8 @@ use log::LevelFilter;
 
 fn main() -> Result<()> {
     simple_logging::log_to_file("artifactsmmo.log", LevelFilter::Info)?;
-    artifactsmmo_sdk::init(
-        BOT_CONFIG.base_url.clone(),
-        BOT_CONFIG.token.clone(),
-        BOT_CONFIG.account_name.clone(),
-    );
+    let client = Client::new(url, account_name, token);
+    let bot = Arc::new(Bot::new(client));
     //game.orderboard
     //    .add(None, "lizard_skin", 1000, Purpose::Cli)?;
     //game.orderboard
@@ -24,6 +21,6 @@ fn main() -> Result<()> {
     ORDER_BOARD.add(None, "magic_wood", 6000, Purpose::Cli)?;
     //game.orderboard.add(None, "carrot", 1000, Purpose::Cli);
     //game.orderboard.add(None, "frozen_pickaxe", 5, Purpose::Cli)?;
-    Bot::run_characters();
-    cli::run()
+    Bot::run_characters(bot);
+    cli::run(bot)
 }

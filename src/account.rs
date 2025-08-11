@@ -1,41 +1,69 @@
+use crate::{
+    bank::Bank,
+    character::CharacterController,
+    gear_finder::GearFinder,
+    leveling_helper::{self, LevelingHelper},
+    orderboard::OrderBoard,
+};
 use artifactsmmo_sdk::{
+    account::{self, Account as AccountClient},
     char::{HasCharacterData, Skill},
     items::ItemSource,
     models::SimpleItemSchema,
+    Client, Gear, Items,
 };
 use itertools::Itertools;
-use std::sync::{Arc, LazyLock, RwLock};
-
-use crate::character::Character;
-
-pub static ACCOUNT: LazyLock<Account> = LazyLock::new(Account::new);
+use std::sync::{Arc, RwLock};
 
 #[derive(Default)]
-pub struct Account {
-    pub characters: RwLock<Vec<Arc<Character>>>,
+pub struct AccountController {
+    client: Arc<AccountClient>,
+    items: Arc<Items>,
+    pub characters: RwLock<Vec<Arc<CharacterController>>>,
 }
 
-impl Account {
-    fn new() -> Account {
-        let account = Account {
+impl AccountController {
+    pub fn new(client: Arc<AccountClient>, items: Arc<Items>) -> Self {
+        Self {
+            client,
+            items,
             characters: RwLock::new(vec![]),
-        };
-        account.init_characters();
-        account
+        }
     }
 
-    fn init_characters(&self) {
+    fn init_characters(
+        &self,
+        client: Arc<Client>,
+        order_board: Arc<OrderBoard>,
+        account: Arc<AccountController>,
+        gear_finder: Arc<GearFinder>,
+        leveling_helper: Arc<LevelingHelper>,
+        bank: Arc<Bank>,
+    ) {
         let Ok(mut chars) = self.characters.write() else {
             return;
         };
-        *chars = BASE_ACCOUNT
-            .characters()
+        *chars = self
+            .client
+            .characters
             .iter()
-            .map(|(id, data)| Arc::new(Character::new(*id, data.clone())))
+            .map(|char_client| {
+                Arc::new(CharacterController::new(
+                    char_client.clone(),
+                    self.items.clone(),
+                    client.monsters.clone(),
+                    client.maps.clone(),
+                    bank.clone(),
+                    order_board.clone(),
+                    account.clone(),
+                    gear_finder.clone(),
+                    leveling_helper.clone(),
+                ))
+            })
             .collect_vec()
     }
 
-    pub fn characters(&self) -> Vec<Arc<Character>> {
+    pub fn characters(&self) -> Vec<Arc<CharacterController>> {
         self.characters
             .read()
             .unwrap()
@@ -44,11 +72,11 @@ impl Account {
             .collect_vec()
     }
 
-    pub fn get_character(&self, index: usize) -> Option<Arc<Character>> {
+    pub fn get_character(&self, index: usize) -> Option<Arc<CharacterController>> {
         self.characters.read().unwrap().get(index).cloned()
     }
 
-    pub fn get_character_by_name(&self, name: &str) -> Option<Arc<Character>> {
+    pub fn get_character_by_name(&self, name: &str) -> Option<Arc<CharacterController>> {
         self.characters
             .read()
             .unwrap()
@@ -102,7 +130,7 @@ impl Account {
     }
 
     pub fn time_to_get(&self, item: &str) -> Option<i32> {
-        ITEMS
+        self.items
             .best_source_of(item)
             .iter()
             .filter_map(|s| match s {
@@ -119,10 +147,11 @@ impl Account {
                     .unwrap()
                     .iter()
                     .filter_map(|c| c.time_to_kill(m))
-                    .map(|time| time * ITEMS.drop_rate(item))
+                    .map(|time| time * self.items.drop_rate(item))
                     .min(),
                 ItemSource::Craft => {
-                    let mats_wit_ttg = ITEMS
+                    let mats_wit_ttg = self
+                        .items
                         .mats_of(item)
                         .into_iter()
                         .map(|m| (m.clone(), self.time_to_get(&m.code)))

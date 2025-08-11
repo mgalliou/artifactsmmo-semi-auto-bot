@@ -1,43 +1,43 @@
 use artifactsmmo_sdk::{
-    base_bank::BaseBank,
+    bank::Bank as BankClient,
     items::ItemSchemaExt,
     models::{BankSchema, ItemSchema, SimpleItemSchema},
-    ITEMS,
+    Items,
 };
 use itertools::Itertools;
 use log::info;
 use std::{
     cmp::max,
     fmt::{self, Display, Formatter},
-    sync::{Arc, LazyLock, RwLock},
+    sync::{Arc, RwLock},
 };
-
-pub static BANK: LazyLock<Bank> = LazyLock::new(Bank::new);
 
 #[derive(Default)]
 pub struct Bank {
-    inner: BaseBank,
+    client: Arc<BankClient>,
+    items: Arc<Items>,
+    pub reservations: RwLock<Vec<Arc<Reservation>>>,
     pub browsed: RwLock<()>,
     pub being_expanded: RwLock<()>,
-    pub reservations: RwLock<Vec<Arc<Reservation>>>,
 }
 
 impl Bank {
-    pub fn new() -> Self {
+    pub fn new(client: Arc<BankClient>, items: Arc<Items>) -> Self {
         Self {
-            browsed: RwLock::new(()),
-            inner: BaseBank::new(),
+            client,
+            items,
             reservations: RwLock::new(vec![]),
+            browsed: RwLock::new(()),
             being_expanded: RwLock::new(()),
         }
     }
 
     pub fn details(&self) -> Arc<BankSchema> {
-        self.inner.details()
+        self.client.details()
     }
 
     pub fn content(&self) -> Arc<Vec<SimpleItemSchema>> {
-        self.inner.content()
+        self.client.content()
     }
 
     pub fn is_full(&self) -> bool {
@@ -45,20 +45,20 @@ impl Bank {
     }
 
     pub fn free_slots(&self) -> i32 {
-        self.inner.details.read().unwrap().slots - self.inner.content.read().unwrap().len() as i32
+        self.client.details.read().unwrap().slots - self.client.content.read().unwrap().len() as i32
     }
 
     pub fn gold(&self) -> i32 {
-        self.inner.details.read().unwrap().gold
+        self.client.details.read().unwrap().gold
     }
 
     pub fn next_expansion_cost(&self) -> i32 {
-        self.inner.details.read().unwrap().next_expansion_cost
+        self.client.details.read().unwrap().next_expansion_cost
     }
 
     /// Returns the total quantity of the given `item` code currently in the bank.
     pub fn total_of(&self, item: &str) -> i32 {
-        self.inner
+        self.client
             .content
             .read()
             .unwrap()
@@ -78,7 +78,7 @@ impl Bank {
     //  NOTE: this should maybe return a Option to indicate that the item is not craftable and
     //  return None in this case
     pub fn has_mats_for(&self, item: &str, owner: Option<&str>) -> i32 {
-        ITEMS
+        self.items
             .mats_of(item)
             .iter()
             .map(|mat| self.has_available(&mat.code, owner) / mat.quantity)
@@ -94,7 +94,7 @@ impl Bank {
         quantity: i32,
         owner: Option<&str>,
     ) -> Vec<SimpleItemSchema> {
-        ITEMS
+        self.items
             .mats_of(item)
             .into_iter()
             .filter(|m| self.has_available(&m.code, owner) < m.quantity * quantity)
@@ -112,12 +112,14 @@ impl Bank {
     }
 
     pub fn consumable_food(&self, level: i32) -> Vec<Arc<ItemSchema>> {
-        self.inner
-            .content
-            .read()
-            .unwrap()
+        self.client
+            .content()
             .iter()
-            .filter_map(|i| ITEMS.get(&i.code).filter(|i| i.is_consumable_at(level)))
+            .filter_map(|i| {
+                self.items
+                    .get(&i.code)
+                    .filter(|i| i.is_consumable_at(level))
+            })
             .collect_vec()
     }
 
@@ -324,7 +326,7 @@ mod tests {
     #[test]
     fn reserv_with_item_available() {
         let bank = Bank::default();
-        *bank.inner.content.write().unwrap() = Arc::new(vec![SimpleItemSchema {
+        *bank.client.content.write().unwrap() = Arc::new(vec![SimpleItemSchema {
             code: "copper_ore".to_owned(),
             quantity: 100,
         }]);
@@ -336,7 +338,7 @@ mod tests {
     #[test]
     fn reserv_if_not_with_item_available() {
         let bank = Bank::default();
-        *bank.inner.content.write().unwrap() = Arc::new(vec![SimpleItemSchema {
+        *bank.client.content.write().unwrap() = Arc::new(vec![SimpleItemSchema {
             code: "gold_ore".to_owned(),
             quantity: 100,
         }]);

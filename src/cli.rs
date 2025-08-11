@@ -1,23 +1,21 @@
 use anyhow::{bail, Result};
 use artifactsmmo_sdk::{
-    char::{HasCharacterData, Skill}, events::EventSchemaExt, Simulator, EVENTS, ITEMS, MAPS, MONSTERS
+    char::{HasCharacterData, Skill}, events::EventSchemaExt, Simulator
 };
 use clap::{value_parser, Parser, Subcommand};
 use rustyline::{error::ReadlineError, DefaultEditor};
 use std::{process::exit, str::FromStr, sync::Arc};
 
 use crate::{
-    account::ACCOUNT,
-    bank::BANK,
-    character::{Character, PostCraftAction},
-    gear_finder::{Filter, GEAR_FINDER},
-    leveling_helper::LEVELING_HELPER,
-    orderboard::{Purpose, ORDER_BOARD},
+    bot::Bot,
+    character::{CharacterController, PostCraftAction},
+    gear_finder::Filter,
+    orderboard::Purpose,
 };
 
-pub fn run() -> Result<()> {
+pub fn run(bot: Arc<Bot>) -> Result<()> {
     let mut rl = DefaultEditor::new()?;
-    let mut chars: Option<Arc<Character>> = None;
+    let mut chars: Option<Arc<CharacterController>> = None;
     loop {
         let readline = rl.readline(
             format!(
@@ -30,7 +28,7 @@ pub fn run() -> Result<()> {
             .as_str(),
         );
         match readline {
-            Ok(line) => match respond(&line, &mut chars) {
+            Ok(line) => match respond(&line, bot.clone(), &mut chars) {
                 Ok(_) => {
                     if let Err(e) = rl.add_history_entry(line.as_str()) {
                         eprintln!("failed to add history entry: {}", e);
@@ -52,25 +50,25 @@ pub fn run() -> Result<()> {
     }
 }
 
-fn respond(line: &str, character: &mut Option<Arc<Character>>) -> Result<()> {
+fn respond(line: &str, bot: Arc<Bot>, character: &mut Option<Arc<CharacterController>>) -> Result<()> {
     match Cli::try_parse_from(line.split_whitespace())?.command {
         Commands::Orderboard { action } => match action {
             OrderboardAction::Add { item, quantity } => {
-                ORDER_BOARD.add(None, &item, quantity, Purpose::Cli)?;
+                bot.order_board.add(None, &item, quantity, Purpose::Cli)?;
             }
             OrderboardAction::Remove { item } => {
-                let Some(o) = ORDER_BOARD.get(None, &item, &Purpose::Cli) else {
+                let Some(o) = bot.order_board.get(None, &item, &Purpose::Cli) else {
                     bail!("order not found");
                 };
-                ORDER_BOARD.remove(&o)?
+                bot.order_board.remove(&o)?
             }
             OrderboardAction::List => {
                 println!("orders (by priority):");
-                ORDER_BOARD.orders_by_priority().iter().for_each(|o| {
+                bot.order_board.orders_by_priority().iter().for_each(|o| {
                     println!(
                         "{}, in inventory: {}",
                         o,
-                        ACCOUNT.available_in_inventories(&o.item)
+                        bot.account.available_in_inventories(&o.item)
                     )
                 });
             }
@@ -78,10 +76,10 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>) -> Result<()> {
         Commands::Bank { action } => match action {
             BankAction::Reservations => {
                 println!("reservations:");
-                BANK.reservations().iter().for_each(|r| println!("{}", r));
+                bot.bank.reservations().iter().for_each(|r| println!("{}", r));
             }
             BankAction::List => {
-                BANK.content()
+                bot.bank.content()
                     .iter()
                     .for_each(|i| println!("{}: {}", i.code, i.quantity));
             }
@@ -90,8 +88,8 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>) -> Result<()> {
             }
         },
         Commands::Items { action } => match action {
-            ItemsAction::TimeToGet { item } => println!("{:?}", ACCOUNT.time_to_get(&item)),
-            ItemsAction::Sources { item } => ITEMS
+            ItemsAction::TimeToGet { item } => println!("{:?}", bot.account.time_to_get(&item)),
+            ItemsAction::Sources { item } => bot.client.items
                 .sources_of(&item)
                 .iter()
                 .for_each(|s| println!("{:?}", s)),
@@ -102,7 +100,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>) -> Result<()> {
                 println!(
                     "best {} craft: {:?}",
                     skill,
-                    LEVELING_HELPER
+                    bot.leveling_helper
                         .best_craft(char.skill_level(skill), skill, char)
                         .map(|i| i.name.clone())
                         .unwrap_or("none".to_string())
@@ -113,7 +111,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>) -> Result<()> {
                     bail!("no character selected");
                 };
                 println!("best {} crafts:", skill);
-                LEVELING_HELPER
+                bot.leveling_helper
                     .best_crafts(char.skill_level(skill), skill)
                     .iter()
                     .for_each(|i| println!("{}", i.name))
@@ -121,20 +119,20 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>) -> Result<()> {
         },
         Commands::Events { action } => match action {
             EventsAction::List => {
-                EVENTS
+                bot.client.events
                     .all()
                     .iter()
                     .for_each(|e| println!("{}", e.to_string()));
             }
             EventsAction::Active => {
-                EVENTS
+                bot.client.events
                     .all()
                     .iter()
                     .for_each(|e| println!("{}", e.to_string()));
             }
         },
         Commands::Char { i } => {
-            character.clone_from(&ACCOUNT.get_character(i as usize));
+            character.clone_from(&bot.account.get_character(i as usize));
             if let Some(char) = character.clone() {
                 bail!("character '{}' selected", char.name());
             } else {
@@ -179,7 +177,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>) -> Result<()> {
             let Some(char) = character else {
                 bail!("no character selected");
             };
-            let Some(monster) = MONSTERS.get(&monster) else {
+            let Some(monster) = bot.client.monsters.get(&monster) else {
                 bail!("no character selected");
             };
             let filter = Filter {
@@ -193,9 +191,9 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>) -> Result<()> {
             println!(
                 "{}",
                 if winning {
-                    GEAR_FINDER.best_winning_against(char, &monster, filter)
+                    bot.gear_finder.best_winning_against(char, &monster, filter)
                 } else {
-                    GEAR_FINDER.best_against(char, &monster, filter)
+                    bot.gear_finder.best_against(char, &monster, filter)
                 }
             );
         }
@@ -212,7 +210,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>) -> Result<()> {
             let Some(char) = character else {
                 bail!("no character selected");
             };
-            let Some(monster) = MONSTERS.get(&monster) else {
+            let Some(monster) = bot.client.monsters.get(&monster) else {
                 bail!("no character selected");
             };
             let filter = Filter {
@@ -224,9 +222,9 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>) -> Result<()> {
                 utilities,
             };
             let gear = if winning {
-                GEAR_FINDER.best_winning_against(char, &monster, filter)
+                bot.gear_finder.best_winning_against(char, &monster, filter)
             } else {
-                GEAR_FINDER.best_against(
+                bot.gear_finder.best_against(
                     char,
                     &monster,
                     Filter {
@@ -300,7 +298,7 @@ fn respond(line: &str, character: &mut Option<Arc<Character>>) -> Result<()> {
                 bail!("no character selected");
             };
             let (x, y) = char.position();
-            println!("{:?}", MAPS.get(x, y).unwrap());
+            println!("{:?}", bot.client.maps.get(x, y).unwrap());
         }
         Commands::Task => {
             let Some(char) = character else {

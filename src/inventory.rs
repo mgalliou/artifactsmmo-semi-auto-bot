@@ -1,9 +1,9 @@
 use crate::character::CharacterError;
 use artifactsmmo_sdk::{
-    char::CharacterData,
+    char::{Character as CharacterClient, HasCharacterData},
     items::ItemSchemaExt,
     models::{InventorySlot, ItemSchema},
-    ITEMS,
+    Items,
 };
 use core::fmt;
 use itertools::Itertools;
@@ -15,46 +15,34 @@ use std::{
 
 #[derive(Default)]
 pub struct Inventory {
-    data: CharacterData,
+    client: Arc<CharacterClient>,
+    items: Arc<Items>,
     reservations: RwLock<Vec<Arc<InventoryReservation>>>,
 }
 
 impl Inventory {
-    pub fn new(data: CharacterData) -> Self {
+    pub fn new(client: Arc<CharacterClient>, items: Arc<Items>) -> Self {
         Inventory {
-            data,
+            client,
+            items,
             reservations: RwLock::new(vec![]),
         }
     }
 
     /// Returns a copy of the inventory to be used while depositing or
     /// withdrawing items.
-    pub fn copy(&self) -> Vec<InventorySlot> {
-        self.data
-            .read()
-            .unwrap()
-            .inventory
-            .iter()
-            .flatten()
-            .cloned()
-            .collect_vec()
+    pub fn content(&self) -> Vec<InventorySlot> {
+        self.client.inventory.content()
     }
 
     /// Returns the amount of item in the `Character` inventory.
     pub fn total_items(&self) -> i32 {
-        self.data
-            .read()
-            .unwrap()
-            .inventory
-            .iter()
-            .flatten()
-            .map(|i| i.quantity)
-            .sum()
+        self.content().iter().map(|i| i.quantity).sum()
     }
 
     /// Returns the maximum number of item the inventory can contain.
     pub fn max_items(&self) -> i32 {
-        self.data.read().unwrap().inventory_max_items
+        self.client.inventory.max_items()
     }
 
     /// Returns the free spaces in the `Character` inventory.
@@ -65,47 +53,33 @@ impl Inventory {
     /// Checks if the `Character` inventory is full (all slots are occupied or
     /// `inventory_max_items` is reached).
     pub fn is_full(&self) -> bool {
-        self.total_items() >= self.max_items()
-            || self
-                .data
-                .read()
-                .unwrap()
-                .inventory
-                .iter()
-                .flatten()
-                .all(|s| s.quantity > 0)
+        self.total_items() >= self.max_items() || self.content().iter().all(|s| s.quantity > 0)
     }
 
     /// Returns the amount of the given item `code` in the `Character` inventory.
     pub fn total_of(&self, item: &str) -> i32 {
-        self.data
-            .read()
-            .unwrap()
+        self.client
             .inventory
+            .content()
             .iter()
-            .flatten()
             .find(|i| i.code == item)
             .map_or(0, |i| i.quantity)
     }
 
     pub fn contains_mats_for(&self, item: &str, quantity: i32) -> bool {
-        ITEMS
+        self.items
             .mats_of(item)
             .iter()
             .all(|m| self.total_of(&m.code) >= m.quantity * quantity)
     }
 
     pub fn consumable_food(&self) -> Vec<Arc<ItemSchema>> {
-        self.data
-            .read()
-            .unwrap()
-            .inventory
+        self.content()
             .iter()
-            .flatten()
             .filter_map(|i| {
-                ITEMS
+                self.items
                     .get(&i.code)
-                    .filter(|i| i.is_consumable_at(self.data.read().unwrap().level))
+                    .filter(|i| i.is_consumable_at(self.client.level()))
             })
             .collect_vec()
     }
@@ -125,7 +99,7 @@ impl Inventory {
             res.inc_quantity(quantity - res.quantity());
             info!(
                 "inventory({}): increased reservation quantity by '{}': [{}]",
-                self.data.read().unwrap().name,
+                self.client.name(),
                 quantity,
                 res
             );
@@ -160,7 +134,7 @@ impl Inventory {
             res.dec_quantity(quantity);
             info!(
                 "inventory({}): decreased reservation quantity by '{}': [{}]",
-                self.data.read().unwrap().name,
+                self.client.name(),
                 quantity,
                 res
             );
@@ -175,7 +149,7 @@ impl Inventory {
         self.reservations.write().unwrap().push(res.clone());
         info!(
             "{}: added reservation to inventory: {}",
-            self.data.read().unwrap().name,
+            self.client.name(),
             res
         );
     }
@@ -187,7 +161,7 @@ impl Inventory {
             .retain(|r| **r != *reservation);
         info!(
             "inventory({}): removed reservation: {}",
-            self.data.read().unwrap().name,
+            self.client.name(),
             reservation
         );
     }
