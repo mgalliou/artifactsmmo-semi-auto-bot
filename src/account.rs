@@ -1,5 +1,5 @@
 use crate::{
-    bank::Bank, character::CharacterController, gear_finder::GearFinder,
+    bank::Bank, bot_config::BotConfig, character::CharacterController, gear_finder::GearFinder,
     leveling_helper::LevelingHelper, orderboard::OrderBoard,
 };
 use artifactsmmo_sdk::{
@@ -14,21 +14,23 @@ use std::sync::{Arc, RwLock};
 
 #[derive(Default)]
 pub struct AccountController {
+    config: Arc<BotConfig>,
     client: Arc<AccountClient>,
     items: Arc<Items>,
     pub characters: RwLock<Vec<Arc<CharacterController>>>,
 }
 
 impl AccountController {
-    pub fn new(client: Arc<AccountClient>, items: Arc<Items>) -> Self {
+    pub fn new(config: Arc<BotConfig>, client: Arc<AccountClient>, items: Arc<Items>) -> Self {
         Self {
+            config,
             client,
             items,
             characters: RwLock::new(vec![]),
         }
     }
 
-    fn init_characters(
+    pub fn init_characters(
         &self,
         client: Arc<Client>,
         order_board: Arc<OrderBoard>,
@@ -46,6 +48,7 @@ impl AccountController {
             .iter()
             .map(|char_client| {
                 Arc::new(CharacterController::new(
+                    self.config.clone(),
                     char_client.clone(),
                     self.items.clone(),
                     client.monsters.clone(),

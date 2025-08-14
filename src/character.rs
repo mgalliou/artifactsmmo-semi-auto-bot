@@ -1,9 +1,14 @@
 use crate::{
     account::AccountController,
     bank::Bank,
-    bot_config::{CharConfig, Goal, BOT_CONFIG},
+    bot_config::{BotConfig, CharConfig, Goal},
     error::{
-        BankExpansionCommandError, CraftCommandError, DeleteCommandError, DepositItemCommandError, EquipCommandError, GatherCommandError, GoldDepositCommandError, GoldWithdrawCommandError, KillMonsterCommandError, RecycleCommandError, TaskAcceptationCommandError, TaskCancellationCommandError, TaskCompletionCommandError, TaskProgressionError, TaskTradeCommandError, TasksCoinExchangeCommandError, UnequipCommandError, WithdrawItemCommandError
+        BankExpansionCommandError, CraftCommandError, DeleteCommandError, DepositItemCommandError,
+        EquipCommandError, GatherCommandError, GoldDepositCommandError, GoldWithdrawCommandError,
+        KillMonsterCommandError, RecycleCommandError, TaskAcceptationCommandError,
+        TaskCancellationCommandError, TaskCompletionCommandError, TaskProgressionError,
+        TaskTradeCommandError, TasksCoinExchangeCommandError, UnequipCommandError,
+        WithdrawItemCommandError,
     },
     gear_finder::{Filter, GearFinder},
     inventory::Inventory,
@@ -43,6 +48,7 @@ use strum_macros::EnumIs;
 
 #[derive(Default)]
 pub struct CharacterController {
+    config: Arc<BotConfig>,
     pub client: Arc<CharacterClient>,
     pub inventory: Arc<Inventory>,
     maps: Arc<Maps>,
@@ -57,6 +63,7 @@ pub struct CharacterController {
 
 impl CharacterController {
     pub fn new(
+        config: Arc<BotConfig>,
         client: Arc<CharacterClient>,
         items: Arc<Items>,
         monsters: Arc<Monsters>,
@@ -68,6 +75,7 @@ impl CharacterController {
         leveling_helper: Arc<LevelingHelper>,
     ) -> Self {
         Self {
+            config,
             inventory: Arc::new(Inventory::new(client.clone(), items.clone())),
             client,
             maps,
@@ -261,8 +269,8 @@ impl CharacterController {
             .best_source_of(&order.item)
             .iter()
             .any(|s| match s {
-                ItemSource::Resource(r) => self.can_gather(&r).is_ok(),
-                ItemSource::Monster(m) => self.can_kill(&m).is_ok(),
+                ItemSource::Resource(r) => self.can_gather(r).is_ok(),
+                ItemSource::Monster(m) => self.can_kill(m).is_ok(),
                 ItemSource::Craft => self.can_craft(&order.item).is_ok(),
                 ItemSource::TaskReward => order.in_progress() <= 0,
                 ItemSource::Task => true,
@@ -355,8 +363,8 @@ impl CharacterController {
             .best_source_of(&order.item)
             .iter()
             .find_map(|s| match s {
-                ItemSource::Resource(r) => self.progress_resource_order(order, &r),
-                ItemSource::Monster(m) => self.progress_monster_order(order, &m),
+                ItemSource::Resource(r) => self.progress_resource_order(order, r),
+                ItemSource::Monster(m) => self.progress_monster_order(order, m),
                 ItemSource::Craft => self.progress_crafting_order(order),
                 ItemSource::TaskReward => self.progress_task_reward_order(order),
                 ItemSource::Task => self.progress_task_order(order),
@@ -787,7 +795,7 @@ impl CharacterController {
         if self.client.position() == (x, y) {
             return Ok(self.client.current_map());
         }
-        Ok(self.client.r#move(x, y)?)
+        self.client.r#move(x, y)
     }
 
     /// Checks if an gear making the `Character` able to kill the given
@@ -856,9 +864,8 @@ impl CharacterController {
     ) -> Result<SkillDataSchema, GatherCommandError> {
         self.can_gather(resource)?;
         let Some(map) = self
-            .client
-            .current_map()
-            .closest_with_content_code(&resource.code)
+            .maps
+            .closest_with_content_code_from(self.client.current_map(), &resource.code)
         else {
             return Err(GatherCommandError::MapNotFound);
         };
@@ -1086,7 +1093,9 @@ impl CharacterController {
             return Err(RecycleCommandError::SkillDisabled(skill));
         };
         if self.client.skill_level(skill) < item.level {
-            return Err(RecycleCommandError::InsuffisientSkillLevel(skill, item.level));
+            return Err(RecycleCommandError::InsuffisientSkillLevel(
+                skill, item.level,
+            ));
         };
         if self.inventory.max_items() < item.recycled_quantity() * quantity {
             return Err(RecycleCommandError::InsufficientInventorySpace);
@@ -1195,7 +1204,7 @@ impl CharacterController {
             self.deposit_all();
             self.withdraw_item(item, missing_quantity)?;
         }
-        self.move_to_craft(item);
+        let _ = self.move_to_craft(item);
         let result = self.client.recycle(item, quantity);
         self.inventory
             .decrease_reservation(&self.client.task(), quantity);
@@ -1504,7 +1513,10 @@ impl CharacterController {
         &self,
         r#type: MapContentType,
     ) -> Result<Arc<MapSchema>, MoveError> {
-        let Some(map) = self.client.current_map().closest_of_type(r#type) else {
+        let Some(map) = self
+            .maps
+            .closest_of_type_from(self.client.current_map(), r#type)
+        else {
             return Err(MoveError::MapNotFound);
         };
         self.r#move(map.x, map.y)
@@ -1514,7 +1526,10 @@ impl CharacterController {
         &self,
         r#type: Option<TaskType>,
     ) -> Result<Arc<MapSchema>, MoveError> {
-        let Some(map) = self.client.current_map().closest_tasksmaster(r#type) else {
+        let Some(map) = self
+            .maps
+            .closest_tasksmaster_from(self.client.current_map(), r#type)
+        else {
             return Err(MoveError::MapNotFound);
         };
         self.r#move(map.x, map.y)
@@ -1524,7 +1539,10 @@ impl CharacterController {
         &self,
         code: &str,
     ) -> Result<Arc<MapSchema>, MoveError> {
-        let Some(map) = self.client.current_map().closest_with_content_code(code) else {
+        let Some(map) = self
+            .maps
+            .closest_with_content_code_from(self.client.current_map(), code)
+        else {
             return Err(MoveError::MapNotFound);
         };
         self.r#move(map.x, map.y)
@@ -1673,7 +1691,7 @@ impl CharacterController {
     }
 
     pub fn conf(&self) -> &RwLock<CharConfig> {
-        BOT_CONFIG.characters.get(self.client.id).unwrap()
+        self.config.characters.get(self.client.id).unwrap()
     }
 
     #[allow(dead_code)]

@@ -7,22 +7,19 @@ use serde::Deserialize;
 use std::{
     collections::HashSet,
     fmt::Display,
-    sync::{LazyLock, RwLock},
+    sync::RwLock,
 };
 use strum_macros::{AsRefStr, EnumIs, EnumIter, EnumString};
-
-pub static BOT_CONFIG: LazyLock<BotConfig> = LazyLock::new(BotConfig::from_file);
 
 #[derive(Debug, Default, Deserialize)]
 pub struct BotConfig {
     pub base_url: String,
     pub token: String,
-    pub account_name: String,
     pub characters: Vec<RwLock<CharConfig>>,
 }
 
 impl BotConfig {
-    fn from_file() -> Self {
+    pub fn from_file() -> Self {
         Figment::new()
             .merge(Toml::file_exact("ArtifactsMMO.toml"))
             .extract()
@@ -35,6 +32,7 @@ pub struct CharConfig {
     #[serde(default)]
     pub idle: bool,
     pub skills: HashSet<Skill>,
+    #[serde(default)]
     pub task_type: TaskType,
     pub goals: Vec<Goal>,
     #[serde(default)]
