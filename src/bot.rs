@@ -3,7 +3,7 @@ use crate::{
     bank::Bank,
     gear_finder::GearFinder,
     leveling_helper::LevelingHelper,
-    orderboard::{Order, OrderBoard},
+    orderboard::OrderBoard,
 };
 use artifactsmmo_sdk::Client;
 use log::error;

@@ -1,10 +1,10 @@
-use crate::character::CharacterError;
 use artifactsmmo_sdk::{
     char::{Character as CharacterClient, HasCharacterData},
     items::ItemSchemaExt,
     models::{InventorySlot, ItemSchema},
     Items,
 };
+use thiserror::Error;
 use core::fmt;
 use itertools::Itertools;
 use log::info;
@@ -89,7 +89,7 @@ impl Inventory {
         self.total_of(item) - self.quantity_reserved(item)
     }
 
-    pub fn reserv(&self, item: &str, quantity: i32) -> Result<(), CharacterError> {
+    pub fn reserv(&self, item: &str, quantity: i32) -> Result<(), ReservationError> {
         let Some(res) = self.get_reservation(item) else {
             return self.increase_reservation(item, quantity);
         };
@@ -105,20 +105,20 @@ impl Inventory {
             );
             Ok(())
         } else {
-            Err(CharacterError::QuantityUnavailable(quantity))
+            Err(ReservationError::QuantityUnavailable(quantity))
         }
     }
 
-    fn increase_reservation(&self, item: &str, quantity: i32) -> Result<(), CharacterError> {
+    fn increase_reservation(&self, item: &str, quantity: i32) -> Result<(), ReservationError> {
         let Some(res) = self.get_reservation(item) else {
             if quantity > self.total_of(item) {
-                return Err(CharacterError::QuantityUnavailable(quantity));
+                return Err(ReservationError::QuantityUnavailable(quantity));
             }
             self.add_reservation(item, quantity);
             return Ok(());
         };
         if quantity > self.quantity_not_reserved(item) {
-            return Err(CharacterError::QuantityUnavailable(quantity));
+            return Err(ReservationError::QuantityUnavailable(quantity));
         }
         res.inc_quantity(quantity);
         Ok(())
@@ -199,6 +199,12 @@ impl Inventory {
 pub struct InventoryReservation {
     item: String,
     quantity: RwLock<i32>,
+}
+
+#[derive(Debug, Error)]
+pub enum ReservationError {
+    #[error("Quantiny unavailable")]
+    QuantityUnavailable(i32),
 }
 
 impl InventoryReservation {

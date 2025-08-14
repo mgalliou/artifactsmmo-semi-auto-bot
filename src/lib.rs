@@ -8,3 +8,4 @@ pub mod gear_finder;
 pub mod inventory;
 pub mod leveling_helper;
 pub mod orderboard;
+pub mod error;

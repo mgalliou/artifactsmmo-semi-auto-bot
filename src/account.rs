@@ -1,16 +1,13 @@
 use crate::{
-    bank::Bank,
-    character::CharacterController,
-    gear_finder::GearFinder,
-    leveling_helper::{self, LevelingHelper},
-    orderboard::OrderBoard,
+    bank::Bank, character::CharacterController, gear_finder::GearFinder,
+    leveling_helper::LevelingHelper, orderboard::OrderBoard,
 };
 use artifactsmmo_sdk::{
-    account::{self, Account as AccountClient},
+    account::Account as AccountClient,
     char::{HasCharacterData, Skill},
     items::ItemSource,
     models::SimpleItemSchema,
-    Client, Gear, Items,
+    Client, Items,
 };
 use itertools::Itertools;
 use std::sync::{Arc, RwLock};
