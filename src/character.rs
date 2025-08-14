@@ -185,13 +185,13 @@ impl CharacterController {
         if skill.is_combat() {
             return self.level_combat().is_ok();
         }
-        self.level_skill_by_crafting(skill).is_ok() || self.level_skill_by_gathering(&skill).is_ok()
+        self.level_skill_by_crafting(skill).is_ok() || self.level_skill_by_gathering(skill).is_ok()
     }
 
-    fn level_skill_by_gathering(&self, skill: &Skill) -> Result<(), GatherCommandError> {
+    fn level_skill_by_gathering(&self, skill: Skill) -> Result<(), GatherCommandError> {
         let Some(resource) = self
             .leveling_helper
-            .best_resource(self.skill_level(*skill), *skill)
+            .best_resource(self.skill_level(skill), skill)
         else {
             return Err(GatherCommandError::MapNotFound);
         };
@@ -1305,10 +1305,53 @@ impl CharacterController {
         Ok(deposit?)
     }
 
+    /// TODO: finish implementing, a check for bank space and expansion
+    pub fn deposit_items(
+        &self,
+        items: &[SimpleItemSchema],
+        owner: Option<String>,
+    ) -> Result<(), DepositItemCommandError> {
+        if items
+            .iter()
+            .any(|i| self.inventory.total_of(&i.code) < i.quantity)
+        {
+            return Err(DepositItemCommandError::MissingQuantity);
+        }
+        if self.bank.details().slots as usize - self.bank.content().len() < items.len() {
+            return Err(DepositItemCommandError::InsufficientBankSpace);
+        };
+        self.move_to_closest_map_of_type(MapContentType::Bank)?;
+        let deposit = self.client.deposit_item(items);
+        if deposit.is_ok() {
+            if let Some(owner) = owner {
+                items.iter().for_each(|i| {
+                    if let Err(e) = self.bank.increase_reservation(&i.code, i.quantity, &owner) {
+                        error!(
+                            "{}: failed to reserv deposited item: {:?}",
+                            self.client.name(),
+                            e
+                        )
+                    }
+                })
+            }
+            items.iter().for_each(|i| {
+                self.inventory.decrease_reservation(&i.code, i.quantity);
+            })
+        }
+        if let Err(e) = self.deposit_all_gold() {
+            error!(
+                "{}: failed to deposit gold to the bank: {:?}",
+                self.client.name(),
+                e
+            )
+        }
+        Ok(deposit?)
+    }
+
     pub fn withdraw_item(&self, item: &str, quantity: i32) -> Result<(), WithdrawItemCommandError> {
         if self.bank.has_available(item, Some(&self.client.name())) < quantity {
             // TODO: return a better error
-            return Err(WithdrawItemCommandError::ItemNotFound);
+            return Err(WithdrawItemCommandError::MissingQuantity);
         }
         self.move_to_closest_map_of_type(MapContentType::Bank)?;
         let items = &[SimpleItemSchema::new(item.to_string(), quantity)];

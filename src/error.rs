@@ -205,10 +205,8 @@ pub enum MoveCommandError {
 
 #[derive(Debug, Error)]
 pub enum WithdrawItemCommandError {
-    #[error("Item not found")]
-    ItemNotFound,
-    #[error("Insufficient quantity")]
-    InsufficientQuantity,
+    #[error("Missing item quantity")]
+    MissingQuantity,
     #[error("Failed to move to bank: {0}")]
     MoveError(#[from] MoveError),
     #[error("Failed to withdraw item(s): {0}")]
@@ -217,12 +215,14 @@ pub enum WithdrawItemCommandError {
 
 #[derive(Debug, Error)]
 pub enum DepositItemCommandError {
-    #[error("Item not found")]
-    ItemNotFound,
+    #[error("Missing item quantity")]
+    MissingQuantity,
     #[error("Failed to move to bank: {0}")]
     MoveError(#[from] MoveError),
     #[error("Failed to deposit item(s): {0}")]
     DepositError(#[from] DepositError),
+    #[error("Insufficient bank space")]
+    InsufficientBankSpace,
 }
 
 #[derive(Debug, Error)]
