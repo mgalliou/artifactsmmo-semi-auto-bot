@@ -1,4 +1,5 @@
 use artifactsmmo_sdk::{char::Skill, gear::Slot, Items};
+use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use log::{debug, info};
 use std::{
@@ -12,12 +13,11 @@ use thiserror::Error;
 
 use crate::account::AccountController;
 
-
 #[derive(Default)]
 pub struct OrderBoard {
     orders: RwLock<Vec<Arc<Order>>>,
     items: Arc<Items>,
-    account: Arc<AccountController>
+    account: Arc<AccountController>,
 }
 
 impl OrderBoard {
@@ -64,11 +64,7 @@ impl OrderBoard {
                 .cloned()
                 .chunk_by(|o| o.purpose.clone())
                 .into_iter()
-                .flat_map(|(_, chunk)| {
-                    chunk
-                        .sorted_by_key(|o| self.items.get(&o.item).map(|i| i.level).unwrap_or(1))
-                        .rev()
-                })
+                .flat_map(|(_, chunk)| chunk.sorted_by_key(|o| o.creation))
                 .collect_vec();
             orders.extend(filtered);
         });
@@ -147,7 +143,9 @@ impl OrderBoard {
     }
 
     pub fn total_missing_for(&self, order: &Order) -> i32 {
-        order.not_deposited() - self.account.available_in_inventories(&order.item) - order.in_progress()
+        order.not_deposited()
+            - self.account.available_in_inventories(&order.item)
+            - order.in_progress()
     }
 }
 
@@ -160,6 +158,7 @@ pub struct Order {
     pub in_progress: RwLock<i32>,
     // Number of item deposited into the bank
     pub deposited: RwLock<i32>,
+    pub creation: DateTime<Utc>,
 }
 
 impl Order {
@@ -179,6 +178,7 @@ impl Order {
             purpose,
             in_progress: RwLock::new(0),
             deposited: RwLock::new(0),
+            creation: Utc::now(),
         })
     }
 
@@ -223,7 +223,7 @@ impl Display for Order {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{}: '{}'({}/{}), purpose: {}",
+            "{}: '{}'({}/{}), purpose: {} ({})",
             if let Some(owner) = &self.owner {
                 owner
             } else {
@@ -233,6 +233,7 @@ impl Display for Order {
             self.deposited(),
             self.quantity(),
             self.purpose,
+            self.creation
         )
     }
 }
@@ -258,6 +259,10 @@ pub enum Purpose {
     Gather {
         char: String,
         skill: Skill,
+        item_code: String,
+    },
+    Tool {
+        char: String,
         item_code: String,
     },
     Gear {
@@ -294,6 +299,7 @@ impl Display for Purpose {
                     item_code,
                 } => format!("{char}'s '{item_code}' ({slot})"),
                 Purpose::Task { char } => format!("{char}'s  task"),
+                Purpose::Tool { char, item_code } => format!("{char}'s tool: {item_code}"),
             }
         )
     }

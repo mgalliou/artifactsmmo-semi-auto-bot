@@ -62,6 +62,7 @@ pub struct CharacterController {
 }
 
 impl CharacterController {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         config: Arc<BotConfig>,
         client: Arc<CharacterClient>,
@@ -100,7 +101,7 @@ impl CharacterController {
                 continue;
             }
             self.maps.refresh_from_events();
-            self.order_food();
+            //self.order_food();
             if self.handle_goals() {
                 continue;
             }
@@ -936,7 +937,18 @@ impl CharacterController {
                 ..Default::default()
             },
         ) {
-            self.order_if_needed(Slot::Weapon, &best.code, 1);
+            if self.has_available(&best.code) < 1 {
+                let _ = self.order_board.add(
+                    Some(&self.name()),
+                    &best.code,
+                    1,
+                    Purpose::Tool {
+                        char: self.name(),
+                        item_code: best.code.to_owned(),
+                    },
+                );
+            }
+            //self.order_if_needed(Slot::Weapon, &best.code, 1);
         }
     }
 
@@ -1667,7 +1679,7 @@ impl CharacterController {
 
     /// Returns the amount of the given item `code` available in bank, inventory and gear.
     pub fn has_available(&self, item: &str) -> i32 {
-        self.has_in_bank_or_inv(item) + self.has_equiped(item) as i32
+        self.has_equiped(item) as i32 + self.has_in_bank_or_inv(item)
     }
 
     /// Checks if the given item `code` is equiped.
