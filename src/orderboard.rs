@@ -64,7 +64,7 @@ impl OrderBoard {
                 .cloned()
                 .chunk_by(|o| o.purpose.clone())
                 .into_iter()
-                .flat_map(|(_, chunk)| chunk.sorted_by_key(|o| o.creation))
+                .flat_map(|(_, chunk)| chunk.sorted_by_key(|o| o.creation).rev())
                 .collect_vec();
             orders.extend(filtered);
         });

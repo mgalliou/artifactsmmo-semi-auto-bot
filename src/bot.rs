@@ -33,11 +33,7 @@ impl Bot {
             config,
             client: client.clone(),
             order_board: Arc::new(OrderBoard::new(client.items.clone(), account.clone())),
-            gear_finder: Arc::new(GearFinder::new(
-                client.items.clone(),
-                client.resources.clone(),
-                account.clone(),
-            )),
+            gear_finder: Arc::new(GearFinder::new(client.items.clone(), account.clone())),
             leveling_helper: Arc::new(LevelingHelper::new(
                 client.items.clone(),
                 client.monsters.clone(),

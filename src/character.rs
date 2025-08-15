@@ -948,7 +948,6 @@ impl CharacterController {
                     },
                 );
             }
-            //self.order_if_needed(Slot::Weapon, &best.code, 1);
         }
     }
 
@@ -966,9 +965,14 @@ impl CharacterController {
         if self.can_gather(resource).is_err() {
             return None;
         }
-        let tool = self
-            .gear_finder
-            .best_tool_for_resource(&resource.code, self.level());
+        let tool = self.gear_finder.best_tool(
+            self,
+            resource.skill.into(),
+            Filter {
+                available: true,
+                ..Default::default()
+            },
+        );
         let time = Simulator::gather(
             self.skill_level(resource.skill.into()),
             resource.level,
@@ -1269,7 +1273,7 @@ impl CharacterController {
     ) -> Result<(), DepositItemCommandError> {
         if self.inventory.total_of(item) < quantity {
             // TODO: return a better error
-            return Err(DepositItemCommandError::ItemNotFound);
+            return Err(DepositItemCommandError::MissingQuantity);
         }
         self.move_to_closest_map_of_type(MapContentType::Bank)?;
         if self.bank.free_slots() <= BANK_MIN_FREE_SLOT {
@@ -1518,7 +1522,7 @@ impl CharacterController {
                 < mat.quantity
             {
                 warn!("{}: not enough materials in bank to withdraw the materials required to craft '{item}'x{quantity}", self.client.name());
-                return Err(WithdrawItemCommandError::InsufficientQuantity);
+                return Err(WithdrawItemCommandError::MissingQuantity);
             }
         }
         info!(
@@ -1624,24 +1628,30 @@ impl CharacterController {
         });
     }
 
-    fn equip_item(&self, item: &str, slot: Slot, quantity: i32) -> Result<(), EquipCommandError> {
-        if let Some(item) = self.items.get(item) {
-            if self.inventory.free_space() + item.inventory_space() <= 0 {
-                self.deposit_all_but(&item.code);
-            }
+    fn equip_item(
+        &self,
+        item_code: &str,
+        slot: Slot,
+        quantity: i32,
+    ) -> Result<(), EquipCommandError> {
+        let Some(item) = self.items.get(item_code) else {
+            return Err(EquipCommandError::ItemNotFound);
+        };
+        if self.inventory.free_space() + item.inventory_space() <= 0 {
+            self.deposit_all_but(item_code);
         }
         self.unequip_item(slot, self.quantity_in_slot(slot))?;
-        if let Err(e) = self.client.equip(item, slot, quantity) {
+        if let Err(e) = self.client.equip(item_code, slot, quantity) {
             error!(
                 "{}: failed to equip '{}'x{} in the '{:?}' slot: {:?}",
                 self.client.name(),
-                item,
+                item_code,
                 quantity,
                 slot,
                 e
             );
         }
-        self.inventory.decrease_reservation(item, quantity);
+        self.inventory.decrease_reservation(item_code, quantity);
         Ok(())
     }
 
@@ -1985,6 +1995,7 @@ impl CharacterController {
         }
     }
 
+    /// TODO: improve with only ordering food crafted from fishing
     fn order_food(&self) {
         if !self.skill_enabled(Skill::Combat) {
             return;
