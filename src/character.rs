@@ -28,9 +28,9 @@ use artifactsmmo_sdk::{
     items::{ItemSchemaExt, ItemSource},
     maps::MapSchemaExt,
     models::{
-        CharacterSchema, FightResult, FightSchema, ItemSchema, MapContentType, MapSchema,
-        MonsterSchema, RecyclingItemsSchema, ResourceSchema, RewardsSchema, SimpleItemSchema,
-        SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
+        CharacterSchema, FightResult, FightSchema, MapContentType, MapSchema, MonsterSchema,
+        RecyclingItemsSchema, ResourceSchema, RewardsSchema, SimpleItemSchema, SkillDataSchema,
+        SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
     },
     HasDrops, Items, Maps, Monsters, Server, Simulator,
 };
@@ -870,85 +870,41 @@ impl CharacterController {
         else {
             return Err(GatherCommandError::MapNotFound);
         };
-        self.check_for_tool(resource);
+        self.check_for_skill_gear(resource.skill.into());
         self.r#move(map.x, map.y)?;
         Ok(self.client.gather()?)
     }
 
-    fn check_for_tool(&self, resource: &ResourceSchema) {
-        let mut available: Option<Arc<ItemSchema>> = None;
-        let prev_equiped = self.equiped_in(Slot::Weapon);
-        if let Ok(_browsed) = self.bank.browsed.write() {
-            if let Some(ref tool) = self.gear_finder.best_tool(
-                self,
-                resource.skill.into(),
-                Filter {
-                    available: true,
-                    ..Default::default()
-                },
-            ) {
-                available = Some((*tool).clone());
-                self.reserv_if_needed_and_available(Slot::Weapon, &tool.code, 1);
-            }
-            self.order_best_tool(resource.skill.into());
-        }
-        if let Some(prev_equiped) = self.items.get(&prev_equiped) {
-            if available.is_none()
-                || available
-                    .as_ref()
-                    .is_some_and(|t| t.code != prev_equiped.code)
-            {
-                if let Err(e) = self.unequip_item(Slot::Weapon, 1) {
-                    error!(
-                        "{}: failed to unequip previously equiped weapon: {:?}",
-                        self.client.name(),
-                        e
-                    )
-                }
-                // TODO: improve logic: maybe include this logic in `deposit_item` method
-                if let Some(o) = self
-                    .order_board
-                    .orders_by_priority()
-                    .iter()
-                    .find(|o| o.item == prev_equiped.code)
-                {
-                    self.deposit_order(o);
-                } else if let Err(e) = self.deposit_item(&prev_equiped.code, 1, None) {
-                    error!(
-                        "{}: error while depositing previously equiped weapon: {:?}",
-                        self.client.name(),
-                        e
-                    )
-                }
-            }
-        }
-        self.unequip_and_deposit_all_for_gathering();
-        if let Some(available) = available {
-            self.equip_item_from_bank_or_inventory(&available.code, Slot::Weapon);
-        }
+    fn check_for_skill_gear(&self, skill: Skill) {
+        let Ok(_browsed) = self.bank.browsed.write() else {
+            return;
+        };
+        let mut available = self.gear_finder.best_for_skill(
+            self,
+            skill,
+            Filter {
+                available: true,
+                ..Default::default()
+            },
+        );
+        self.reserv_gear(&mut available);
+        self.order_best_gear_for_skill(skill);
+        drop(_browsed);
+        self.equip_gear(&mut available);
     }
 
-    fn order_best_tool(&self, skill: Skill) {
-        if let Some(best) = self.gear_finder.best_tool(
+    fn order_best_gear_for_skill(&self, skill: Skill) {
+        let mut gear = self.gear_finder.best_for_skill(
             self,
             skill,
             Filter {
                 can_craft: true,
+                from_task: false,
+                from_monster: false,
                 ..Default::default()
             },
-        ) {
-            if self.has_available(&best.code) < 1 {
-                let _ = self.order_board.add(
-                    Some(&self.name()),
-                    &best.code,
-                    1,
-                    Purpose::Tool {
-                        char: self.name(),
-                        item_code: best.code.to_owned(),
-                    },
-                );
-            }
-        }
+        );
+        self.order_gear(&mut gear);
     }
 
     pub fn time_to_kill(&self, monster: &MonsterSchema) -> Option<i32> {
@@ -973,8 +929,7 @@ impl CharacterController {
                 ..Default::default()
             },
         );
-        let time = Simulator::gather(
-            self.skill_level(resource.skill.into()),
+        let time = Simulator::gather_cd(
             resource.level,
             tool.map_or(0, |t| t.skill_cooldown_reduction(resource.skill.into())),
         );
