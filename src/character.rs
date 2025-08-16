@@ -275,6 +275,7 @@ impl CharacterController {
                 ItemSource::Craft => self.can_craft(&order.item).is_ok(),
                 ItemSource::TaskReward => order.in_progress() <= 0,
                 ItemSource::Task => true,
+                ItemSource::Npc(_) => todo!(),
                 //ItemSource::Gift => true,
             })
     }
@@ -335,7 +336,7 @@ impl CharacterController {
                     self.has_available(TASKS_COIN) >= TASK_EXCHANGE_PRICE + MIN_COIN_THRESHOLD
                 }
                 ItemSource::Task => self.has_available(&self.task()) >= self.task_missing(),
-                //ItemSource::Gift => self.has_available(GIFT) > 0,
+                ItemSource::Npc(_) => todo!(),
             })
     }
 
@@ -369,7 +370,7 @@ impl CharacterController {
                 ItemSource::Craft => self.progress_crafting_order(order),
                 ItemSource::TaskReward => self.progress_task_reward_order(order),
                 ItemSource::Task => self.progress_task_order(order),
-                //ItemSource::Gift => self.progress_gift_order(order),
+                ItemSource::Npc(_) => todo!(),
             })
     }
 
@@ -864,13 +865,16 @@ impl CharacterController {
         resource: &ResourceSchema,
     ) -> Result<SkillDataSchema, GatherCommandError> {
         self.can_gather(resource)?;
+        if self.maps.with_content_code(&resource.code).is_empty() {
+            return Err(GatherCommandError::MapNotFound);
+        };
+        self.check_for_skill_gear(resource.skill.into());
         let Some(map) = self
             .maps
             .closest_with_content_code_from(self.client.current_map(), &resource.code)
         else {
             return Err(GatherCommandError::MapNotFound);
         };
-        self.check_for_skill_gear(resource.skill.into());
         self.r#move(map.x, map.y)?;
         Ok(self.client.gather()?)
     }
@@ -957,7 +961,7 @@ impl CharacterController {
                 ),
                 ItemSource::TaskReward => Some(2000),
                 ItemSource::Task => Some(2000),
-                //ItemSource::Gift => Some(1000),
+                ItemSource::Npc(_) => Some(60),
             })
             .min()
     }
