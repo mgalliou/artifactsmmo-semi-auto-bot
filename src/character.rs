@@ -1882,13 +1882,13 @@ impl CharacterController {
                     quantity += 1;
                 };
                 if quantity > 0 {
-                    if let Err(e) = self
-                        .client
-                        .r#use(&f.code, min(quantity, self.inventory.total_of(&f.code)))
-                    {
-                        error!("{} failed to use food: {:?}", self.name(), e)
+                    quantity = min(quantity, self.inventory.total_of(&f.code));
+                    match self.client.r#use(&f.code, quantity) {
+                        Ok(_) => {
+                            self.inventory.decrease_reservation(&f.code, quantity);
+                        }
+                        Err(e) => error!("{} failed to use food: {:?}", self.name(), e),
                     }
-                    self.inventory.decrease_reservation(&f.code, quantity);
                 }
             });
     }
