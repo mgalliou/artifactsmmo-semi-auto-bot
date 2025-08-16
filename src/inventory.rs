@@ -1,10 +1,9 @@
 use artifactsmmo_sdk::{
     char::{Character as CharacterClient, HasCharacterData},
     items::ItemSchemaExt,
-    models::{InventorySlot, ItemSchema},
+    models::{InventorySlot, ItemSchema, SimpleItemSchema},
     Items,
 };
-use thiserror::Error;
 use core::fmt;
 use itertools::Itertools;
 use log::info;
@@ -12,6 +11,7 @@ use std::{
     fmt::{Display, Formatter},
     sync::{Arc, RwLock},
 };
+use thiserror::Error;
 
 #[derive(Default)]
 pub struct Inventory {
@@ -33,6 +33,16 @@ impl Inventory {
     /// withdrawing items.
     pub fn content(&self) -> Vec<InventorySlot> {
         self.client.inventory.content()
+    }
+
+    pub fn simple_content(&self) -> Vec<SimpleItemSchema> {
+        self.content()
+            .iter()
+            .map(|s| SimpleItemSchema {
+                code: s.code.clone(),
+                quantity: s.quantity,
+            })
+            .collect_vec()
     }
 
     /// Returns the amount of item in the `Character` inventory.

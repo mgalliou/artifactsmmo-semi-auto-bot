@@ -1,6 +1,9 @@
 use artifactsmmo_sdk::char::{
     character::{
-        BankExpansionError, CraftError, DeleteError, DepositError, EquipError, FightError, GatherError, GoldDepositError, GoldWithdrawError, MoveError, RecycleError, RestError, TaskAcceptationError, TaskCancellationError, TaskCompletionError, TaskTradeError, TasksCoinExchangeError, UnequipError, WithdrawError
+        BankExpansionError, CraftError, DeleteError, DepositError, EquipError, FightError,
+        GatherError, GoldDepositError, GoldWithdrawError, MoveError, RecycleError, RestError,
+        TaskAcceptationError, TaskCancellationError, TaskCompletionError, TaskTradeError,
+        TasksCoinExchangeError, UnequipError, WithdrawError,
     },
     Skill,
 };
@@ -159,6 +162,8 @@ pub enum TaskCancellationCommandError {
     NotEnoughCoins,
     #[error("Failed to withdraw coins required")]
     WithdrawItemCommandError(#[from] WithdrawItemCommandError),
+    #[error("Failed to move to task master")]
+    MoveError(#[from] MoveError),
     #[error("Failed to cancel task")]
     TaskCancellationError(#[from] TaskCancellationError),
 }
@@ -243,4 +248,6 @@ pub enum UnequipCommandError {
     RestError(#[from] RestError),
     #[error("Failed to unequip item")]
     UnequipError(#[from] UnequipError),
+    #[error("Insufficient inventory space")]
+    InsufficientInventorySpace,
 }
