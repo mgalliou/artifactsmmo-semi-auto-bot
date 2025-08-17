@@ -6,7 +6,7 @@ use artifactsmmo_sdk::{
 };
 use core::fmt;
 use itertools::Itertools;
-use log::info;
+use log::{debug, info};
 use std::{
     fmt::{Display, Formatter},
     sync::{Arc, RwLock},
@@ -100,50 +100,38 @@ impl Inventory {
         self.total_of(item) - self.quantity_reserved(item)
     }
 
+    /// Make sure the `quantity` of `item` is reserved
     pub fn reserv(&self, item: &str, quantity: i32) -> Result<(), ReservationError> {
-        let Some(res) = self.get_reservation(item) else {
-            return self.increase_reservation(item, quantity);
-        };
-        if res.quantity() >= quantity {
-            Ok(())
-        } else if self.quantity_not_reserved(item) >= quantity - res.quantity() {
-            res.inc_quantity(quantity - res.quantity());
-            info!(
-                "inventory({}): increased reservation quantity by '{}': [{}]",
-                self.client.name(),
-                quantity,
-                res
-            );
-            Ok(())
-        } else {
-            Err(ReservationError::QuantityUnavailable(quantity))
+        let quantity_to_reserv = quantity - self.quantity_reserved(item);
+        if quantity_to_reserv == 0 {
+            return Ok(());
+        } else if quantity_to_reserv > self.quantity_reservable(item) {
+            return Err(ReservationError::InsufficientQuantity);
         }
-    }
-
-    fn increase_reservation(&self, item: &str, quantity: i32) -> Result<(), ReservationError> {
         let Some(res) = self.get_reservation(item) else {
-            if quantity > self.total_of(item) {
-                return Err(ReservationError::QuantityUnavailable(quantity));
-            }
             self.add_reservation(item, quantity);
             return Ok(());
         };
-        if quantity > self.quantity_not_reserved(item) {
-            return Err(ReservationError::QuantityUnavailable(quantity));
-        }
-        res.inc_quantity(quantity);
+        res.inc_quantity(quantity_to_reserv);
+        debug!(
+            "inventory({}): increased reservation quantity by '{}': [{}]",
+            self.client.name(),
+            quantity,
+            res
+        );
         Ok(())
     }
 
+    /// Decrease the reserved quantity of `item`
     pub fn decrease_reservation(&self, item: &str, quantity: i32) {
         let Some(res) = self.get_reservation(item) else {
             return;
         };
         if quantity >= *res.quantity.read().unwrap() {
-            self.remove_reservation(&res)
+            self.remove_reservation(&res);
         } else {
             res.dec_quantity(quantity);
-            info!(
+            debug!(
                 "inventory({}): decreased reservation quantity by '{}': [{}]",
                 self.client.name(),
                 quantity,
@@ -158,7 +146,7 @@ impl Inventory {
             quantity: RwLock::new(quantity),
         });
         self.reservations.write().unwrap().push(res.clone());
-        info!(
+        debug!(
             "{}: added reservation to inventory: {}",
             self.client.name(),
             res
@@ -170,7 +158,7 @@ impl Inventory {
             .write()
             .unwrap()
             .retain(|r| **r != *reservation);
-        info!(
+        debug!(
             "inventory({}): removed reservation: {}",
             self.client.name(),
             reservation
@@ -192,7 +180,7 @@ impl Inventory {
             .sum()
     }
 
-    fn quantity_not_reserved(&self, item: &str) -> i32 {
+    fn quantity_reservable(&self, item: &str) -> i32 {
         self.total_of(item) - self.quantity_reserved(item)
     }
 
@@ -214,8 +202,8 @@ pub struct InventoryReservation {
 
 #[derive(Debug, Error)]
 pub enum ReservationError {
-    #[error("Quantiny unavailable")]
-    QuantityUnavailable(i32),
+    #[error("Insufficient item quantity in inventory: ")]
+    InsufficientQuantity,
 }
 
 impl InventoryReservation {
