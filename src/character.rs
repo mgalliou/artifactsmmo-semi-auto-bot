@@ -221,7 +221,7 @@ impl CharacterController {
                 Ok(())
             }
             Err(e) => {
-                if let CraftCommandError::InsuffisientMaterials = e
+                if let CraftCommandError::InsufficientMaterials = e
                     && (!skill.is_gathering()
                         || skill.is_alchemy()
                             && self
@@ -412,7 +412,7 @@ impl CharacterController {
             self.order_board.total_missing_for(order),
         );
         if quantity <= 0 {
-            return Err(CraftCommandError::InsuffisientMaterials);
+            return Err(CraftCommandError::InsufficientMaterials);
         }
         order.inc_in_progress(quantity);
         let crafted = self.craft_from_bank(&order.item, quantity);
@@ -1010,7 +1010,7 @@ impl CharacterController {
             return Err(CraftCommandError::SkillDisabled(skill));
         }
         if self.client.skill_level(skill) < item.level {
-            return Err(CraftCommandError::InsuffisientSkillLevel(skill, item.level));
+            return Err(CraftCommandError::InsufficientSkillLevel(skill, item.level));
         }
         // TODO: improve condition
         if self.inventory.is_full() {
@@ -1030,7 +1030,7 @@ impl CharacterController {
             return Err(RecycleCommandError::SkillDisabled(skill));
         };
         if self.client.skill_level(skill) < item.level {
-            return Err(RecycleCommandError::InsuffisientSkillLevel(
+            return Err(RecycleCommandError::InsufficientSkillLevel(
                 skill, item.level,
             ));
         };
@@ -1049,16 +1049,22 @@ impl CharacterController {
         quantity: i32,
     ) -> Result<SkillInfoSchema, CraftCommandError> {
         self.can_craft(item)?;
-        if self.max_craftable_items_from_bank(item) < quantity {
-            return Err(CraftCommandError::InsuffisientMaterials);
+        let Some(item) = self.items.get(item) else {
+            return Err(CraftCommandError::ItemNotFound);
+        };
+        let Some(skill) = item.skill_to_craft() else {
+            return Err(CraftCommandError::ItemNotCraftable);
+        };
+        if self.max_craftable_items_from_bank(&item.code) < quantity {
+            return Err(CraftCommandError::InsufficientMaterials);
         }
         info!(
             "{}: going to craft '{}'x{} from bank.",
             self.name(),
-            item,
+            item.code,
             quantity
         );
-        let mats = self.items.mats_for(item, quantity);
+        let mats = self.items.mats_for(&item.code, quantity);
         mats.iter().for_each(|m| {
             if let Err(e) = self.bank.reserv(&m.code, m.quantity, &self.name()) {
                 error!(
@@ -1070,8 +1076,11 @@ impl CharacterController {
         });
         self.deposit_all()?;
         self.withdraw_items(&mats)?;
-        self.move_to_craft(item)?;
-        let craft = self.client.craft(item, quantity)?;
+        let Some(map) = self.maps.with_workshop_for(skill) else {
+            return Err(MoveError::MapNotFound.into());
+        };
+        self.r#move(map.x, map.y)?;
+        let craft = self.client.craft(&item.code, quantity)?;
         mats.iter().for_each(|m| {
             self.inventory.decrease_reservation(&m.code, m.quantity);
         });
@@ -1084,24 +1093,42 @@ impl CharacterController {
         quantity: i32,
     ) -> Result<RecyclingItemsSchema, RecycleCommandError> {
         self.can_recycle(item, quantity)?;
-        let quantity_available =
-            self.inventory.total_of(item) + self.bank.has_available(item, Some(&self.name()));
+        let Some(item) = self.items.get(item) else {
+            return Err(RecycleCommandError::ItemNotFound);
+        };
+        let Some(skill) = item.skill_to_craft() else {
+            return Err(RecycleCommandError::ItemNotCraftable);
+        };
+        let quantity_available = self.has_in_bank_or_inv(&item.code);
         if quantity_available < quantity {
             return Err(RecycleCommandError::InsufficientQuantity);
         }
-        info!("{}: going to recycle '{}x{}'.", self.name(), item, quantity);
-        if self.inventory.total_of(item) < quantity {
-            let missing_quantity = quantity - self.inventory.has_available(item);
-            if let Err(e) = self.bank.reserv(item, missing_quantity, &self.name()) {
-                error!("{}: error while reserving '{}': {:?}", self.name(), item, e);
+        info!(
+            "{}: going to recycle '{}x{}'.",
+            self.name(),
+            &item.code,
+            quantity
+        );
+        if self.inventory.total_of(&item.code) < quantity {
+            let missing_quantity = quantity - self.inventory.has_available(&item.code);
+            if let Err(e) = self.bank.reserv(&item.code, missing_quantity, &self.name()) {
+                error!(
+                    "{}: error while reserving '{}': {:?}",
+                    self.name(),
+                    &item.code,
+                    e
+                );
             }
-            if let Err(e) = self.deposit_all() {
+            if let Err(e) = self.deposit_all_but(&item.code) {
                 error!("Failed to deposit all while recycling from bank: {}", e)
             }
-            self.withdraw_item(item, missing_quantity)?;
+            self.withdraw_item(&item.code, missing_quantity)?;
         }
-        let _ = self.move_to_craft(item);
-        let result = self.client.recycle(item, quantity);
+        let Some(map) = self.maps.with_workshop_for(skill) else {
+            return Err(MoveError::MapNotFound.into());
+        };
+        self.r#move(map.x, map.y)?;
+        let result = self.client.recycle(&item.code, quantity);
         self.inventory.decrease_reservation(&self.task(), quantity);
         Ok(result?)
     }
@@ -1418,18 +1445,6 @@ impl CharacterController {
         self.r#move(map.x, map.y)
     }
 
-    /// Moves the `Character` to the crafting station corresponding to the skill
-    /// required to craft the given item `code`.
-    fn move_to_craft(&self, item: &str) -> Result<Arc<MapSchema>, CraftCommandError> {
-        let Some(skill) = self.items.get(item).and_then(|i| i.skill_to_craft()) else {
-            return Err(CraftCommandError::ItemNotCraftable);
-        };
-        let Some(dest) = self.maps.with_workshop_for(skill) else {
-            return Err(MoveError::MapNotFound.into());
-        };
-        Ok(self.r#move(dest.x, dest.y)?)
-    }
-
     fn equip_gear(&self, gear: &mut Gear) {
         gear.align_to(&self.client.gear());
         Slot::iter().for_each(|s| {
@@ -1531,7 +1546,7 @@ impl CharacterController {
 
     /// Returns the amount of the given item `code` available in bank and inventory.
     fn has_in_bank_or_inv(&self, item: &str) -> i32 {
-        self.bank.has_available(item, Some(&self.name())) + self.inventory.total_of(item)
+        self.inventory.total_of(item) + self.bank.has_available(item, Some(&self.name()))
     }
 
     /// Returns the amount of the given item `code` available in bank, inventory and gear.

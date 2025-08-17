@@ -52,11 +52,11 @@ pub enum CraftCommandError {
     #[error("Skill ({0}) is disabled")]
     SkillDisabled(Skill),
     #[error("Insufficient skill ({0}) level")]
-    InsuffisientSkillLevel(Skill, i32),
+    InsufficientSkillLevel(Skill, i32),
     #[error("Insufficient inventory space")]
     InsufficientInventorySpace,
     #[error("Not enough materials available")]
-    InsuffisientMaterials,
+    InsufficientMaterials,
     #[error("Failed to deposit items: {0}")]
     DepositItemCommandError(#[from] DepositItemCommandError),
     #[error("Failed to withdraw mats: {0}")]
@@ -76,7 +76,7 @@ pub enum RecycleCommandError {
     #[error("{0} skill is disabled")]
     SkillDisabled(Skill),
     #[error("Insufficient skill level")]
-    InsuffisientSkillLevel(Skill, i32),
+    InsufficientSkillLevel(Skill, i32),
     #[error("Insufficient inventory space")]
     InsufficientInventorySpace,
     #[error("Not enough item available")]
