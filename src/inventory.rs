@@ -48,7 +48,7 @@ impl Inventory {
 
     /// Returns the amount of item in the `Character` inventory.
     pub fn total_items(&self) -> i32 {
-        self.content().iter().map(|i| i.quantity).sum()
+        self.client.inventory.total_items()
     }
 
     /// Returns the maximum number of item the inventory can contain.
@@ -58,7 +58,11 @@ impl Inventory {
 
     /// Returns the free spaces in the `Character` inventory.
     pub fn free_space(&self) -> i32 {
-        self.max_items() - self.total_items()
+        self.client.inventory.free_space()
+    }
+
+    pub fn has_space_for(&self, item: &str, quantity: i32) -> bool {
+        self.client.inventory.has_space_for(item, quantity)
     }
 
     /// Checks if the `Character` inventory is full (all slots are occupied or
@@ -69,30 +73,15 @@ impl Inventory {
 
     /// Returns the amount of the given item `code` in the `Character` inventory.
     pub fn total_of(&self, item: &str) -> i32 {
-        self.client
-            .inventory
-            .content()
-            .iter()
-            .find(|i| i.code == item)
-            .map_or(0, |i| i.quantity)
+        self.client.inventory.total_of(item)
     }
 
     pub fn contains_mats_for(&self, item: &str, quantity: i32) -> bool {
-        self.items
-            .mats_of(item)
-            .iter()
-            .all(|m| self.total_of(&m.code) >= m.quantity * quantity)
+        self.client.inventory.contains_mats_for(item, quantity)
     }
 
     pub fn consumable_food(&self) -> Vec<Arc<ItemSchema>> {
-        self.content()
-            .iter()
-            .filter_map(|i| {
-                self.items
-                    .get(&i.code)
-                    .filter(|i| i.is_consumable_at(self.client.level()))
-            })
-            .collect_vec()
+        self.client.inventory.consumable_food()
     }
 
     /// Returns the amount not reserved of the given item `code` in the `Character` inventory.

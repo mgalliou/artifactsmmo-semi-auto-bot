@@ -944,6 +944,7 @@ impl CharacterController {
         if self.maps.with_content_code(&monster.code).is_empty() {
             return Err(KillMonsterCommandError::MapNotFound);
         }
+        // TODO: improve condition
         if self.inventory.is_full() {
             return Err(KillMonsterCommandError::InsufficientInventorySpace);
         }
@@ -1001,6 +1002,7 @@ impl CharacterController {
         if self.client.skill_level(skill) < resource.level {
             return Err(GatherCommandError::InsufficientSkillLevel(skill));
         }
+        // TODO: improve condition
         if self.inventory.is_full() {
             return Err(GatherCommandError::InsufficientInventorySpace);
         }
@@ -1197,6 +1199,9 @@ impl CharacterController {
         items: &[SimpleItemSchema],
         owner: Option<String>,
     ) -> Result<(), DepositItemCommandError> {
+        if items.is_empty() {
+            return Ok(());
+        }
         if items
             .iter()
             .any(|i| self.inventory.total_of(&i.code) < i.quantity)
@@ -1259,6 +1264,9 @@ impl CharacterController {
         &self,
         items: &[SimpleItemSchema],
     ) -> Result<(), WithdrawItemCommandError> {
+        if items.is_empty() {
+            return Ok(());
+        }
         if items
             .iter()
             .any(|i| self.bank.has_available(&i.code, Some(&self.name())) < i.quantity)
@@ -1502,7 +1510,7 @@ impl CharacterController {
         gear.align_to(&self.client.gear());
         Slot::iter().for_each(|s| {
             if let Some(item) = gear.slot(s) {
-                self.equip_item_from_bank_or_inventory(&item.code, s);
+                self.equip_from_inventory_or_bank(&item.code, s);
             }
         });
     }
@@ -1524,29 +1532,29 @@ impl CharacterController {
                 item_code, e
             )
         }
-        self.unequip_item(slot, self.quantity_in_slot(slot))?;
+        self.unequip_slot(slot, self.quantity_in_slot(slot))?;
         self.client.equip(item_code, slot, quantity)?;
         self.inventory.decrease_reservation(item_code, quantity);
         Ok(())
     }
 
-    fn unequip_item(&self, slot: Slot, quantity: i32) -> Result<(), UnequipCommandError> {
+    fn unequip_slot(&self, slot: Slot, quantity: i32) -> Result<(), UnequipCommandError> {
         let Some(equiped) = self.items.get(&self.equiped_in(slot)) else {
             return Ok(());
         };
-        if self.inventory.free_space() < quantity {
+        if self.inventory.has_space_for(&equiped.code, quantity) {
             return Err(UnequipCommandError::InsufficientInventorySpace);
         }
-        if equiped.health() >= self.client.health() {
+        if self.client.health() <= equiped.health() {
             self.eat_food();
         }
-        if equiped.health() >= self.client.health() {
+        if self.client.health() <= equiped.health() {
             self.rest()?;
         }
         Ok(self.client.unequip(slot, quantity)?)
     }
 
-    fn equip_item_from_bank_or_inventory(&self, item: &str, slot: Slot) {
+    fn equip_from_inventory_or_bank(&self, item: &str, slot: Slot) {
         let prev_equiped = self.items.get(&self.equiped_in(slot));
         if prev_equiped.as_ref().is_some_and(|e| e.code == item) {
             return;
@@ -1554,11 +1562,11 @@ impl CharacterController {
         if self.inventory.total_of(item) <= 0
             && self.bank.has_available(item, Some(&self.name())) > 0
         {
-            let q = min(
+            let quantity = min(
                 slot.max_quantity(),
                 self.bank.has_available(item, Some(&self.name())),
             );
-            if self.inventory.free_space() < q
+            if self.inventory.free_space() < quantity
                 && let Err(e) = self.deposit_all()
             {
                 error!(
@@ -1566,7 +1574,7 @@ impl CharacterController {
                     e
                 )
             }
-            if let Err(e) = self.withdraw_item(item, q) {
+            if let Err(e) = self.withdraw_item(item, quantity) {
                 error!(
                     "{} failed withdraw item from bank or inventory: {:?}",
                     self.name(),
@@ -1771,7 +1779,7 @@ impl CharacterController {
         Slot::iter().for_each(|s| {
             if let Some(item) = self.items.get(&self.equiped_in(s)) {
                 let quantity = self.quantity_in_slot(s);
-                if let Err(e) = self.unequip_item(s, quantity) {
+                if let Err(e) = self.unequip_slot(s, quantity) {
                     error!(
                         "{}: failed to unequip '{}'x{} during unequip_and_deposit_all: {:?}",
                         self.name(),
@@ -1798,7 +1806,7 @@ impl CharacterController {
                 && let Some(item) = self.items.get(&self.equiped_in(s))
             {
                 let quantity = self.quantity_in_slot(s);
-                if let Err(e) = self.unequip_item(s, quantity) {
+                if let Err(e) = self.unequip_slot(s, quantity) {
                     error!(
                         "{}: failed to unequip '{}'x{} during unequip_and_deposit_all: {:?}",
                         self.name(),
