@@ -285,3 +285,12 @@ pub enum SkillLevelingError {
     #[error("Failed to gather to level skill: {0}")]
     GatherCommandError(#[from] GatherCommandError),
 }
+
+#[derive(Debug, Error)]
+pub enum OrderDepositError {
+    #[error("No item to deposit in inventory")]
+    NoItemToDeposit,
+    #[error("Failed to deposit order items")]
+    DepositItemCommandError(#[from] DepositItemCommandError),
+
+}

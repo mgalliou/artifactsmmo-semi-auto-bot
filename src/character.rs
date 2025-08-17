@@ -5,10 +5,10 @@ use crate::{
     error::{
         BankExpansionCommandError, CraftCommandError, DeleteCommandError, DepositItemCommandError,
         EquipCommandError, GatherCommandError, GoldDepositCommandError, GoldWithdrawCommandError,
-        KillMonsterCommandError, OrderProgresssionError, RecycleCommandError, SkillLevelingError,
-        TaskAcceptationCommandError, TaskCancellationCommandError, TaskCompletionCommandError,
-        TaskProgressionError, TaskTradeCommandError, TasksCoinExchangeCommandError,
-        UnequipCommandError, WithdrawItemCommandError,
+        KillMonsterCommandError, OrderDepositError, OrderProgresssionError, RecycleCommandError,
+        SkillLevelingError, TaskAcceptationCommandError, TaskCancellationCommandError,
+        TaskCompletionCommandError, TaskProgressionError, TaskTradeCommandError,
+        TasksCoinExchangeCommandError, UnequipCommandError, WithdrawItemCommandError,
     },
     gear_finder::{Filter, GearFinder},
     inventory::Inventory,
@@ -35,7 +35,7 @@ use artifactsmmo_sdk::{
     },
 };
 use itertools::Itertools;
-use log::{debug, error, info, warn};
+use log::{error, info, warn};
 use serde::Deserialize;
 use std::{
     cmp::min,
@@ -126,7 +126,7 @@ impl CharacterController {
                 Err(_) => (),
             }
             for s in self.conf().read().unwrap().skills.iter() {
-                if self.level_skill_up(*s) {
+                if self.level_skill_up(*s).is_ok() {
                     continue;
                 }
             }
@@ -527,33 +527,25 @@ impl CharacterController {
     /// Returns true if items has be deposited.
     fn turn_in_order(&self, order: Arc<Order>) -> bool {
         if self.order_board.should_be_turned_in(&order) {
-            return self.deposit_order(&order);
+            return self.deposit_order(&order).is_ok();
         }
         false
     }
 
-    fn deposit_order(&self, order: &Order) -> bool {
-        let q = self.inventory.has_available(&order.item);
-        if q <= 0 {
-            return false;
+    fn deposit_order(&self, order: &Order) -> Result<(), OrderDepositError> {
+        let mut quantity = self.inventory.has_available(&order.item);
+        if quantity <= 0 {
+            return Err(OrderDepositError::NoItemToDeposit);
         }
-        if self
-            .deposit_item(
-                &order.item,
-                min(q, order.not_deposited()),
-                order.owner.clone(),
-            )
-            .is_ok()
-            && let Err(e) = self.order_board.register_deposit(
-                &order.owner,
-                &order.item,
-                min(q, order.not_deposited()),
-                &order.purpose,
-            )
+        quantity = min(quantity, order.not_deposited());
+        self.deposit_item(&order.item, quantity, order.owner.clone())?;
+        if let Err(e) =
+            self.order_board
+                .register_deposit(&order.owner, &order.item, quantity, &order.purpose)
         {
             error!("{} failed to register deposit: {:?}", self.name(), e);
         }
-        false
+        Ok(())
     }
 
     fn progress_task(&self) -> Result<(), TaskProgressionError> {
