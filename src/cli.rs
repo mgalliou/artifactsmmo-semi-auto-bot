@@ -10,7 +10,7 @@ use std::{process::exit, str::FromStr, sync::Arc};
 
 use crate::{
     bot::Bot,
-    character::{CharacterController, PostCraftAction},
+    character::CharacterController,
     gear_finder::Filter,
     orderboard::Purpose,
 };
@@ -164,7 +164,7 @@ fn respond(
             let Some(char) = character else {
                 bail!("no character selected");
             };
-            char.craft_from_bank(&item, quantity, PostCraftAction::Keep)?;
+            char.craft_from_bank(&item, quantity)?;
         }
         Commands::Recycle { item, quantity } => {
             let Some(char) = character else {

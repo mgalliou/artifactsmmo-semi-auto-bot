@@ -57,6 +57,8 @@ pub enum CraftCommandError {
     InsufficientInventorySpace,
     #[error("Not enough materials available")]
     InsuffisientMaterials,
+    #[error("Failed to deposit items: {0}")]
+    DepositItemCommandError(#[from] DepositItemCommandError),
     #[error("Failed to withdraw mats: {0}")]
     WithdrawItemCommandError(#[from] WithdrawItemCommandError),
     #[error("Failed to move to workbench: {0}")]
@@ -215,7 +217,7 @@ pub enum MoveCommandError {
 #[derive(Debug, Error)]
 pub enum WithdrawItemCommandError {
     #[error("Missing item quantity")]
-    MissingQuantity,
+    InsufficientQuantity,
     #[error("Failed to move to bank: {0}")]
     MoveError(#[from] MoveError),
     #[error("Failed to request item withdrawal: {0}")]
@@ -292,5 +294,4 @@ pub enum OrderDepositError {
     NoItemToDeposit,
     #[error("Failed to deposit order items")]
     DepositItemCommandError(#[from] DepositItemCommandError),
-
 }

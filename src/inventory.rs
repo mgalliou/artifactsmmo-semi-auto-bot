@@ -1,7 +1,5 @@
 use artifactsmmo_sdk::{
-    Items,
     char::{Character as CharacterClient, HasCharacterData},
-    items::ItemSchemaExt,
     models::{InventorySlot, ItemSchema, SimpleItemSchema},
 };
 use core::fmt;
@@ -16,15 +14,13 @@ use thiserror::Error;
 #[derive(Default)]
 pub struct Inventory {
     client: Arc<CharacterClient>,
-    items: Arc<Items>,
     reservations: RwLock<Vec<Arc<InventoryReservation>>>,
 }
 
 impl Inventory {
-    pub fn new(client: Arc<CharacterClient>, items: Arc<Items>) -> Self {
+    pub fn new(client: Arc<CharacterClient>) -> Self {
         Inventory {
             client,
-            items,
             reservations: RwLock::new(vec![]),
         }
     }

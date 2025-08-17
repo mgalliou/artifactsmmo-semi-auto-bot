@@ -41,7 +41,6 @@ use std::{
     cmp::min,
     option::Option,
     sync::{Arc, RwLock},
-    vec::Vec,
 };
 use strum::IntoEnumIterator;
 use strum_macros::EnumIs;
@@ -77,7 +76,7 @@ impl CharacterController {
     ) -> Self {
         Self {
             config,
-            inventory: Arc::new(Inventory::new(client.clone(), items.clone())),
+            inventory: Arc::new(Inventory::new(client.clone())),
             client,
             maps,
             items,
@@ -211,45 +210,38 @@ impl CharacterController {
         else {
             return Err(CraftCommandError::ItemNotFound);
         };
-        let craft = self.craft_from_bank(
-            &item.code,
-            self.max_craftable_items(&item.code),
-            if skill.is_gathering() || skill.is_cooking() {
-                PostCraftAction::Deposit
-            } else {
-                PostCraftAction::Recycle
-            },
-        );
-        if let Err(CraftCommandError::InsuffisientMaterials) = craft
-            && (!skill.is_gathering()
-                || skill.is_alchemy()
-                    && self
-                        .leveling_helper
-                        .best_resource(self.skill_level(skill), skill)
-                        .is_none())
-            && self.order_missing_mats(
-                &item.code,
-                self.max_craftable_items(&item.code),
-                Purpose::Leveling {
-                    char: self.name().to_owned(),
-                    skill,
-                },
-            )
-        {
-            return Ok(());
-        }
-
-        craft.map(|s| {
-            info!(
-                "{} crafted '{}'x{} to level up.",
-                self.name(),
-                &item.code,
-                s.amount_of(&item.code)
-            );
-            if let Err(e) = self.deposit_all() {
-                error!("Failed to deposit all leveling by crafting loop: {}", e)
+        let quantity = self.max_craftable_items(&item.code);
+        match self.craft_from_bank(&item.code, quantity) {
+            Ok(_) => {
+                if !(skill.is_gathering() || skill.is_cooking())
+                    && let Err(e) = self.recycle_item(&item.code, quantity)
+                {
+                    error!("Failed to recycle crafted items for leveling: {}", e)
+                };
+                Ok(())
             }
-        })
+            Err(e) => {
+                if let CraftCommandError::InsuffisientMaterials = e
+                    && (!skill.is_gathering()
+                        || skill.is_alchemy()
+                            && self
+                                .leveling_helper
+                                .best_resource(self.skill_level(skill), skill)
+                                .is_none())
+                    && self.order_missing_mats(
+                        &item.code,
+                        quantity,
+                        Purpose::Leveling {
+                            char: self.name().to_owned(),
+                            skill,
+                        },
+                    )
+                {
+                    return Ok(());
+                }
+                Err(e)
+            }
+        }
     }
 
     /// Browse orderboard for completable orders: first check if some orders
@@ -296,18 +288,15 @@ impl CharacterController {
             return false;
         }
         self.items
-            .mats_of(item)
+            .mats_for(item, quantity)
             .into_iter()
-            .filter(|m| {
-                self.bank.has_available(&m.code, Some(&self.name())) < m.quantity * quantity
-            })
+            .filter(|m| self.bank.has_available(&m.code, Some(&self.name())) < m.quantity)
             .update(|m| {
-                m.quantity = m.quantity * quantity
-                    - if self.order_board.is_ordered(&m.code) {
-                        0
-                    } else {
-                        self.bank.has_available(&m.code, Some(&self.name()))
-                    }
+                m.quantity -= if self.order_board.is_ordered(&m.code) {
+                    0
+                } else {
+                    self.bank.has_available(&m.code, Some(&self.name()))
+                }
             })
             .for_each(|m| {
                 if self
@@ -426,7 +415,7 @@ impl CharacterController {
             return Err(CraftCommandError::InsuffisientMaterials);
         }
         order.inc_in_progress(quantity);
-        let crafted = self.craft_from_bank(&order.item, quantity, PostCraftAction::Keep);
+        let crafted = self.craft_from_bank(&order.item, quantity);
         order.dec_in_progress(quantity);
         crafted.map(|craft| craft.amount_of(&order.item))
     }
@@ -1058,7 +1047,6 @@ impl CharacterController {
         &self,
         item: &str,
         quantity: i32,
-        post_action: PostCraftAction,
     ) -> Result<SkillInfoSchema, CraftCommandError> {
         self.can_craft(item)?;
         if self.max_craftable_items_from_bank(item) < quantity {
@@ -1070,11 +1058,9 @@ impl CharacterController {
             item,
             quantity
         );
-        self.items.mats_of(item).iter().for_each(|m| {
-            if let Err(e) = self
-                .bank
-                .reserv(&m.code, m.quantity * quantity, &self.name())
-            {
+        let mats = self.items.mats_for(item, quantity);
+        mats.iter().for_each(|m| {
+            if let Err(e) = self.bank.reserv(&m.code, m.quantity, &self.name()) {
                 error!(
                     "{}: error while reserving mats for crafting from bank: {:?}",
                     self.name(),
@@ -1082,45 +1068,14 @@ impl CharacterController {
                 )
             }
         });
-        if let Err(e) = self.deposit_all() {
-            error!("Failed to deposit all while crafting from bank: {}", e)
-        }
-        let mats = self.withdraw_mats_for(item, quantity)?;
-        if let Err(e) = self.move_to_craft(item) {
-            error!("{}: error while moving to craft: {:?}", self.name(), e);
-        };
-        let craft = self.client.craft(item, quantity);
+        self.deposit_all()?;
+        self.withdraw_items(&mats)?;
+        self.move_to_craft(item)?;
+        let craft = self.client.craft(item, quantity)?;
         mats.iter().for_each(|m| {
             self.inventory.decrease_reservation(&m.code, m.quantity);
         });
-        match post_action {
-            PostCraftAction::Deposit => {
-                if let Err(e) = self.deposit_items(
-                    &[SimpleItemSchema {
-                        code: item.to_string(),
-                        quantity,
-                    }],
-                    None,
-                ) {
-                    error!(
-                        "{}: error while depositing items after crafting from bank: {:?}",
-                        self.name(),
-                        e
-                    )
-                }
-            }
-            PostCraftAction::Recycle => {
-                if let Err(e) = self.recycle_item(item, quantity) {
-                    error!(
-                        "{}: error while recycling items after crafting from bank: {:?}",
-                        self.name(),
-                        e
-                    )
-                }
-            }
-            PostCraftAction::Keep => (),
-        };
-        Ok(craft?)
+        Ok(craft)
     }
 
     pub fn recycle_item(
@@ -1271,7 +1226,7 @@ impl CharacterController {
             .iter()
             .any(|i| self.bank.has_available(&i.code, Some(&self.name())) < i.quantity)
         {
-            return Err(WithdrawItemCommandError::MissingQuantity);
+            return Err(WithdrawItemCommandError::InsufficientQuantity);
         }
         self.move_to_closest_map_of_type(MapContentType::Bank)?;
         let result = self.client.withdraw_item(items);
@@ -1389,37 +1344,6 @@ impl CharacterController {
                 remain -= quantity;
             }
         });
-    }
-
-    /// Withdraw the materials required to craft the `quantity` of the
-    /// item `code` and returns the maximum amount that can be crafted.
-    // TODO: add check on `inventory_max_items`
-    fn withdraw_mats_for(
-        &self,
-        item: &str,
-        quantity: i32,
-    ) -> Result<Vec<SimpleItemSchema>, WithdrawItemCommandError> {
-        let mats = self
-            .items
-            .mats_of(item)
-            .into_iter()
-            .update(|m| m.quantity *= quantity)
-            .collect_vec();
-        for mat in &mats {
-            if self.bank.has_available(&mat.code, Some(&self.name())) < mat.quantity {
-                warn!(
-                    "{}: not enough materials in bank to withdraw the materials required to craft '{item}'x{quantity}",
-                    self.name()
-                );
-                return Err(WithdrawItemCommandError::MissingQuantity);
-            }
-        }
-        info!(
-            "{}: going to withdraw materials for '{item}'x{quantity}.",
-            self.name()
-        );
-        self.withdraw_items(&mats)?;
-        Ok(mats)
     }
 
     /// Calculates the maximum number of items that can be crafted in one go based on
