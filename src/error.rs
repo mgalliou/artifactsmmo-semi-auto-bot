@@ -273,3 +273,15 @@ pub enum OrderProgresssionError {
     #[error("No item missin")]
     NoItemMissing,
 }
+
+#[derive(Debug, Error)]
+pub enum SkillLevelingError {
+    #[error("Skill is already at max level")]
+    SkillAlreadyMaxed,
+    #[error("Failed to kill monster to level combat: {0}")]
+    KillMonsterCommandError(#[from] KillMonsterCommandError),
+    #[error("Failed to craft to level skill: {0}")]
+    CraftCommandError(#[from] CraftCommandError),
+    #[error("Failed to gather to level skill: {0}")]
+    GatherCommandError(#[from] GatherCommandError),
+}

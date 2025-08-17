@@ -5,7 +5,7 @@ use crate::{
     error::{
         BankExpansionCommandError, CraftCommandError, DeleteCommandError, DepositItemCommandError,
         EquipCommandError, GatherCommandError, GoldDepositCommandError, GoldWithdrawCommandError,
-        KillMonsterCommandError, OrderProgresssionError, RecycleCommandError,
+        KillMonsterCommandError, OrderProgresssionError, RecycleCommandError, SkillLevelingError,
         TaskAcceptationCommandError, TaskCancellationCommandError, TaskCompletionCommandError,
         TaskProgressionError, TaskTradeCommandError, TasksCoinExchangeCommandError,
         UnequipCommandError, WithdrawItemCommandError,
@@ -163,7 +163,7 @@ impl CharacterController {
                 Goal::Events => false,
                 Goal::Orders => self.handle_orderboard(),
                 Goal::ReachSkillLevel { skill, level } if self.skill_level(*skill) < *level => {
-                    self.level_skill_up(*skill)
+                    self.level_skill_up(*skill).is_ok()
                 }
                 Goal::FollowMaxSkillLevel {
                     skill,
@@ -174,20 +174,23 @@ impl CharacterController {
                         MAX_LEVEL,
                     ) =>
                 {
-                    self.level_skill_up(*skill)
+                    self.level_skill_up(*skill).is_ok()
                 }
                 _ => false,
             })
     }
 
-    fn level_skill_up(&self, skill: Skill) -> bool {
+    fn level_skill_up(&self, skill: Skill) -> Result<(), SkillLevelingError> {
         if self.skill_level(skill) >= MAX_LEVEL {
-            return false;
+            return Err(SkillLevelingError::SkillAlreadyMaxed);
         };
         if skill.is_combat() {
-            return self.level_combat().is_ok();
+            return Ok(self.level_combat()?);
         }
-        self.level_skill_by_crafting(skill).is_ok() || self.level_skill_by_gathering(skill).is_ok()
+        match self.level_skill_by_crafting(skill) {
+            Ok(_) => Ok(()),
+            Err(_) => Ok(self.level_skill_by_gathering(skill)?),
+        }
     }
 
     fn level_skill_by_gathering(&self, skill: Skill) -> Result<(), GatherCommandError> {
