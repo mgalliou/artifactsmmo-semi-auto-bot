@@ -539,12 +539,6 @@ impl CharacterController {
         }
         quantity = min(quantity, order.not_deposited());
         self.deposit_item(&order.item, quantity, order.owner.clone())?;
-        if let Err(e) =
-            self.order_board
-                .register_deposit(&order.owner, &order.item, quantity, &order.purpose)
-        {
-            error!("{} failed to register deposit: {:?}", self.name(), e);
-        }
         Ok(())
     }
 
@@ -1225,17 +1219,17 @@ impl CharacterController {
         let deposit = self.client.deposit_item(items);
         match deposit {
             Ok(_) => {
-                if let Some(owner) = owner {
+                self.order_board.register_deposited_items(items, &owner);
+                if let Some(ref owner) = owner {
                     items.iter().for_each(|i| {
-                        if let Err(e) = self.bank.increase_reservation(&i.code, i.quantity, &owner)
-                        {
+                        if let Err(e) = self.bank.increase_reservation(&i.code, i.quantity, owner) {
                             error!("{}: failed to reserv deposited item: {:?}", self.name(), e)
                         }
                     })
                 }
                 items.iter().for_each(|i| {
                     self.inventory.decrease_reservation(&i.code, i.quantity);
-                })
+                });
             }
             Err(ref e) => error!(
                 "{}: error while depositing items ({:?}): {}",
@@ -1298,9 +1292,6 @@ impl CharacterController {
             return Ok(());
         }
         info!("{}: going to deposit all items to the bank.", self.name(),);
-        self.order_board.orders_by_priority().iter().for_each(|o| {
-            self.deposit_order(o);
-        });
         self.deposit_items(&self.inventory.simple_content(), None)
     }
 
@@ -1312,9 +1303,6 @@ impl CharacterController {
             "{}: going to deposit all items but '{item}' to the bank.",
             self.name(),
         );
-        self.order_board.orders_by_priority().iter().for_each(|o| {
-            self.deposit_order(o);
-        });
         let mut items = self.inventory.simple_content();
         items.retain(|i| i.code != item);
         self.deposit_items(&items, None)
@@ -1597,25 +1585,15 @@ impl CharacterController {
                 e
             );
         }
-        if let Some(i) = prev_equiped {
-            // TODO: improve logic
-            if let Some(o) = self
-                .order_board
-                .orders_by_priority()
-                .iter()
-                .find(|o| o.item == i.code)
-            {
-                self.deposit_order(o);
-            }
-            if self.inventory.total_of(&i.code) > 0
-                && let Err(e) = self.deposit_item(&i.code, self.inventory.total_of(&i.code), None)
-            {
-                error!(
-                    "{} failed to deposit previously equiped item: {:?}",
-                    self.name(),
-                    e
-                );
-            }
+        if let Some(i) = prev_equiped
+            && self.inventory.total_of(&i.code) > 0
+            && let Err(e) = self.deposit_item(&i.code, self.inventory.total_of(&i.code), None)
+        {
+            error!(
+                "{} failed to deposit previously equiped item: {:?}",
+                self.name(),
+                e
+            );
         }
     }
 

@@ -6,7 +6,7 @@ use artifactsmmo_sdk::{
 };
 use core::fmt;
 use itertools::Itertools;
-use log::{debug, info};
+use log::debug;
 use std::{
     fmt::{Display, Formatter},
     sync::{Arc, RwLock},

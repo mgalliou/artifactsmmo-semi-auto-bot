@@ -1,8 +1,9 @@
-use artifactsmmo_sdk::{char::Skill, gear::Slot, Items};
+use artifactsmmo_sdk::{Items, char::Skill, gear::Slot, models::SimpleItemSchema};
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use log::{debug, info};
 use std::{
+    cmp::min,
     fmt::{self, Display, Formatter},
     mem::discriminant,
     sync::{Arc, RwLock},
@@ -108,21 +109,23 @@ impl OrderBoard {
         }
     }
 
-    pub fn register_deposit(
-        &self,
-        owner: &Option<String>,
-        item: &str,
-        quantity: i32,
-        purpose: &Purpose,
-    ) -> Result<(), OrderError> {
-        let Some(order) = self.get(owner.as_deref(), item, purpose) else {
-            return Err(OrderError::NotFound);
-        };
-        order.inc_deposited(quantity);
-        if order.turned_in() {
-            self.remove(&order)?;
-        }
-        Ok(())
+    pub fn register_deposited_items(&self, items: &[SimpleItemSchema], owner: &Option<String>) {
+        items.iter().for_each(|i| {
+            let mut remaining = i.quantity;
+            for o in self.orders_by_priority().iter() {
+                if remaining <= 0 {
+                    break;
+                }
+                if i.code == o.item && *owner == o.owner {
+                    let quantity = min(o.quantity(), remaining);
+                    o.inc_deposited(quantity);
+                    if o.turned_in() {
+                        self.remove(o);
+                    }
+                    remaining -= quantity;
+                }
+            }
+        });
     }
 
     pub fn remove(&self, order: &Order) -> Result<(), OrderError> {
