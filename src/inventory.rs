@@ -38,6 +38,7 @@ impl Inventory {
     pub fn simple_content(&self) -> Vec<SimpleItemSchema> {
         self.content()
             .iter()
+            .filter(|i| !i.code.is_empty())
             .map(|s| SimpleItemSchema {
                 code: s.code.clone(),
                 quantity: s.quantity,
