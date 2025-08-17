@@ -1,9 +1,11 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use artifactsmmo_sdk::{
-    char::{HasCharacterData, Skill}, events::EventSchemaExt, Simulator
+    Simulator,
+    char::{HasCharacterData, Skill},
+    events::EventSchemaExt,
 };
-use clap::{value_parser, Parser, Subcommand};
-use rustyline::{error::ReadlineError, DefaultEditor};
+use clap::{Parser, Subcommand, value_parser};
+use rustyline::{DefaultEditor, error::ReadlineError};
 use std::{process::exit, str::FromStr, sync::Arc};
 
 use crate::{
@@ -50,17 +52,21 @@ pub fn run(bot: Arc<Bot>) -> Result<()> {
     }
 }
 
-fn respond(line: &str, bot: Arc<Bot>, character: &mut Option<Arc<CharacterController>>) -> Result<()> {
+fn respond(
+    line: &str,
+    bot: Arc<Bot>,
+    character: &mut Option<Arc<CharacterController>>,
+) -> Result<()> {
     match Cli::try_parse_from(line.split_whitespace())?.command {
         Commands::Orderboard { action } => match action {
             OrderboardAction::Add { item, quantity } => {
-                bot.order_board.add(None, &item, quantity, Purpose::Cli)?;
+                bot.order_board.add(&item, quantity, None, Purpose::Cli)?;
             }
             OrderboardAction::Remove { item } => {
-                let Some(o) = bot.order_board.get(None, &item, &Purpose::Cli) else {
+                let Some(o) = bot.order_board.get(&item, None, &Purpose::Cli) else {
                     bail!("order not found");
                 };
-                bot.order_board.remove(&o)?
+                bot.order_board.remove(&o);
             }
             OrderboardAction::List => {
                 println!("orders (by priority):");
@@ -76,10 +82,14 @@ fn respond(line: &str, bot: Arc<Bot>, character: &mut Option<Arc<CharacterContro
         Commands::Bank { action } => match action {
             BankAction::Reservations => {
                 println!("reservations:");
-                bot.bank.reservations().iter().for_each(|r| println!("{}", r));
+                bot.bank
+                    .reservations()
+                    .iter()
+                    .for_each(|r| println!("{}", r));
             }
             BankAction::List => {
-                bot.bank.content()
+                bot.bank
+                    .content()
                     .iter()
                     .for_each(|i| println!("{}: {}", i.code, i.quantity));
             }
@@ -89,7 +99,9 @@ fn respond(line: &str, bot: Arc<Bot>, character: &mut Option<Arc<CharacterContro
         },
         Commands::Items { action } => match action {
             ItemsAction::TimeToGet { item } => println!("{:?}", bot.account.time_to_get(&item)),
-            ItemsAction::Sources { item } => bot.client.items
+            ItemsAction::Sources { item } => bot
+                .client
+                .items
                 .sources_of(&item)
                 .iter()
                 .for_each(|s| println!("{:?}", s)),
@@ -119,13 +131,15 @@ fn respond(line: &str, bot: Arc<Bot>, character: &mut Option<Arc<CharacterContro
         },
         Commands::Events { action } => match action {
             EventsAction::List => {
-                bot.client.events
+                bot.client
+                    .events
                     .all()
                     .iter()
                     .for_each(|e| println!("{}", e.to_string()));
             }
             EventsAction::Active => {
-                bot.client.events
+                bot.client
+                    .events
                     .all()
                     .iter()
                     .for_each(|e| println!("{}", e.to_string()));

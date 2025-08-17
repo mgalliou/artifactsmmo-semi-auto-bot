@@ -114,9 +114,9 @@ impl CharacterController {
                     TaskTradeCommandError::MissingItems { item, quantity },
                 )) => {
                     let _ = self.order_board.add(
-                        Some(&self.name()),
                         &item,
                         quantity,
+                        Some(&self.name()),
                         Purpose::Task {
                             char: self.name().to_owned(),
                         },
@@ -312,7 +312,7 @@ impl CharacterController {
             .for_each(|m| {
                 if self
                     .order_board
-                    .add(None, &m.code, m.quantity, purpose.clone())
+                    .add(&m.code, m.quantity, None, purpose.clone())
                     .is_ok()
                 {
                     ordered = true
@@ -455,7 +455,7 @@ impl CharacterController {
                         };
                     return self
                         .order_board
-                        .add(None, TASKS_COIN, q, order.purpose.to_owned())
+                        .add(TASKS_COIN, q, None, order.purpose.to_owned())
                         .map(|_| 0)
                         //TODO: improve error handling, this variant should not exist
                         .map_err(|_| TasksCoinExchangeCommandError::OrderError);
@@ -485,7 +485,7 @@ impl CharacterController {
                         TaskTradeCommandError::MissingItems { item, quantity },
                     )) => self
                         .order_board
-                        .add(Some(&self.name()), &item, quantity, order.purpose.clone())
+                        .add(&item, quantity, Some(&self.name()), order.purpose.clone())
                         .map(|_| 0)
                         //TODO: better error handling, variant should not exist ?
                         .map_err(|_| TaskProgressionError::OrderError),
@@ -1711,9 +1711,9 @@ impl CharacterController {
             return self
                 .order_board
                 .add(
-                    None,
                     item,
                     quantity - self.has_available(item),
+                    None,
                     Purpose::Gear {
                         char: self.name().to_owned(),
                         slot,
@@ -1883,9 +1883,9 @@ impl CharacterController {
             .max_by_key(|i| i.heal())
             && self.bank.has_available(&best_food.code, Some(&self.name())) < MIN_FOOD_THRESHOLD
             && let Err(e) = self.order_board.add_or_reset(
-                Some(&self.name()),
                 &best_food.code,
                 self.account.fisher_max_items(),
+                Some(&self.name()),
                 Purpose::Food {
                     char: self.name().to_owned(),
                 },

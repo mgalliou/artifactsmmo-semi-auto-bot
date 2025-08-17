@@ -30,7 +30,7 @@ impl OrderBoard {
         }
     }
 
-    pub fn get(&self, owner: Option<&str>, item: &str, purpose: &Purpose) -> Option<Arc<Order>> {
+    pub fn get(&self, item: &str, owner: Option<&str>, purpose: &Purpose) -> Option<Arc<Order>> {
         self.orders
             .read()
             .unwrap()
@@ -75,15 +75,15 @@ impl OrderBoard {
 
     pub fn add(
         &self,
-        owner: Option<&str>,
         item: &str,
         quantity: i32,
+        owner: Option<&str>,
         purpose: Purpose,
     ) -> Result<(), OrderError> {
         if self.items.get(item).is_none() {
             return Err(OrderError::UnknownItem);
         }
-        if self.get(owner, item, &purpose).is_some() {
+        if self.get(item, owner, &purpose).is_some() {
             return Err(OrderError::AlreadyExists);
         }
         let order = Order::new(owner, item, quantity, purpose)?;
@@ -95,17 +95,17 @@ impl OrderBoard {
 
     pub fn add_or_reset(
         &self,
-        owner: Option<&str>,
         item: &str,
         quantity: i32,
+        owner: Option<&str>,
         purpose: Purpose,
     ) -> Result<(), OrderError> {
-        if let Some(o) = self.get(owner, item, &purpose) {
+        if let Some(o) = self.get(item, owner, &purpose) {
             *o.deposited.write().unwrap() = 0;
             debug!("orderboard: reset: {}.", o);
             Ok(())
         } else {
-            self.add(owner, item, quantity, purpose)
+            self.add(item, quantity, owner, purpose)
         }
     }
 
@@ -128,21 +128,16 @@ impl OrderBoard {
         });
     }
 
-    pub fn remove(&self, order: &Order) -> Result<(), OrderError> {
+    pub fn remove(&self, order: &Order) {
         let mut orders = self.orders.write().unwrap();
-        if orders.iter().any(|r| r.is_similar(order)) {
-            orders.retain(|r| !r.is_similar(order));
-            info!("orderboard: removed: {}.", order);
-            Ok(())
-        } else {
-            Err(OrderError::NotFound)
-        }
+        info!("orderboard: removed: {}.", order);
+        orders.retain(|r| !r.is_similar(order));
     }
 
     pub fn should_be_turned_in(&self, order: &Order) -> bool {
         !order.turned_in()
-            && self.account.available_in_inventories(&order.item) + order.in_progress()
-                >= order.not_deposited()
+            && order.not_deposited()
+                <= self.account.available_in_inventories(&order.item) + order.in_progress()
     }
 
     pub fn total_missing_for(&self, order: &Order) -> i32 {
@@ -154,9 +149,9 @@ impl OrderBoard {
 
 #[derive(Debug)]
 pub struct Order {
-    pub owner: Option<String>,
     pub item: String,
     pub quantity: RwLock<i32>,
+    pub owner: Option<String>,
     pub purpose: Purpose,
     pub in_progress: RwLock<i32>,
     // Number of item deposited into the bank
