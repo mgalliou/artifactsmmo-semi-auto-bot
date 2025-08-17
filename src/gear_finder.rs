@@ -1,10 +1,10 @@
 use crate::{account::AccountController, character::CharacterController};
 use artifactsmmo_sdk::{
+    Items, Simulator,
     char::{HasCharacterData, Skill},
     gear::Gear,
     items::{ItemSchemaExt, Type},
     models::{FightResult, ItemSchema, MonsterSchema},
-    Items, Simulator,
 };
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
@@ -309,13 +309,12 @@ impl GearFinder {
         if let Some(best_reduction) = best_reduction {
             bests.push(best_reduction);
         }
-        if let Some(best_health_increase) = best_health_increase {
-            if bests
+        if let Some(best_health_increase) = best_health_increase
+            && bests
                 .iter()
                 .all(|u| u.health() < best_health_increase.health())
-            {
-                bests.push(best_health_increase);
-            }
+        {
+            bests.push(best_health_increase);
         }
         bests
             .into_iter()
@@ -548,11 +547,10 @@ impl GearFinder {
         index: usize,
     ) -> Option<Arc<ItemSchema>> {
         wrappers.iter().find_map(|w| match w {
-            ItemWrapper::Armor(Some(armor)) => {
-                self.items
-                    .get(armor)
-                    .and_then(|i| if i.is_of_type(r#type) { Some(i) } else { None })
-            }
+            ItemWrapper::Armor(Some(armor)) => self
+                .items
+                .get(armor)
+                .and_then(|i| if i.is_of_type(r#type) { Some(i) } else { None }),
             ItemWrapper::Armor(None) => None,
             ItemWrapper::Rings(ring_set) => {
                 if let Some(Some(ring)) = ring_set.rings.get(index) {
@@ -565,26 +563,18 @@ impl GearFinder {
             }
             ItemWrapper::Artifacts(set) => {
                 if let Some(Some(artifact)) = set.artifacts.get(index) {
-                    self.items.get(artifact).and_then(|i| {
-                        if i.is_of_type(r#type) {
-                            Some(i)
-                        } else {
-                            None
-                        }
-                    })
+                    self.items
+                        .get(artifact)
+                        .and_then(|i| if i.is_of_type(r#type) { Some(i) } else { None })
                 } else {
                     None
                 }
             }
             ItemWrapper::Utility(set) => {
                 if let Some(Some(utility)) = set.iter().collect_vec().get(index) {
-                    self.items.get(utility).and_then(|i| {
-                        if i.is_of_type(r#type) {
-                            Some(i)
-                        } else {
-                            None
-                        }
-                    })
+                    self.items
+                        .get(utility)
+                        .and_then(|i| if i.is_of_type(r#type) { Some(i) } else { None })
                 } else {
                     None
                 }
@@ -717,7 +707,7 @@ impl ArtifactSet {
 
 #[cfg(test)]
 mod tests {
-    use artifactsmmo_sdk::{models::CharacterSchema, Monsters};
+    use artifactsmmo_sdk::{Monsters, models::CharacterSchema};
 
     use super::*;
 

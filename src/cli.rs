@@ -246,7 +246,7 @@ fn respond(line: &str, bot: Arc<Bot>, character: &mut Option<Arc<CharacterContro
                 bail!("no character selected");
             };
             if item == "all" {
-                char.deposit_all();
+                char.deposit_all()?;
             } else {
                 char.deposit_item(&item, quantity, None)?;
             }

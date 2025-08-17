@@ -1,11 +1,11 @@
 use artifactsmmo_sdk::char::{
+    Skill,
     character::{
         BankExpansionError, CraftError, DeleteError, DepositError, EquipError, FightError,
         GatherError, GoldDepositError, GoldWithdrawError, MoveError, RecycleError, RestError,
         TaskAcceptationError, TaskCancellationError, TaskCompletionError, TaskTradeError,
         TasksCoinExchangeError, UnequipError, WithdrawError,
     },
-    Skill,
 };
 use thiserror::Error;
 
@@ -31,16 +31,16 @@ pub enum KillMonsterCommandError {
 pub enum GatherCommandError {
     #[error("{0} skill is disabled")]
     SkillDisabled(Skill),
-    #[error("Insufficient {0} level")]
+    #[error("Insufficient skill ({0}) level")]
     InsufficientSkillLevel(Skill),
     #[error("Insufficient inventory space")]
     InsufficientInventorySpace,
     #[error("No map with resource found")]
     MapNotFound,
-    #[error("Failed to move to resource")]
+    #[error("Failed to move to resource: {0}")]
     MoveError(#[from] MoveError),
-    #[error("Failed to gather resource")]
-    GatherError(#[from] GatherError),
+    #[error("Failed to request gather: {0}")]
+    ClientError(#[from] GatherError),
 }
 
 #[derive(Debug, Error)]
@@ -49,20 +49,20 @@ pub enum CraftCommandError {
     ItemNotFound,
     #[error("Item not craftable")]
     ItemNotCraftable,
-    #[error("{0} skill is disabled")]
+    #[error("Skill ({0}) is disabled")]
     SkillDisabled(Skill),
-    #[error("Insufficient skill level")]
+    #[error("Insufficient skill ({0}) level")]
     InsuffisientSkillLevel(Skill, i32),
     #[error("Insufficient inventory space")]
     InsufficientInventorySpace,
     #[error("Not enough materials available")]
     InsuffisientMaterials,
-    #[error("Failed to withdraw mats")]
+    #[error("Failed to withdraw mats: {0}")]
     WithdrawItemCommandError(#[from] WithdrawItemCommandError),
-    #[error("Failed to move to workbench")]
+    #[error("Failed to move to workbench: {0}")]
     MoveError(#[from] MoveError),
-    #[error("Failed to craft item")]
-    CraftError(#[from] CraftError),
+    #[error("Failed to request craft: {0}")]
+    ClientError(#[from] CraftError),
 }
 
 #[derive(Debug, Error)]
@@ -108,6 +108,8 @@ pub enum TaskProgressionError {
     TaskCancellationCommandError(#[from] TaskCancellationCommandError),
     #[error("Failed to fight: {0}")]
     KillMonsterCommandError(#[from] KillMonsterCommandError),
+    #[error("Order error")]
+    OrderError,
 }
 
 #[derive(Debug, Error)]
@@ -154,6 +156,8 @@ pub enum TasksCoinExchangeCommandError {
     WithdrawItemCommandError(#[from] WithdrawItemCommandError),
     #[error("Failed to exchange task coins")]
     TasksCoinExchangeError(#[from] TasksCoinExchangeError),
+    #[error("Order error")]
+    OrderError,
 }
 
 #[derive(Debug, Error)]
@@ -214,8 +218,8 @@ pub enum WithdrawItemCommandError {
     MissingQuantity,
     #[error("Failed to move to bank: {0}")]
     MoveError(#[from] MoveError),
-    #[error("Failed to withdraw item(s): {0}")]
-    WithdrawError(#[from] WithdrawError),
+    #[error("Failed to request item withdrawal: {0}")]
+    ClientError(#[from] WithdrawError),
 }
 
 #[derive(Debug, Error)]
@@ -224,10 +228,10 @@ pub enum DepositItemCommandError {
     MissingQuantity,
     #[error("Failed to move to bank: {0}")]
     MoveError(#[from] MoveError),
-    #[error("Failed to deposit item(s): {0}")]
-    DepositError(#[from] DepositError),
     #[error("Insufficient bank space")]
     InsufficientBankSpace,
+    #[error("Failed to request item deposit: {0}")]
+    ClientError(#[from] DepositError),
 }
 
 #[derive(Debug, Error)]
@@ -250,4 +254,22 @@ pub enum UnequipCommandError {
     UnequipError(#[from] UnequipError),
     #[error("Insufficient inventory space")]
     InsufficientInventorySpace,
+}
+
+#[derive(Debug, Error)]
+pub enum OrderProgresssionError {
+    #[error("Failed to progress resource order {0}")]
+    GatherCommandError(#[from] GatherCommandError),
+    #[error("Failed to progress monster order {0}")]
+    KillMonsterCommandError(#[from] KillMonsterCommandError),
+    #[error("Failed to progress crafting order {0}")]
+    CraftCommandError(#[from] CraftCommandError),
+    #[error("Failed to progress tasks coin order {0}")]
+    TasksCoinExchangeCommandError(#[from] TasksCoinExchangeCommandError),
+    #[error("Failed to progress tasks progression order {0}")]
+    TaskProgressionError(#[from] TaskProgressionError),
+    #[error("No item source found to progress order")]
+    NoSourceForItem,
+    #[error("No item missin")]
+    NoItemMissing,
 }
