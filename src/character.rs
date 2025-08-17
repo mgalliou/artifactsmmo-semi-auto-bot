@@ -1466,7 +1466,7 @@ impl CharacterController {
         let Some(equiped) = self.items.get(&self.equiped_in(slot)) else {
             return Ok(());
         };
-        if self.inventory.has_space_for(&equiped.code, quantity) {
+        if !self.inventory.has_space_for(&equiped.code, quantity) {
             return Err(UnequipCommandError::InsufficientInventorySpace);
         }
         if self.client.health() <= equiped.health() {
