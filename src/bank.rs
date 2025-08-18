@@ -1,8 +1,8 @@
 use artifactsmmo_sdk::{
+    Items,
     bank::Bank as BankClient,
     items::ItemSchemaExt,
     models::{BankSchema, ItemSchema, SimpleItemSchema},
-    Items,
 };
 use itertools::Itertools;
 use log::info;

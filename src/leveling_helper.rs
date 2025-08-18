@@ -1,8 +1,8 @@
 use artifactsmmo_sdk::{
+    Items, Maps, Monsters, Resources,
     char::{HasCharacterData, Skill},
     items::ItemSchemaExt,
     models::{ItemSchema, MonsterSchema, ResourceSchema},
-    Items, Maps, Monsters, Resources,
 };
 use itertools::Itertools;
 use rayon::iter::{ParallelBridge, ParallelIterator};
@@ -114,7 +114,7 @@ impl LevelingHelper {
                 }
             }
             Skill::Mining | Skill::Woodcutting | Skill::Alchemy => {
-                return self.best_crafts(level, skill)
+                return self.best_crafts(level, skill);
             }
             Skill::Fishing => vec![None],
             Skill::Combat => vec![None],

@@ -5,10 +5,11 @@ use crate::{
     error::{
         BankExpansionCommandError, CraftCommandError, DeleteCommandError, DepositItemCommandError,
         EquipCommandError, GatherCommandError, GoldDepositCommandError, GoldWithdrawCommandError,
-        KillMonsterCommandError, OrderDepositError, OrderProgresssionError, RecycleCommandError,
-        SkillLevelingError, TaskAcceptationCommandError, TaskCancellationCommandError,
-        TaskCompletionCommandError, TaskProgressionError, TaskTradeCommandError,
-        TasksCoinExchangeCommandError, UnequipCommandError, WithdrawItemCommandError,
+        KillMonsterCommandError, MoveCommandError, OrderDepositError, OrderProgresssionError,
+        RecycleCommandError, SkillLevelingError, TaskAcceptationCommandError,
+        TaskCancellationCommandError, TaskCompletionCommandError, TaskProgressionError,
+        TaskTradeCommandError, TasksCoinExchangeCommandError, UnequipCommandError,
+        UseItemCommandError, WithdrawItemCommandError,
     },
     gear_finder::{Filter, GearFinder},
     inventory::Inventory,
@@ -1479,47 +1480,47 @@ impl CharacterController {
     fn move_to_closest_taskmaster(
         &self,
         r#type: Option<TaskType>,
-    ) -> Result<Arc<MapSchema>, MoveError> {
+    ) -> Result<Arc<MapSchema>, MoveCommandError> {
         let Some(map) = self
             .maps
             .closest_tasksmaster_from(self.client.current_map(), r#type)
         else {
-            return Err(MoveError::MapNotFound);
+            return Err(MoveCommandError::MapNotFound);
         };
-        self.r#move(map.x, map.y)
+        Ok(self.r#move(map.x, map.y)?)
     }
 
     fn move_to_closest_map_of_type(
         &self,
         r#type: MapContentType,
-    ) -> Result<Arc<MapSchema>, MoveError> {
+    ) -> Result<Arc<MapSchema>, MoveCommandError> {
         let Some(map) = self
             .maps
             .closest_of_type_from(self.client.current_map(), r#type)
         else {
-            return Err(MoveError::MapNotFound);
+            return Err(MoveCommandError::MapNotFound);
         };
-        self.r#move(map.x, map.y)
+        Ok(self.r#move(map.x, map.y)?)
     }
 
     fn move_to_closest_map_with_content_code(
         &self,
         code: &str,
-    ) -> Result<Arc<MapSchema>, MoveError> {
+    ) -> Result<Arc<MapSchema>, MoveCommandError> {
         let Some(map) = self
             .maps
             .closest_with_content_code_from(self.client.current_map(), code)
         else {
-            return Err(MoveError::MapNotFound);
+            return Err(MoveCommandError::MapNotFound);
         };
-        self.r#move(map.x, map.y)
+        Ok(self.r#move(map.x, map.y)?)
     }
 
-    fn r#move(&self, x: i32, y: i32) -> Result<Arc<MapSchema>, MoveError> {
+    fn r#move(&self, x: i32, y: i32) -> Result<Arc<MapSchema>, MoveCommandError> {
         if self.client.position() == (x, y) {
             return Ok(self.client.current_map());
         }
-        self.client.r#move(x, y)
+        Ok(self.client.r#move(x, y)?)
     }
 
     fn eat_food_from_inventory(&self) {
@@ -1537,14 +1538,17 @@ impl CharacterController {
                 };
                 if quantity > 0 {
                     quantity = min(quantity, self.inventory.total_of(&f.code));
-                    match self.client.r#use(&f.code, quantity) {
-                        Ok(_) => {
-                            self.inventory.decrease_reservation(&f.code, quantity);
-                        }
-                        Err(e) => error!("{} failed to use food: {:?}", self.name(), e),
+                    if let Err(e) = self.use_item(&f.code, quantity) {
+                        error!("{} failed to use food: {:?}", self.name(), e)
                     }
                 }
             });
+    }
+
+    fn use_item(&self, item_code: &str, quantity: i32) -> Result<(), UseItemCommandError> {
+        self.client.r#use(item_code, quantity)?;
+        self.inventory.decrease_reservation(item_code, quantity);
+        Ok(())
     }
 
     /// TODO: improve with only ordering food crafted from fishing

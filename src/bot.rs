@@ -6,7 +6,7 @@ use artifactsmmo_sdk::Client;
 use log::error;
 use std::{
     sync::Arc,
-    thread::{sleep, Builder},
+    thread::{Builder, sleep},
     time::Duration,
 };
 

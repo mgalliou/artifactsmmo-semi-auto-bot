@@ -8,12 +8,7 @@ use clap::{Parser, Subcommand, value_parser};
 use rustyline::{DefaultEditor, error::ReadlineError};
 use std::{process::exit, str::FromStr, sync::Arc};
 
-use crate::{
-    bot::Bot,
-    character::CharacterController,
-    gear_finder::Filter,
-    orderboard::Purpose,
-};
+use crate::{bot::Bot, character::CharacterController, gear_finder::Filter, orderboard::Purpose};
 
 pub fn run(bot: Arc<Bot>) -> Result<()> {
     let mut rl = DefaultEditor::new()?;

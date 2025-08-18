@@ -1,14 +1,10 @@
 use artifactsmmo_sdk::{char::Skill, models::TaskType};
 use figment::{
-    providers::{Format, Toml},
     Figment,
+    providers::{Format, Toml},
 };
 use serde::Deserialize;
-use std::{
-    collections::HashSet,
-    fmt::Display,
-    sync::RwLock,
-};
+use std::{collections::HashSet, fmt::Display, sync::RwLock};
 use strum_macros::{AsRefStr, EnumIs, EnumIter, EnumString};
 
 #[derive(Debug, Default, Deserialize)]

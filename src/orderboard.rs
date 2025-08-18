@@ -141,9 +141,7 @@ impl OrderBoard {
     }
 
     pub fn total_missing_for(&self, order: &Order) -> i32 {
-        order.missing()
-            - self.account.available_in_inventories(&order.item)
-            - order.in_progress()
+        order.missing() - self.account.available_in_inventories(&order.item) - order.in_progress()
     }
 }
 

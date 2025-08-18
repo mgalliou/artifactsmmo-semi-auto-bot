@@ -3,11 +3,11 @@ use crate::{
     leveling_helper::LevelingHelper, orderboard::OrderBoard,
 };
 use artifactsmmo_sdk::{
+    Client, Items,
     account::Account as AccountClient,
     char::{HasCharacterData, Skill},
     items::ItemSource,
     models::SimpleItemSchema,
-    Client, Items,
 };
 use itertools::Itertools;
 use std::sync::{Arc, RwLock};

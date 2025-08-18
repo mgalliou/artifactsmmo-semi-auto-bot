@@ -4,7 +4,7 @@ use artifactsmmo_sdk::char::{
         BankExpansionError, CraftError, DeleteError, DepositError, EquipError, FightError,
         GatherError, GoldDepositError, GoldWithdrawError, MoveError, RecycleError, RestError,
         TaskAcceptationError, TaskCancellationError, TaskCompletionError, TaskTradeError,
-        TasksCoinExchangeError, UnequipError, WithdrawError,
+        TasksCoinExchangeError, UnequipError, UseError, WithdrawError,
     },
 };
 use thiserror::Error;
@@ -22,7 +22,7 @@ pub enum KillMonsterCommandError {
     #[error("Failed to deposit before gathering: {0}")]
     DepositItemCommandError(#[from] DepositItemCommandError),
     #[error("Failed to move: {0}")]
-    MoveError(#[from] MoveError),
+    MoveCommandError(#[from] MoveCommandError),
     #[error("Failed to fight")]
     ClientError(#[from] FightError),
 }
@@ -38,7 +38,7 @@ pub enum GatherCommandError {
     #[error("Failed to deposit before gathering: {0}")]
     DepositItemCommandError(#[from] DepositItemCommandError),
     #[error("Failed to move: {0}")]
-    MoveError(#[from] MoveError),
+    MoveCommandError(#[from] MoveCommandError),
     #[error("Failed to request gather: {0}")]
     ClientError(#[from] GatherError),
 }
@@ -62,7 +62,7 @@ pub enum CraftCommandError {
     #[error("Failed to withdraw mats: {0}")]
     WithdrawItemCommandError(#[from] WithdrawItemCommandError),
     #[error("Failed to move to workbench: {0}")]
-    MoveError(#[from] MoveError),
+    MoveCommandError(#[from] MoveCommandError),
     #[error("Failed to request craft: {0}")]
     ClientError(#[from] CraftError),
 }
@@ -84,7 +84,7 @@ pub enum RecycleCommandError {
     #[error("Failed to withdraw mats")]
     WithdrawItemCommandError(#[from] WithdrawItemCommandError),
     #[error("Failed to move to workbench")]
-    MoveError(#[from] MoveError),
+    MoveCommandError(#[from] MoveCommandError),
     #[error("Failed to craft item")]
     ClientError(#[from] RecycleError),
 }
@@ -125,7 +125,7 @@ pub enum TaskTradeCommandError {
     #[error("Missing item(s): '{item}'x{quantity}")]
     MissingItems { item: String, quantity: i32 },
     #[error("Failed to move to tasks master")]
-    MoveError(#[from] MoveError),
+    MoveCommandError(#[from] MoveCommandError),
     #[error("Failed to exchange task coins")]
     ClientError(#[from] TaskTradeError),
 }
@@ -133,7 +133,7 @@ pub enum TaskTradeCommandError {
 #[derive(Debug, Error)]
 pub enum TaskAcceptationCommandError {
     #[error("Failed to move to tasks master")]
-    MoveError(#[from] MoveError),
+    MoveCommandError(#[from] MoveCommandError),
     #[error("Failed to exchange task coins")]
     TaskAcceptationError(#[from] TaskAcceptationError),
 }
@@ -145,7 +145,7 @@ pub enum TaskCompletionCommandError {
     #[error("Task no finished")]
     TaskNotFinished,
     #[error("Failed to move to tasks master")]
-    MoveError(#[from] MoveError),
+    MoveCommandError(#[from] MoveCommandError),
     #[error("Failed to complete task")]
     ClientError(#[from] TaskCompletionError),
 }
@@ -169,7 +169,7 @@ pub enum TaskCancellationCommandError {
     #[error("Failed to withdraw coins required")]
     WithdrawItemCommandError(#[from] WithdrawItemCommandError),
     #[error("Failed to move to task master")]
-    MoveError(#[from] MoveError),
+    MoveCommandError(#[from] MoveCommandError),
     #[error("Failed to cancel task")]
     ClientError(#[from] TaskCancellationError),
 }
@@ -181,7 +181,7 @@ pub enum BankExpansionCommandError {
     #[error("Insufficient gold")]
     InsufficientGold,
     #[error("Failed to move to bank")]
-    MoveError(#[from] MoveError),
+    MoveCommandError(#[from] MoveCommandError),
     #[error("Failed to withdraw required gold")]
     GoldWithdrawCommandError(#[from] GoldWithdrawCommandError),
     #[error("Failed to withdraw gold: {0}")]
@@ -193,7 +193,7 @@ pub enum GoldWithdrawCommandError {
     #[error("Insufficient gold")]
     InsufficientGold,
     #[error("Failed to move to bank")]
-    MoveError(#[from] MoveError),
+    MoveCommandError(#[from] MoveCommandError),
     #[error("Failed to withdraw gold: {0}")]
     ClientError(#[from] GoldWithdrawError),
 }
@@ -203,14 +203,16 @@ pub enum GoldDepositCommandError {
     #[error("Insufficient gold")]
     InsufficientGold,
     #[error("Failed to move to bank")]
-    MoveError(#[from] MoveError),
-    #[error("Failed to deposit gold: {0}")]
+    MoveCommandError(#[from] MoveCommandError),
+    #[error("Failed to request gold deposit: {0}")]
     ClientError(#[from] GoldDepositError),
 }
 
 #[derive(Debug, Error)]
 pub enum MoveCommandError {
-    #[error(transparent)]
+    #[error("Failed to find target map")]
+    MapNotFound,
+    #[error("Failed to request movement: {0}")]
     MoveError(#[from] MoveError),
 }
 
@@ -219,7 +221,7 @@ pub enum WithdrawItemCommandError {
     #[error("Missing item quantity")]
     InsufficientQuantity,
     #[error("Failed to move to bank: {0}")]
-    MoveError(#[from] MoveError),
+    MoveCommandError(#[from] MoveCommandError),
     #[error("Failed to request item withdrawal: {0}")]
     ClientError(#[from] WithdrawError),
 }
@@ -229,7 +231,7 @@ pub enum DepositItemCommandError {
     #[error("Missing item quantity")]
     MissingQuantity,
     #[error("Failed to move to bank: {0}")]
-    MoveError(#[from] MoveError),
+    MoveCommandError(#[from] MoveCommandError),
     #[error("Insufficient bank space")]
     InsufficientBankSpace,
     #[error("Failed to request item deposit: {0}")]
@@ -256,6 +258,12 @@ pub enum UnequipCommandError {
     InsufficientInventorySpace,
     #[error("Failed to unequip item")]
     ClientError(#[from] UnequipError),
+}
+
+#[derive(Debug, Error)]
+pub enum UseItemCommandError {
+    #[error("Failed to request item use: {0}")]
+    ClientError(#[from] UseError),
 }
 
 #[derive(Debug, Error)]
