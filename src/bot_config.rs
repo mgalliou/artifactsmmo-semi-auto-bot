@@ -82,3 +82,25 @@ impl Display for Goal {
         }
     }
 }
+
+#[derive(Debug, Default, PartialEq, Copy, Clone, Deserialize, EnumIs)]
+pub enum Role {
+    #[default]
+    Fighter,
+    Miner,
+    Woodcutter,
+    Fisher,
+    Weaponcrafter,
+}
+
+impl Role {
+    pub fn to_skill(&self) -> Option<Skill> {
+        match *self {
+            Role::Fighter => None,
+            Role::Miner => Some(Skill::Mining),
+            Role::Woodcutter => Some(Skill::Woodcutting),
+            Role::Fisher => Some(Skill::Fishing),
+            Role::Weaponcrafter => Some(Skill::Weaponcrafting),
+        }
+    }
+}

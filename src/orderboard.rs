@@ -136,12 +136,12 @@ impl OrderBoard {
 
     pub fn should_be_turned_in(&self, order: &Order) -> bool {
         !order.turned_in()
-            && order.not_deposited()
+            && order.missing()
                 <= self.account.available_in_inventories(&order.item) + order.in_progress()
     }
 
     pub fn total_missing_for(&self, order: &Order) -> i32 {
-        order.not_deposited()
+        order.missing()
             - self.account.available_in_inventories(&order.item)
             - order.in_progress()
     }
@@ -200,7 +200,7 @@ impl Order {
         *self.quantity.read().unwrap()
     }
 
-    pub fn not_deposited(&self) -> i32 {
+    pub fn missing(&self) -> i32 {
         self.quantity() - self.deposited()
     }
 
