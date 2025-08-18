@@ -1,11 +1,5 @@
 use artifactsmmo_sdk::char::{
-    Skill,
-    character::{
-        BankExpansionError, CraftError, DeleteError, DepositError, EquipError, FightError,
-        GatherError, GoldDepositError, GoldWithdrawError, MoveError, RecycleError, RestError,
-        TaskAcceptationError, TaskCancellationError, TaskCompletionError, TaskTradeError,
-        TasksCoinExchangeError, UnequipError, WithdrawError,
-    },
+    error::{BankExpansionError, CraftError, DeleteError, DepositError, EquipError, FightError, GatherError, GoldDepositError, GoldWithdrawError, MoveError, RecycleError, RestError, TaskAcceptationError, TaskCancellationError, TaskCompletionError, TaskTradeError, TasksCoinExchangeError, UnequipError, WithdrawError}, Skill
 };
 use thiserror::Error;
 

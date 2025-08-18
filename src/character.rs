@@ -19,7 +19,7 @@ use artifactsmmo_sdk::{
     HasDrops, Items, Maps, Monsters, Server, Simulator,
     char::{
         Character as CharacterClient, HasCharacterData, Skill,
-        character::{MoveError, RestError},
+        error::{MoveError, RestError},
     },
     consts::{
         BANK_MIN_FREE_SLOT, CRAFT_TIME, MAX_LEVEL, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
