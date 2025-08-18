@@ -6,6 +6,8 @@
 - [x] add NPC items sources
 - [x] update formula for skill CD
 - [x] take crit change into account in simulation (average)
+- [x] add methods to buy/sell items
+- [ ] remove to_owned call in my_api calls
 - [ ] take crit change into account in simulation (probability)
 - [ ] take new effects into account in simulation
 - [ ] improve inventory full handling

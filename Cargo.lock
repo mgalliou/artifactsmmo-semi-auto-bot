@@ -121,7 +121,6 @@ dependencies = [
  "nutype",
  "ordered-float",
  "reqwest",
- "sdk_derive",
  "serde",
  "serde_json",
  "strum",
@@ -1381,14 +1380,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f29ebaa345f945cec9fbbc532eb307f0fdad8161f281b6369539c8d84876b3d"
 dependencies = [
  "windows-sys 0.59.0",
-]
-
-[[package]]
-name = "sdk_derive"
-version = "0.1.0"
-dependencies = [
- "quote",
- "syn",
 ]
 
 [[package]]

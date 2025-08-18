@@ -33,6 +33,8 @@ use artifactsmmo_sdk::{
         RecyclingItemsSchema, ResourceSchema, RewardsSchema, SimpleItemSchema, SkillDataSchema,
         SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
     },
+    monsters::MonsterSchemaExt,
+    resources::ResourceSchemaExt,
 };
 use itertools::Itertools;
 use log::{error, info, warn};
@@ -350,10 +352,7 @@ impl CharacterController {
                     );
                 }
             }
-            Err(e) => {
-                error!("{} failed to handle order: {}", self.name(), e);
-                return Err(e);
-            }
+            Err(e) => return Err(e),
         }
         self.turn_in_order(order);
         progress
@@ -778,6 +777,14 @@ impl CharacterController {
         {
             error!("{} error while accepting new task: {:?}", self.name(), e)
         }
+        if self.inventory.free_space() < monster.max_drop_quantity()
+            || self
+                .client
+                .current_map()
+                .content_type_is(MapContentType::Bank)
+        {
+            self.deposit_all()?;
+        };
         self.withdraw_food();
         if !self.can_kill_now(monster) {
             self.eat_food();
@@ -834,6 +841,14 @@ impl CharacterController {
             .closest_with_content_code_from(self.client.current_map(), &resource.code)
         else {
             return Err(GatherCommandError::MapNotFound);
+        };
+        if self.inventory.free_space() < resource.max_drop_quantity()
+            || self
+                .client
+                .current_map()
+                .content_type_is(MapContentType::Bank)
+        {
+            self.deposit_all()?;
         };
         self.r#move(map.x, map.y)?;
         Ok(self.client.gather()?)
@@ -933,10 +948,6 @@ impl CharacterController {
         if self.maps.with_content_code(&monster.code).is_empty() {
             return Err(KillMonsterCommandError::MapNotFound);
         }
-        // TODO: improve condition
-        if self.inventory.is_full() {
-            return Err(KillMonsterCommandError::InsufficientInventorySpace);
-        }
         Ok(())
     }
 
@@ -990,10 +1001,6 @@ impl CharacterController {
         }
         if self.client.skill_level(skill) < resource.level {
             return Err(GatherCommandError::InsufficientSkillLevel(skill));
-        }
-        // TODO: improve condition
-        if self.inventory.is_full() {
-            return Err(GatherCommandError::InsufficientInventorySpace);
         }
         Ok(())
     }

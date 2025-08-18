@@ -1,5 +1,11 @@
 use artifactsmmo_sdk::char::{
-    error::{BankExpansionError, CraftError, DeleteError, DepositError, EquipError, FightError, GatherError, GoldDepositError, GoldWithdrawError, MoveError, RecycleError, RestError, TaskAcceptationError, TaskCancellationError, TaskCompletionError, TaskTradeError, TasksCoinExchangeError, UnequipError, WithdrawError}, Skill
+    Skill,
+    error::{
+        BankExpansionError, CraftError, DeleteError, DepositError, EquipError, FightError,
+        GatherError, GoldDepositError, GoldWithdrawError, MoveError, RecycleError, RestError,
+        TaskAcceptationError, TaskCancellationError, TaskCompletionError, TaskTradeError,
+        TasksCoinExchangeError, UnequipError, WithdrawError,
+    },
 };
 use thiserror::Error;
 
@@ -13,9 +19,9 @@ pub enum KillMonsterCommandError {
     BankUnavailable,
     #[error("No gear powerfull enough available to kill monster")]
     GearTooWeak { monster_code: String },
-    #[error("Insufficient inventory space")]
-    InsufficientInventorySpace,
-    #[error("Failed to move to monster")]
+    #[error("Failed to deposit before gathering: {0}")]
+    DepositItemCommandError(#[from] DepositItemCommandError),
+    #[error("Failed to move: {0}")]
     MoveError(#[from] MoveError),
     #[error("Failed to fight")]
     FightError(#[from] FightError),
@@ -28,10 +34,10 @@ pub enum GatherCommandError {
     #[error("Insufficient skill ({0}) level")]
     InsufficientSkillLevel(Skill),
     #[error("Insufficient inventory space")]
-    InsufficientInventorySpace,
-    #[error("No map with resource found")]
     MapNotFound,
-    #[error("Failed to move to resource: {0}")]
+    #[error("Failed to deposit before gathering: {0}")]
+    DepositItemCommandError(#[from] DepositItemCommandError),
+    #[error("Failed to move: {0}")]
     MoveError(#[from] MoveError),
     #[error("Failed to request gather: {0}")]
     ClientError(#[from] GatherError),
