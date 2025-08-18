@@ -21,7 +21,7 @@ use artifactsmmo_sdk::{
     HasDrops, Items, Maps, Monsters, Server, Simulator,
     char::{
         Character as CharacterClient, HasCharacterData, Skill,
-        error::{MoveError, RestError},
+        error::RestError,
     },
     consts::{
         BANK_MIN_FREE_SLOT, CRAFT_TIME, MAX_LEVEL, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
@@ -994,10 +994,11 @@ impl CharacterController {
                 )
             }
         });
+        self.check_for_skill_gear(skill);
         self.deposit_all()?;
         self.withdraw_items(&mats)?;
         let Some(map) = self.maps.with_workshop_for(skill) else {
-            return Err(MoveError::MapNotFound.into());
+            return Err(MoveCommandError::MapNotFound.into());
         };
         self.r#move(map.x, map.y)?;
         let craft = self.client.craft(&item.code, quantity)?;
@@ -1066,7 +1067,7 @@ impl CharacterController {
             self.withdraw_item(&item.code, missing_quantity)?;
         }
         let Some(map) = self.maps.with_workshop_for(skill) else {
-            return Err(MoveError::MapNotFound.into());
+            return Err(MoveCommandError::MapNotFound.into());
         };
         self.r#move(map.x, map.y)?;
         let result = self.client.recycle(&item.code, quantity);
@@ -1487,7 +1488,7 @@ impl CharacterController {
         else {
             return Err(MoveCommandError::MapNotFound);
         };
-        Ok(self.r#move(map.x, map.y)?)
+        self.r#move(map.x, map.y)
     }
 
     fn move_to_closest_map_of_type(
@@ -1500,7 +1501,7 @@ impl CharacterController {
         else {
             return Err(MoveCommandError::MapNotFound);
         };
-        Ok(self.r#move(map.x, map.y)?)
+        self.r#move(map.x, map.y)
     }
 
     fn move_to_closest_map_with_content_code(
@@ -1513,7 +1514,7 @@ impl CharacterController {
         else {
             return Err(MoveCommandError::MapNotFound);
         };
-        Ok(self.r#move(map.x, map.y)?)
+        self.r#move(map.x, map.y)
     }
 
     fn r#move(&self, x: i32, y: i32) -> Result<Arc<MapSchema>, MoveCommandError> {
