@@ -102,7 +102,7 @@ impl CharacterController {
                 continue;
             }
             self.maps.refresh_from_events();
-            //self.order_food();
+            self.order_food();
             if self.handle_goals() {
                 continue;
             }
@@ -1827,7 +1827,12 @@ impl CharacterController {
             .items
             .best_consumable_foods(self.level())
             .iter()
-            .max_by_key(|i| i.heal())
+            .max_by_key(|i| {
+                self.account
+                    .time_to_get(&i.code)
+                    .map(|t| i.heal() / t)
+                    .unwrap_or(0)
+            })
             && self.bank.has_available(&best_food.code, Some(&self.name())) < MIN_FOOD_THRESHOLD
             && let Err(e) = self.order_board.add_or_reset(
                 &best_food.code,
