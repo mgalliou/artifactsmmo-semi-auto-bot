@@ -69,7 +69,7 @@ impl OrderBoard {
                 .collect_vec();
             orders.extend(filtered);
         });
-        orders.sort_by_key(|o| !self.items.is_from_event(&o.item));
+        //orders.sort_by_key(|o| !self.items.is_from_event(&o.item));
         orders
     }
 
