@@ -10,7 +10,7 @@
 - [ ] remove to_owned call in my_api calls
 - [ ] take crit change into account in simulation (probability)
 - [ ] take new effects into account in simulation
-- [ ] improve inventory full handling
+- [x] improve inventory full handling (on fight and on gather)
 - [ ] add methods to give items
 - [ ] add Achivment API and goals
 - [ ] check active events not being listed in CLI
