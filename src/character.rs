@@ -317,8 +317,6 @@ impl CharacterController {
                 self.account.available_in_inventories(&order.item),
             );
         }
-        self.turn_in_order(order);
-        Ok(progress)
     }
 
     fn can_progress(&self, order: &Order) -> bool {
@@ -757,7 +755,6 @@ impl CharacterController {
         monster: &MonsterSchema,
     ) -> Result<FightSchema, KillMonsterCommandError> {
         self.can_fight(monster)?;
-        self.check_for_combat_gear(monster)?;
         if let Ok(_) | Err(TaskCompletionCommandError::NoTask) = self.complete_task()
             && let Err(e) = self.accept_task(TaskType::Monsters)
         {
@@ -771,6 +768,7 @@ impl CharacterController {
         {
             self.deposit_all()?;
         };
+        self.check_for_combat_gear(monster)?;
         self.withdraw_food();
         if !self.can_kill_now(monster) {
             self.eat_food_from_inventory();
@@ -837,10 +835,6 @@ impl CharacterController {
         resource: &ResourceSchema,
     ) -> Result<SkillDataSchema, GatherCommandError> {
         self.can_gather(resource)?;
-        if self.maps.with_content_code(&resource.code).is_empty() {
-            return Err(GatherCommandError::MapNotFound);
-        };
-        self.check_for_skill_gear(resource.skill.into());
         let Some(map) = self
             .maps
             .closest_with_content_code_from(self.client.current_map(), &resource.code)
@@ -855,6 +849,7 @@ impl CharacterController {
         {
             self.deposit_all()?;
         };
+        self.check_for_skill_gear(resource.skill.into());
         self.r#move(map.x, map.y)?;
         Ok(self.client.gather()?)
     }
