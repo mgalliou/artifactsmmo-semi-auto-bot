@@ -52,6 +52,7 @@ impl AccountController {
                     char_client.clone(),
                     self.items.clone(),
                     client.monsters.clone(),
+                    client.npcs.clone(),
                     client.maps.clone(),
                     bank.clone(),
                     order_board.clone(),

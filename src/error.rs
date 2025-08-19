@@ -1,10 +1,10 @@
 use artifactsmmo_sdk::char::{
     Skill,
     error::{
-        BankExpansionError, CraftError, DeleteError, DepositError, EquipError, FightError,
-        GatherError, GoldDepositError, GoldWithdrawError, MoveError, RecycleError, RestError,
-        TaskAcceptationError, TaskCancellationError, TaskCompletionError, TaskTradeError,
-        TasksCoinExchangeError, UnequipError, UseError, WithdrawError,
+        BankExpansionError, BuyNpcError, CraftError, DeleteError, DepositError, EquipError,
+        FightError, GatherError, GoldDepositError, GoldWithdrawError, MoveError, RecycleError,
+        RestError, TaskAcceptationError, TaskCancellationError, TaskCompletionError,
+        TaskTradeError, TasksCoinExchangeError, UnequipError, UseError, WithdrawError,
     },
 };
 use thiserror::Error;
@@ -269,6 +269,24 @@ pub enum UseItemCommandError {
 }
 
 #[derive(Debug, Error)]
+pub enum BuyNpcCommandError {
+    #[error("Item not found or purchasable")]
+    ItemNotPurchasable,
+    #[error("Insufficient currency")]
+    InsufficientCurrency,
+    #[error("Failed to deposit all before withdrawing currency: {0}")]
+    DepositItemCommandError(#[from] DepositItemCommandError),
+    #[error("Failed to withdraw gold from bank: {0}")]
+    GoldWithdrawCommandError(#[from] GoldWithdrawCommandError),
+    #[error("Failed to withdraw currency from bank: {0}")]
+    WithdrawItemCommandError(#[from] WithdrawItemCommandError),
+    #[error("No map with an NPC selling the item found: {0}")]
+    MoveCommandError(#[from] MoveCommandError),
+    #[error("Failed to request npc purchase : {0}")]
+    ClientError(#[from] BuyNpcError),
+}
+
+#[derive(Debug, Error)]
 pub enum OrderProgresssionError {
     #[error("Failed to progress resource order {0}")]
     GatherCommandError(#[from] GatherCommandError),
@@ -280,6 +298,8 @@ pub enum OrderProgresssionError {
     TasksCoinExchangeCommandError(#[from] TasksCoinExchangeCommandError),
     #[error("Failed to progress tasks progression order {0}")]
     TaskProgressionError(#[from] TaskProgressionError),
+    #[error("Failed to progress npc purchase order {0}")]
+    BuyNpcCommandError(#[from] BuyNpcCommandError),
     #[error("No item source found to progress order")]
     NoSourceForItem,
     #[error("No item missin")]

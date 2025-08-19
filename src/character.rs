@@ -3,13 +3,13 @@ use crate::{
     bank::Bank,
     bot_config::{BotConfig, CharConfig, Goal},
     error::{
-        BankExpansionCommandError, CraftCommandError, DeleteCommandError, DepositItemCommandError,
-        EquipCommandError, GatherCommandError, GoldDepositCommandError, GoldWithdrawCommandError,
-        KillMonsterCommandError, MoveCommandError, OrderDepositError, OrderProgresssionError,
-        RecycleCommandError, SkillLevelingError, TaskAcceptationCommandError,
-        TaskCancellationCommandError, TaskCompletionCommandError, TaskProgressionError,
-        TaskTradeCommandError, TasksCoinExchangeCommandError, UnequipCommandError,
-        UseItemCommandError, WithdrawItemCommandError,
+        BankExpansionCommandError, BuyNpcCommandError, CraftCommandError, DeleteCommandError,
+        DepositItemCommandError, EquipCommandError, GatherCommandError, GoldDepositCommandError,
+        GoldWithdrawCommandError, KillMonsterCommandError, MoveCommandError, OrderDepositError,
+        OrderProgresssionError, RecycleCommandError, SkillLevelingError,
+        TaskAcceptationCommandError, TaskCancellationCommandError, TaskCompletionCommandError,
+        TaskProgressionError, TaskTradeCommandError, TasksCoinExchangeCommandError,
+        UnequipCommandError, UseItemCommandError, WithdrawItemCommandError,
     },
     gear_finder::{Filter, GearFinder},
     inventory::Inventory,
@@ -29,10 +29,11 @@ use artifactsmmo_sdk::{
     maps::MapSchemaExt,
     models::{
         CharacterSchema, FightResult, FightSchema, MapContentType, MapSchema, MonsterSchema,
-        RecyclingItemsSchema, ResourceSchema, RewardsSchema, SimpleItemSchema, SkillDataSchema,
-        SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
+        NpcSchema, RecyclingItemsSchema, ResourceSchema, RewardsSchema, SimpleItemSchema,
+        SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
     },
     monsters::MonsterSchemaExt,
+    npcs::Npcs,
     resources::ResourceSchemaExt,
 };
 use itertools::Itertools;
@@ -55,6 +56,7 @@ pub struct CharacterController {
     order_board: Arc<OrderBoard>,
     items: Arc<Items>,
     monsters: Arc<Monsters>,
+    npcs: Arc<Npcs>,
     gear_finder: Arc<GearFinder>,
     leveling_helper: Arc<LevelingHelper>,
 }
@@ -66,6 +68,7 @@ impl CharacterController {
         client: Arc<CharacterClient>,
         items: Arc<Items>,
         monsters: Arc<Monsters>,
+        npcs: Arc<Npcs>,
         maps: Arc<Maps>,
         bank: Arc<Bank>,
         order_board: Arc<OrderBoard>,
@@ -80,6 +83,7 @@ impl CharacterController {
             maps,
             items,
             monsters,
+            npcs,
             bank,
             order_board,
             account,
@@ -343,7 +347,7 @@ impl CharacterController {
                 ItemSource::Craft => self.can_craft(&order.item).is_ok(),
                 ItemSource::TaskReward => order.in_progress() <= 0,
                 ItemSource::Task => true,
-                ItemSource::Npc(_) => todo!(),
+                ItemSource::Npc(_) => true,
                 //ItemSource::Gift => true,
             })
     }
@@ -404,7 +408,14 @@ impl CharacterController {
                     self.has_available(TASKS_COIN) >= TASK_EXCHANGE_PRICE + MIN_COIN_THRESHOLD
                 }
                 ItemSource::Task => self.has_available(&self.task()) >= self.task_missing(),
-                ItemSource::Npc(_) => todo!(),
+                ItemSource::Npc(n) => self
+                    .npcs
+                    .items
+                    .get(&order.item)
+                    .map(|i| (i.currency.clone(), i.buy_price))
+                    .is_some_and(|(c, p)| {
+                        self.has_available(&c) > p.unwrap_or(0) * order.quantity()
+                    }),
             })
     }
 
@@ -421,7 +432,7 @@ impl CharacterController {
             ItemSource::Craft => self.progress_crafting_order(order)?,
             ItemSource::TaskReward => self.progress_task_reward_order(order)?,
             ItemSource::Task => self.progress_task_order(order)?,
-            ItemSource::Npc(_) => todo!(),
+            ItemSource::Npc(n) => self.progress_npc_order(order, &n)?,
         })
     }
 
@@ -531,6 +542,14 @@ impl CharacterController {
                 }
             }
         }
+    }
+
+    fn progress_npc_order(
+        &self,
+        order: &Order,
+        npc: &NpcSchema,
+    ) -> Result<i32, BuyNpcCommandError> {
+        todo!()
     }
 
     //fn progress_gift_order(&self, order: &Order) -> Option<i32> {
@@ -1570,6 +1589,34 @@ impl CharacterController {
     fn use_item(&self, item_code: &str, quantity: i32) -> Result<(), UseItemCommandError> {
         self.client.r#use(item_code, quantity)?;
         self.inventory.decrease_reservation(item_code, quantity);
+        Ok(())
+    }
+
+    fn buy_item(&self, item_code: &str, quantity: i32) -> Result<(), BuyNpcCommandError> {
+        let Some(npc_item) = self.npcs.items.get(item_code) else {
+            return Err(BuyNpcCommandError::ItemNotPurchasable);
+        };
+        let Some(buy_price) = npc_item.buy_price else {
+            return Err(BuyNpcCommandError::ItemNotPurchasable);
+        };
+        let total_price = buy_price * quantity;
+        if self.has_available(&npc_item.currency) < total_price {
+            return Err(BuyNpcCommandError::InsufficientCurrency);
+        }
+        if npc_item.currency == "gold" {
+            let missing_quantity = total_price - self.gold();
+            if missing_quantity > 0 {
+                self.withdraw_gold(missing_quantity)?;
+            }
+        } else {
+            let missing_quantity = total_price - self.inventory.total_of(item_code);
+            if missing_quantity > 0 {
+                self.deposit_all_but(item_code)?;
+                self.withdraw_item(item_code, missing_quantity)?;
+            }
+        }
+        self.move_to_closest_map_with_content_code(&npc_item.npc)?;
+        self.client.npc_buy(item_code, quantity)?;
         Ok(())
     }
 
