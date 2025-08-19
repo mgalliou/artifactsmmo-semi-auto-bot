@@ -36,7 +36,7 @@ use artifactsmmo_sdk::{
     resources::ResourceSchemaExt,
 };
 use itertools::Itertools;
-use log::{error, info, warn};
+use log::{debug, error, info, warn};
 use std::{
     cmp::min,
     option::Option,
@@ -307,15 +307,29 @@ impl CharacterController {
     }
 
     fn handle_order(&self, order: Arc<Order>) -> Result<i32, OrderProgresssionError> {
-        let progress = self.progress_order(&order)?;
-        if progress > 0 {
-            info!(
-                "{}: progressed by {} on order: {}, in inventories: {}",
-                self.name(),
-                progress,
-                order,
-                self.account.available_in_inventories(&order.item),
-            );
+        match self.progress_order(&order) {
+            Ok(progress) => {
+                if progress > 0 {
+                    info!(
+                        "{}: progressed by {} on order: {}, in inventories: {}",
+                        self.name(),
+                        progress,
+                        order,
+                        self.account.available_in_inventories(&order.item),
+                    );
+                }
+                self.turn_in_order(order);
+                Ok(progress)
+            }
+            Err(err) => {
+                debug!(
+                    "{}: no progress done on order {}: {}",
+                    self.name(),
+                    order,
+                    err
+                );
+                Err(err)
+            }
         }
     }
 
