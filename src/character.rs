@@ -19,10 +19,7 @@ use crate::{
 use anyhow::Result;
 use artifactsmmo_sdk::{
     HasDrops, Items, Maps, Monsters, Server, Simulator,
-    char::{
-        Character as CharacterClient, HasCharacterData, Skill,
-        error::RestError,
-    },
+    char::{Character as CharacterClient, HasCharacterData, Skill, error::RestError},
     consts::{
         BANK_MIN_FREE_SLOT, CRAFT_TIME, MAX_LEVEL, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
         TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE, TASKS_COIN,
@@ -370,6 +367,9 @@ impl CharacterController {
         ordered
     }
 
+    /// Checks if the character is able to get the missing items for the `order` in one command
+    /// Resource and Monsters sources return false because drop rate might not be 100%
+    /// TODO: maybe check drop rate of item and return `true` if it is 100%
     fn can_complete_order(&self, order: &Order) -> bool {
         self.items
             .best_source_of(&order.item)
@@ -639,10 +639,7 @@ impl CharacterController {
     }
 
     fn can_exchange_task(&self) -> Result<(), TasksCoinExchangeCommandError> {
-        if self.inventory.total_of(TASKS_COIN)
-            + self.bank.has_available(TASKS_COIN, Some(&self.name()))
-            < TASK_EXCHANGE_PRICE + MIN_COIN_THRESHOLD
-        {
+        if self.has_in_bank_or_inv(TASKS_COIN) < TASK_EXCHANGE_PRICE + MIN_COIN_THRESHOLD {
             return Err(TasksCoinExchangeCommandError::NotEnoughCoins);
         }
         Ok(())
@@ -674,14 +671,12 @@ impl CharacterController {
             {
                 return Err(TasksCoinExchangeCommandError::NotEnoughCoins);
             }
-            if let Err(e) = self.deposit_all() {
+            if let Err(e) = self.deposit_all_but(TASKS_COIN) {
                 error!("Failed to deposit all while exchanging task: {}", e)
             }
             self.withdraw_item(TASKS_COIN, quantity)?;
         }
-        if let Err(e) = self.move_to_closest_taskmaster(self.task_type()) {
-            error!("{}: error while moving to taskmaster: {:?}", self.name(), e);
-        };
+        self.move_to_closest_taskmaster(self.task_type())?;
         let result = self.client.exchange_tasks_coin().map_err(|e| e.into());
         self.inventory
             .decrease_reservation(TASKS_COIN, TASK_EXCHANGE_PRICE);
@@ -1264,6 +1259,11 @@ impl CharacterController {
         }])
     }
 
+    /// Withdraw items from bank.
+    /// Does not `deposit_all` before withdrawing because the caller might want to keep
+    /// items reserved
+    // TODO: maybe add optionnal parameter to deposit_all
+    ///TODO: maybe reserve item before withdrawing
     pub fn withdraw_items(
         &self,
         items: &[SimpleItemSchema],
@@ -1480,11 +1480,15 @@ impl CharacterController {
 
     fn move_to_closest_taskmaster(
         &self,
-        r#type: Option<TaskType>,
+        task_type: Option<TaskType>,
     ) -> Result<Arc<MapSchema>, MoveCommandError> {
+        let current_map = self.current_map();
+        if self.current_map().is_tasksmaster(task_type) {
+            return Ok(current_map);
+        }
         let Some(map) = self
             .maps
-            .closest_tasksmaster_from(self.client.current_map(), r#type)
+            .closest_tasksmaster_from(self.client.current_map(), task_type)
         else {
             return Err(MoveCommandError::MapNotFound);
         };
@@ -1495,6 +1499,10 @@ impl CharacterController {
         &self,
         r#type: MapContentType,
     ) -> Result<Arc<MapSchema>, MoveCommandError> {
+        let current_map = self.current_map();
+        if current_map.content_type_is(r#type) {
+            return Ok(current_map);
+        }
         let Some(map) = self
             .maps
             .closest_of_type_from(self.client.current_map(), r#type)
@@ -1508,6 +1516,10 @@ impl CharacterController {
         &self,
         code: &str,
     ) -> Result<Arc<MapSchema>, MoveCommandError> {
+        let current_map = self.current_map();
+        if current_map.content_code_is(code) {
+            return Ok(current_map);
+        }
         let Some(map) = self
             .maps
             .closest_with_content_code_from(self.client.current_map(), code)
@@ -1579,7 +1591,7 @@ impl CharacterController {
                     .map(|t| i.heal() / t)
                     .unwrap_or(0)
             })
-            && self.bank.has_available(&best_food.code, Some(&self.name())) < MIN_FOOD_THRESHOLD
+            && self.bank.has_available(&best_food.code, None) < MIN_FOOD_THRESHOLD
             && let Err(e) = self.order_board.add_or_reset(
                 &best_food.code,
                 self.account.fisher_max_items(),
@@ -1784,6 +1796,10 @@ impl CharacterController {
 
     pub fn skill_enabled(&self, s: Skill) -> bool {
         self.conf().read().unwrap().skills.contains(&s)
+    }
+
+    pub fn current_map(&self) -> Arc<MapSchema> {
+        self.client.current_map()
     }
 
     pub fn toggle_idle(&self) {

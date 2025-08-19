@@ -156,7 +156,9 @@ pub enum TasksCoinExchangeCommandError {
     NotEnoughCoins,
     #[error("Failed to withdraw coins required")]
     WithdrawItemCommandError(#[from] WithdrawItemCommandError),
-    #[error("Failed to exchange task coins")]
+    #[error("Failed to move to tasks master")]
+    MoveCommandError(#[from] MoveCommandError),
+    #[error("Failed to request task coin exchange")]
     TasksCoinExchangeError(#[from] TasksCoinExchangeError),
     #[error("Order error")]
     OrderError,
