@@ -9,6 +9,8 @@ use artifactsmmo_sdk::char::{
 };
 use thiserror::Error;
 
+use crate::orderboard::OrderError;
+
 #[derive(Debug, Error)]
 pub enum KillMonsterCommandError {
     #[error("{0} skill is disabled")]
@@ -270,10 +272,12 @@ pub enum UseItemCommandError {
 
 #[derive(Debug, Error)]
 pub enum BuyNpcCommandError {
-    #[error("Item not found or purchasable")]
+    #[error("Item not found: {0}")]
+    ItemNotFound(String),
+    #[error("Item not purchasable")]
     ItemNotPurchasable,
-    #[error("Insufficient currency")]
-    InsufficientCurrency,
+    #[error("Insufficient currency: '{currency}'x{quantity}")]
+    InsufficientCurrency { currency: String, quantity: i32 },
     #[error("Failed to deposit all before withdrawing currency: {0}")]
     DepositItemCommandError(#[from] DepositItemCommandError),
     #[error("Failed to withdraw gold from bank: {0}")]
@@ -287,7 +291,11 @@ pub enum BuyNpcCommandError {
 }
 
 #[derive(Debug, Error)]
-pub enum OrderProgresssionError {
+pub enum OrderProgressionError {
+    #[error("No item missing")]
+    NoItemMissing,
+    #[error("No item source found to progress order")]
+    NoSourceForItem,
     #[error("Failed to progress resource order {0}")]
     GatherCommandError(#[from] GatherCommandError),
     #[error("Failed to progress monster order {0}")]
@@ -299,11 +307,15 @@ pub enum OrderProgresssionError {
     #[error("Failed to progress tasks progression order {0}")]
     TaskProgressionError(#[from] TaskProgressionError),
     #[error("Failed to progress npc purchase order {0}")]
+    BuyNpcOrderProgressionError(#[from] BuyNpcOrderProgressionError),
+}
+
+#[derive(Debug, Error)]
+pub enum BuyNpcOrderProgressionError {
+    #[error("Failed to command npc buy: {0}")]
     BuyNpcCommandError(#[from] BuyNpcCommandError),
-    #[error("No item source found to progress order")]
-    NoSourceForItem,
-    #[error("No item missin")]
-    NoItemMissing,
+    #[error("Failed to order missing currency: {0}")]
+    OrderError(#[from] OrderError),
 }
 
 #[derive(Debug, Error)]

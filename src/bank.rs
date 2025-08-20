@@ -11,6 +11,7 @@ use std::{
     fmt::{self, Display, Formatter},
     sync::{Arc, RwLock},
 };
+use thiserror::Error;
 
 #[derive(Default)]
 pub struct Bank {
@@ -263,9 +264,11 @@ impl Bank {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Error, PartialEq)]
 pub enum BankError {
+    #[error("Item unvailable")]
     ItemUnavailable,
+    #[error("Quantiny unvailable: {0}")]
     QuantityUnavailable(i32),
 }
 

@@ -3,13 +3,14 @@ use crate::{
     bank::Bank,
     bot_config::{BotConfig, CharConfig, Goal},
     error::{
-        BankExpansionCommandError, BuyNpcCommandError, CraftCommandError, DeleteCommandError,
-        DepositItemCommandError, EquipCommandError, GatherCommandError, GoldDepositCommandError,
-        GoldWithdrawCommandError, KillMonsterCommandError, MoveCommandError, OrderDepositError,
-        OrderProgresssionError, RecycleCommandError, SkillLevelingError,
-        TaskAcceptationCommandError, TaskCancellationCommandError, TaskCompletionCommandError,
-        TaskProgressionError, TaskTradeCommandError, TasksCoinExchangeCommandError,
-        UnequipCommandError, UseItemCommandError, WithdrawItemCommandError,
+        BankExpansionCommandError, BuyNpcCommandError, BuyNpcOrderProgressionError,
+        CraftCommandError, DeleteCommandError, DepositItemCommandError, EquipCommandError,
+        GatherCommandError, GoldDepositCommandError, GoldWithdrawCommandError,
+        KillMonsterCommandError, MoveCommandError, OrderDepositError, OrderProgressionError,
+        RecycleCommandError, SkillLevelingError, TaskAcceptationCommandError,
+        TaskCancellationCommandError, TaskCompletionCommandError, TaskProgressionError,
+        TaskTradeCommandError, TasksCoinExchangeCommandError, UnequipCommandError,
+        UseItemCommandError, WithdrawItemCommandError,
     },
     gear_finder::{Filter, GearFinder},
     inventory::Inventory,
@@ -29,7 +30,7 @@ use artifactsmmo_sdk::{
     maps::MapSchemaExt,
     models::{
         CharacterSchema, FightResult, FightSchema, MapContentType, MapSchema, MonsterSchema,
-        NpcSchema, RecyclingItemsSchema, ResourceSchema, RewardsSchema, SimpleItemSchema,
+        NpcItem, RecyclingItemsSchema, ResourceSchema, RewardsSchema, SimpleItemSchema,
         SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
     },
     monsters::MonsterSchemaExt,
@@ -310,7 +311,7 @@ impl CharacterController {
         Ok(())
     }
 
-    fn handle_order(&self, order: Arc<Order>) -> Result<i32, OrderProgresssionError> {
+    fn handle_order(&self, order: Arc<Order>) -> Result<i32, OrderProgressionError> {
         match self.progress_order(&order) {
             Ok(progress) => {
                 if progress > 0 {
@@ -408,23 +409,19 @@ impl CharacterController {
                     self.has_available(TASKS_COIN) >= TASK_EXCHANGE_PRICE + MIN_COIN_THRESHOLD
                 }
                 ItemSource::Task => self.has_available(&self.task()) >= self.task_missing(),
-                ItemSource::Npc(n) => self
-                    .npcs
-                    .items
-                    .get(&order.item)
-                    .map(|i| (i.currency.clone(), i.buy_price))
-                    .is_some_and(|(c, p)| {
-                        self.has_available(&c) > p.unwrap_or(0) * order.quantity()
-                    }),
+                ItemSource::Npc(_) => {
+                    let missing = self.order_board.total_missing_for(order);
+                    self.can_buy_item(&order.item, missing).is_ok()
+                }
             })
     }
 
-    fn progress_order(&self, order: &Order) -> Result<i32, OrderProgresssionError> {
+    fn progress_order(&self, order: &Order) -> Result<i32, OrderProgressionError> {
         if self.order_board.total_missing_for(order) <= 0 {
-            return Err(OrderProgresssionError::NoItemMissing);
+            return Err(OrderProgressionError::NoItemMissing);
         }
         let Some(source) = self.items.best_source_of(&order.item) else {
-            return Err(OrderProgresssionError::NoSourceForItem);
+            return Err(OrderProgressionError::NoSourceForItem);
         };
         Ok(match source {
             ItemSource::Resource(r) => self.progress_resource_order(order, &r)?,
@@ -432,7 +429,7 @@ impl CharacterController {
             ItemSource::Craft => self.progress_crafting_order(order)?,
             ItemSource::TaskReward => self.progress_task_reward_order(order)?,
             ItemSource::Task => self.progress_task_order(order)?,
-            ItemSource::Npc(n) => self.progress_npc_order(order, &n)?,
+            ItemSource::Npc(_) => self.progress_buy_npc_order(order)?,
         })
     }
 
@@ -544,12 +541,26 @@ impl CharacterController {
         }
     }
 
-    fn progress_npc_order(
-        &self,
-        order: &Order,
-        npc: &NpcSchema,
-    ) -> Result<i32, BuyNpcCommandError> {
-        todo!()
+    fn progress_buy_npc_order(&self, order: &Order) -> Result<i32, BuyNpcOrderProgressionError> {
+        let total_missing = self.order_board.total_missing_for(order);
+        match self.can_buy_item(&order.item, total_missing) {
+            Ok(_) => {
+                order.inc_in_progress(total_missing);
+                let purchase = self
+                    .buy_item(&order.item, total_missing)
+                    .map(|_| total_missing);
+                order.dec_in_progress(total_missing);
+                Ok(purchase?)
+            }
+            Err(BuyNpcCommandError::InsufficientCurrency { currency, quantity }) => {
+                if currency != "gold" {
+                    self.order_board
+                        .add(&currency, quantity, None, order.purpose.clone())?;
+                }
+                Ok(0)
+            }
+            Err(e) => Err(e.into()),
+        }
     }
 
     //fn progress_gift_order(&self, order: &Order) -> Option<i32> {
@@ -610,16 +621,24 @@ impl CharacterController {
         let q = min(self.task_missing(), self.inventory.max_items());
         if let Err(e) = self.bank.reserv(&self.task(), q, &self.name()) {
             error!(
-                "{}: error while reserving items for item task: {:?}",
+                "{}: failed reserving items for item task: {}",
                 self.name(),
                 e
             )
         }
         if let Err(e) = self.deposit_all() {
-            error!("Failed to deposit all while task trading: {}", e)
+            error!(
+                "{}: failed depositing all before task trading: {}",
+                self.name(),
+                e
+            )
         }
         if let Err(e) = self.withdraw_item(&self.task(), q) {
-            error!("{}: error while withdrawing {:?}", self.name(), e);
+            error!(
+                "{}: failed withdrawing item for task trading: {}",
+                self.name(),
+                e
+            );
             self.bank
                 .decrease_reservation(&self.task(), q, &self.name());
         };
@@ -711,6 +730,7 @@ impl CharacterController {
         let result = self.client.exchange_tasks_coin().map_err(|e| e.into());
         self.inventory
             .decrease_reservation(TASKS_COIN, TASK_EXCHANGE_PRICE);
+        ///TODO: maybe reserve droped items
         result
     }
 
@@ -1011,7 +1031,7 @@ impl CharacterController {
         mats.iter().for_each(|m| {
             if let Err(e) = self.bank.reserv(&m.code, m.quantity, &self.name()) {
                 error!(
-                    "{}: error while reserving mats for crafting from bank: {:?}",
+                    "{}: failed reserving mats to craft from bank: {}",
                     self.name(),
                     e
                 )
@@ -1078,14 +1098,18 @@ impl CharacterController {
             let missing_quantity = quantity - self.inventory.has_available(&item.code);
             if let Err(e) = self.bank.reserv(&item.code, missing_quantity, &self.name()) {
                 error!(
-                    "{}: error while reserving '{}': {:?}",
+                    "{}: failed reserving '{}' before recyling: {}",
                     self.name(),
                     &item.code,
                     e
                 );
             }
             if let Err(e) = self.deposit_all_but(&item.code) {
-                error!("Failed to deposit all while recycling from bank: {}", e)
+                error!(
+                    "{}: failed depositing all before recycling from bank: {}",
+                    &self.name(),
+                    e
+                )
             }
             self.withdraw_item(&item.code, missing_quantity)?;
         }
@@ -1127,16 +1151,23 @@ impl CharacterController {
         if self.has_in_bank_or_inv(item) < quantity {
             return Err(DeleteCommandError::InsufficientQuantity);
         }
-        info!("{}: going to delete '{}x{}'.", self.name(), item, quantity);
+        info!("{}: going to delete '{}'x{}.", self.name(), item, quantity);
         if self.inventory.has_available(item) < quantity {
             let missing_quantity = quantity - self.inventory.has_available(item);
             if let Err(e) = self.bank.reserv(item, missing_quantity, &self.name()) {
-                error!("{}: error while reserving '{}': {:?}", self.name(), item, e);
+                error!(
+                    "{}: failed reserving '{}' before item deletion: {}",
+                    self.name(),
+                    item,
+                    e
+                );
             }
             if let Err(e) = self.deposit_all_but(item) {
                 error!(
-                    "Failed to deposit all but {} while deleting item: {}",
-                    item, e
+                    "{}: failed depositing all but '{}' while deleting item: {}",
+                    self.name(),
+                    item,
+                    e
                 )
             }
             self.withdraw_item(item, missing_quantity)?;
@@ -1268,15 +1299,19 @@ impl CharacterController {
             self.bank.has_available(&food.code, Some(&self.name())),
         );
         if let Err(e) = self.bank.reserv(&food.code, quantity, &self.name()) {
-            error!("{} failed to reserv food: {:?}", self.name(), e)
+            error!("{}: failed reserving food: {}", self.name(), e)
         };
         drop(_browsed);
         // TODO: only deposit what is necessary, food already in inventory should be kept
         if let Err(e) = self.deposit_all() {
-            error!("Failed to deposit all while withdrawing food: {}", e)
+            error!(
+                "{}: depositing all before withdrawing food: {}",
+                self.name(),
+                e
+            )
         }
         if let Err(e) = self.withdraw_item(&food.code, quantity) {
-            error!("{} failed to withdraw food: {:?}", self.name(), e)
+            error!("{}: failed withdrawing food: {}", self.name(), e)
         }
     }
 
@@ -1593,31 +1628,69 @@ impl CharacterController {
     }
 
     fn buy_item(&self, item_code: &str, quantity: i32) -> Result<(), BuyNpcCommandError> {
-        let Some(npc_item) = self.npcs.items.get(item_code) else {
-            return Err(BuyNpcCommandError::ItemNotPurchasable);
-        };
-        let Some(buy_price) = npc_item.buy_price else {
-            return Err(BuyNpcCommandError::ItemNotPurchasable);
-        };
-        let total_price = buy_price * quantity;
-        if self.has_available(&npc_item.currency) < total_price {
-            return Err(BuyNpcCommandError::InsufficientCurrency);
-        }
+        let (npc_item, total_price) = self.can_buy_item(item_code, quantity)?;
         if npc_item.currency == "gold" {
             let missing_quantity = total_price - self.gold();
             if missing_quantity > 0 {
                 self.withdraw_gold(missing_quantity)?;
             }
         } else {
-            let missing_quantity = total_price - self.inventory.total_of(item_code);
+            let missing_quantity = total_price - self.inventory.total_of(&npc_item.currency);
+            if let Err(e) = self
+                .bank
+                .reserv(&npc_item.currency, missing_quantity, &self.name())
+            {
+                error!(
+                    "{}: failed to reserv item before withdrawing currency for purchase: {}",
+                    self.name(),
+                    e
+                )
+            }
             if missing_quantity > 0 {
-                self.deposit_all_but(item_code)?;
-                self.withdraw_item(item_code, missing_quantity)?;
+                self.deposit_all()?;
+                self.withdraw_item(&npc_item.currency, missing_quantity)?;
             }
         }
         self.move_to_closest_map_with_content_code(&npc_item.npc)?;
         self.client.npc_buy(item_code, quantity)?;
+        self.inventory
+            .decrease_reservation(&npc_item.currency, total_price);
+        if let Err(e) = self.inventory.reserv(item_code, quantity) {
+            error!(
+                "{}: failed to reserv bought item '{}'x{}: {:?}",
+                self.name(),
+                item_code,
+                quantity,
+                e
+            );
+        }
         Ok(())
+    }
+
+    fn can_buy_item(
+        &self,
+        item_code: &str,
+        quantity: i32,
+    ) -> Result<(Arc<NpcItem>, i32), BuyNpcCommandError> {
+        let Some(npc_item) = self.npcs.items.get(item_code) else {
+            return Err(BuyNpcCommandError::ItemNotFound(item_code.to_string()));
+        };
+        let Some(buy_price) = npc_item.buy_price else {
+            return Err(BuyNpcCommandError::ItemNotPurchasable);
+        };
+        let total_price = buy_price * quantity;
+        let currency_available = if npc_item.currency == "gold" {
+            self.gold() + self.bank.gold()
+        } else {
+            self.has_available(&npc_item.currency)
+        };
+        if currency_available < total_price {
+            return Err(BuyNpcCommandError::InsufficientCurrency {
+                currency: npc_item.currency.to_string(),
+                quantity: total_price - currency_available,
+            });
+        }
+        Ok((npc_item, total_price))
     }
 
     /// TODO: improve with only ordering food crafted from fishing
@@ -1631,7 +1704,7 @@ impl CharacterController {
                 .reserv(&f.code, self.inventory.total_of(&f.code))
             {
                 error!(
-                    "{} failed to reserv food currently in inventory: {:?}",
+                    "{} failed to reserv food currently in inventory: {}",
                     self.name(),
                     e
                 )
@@ -1827,6 +1900,10 @@ impl CharacterController {
             self.bank.has_mats_for(item, Some(&self.name())),
             self.inventory.max_items() / self.items.mats_quantity_for(item),
         )
+    }
+
+    pub fn gold_available(&self) -> i32 {
+        self.gold() + self.bank.gold()
     }
 
     /// Returns the amount of the given item `code` available in bank, inventory and gear.
