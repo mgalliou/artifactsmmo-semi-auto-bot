@@ -9,8 +9,9 @@ use crate::{
         KillMonsterCommandError, MoveCommandError, OrderDepositError, OrderProgressionError,
         RecycleCommandError, SkillLevelingError, TaskAcceptationCommandError,
         TaskCancellationCommandError, TaskCompletionCommandError, TaskProgressionError,
-        TaskTradeCommandError, TasksCoinExchangeCommandError, UnequipCommandError,
-        UseItemCommandError, WithdrawItemCommandError,
+        TaskTradeCommandError, TasksCoinExchangeCommandError,
+        TasksCoinExchangeOrderProgressionError, UnequipCommandError, UseItemCommandError,
+        WithdrawItemCommandError,
     },
     gear_finder::{Filter, GearFinder},
     inventory::Inventory,
@@ -480,34 +481,27 @@ impl CharacterController {
     fn progress_task_reward_order(
         &self,
         order: &Order,
-    ) -> Result<i32, TasksCoinExchangeCommandError> {
+    ) -> Result<i32, TasksCoinExchangeOrderProgressionError> {
         match self.can_exchange_task() {
             Ok(()) => {
                 order.inc_in_progress(1);
                 let exchanged = self.exchange_task().map(|r| r.amount_of(&order.item));
                 order.dec_in_progress(1);
-                exchanged
+                Ok(exchanged?)
             }
-            Err(e) => {
-                if self.order_board.total_missing_for(order) <= 0 {
-                    return Err(e);
-                }
-                if let TasksCoinExchangeCommandError::NotEnoughCoins = e {
-                    let q = TASK_EXCHANGE_PRICE + MIN_COIN_THRESHOLD
-                        - if self.order_board.is_ordered(TASKS_COIN) {
-                            0
-                        } else {
-                            self.has_in_bank_or_inv(TASKS_COIN)
-                        };
-                    return self
-                        .order_board
-                        .add(TASKS_COIN, q, None, order.purpose.to_owned())
-                        .map(|_| 0)
-                        //TODO: improve error handling, this variant should not exist
-                        .map_err(|_| TasksCoinExchangeCommandError::OrderError);
-                }
-                Err(e)
+            Err(TasksCoinExchangeCommandError::InsufficientCoins(quantity)) => {
+                //TODO: check is this was needed
+                // let quantity = TASK_EXCHANGE_PRICE + MIN_COIN_THRESHOLD
+                //     - if self.order_board.is_ordered(TASKS_COIN) {
+                //         0
+                //     } else {
+                //         self.has_in_bank_or_inv(TASKS_COIN)
+                //     };
+                self.order_board
+                    .add(TASKS_COIN, quantity, None, order.purpose.to_owned())?;
+                Ok(0)
             }
+            Err(e) => Err(e.into()),
         }
     }
 
@@ -689,8 +683,12 @@ impl CharacterController {
     }
 
     fn can_exchange_task(&self) -> Result<(), TasksCoinExchangeCommandError> {
-        if self.has_in_bank_or_inv(TASKS_COIN) < TASK_EXCHANGE_PRICE + MIN_COIN_THRESHOLD {
-            return Err(TasksCoinExchangeCommandError::NotEnoughCoins);
+        let coin_available = self.has_in_bank_or_inv(TASKS_COIN);
+        let min_coins = TASK_EXCHANGE_PRICE + MIN_COIN_THRESHOLD;
+        if coin_available < min_coins {
+            return Err(TasksCoinExchangeCommandError::InsufficientCoins(
+                min_coins - coin_available,
+            ));
         }
         Ok(())
     }
@@ -714,12 +712,14 @@ impl CharacterController {
                 );
             }
         } else {
+            //TODO: should add variant for reservation error, or reservation should be handled in
+            //`withdraw_item` method
             if self
                 .bank
                 .reserv(TASKS_COIN, quantity, &self.name())
                 .is_err()
             {
-                return Err(TasksCoinExchangeCommandError::NotEnoughCoins);
+                return Err(TasksCoinExchangeCommandError::InsufficientCoins(quantity));
             }
             if let Err(e) = self.deposit_all_but(TASKS_COIN) {
                 error!("Failed to deposit all while exchanging task: {}", e)
@@ -730,7 +730,7 @@ impl CharacterController {
         let result = self.client.exchange_tasks_coin().map_err(|e| e.into());
         self.inventory
             .decrease_reservation(TASKS_COIN, TASK_EXCHANGE_PRICE);
-        ///TODO: maybe reserve droped items
+        //TODO: maybe reserve droped items
         result
     }
 
@@ -1649,6 +1649,15 @@ impl CharacterController {
             if missing_quantity > 0 {
                 self.deposit_all()?;
                 self.withdraw_item(&npc_item.currency, missing_quantity)?;
+                if let Err(e) = self.inventory.reserv(&npc_item.currency, missing_quantity) {
+                    error!(
+                        "{}: failed to reserv bought item '{}'x{}: {:?}",
+                        self.name(),
+                        item_code,
+                        quantity,
+                        e
+                    );
+                }
             }
         }
         self.move_to_closest_map_with_content_code(&npc_item.npc)?;

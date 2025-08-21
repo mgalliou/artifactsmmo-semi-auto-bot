@@ -155,15 +155,13 @@ pub enum TaskCompletionCommandError {
 #[derive(Debug, Error)]
 pub enum TasksCoinExchangeCommandError {
     #[error("Not enough coins")]
-    NotEnoughCoins,
+    InsufficientCoins(i32),
     #[error("Failed to withdraw coins required")]
     WithdrawItemCommandError(#[from] WithdrawItemCommandError),
     #[error("Failed to move to tasks master")]
     MoveCommandError(#[from] MoveCommandError),
     #[error("Failed to request task coin exchange")]
-    TasksCoinExchangeError(#[from] TasksCoinExchangeError),
-    #[error("Order error")]
-    OrderError,
+    ClientError(#[from] TasksCoinExchangeError),
 }
 
 #[derive(Debug, Error)]
@@ -248,9 +246,9 @@ pub enum EquipCommandError {
     ItemNotFound,
     #[error("Conditions not met")]
     ConditionsNotMet,
-    #[error("Failed to unequip equiped item before equiping item")]
+    #[error("Failed to unequip equiped item before equiping item: {0}")]
     UnequipCommandError(#[from] UnequipCommandError),
-    #[error("Failed to equip item")]
+    #[error("Failed to request equip item: {0}")]
     ClientError(#[from] EquipError),
 }
 
@@ -296,17 +294,17 @@ pub enum OrderProgressionError {
     NoItemMissing,
     #[error("No item source found to progress order")]
     NoSourceForItem,
-    #[error("Failed to progress resource order {0}")]
+    #[error("Failed to progress resource order: {0}")]
     GatherCommandError(#[from] GatherCommandError),
-    #[error("Failed to progress monster order {0}")]
+    #[error("Failed to progress monster order: {0}")]
     KillMonsterCommandError(#[from] KillMonsterCommandError),
-    #[error("Failed to progress crafting order {0}")]
+    #[error("Failed to progress crafting order: {0}")]
     CraftCommandError(#[from] CraftCommandError),
-    #[error("Failed to progress tasks coin order {0}")]
-    TasksCoinExchangeCommandError(#[from] TasksCoinExchangeCommandError),
-    #[error("Failed to progress tasks progression order {0}")]
+    #[error("Failed to progress tasks coin exchange order: {0}")]
+    TasksCoinExchangeOrderProgressionError(#[from] TasksCoinExchangeOrderProgressionError),
+    #[error("Failed to progress tasks progression order: {0}")]
     TaskProgressionError(#[from] TaskProgressionError),
-    #[error("Failed to progress npc purchase order {0}")]
+    #[error("Failed to progress npc purchase order: {0}")]
     BuyNpcOrderProgressionError(#[from] BuyNpcOrderProgressionError),
 }
 
@@ -315,6 +313,14 @@ pub enum BuyNpcOrderProgressionError {
     #[error("Failed to command npc buy: {0}")]
     BuyNpcCommandError(#[from] BuyNpcCommandError),
     #[error("Failed to order missing currency: {0}")]
+    OrderError(#[from] OrderError),
+}
+
+#[derive(Debug, Error)]
+pub enum TasksCoinExchangeOrderProgressionError {
+    #[error("Failed to command tasks coin exchange: {0}")]
+    TasksCoinExchangeCommandError(#[from] TasksCoinExchangeCommandError),
+    #[error("Failed to order missing items: {0}")]
     OrderError(#[from] OrderError),
 }
 
