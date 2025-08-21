@@ -30,9 +30,9 @@ use artifactsmmo_sdk::{
     items::{ItemSchemaExt, ItemSource},
     maps::MapSchemaExt,
     models::{
-        CharacterSchema, FightResult, FightSchema, MapContentType, MapSchema, MonsterSchema,
-        NpcItem, RecyclingItemsSchema, ResourceSchema, RewardsSchema, SimpleItemSchema,
-        SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
+        CharacterSchema, DropSchema, FightResult, FightSchema, MapContentType, MapSchema,
+        MonsterSchema, NpcItem, RecyclingItemsSchema, ResourceSchema, RewardsSchema,
+        SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
     },
     monsters::MonsterSchemaExt,
     npcs::Npcs,
@@ -506,32 +506,16 @@ impl CharacterController {
     }
 
     fn progress_task_order(&self, order: &Order) -> Result<i32, TaskProgressionError> {
-        match self.complete_task() {
+        match self.progress_task() {
             Ok(r) => Ok(r.amount_of(&order.item)),
-            Err(e) => {
-                if let TaskCompletionCommandError::NoTask = e {
-                    let r#type = self.conf().read().unwrap().task_type;
-                    if let Err(e) = self.accept_task(r#type) {
-                        error!("{} error while accepting new task: {:?}", self.name(), e)
-                    }
-                    return Ok(0);
-                }
-                let TaskCompletionCommandError::TaskNotFinished = e else {
-                    return Err(e.into());
-                };
-                match self.progress_task() {
-                    Ok(_) => Ok(0),
-                    Err(TaskProgressionError::TaskTradeCommandError(
-                        TaskTradeCommandError::MissingItems { item, quantity },
-                    )) => self
-                        .order_board
-                        .add(&item, quantity, Some(&self.name()), order.purpose.clone())
-                        .map(|_| 0)
-                        //TODO: better error handling, variant should not exist ?
-                        .map_err(|_| TaskProgressionError::OrderError),
-                    Err(e) => Err(e),
-                }
+            Err(TaskProgressionError::TaskTradeCommandError(
+                TaskTradeCommandError::MissingItems { item, quantity },
+            )) => {
+                self.order_board
+                    .add(&item, quantity, Some(&self.name()), order.purpose.clone())?;
+                Ok(0)
             }
+            Err(e) => Err(e),
         }
     }
 
@@ -585,28 +569,42 @@ impl CharacterController {
     //    }
     //}
 
-    fn progress_task(&self) -> Result<(), TaskProgressionError> {
+    fn progress_task(&self) -> Result<Vec<DropSchema>, TaskProgressionError> {
         if self.task().is_empty() {
             let r#type = self.conf().read().unwrap().task_type;
-            return Ok(self.accept_task(r#type).map(|_| ())?);
+            return Ok(self.accept_task(r#type).map(|_| vec![])?);
         }
         if self.task_finished() {
-            return Ok(self.complete_task().map(|_| ())?);
+            return Ok(self.complete_task().map(|i| {
+                i.items
+                    .iter()
+                    .map(|i| DropSchema {
+                        code: i.code.clone(),
+                        quantity: i.quantity,
+                    })
+                    .collect()
+            })?);
         }
         let Some(monster) = self.monsters.get(&self.task()) else {
-            return Ok(self.trade_task().map(|_| ())?);
+            return Ok(self.trade_task().map(|r| {
+                vec![DropSchema {
+                    code: r.code,
+                    quantity: r.quantity,
+                }]
+            })?);
         };
         match self.kill_monster(&monster) {
-            Ok(_) => Ok(()),
-            Err(e) => {
-                if let KillMonsterCommandError::GearTooWeak { monster_code: _ } = e {
-                    warn!("{}: {}", self.name(), e);
-                    self.cancel_task()?;
-                    Ok(())
-                } else {
-                    Err(e.into())
-                }
+            Ok(r) => Ok(r.drops),
+            Err(KillMonsterCommandError::GearTooWeak { monster_code }) => {
+                warn!(
+                    "{}: No gear powerfull enough to kill {}",
+                    self.name(),
+                    monster_code
+                );
+                self.cancel_task()?;
+                Ok(vec![])
             }
+            Err(e) => Err(e.into()),
         }
     }
 
@@ -667,6 +665,9 @@ impl CharacterController {
     }
 
     fn accept_task(&self, r#type: TaskType) -> Result<TaskSchema, TaskAcceptationCommandError> {
+        if !self.task().is_empty() {
+            return Err(TaskAcceptationCommandError::TaskAlreadyInProgress);
+        }
         self.move_to_closest_taskmaster(Some(r#type))?;
         Ok(self.client.accept_task()?)
     }

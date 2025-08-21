@@ -101,22 +101,6 @@ pub enum DeleteCommandError {
 }
 
 #[derive(Debug, Error)]
-pub enum TaskProgressionError {
-    #[error("Failed to accept task: {0}")]
-    TaskAcceptationCommandError(#[from] TaskAcceptationCommandError),
-    #[error("Failed to complete task: {0}")]
-    TaskCompletionCommandError(#[from] TaskCompletionCommandError),
-    #[error("Failed to trade task: {0}")]
-    TaskTradeCommandError(#[from] TaskTradeCommandError),
-    #[error("Failed to cancel task: {0}")]
-    TaskCancellationCommandError(#[from] TaskCancellationCommandError),
-    #[error("Failed to fight: {0}")]
-    KillMonsterCommandError(#[from] KillMonsterCommandError),
-    #[error("Order error")]
-    OrderError,
-}
-
-#[derive(Debug, Error)]
 pub enum TaskTradeCommandError {
     #[error("No current task")]
     NoTask,
@@ -134,6 +118,8 @@ pub enum TaskTradeCommandError {
 
 #[derive(Debug, Error)]
 pub enum TaskAcceptationCommandError {
+    #[error("Task already in progress")]
+    TaskAlreadyInProgress,
     #[error("Failed to move to tasks master")]
     MoveCommandError(#[from] MoveCommandError),
     #[error("Failed to exchange task coins")]
@@ -306,6 +292,22 @@ pub enum OrderProgressionError {
     TaskProgressionError(#[from] TaskProgressionError),
     #[error("Failed to progress npc purchase order: {0}")]
     BuyNpcOrderProgressionError(#[from] BuyNpcOrderProgressionError),
+}
+
+#[derive(Debug, Error)]
+pub enum TaskProgressionError {
+    #[error("Failed to accept task: {0}")]
+    TaskAcceptationCommandError(#[from] TaskAcceptationCommandError),
+    #[error("Failed to complete task: {0}")]
+    TaskCompletionCommandError(#[from] TaskCompletionCommandError),
+    #[error("Failed to trade task: {0}")]
+    TaskTradeCommandError(#[from] TaskTradeCommandError),
+    #[error("Failed to cancel task: {0}")]
+    TaskCancellationCommandError(#[from] TaskCancellationCommandError),
+    #[error("Failed to fight: {0}")]
+    KillMonsterCommandError(#[from] KillMonsterCommandError),
+    #[error("Order error: ")]
+    OrderError(#[from] OrderError),
 }
 
 #[derive(Debug, Error)]
