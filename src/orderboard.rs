@@ -73,6 +73,27 @@ impl OrderBoard {
         orders
     }
 
+    pub fn add_multiple(
+        &self,
+        items: Vec<SimpleItemSchema>,
+        owner: Option<&str>,
+        purpose: &Purpose,
+    ) -> Result<(), OrderError> {
+        let mut ordered: bool = false;
+        for m in items.iter() {
+            if self
+                .add(&m.code, m.quantity, owner, purpose.clone())
+                .is_ok()
+            {
+                ordered = true
+            }
+        }
+        match ordered {
+            true => Ok(()),
+            false => Err(OrderError::AlreadyExists),
+        }
+    }
+
     pub fn add(
         &self,
         item: &str,

@@ -1,11 +1,14 @@
-use artifactsmmo_sdk::char::{
-    Skill,
-    error::{
-        BankExpansionError, BuyNpcError, CraftError, DeleteError, DepositError, EquipError,
-        FightError, GatherError, GoldDepositError, GoldWithdrawError, MoveError, RecycleError,
-        RestError, TaskAcceptationError, TaskCancellationError, TaskCompletionError,
-        TaskTradeError, TasksCoinExchangeError, UnequipError, UseError, WithdrawError,
+use artifactsmmo_sdk::{
+    char::{
+        Skill,
+        error::{
+            BankExpansionError, BuyNpcError, CraftError, DeleteError, DepositError, EquipError,
+            FightError, GatherError, GoldDepositError, GoldWithdrawError, MoveError, RecycleError,
+            RestError, TaskAcceptationError, TaskCancellationError, TaskCompletionError,
+            TaskTradeError, TasksCoinExchangeError, UnequipError, UseError, WithdrawError,
+        },
     },
+    models::SimpleItemSchema,
 };
 use thiserror::Error;
 
@@ -57,8 +60,8 @@ pub enum CraftCommandError {
     InsufficientSkillLevel(Skill, i32),
     #[error("Insufficient inventory space")]
     InsufficientInventorySpace,
-    #[error("Not enough materials available")]
-    InsufficientMaterials,
+    #[error("Not enough materials available: {0:?}")]
+    InsufficientMaterials(Vec<SimpleItemSchema>),
     #[error("Failed to deposit items: {0}")]
     DepositItemCommandError(#[from] DepositItemCommandError),
     #[error("Failed to withdraw mats: {0}")]
@@ -285,13 +288,21 @@ pub enum OrderProgressionError {
     #[error("Failed to progress monster order: {0}")]
     KillMonsterCommandError(#[from] KillMonsterCommandError),
     #[error("Failed to progress crafting order: {0}")]
-    CraftCommandError(#[from] CraftCommandError),
+    CraftOrderProgressionError(#[from] CraftOrderProgressionError),
     #[error("Failed to progress tasks coin exchange order: {0}")]
     TasksCoinExchangeOrderProgressionError(#[from] TasksCoinExchangeOrderProgressionError),
     #[error("Failed to progress tasks progression order: {0}")]
     TaskProgressionError(#[from] TaskProgressionError),
     #[error("Failed to progress npc purchase order: {0}")]
     BuyNpcOrderProgressionError(#[from] BuyNpcOrderProgressionError),
+}
+
+#[derive(Debug, Error)]
+pub enum CraftOrderProgressionError {
+    #[error("Failed to command craft: {0}")]
+    CraftCommandError(#[from] CraftCommandError),
+    #[error("Failed to order missing mats: {0}")]
+    OrderError(#[from] OrderError),
 }
 
 #[derive(Debug, Error)]
@@ -332,10 +343,20 @@ pub enum SkillLevelingError {
     SkillAlreadyMaxed,
     #[error("Failed to kill monster to level combat: {0}")]
     KillMonsterCommandError(#[from] KillMonsterCommandError),
-    #[error("Failed to craft to level skill: {0}")]
-    CraftCommandError(#[from] CraftCommandError),
+    #[error("Failed to level skill by crafting: {0}")]
+    CraftSkillLevelingError(#[from] CraftSkillLevelingError),
     #[error("Failed to gather to level skill: {0}")]
     GatherCommandError(#[from] GatherCommandError),
+}
+
+#[derive(Debug, Error)]
+pub enum CraftSkillLevelingError {
+    #[error("No craftable item found to level skill:")]
+    ItemNotFound,
+    #[error("Failed to craft to level skill: {0}")]
+    CraftCommandError(#[from] CraftCommandError),
+    #[error("Failed to order missing mats: {0}")]
+    OrderError(#[from] OrderError),
 }
 
 #[derive(Debug, Error)]

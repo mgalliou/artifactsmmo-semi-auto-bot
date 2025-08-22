@@ -4,12 +4,12 @@ use crate::{
     bot_config::{BotConfig, CharConfig, Goal},
     error::{
         BankExpansionCommandError, BuyNpcCommandError, BuyNpcOrderProgressionError,
-        CraftCommandError, DeleteCommandError, DepositItemCommandError, EquipCommandError,
-        GatherCommandError, GoldDepositCommandError, GoldWithdrawCommandError,
-        KillMonsterCommandError, MoveCommandError, OrderDepositError, OrderProgressionError,
-        RecycleCommandError, SkillLevelingError, TaskAcceptationCommandError,
-        TaskCancellationCommandError, TaskCompletionCommandError, TaskProgressionError,
-        TaskTradeCommandError, TasksCoinExchangeCommandError,
+        CraftCommandError, CraftOrderProgressionError, CraftSkillLevelingError, DeleteCommandError,
+        DepositItemCommandError, EquipCommandError, GatherCommandError, GoldDepositCommandError,
+        GoldWithdrawCommandError, KillMonsterCommandError, MoveCommandError, OrderDepositError,
+        OrderProgressionError, RecycleCommandError, SkillLevelingError,
+        TaskAcceptationCommandError, TaskCancellationCommandError, TaskCompletionCommandError,
+        TaskProgressionError, TaskTradeCommandError, TasksCoinExchangeCommandError,
         TasksCoinExchangeOrderProgressionError, UnequipCommandError, UseItemCommandError,
         WithdrawItemCommandError,
     },
@@ -191,9 +191,9 @@ impl CharacterController {
         if skill.is_combat() {
             return Ok(self.level_combat()?);
         }
-        match self.level_skill_by_crafting(skill) {
-            Ok(_) => Ok(()),
-            Err(_) => Ok(self.level_skill_by_gathering(skill)?),
+        match self.level_skill_by_crafting(skill).is_ok() {
+            true => Ok(()),
+            false => Ok(self.level_skill_by_gathering(skill)?),
         }
     }
 
@@ -208,12 +208,12 @@ impl CharacterController {
         Ok(())
     }
 
-    fn level_skill_by_crafting(&self, skill: Skill) -> Result<(), CraftCommandError> {
+    fn level_skill_by_crafting(&self, skill: Skill) -> Result<(), CraftSkillLevelingError> {
         let Some(item) = self
             .leveling_helper
             .best_craft(self.skill_level(skill), skill, self)
         else {
-            return Err(CraftCommandError::ItemNotFound);
+            return Err(CraftSkillLevelingError::ItemNotFound);
         };
         let quantity = self.max_craftable_items(&item.code);
         match self.craft_from_bank(&item.code, quantity) {
@@ -225,27 +225,24 @@ impl CharacterController {
                 };
                 Ok(())
             }
-            Err(e) => {
-                if let CraftCommandError::InsufficientMaterials = e
-                    && (!skill.is_gathering()
-                        || skill.is_alchemy()
-                            && self
-                                .leveling_helper
-                                .best_resource(self.skill_level(skill), skill)
-                                .is_none())
-                    && self.order_missing_mats(
-                        &item.code,
-                        quantity,
-                        Purpose::Leveling {
-                            char: self.name().to_owned(),
-                            skill,
-                        },
-                    )
-                {
-                    return Ok(());
-                }
-                Err(e)
+            Err(CraftCommandError::InsufficientMaterials(missing_mats))
+                if !skill.is_gathering()
+                    || skill.is_alchemy()
+                        && self
+                            .leveling_helper
+                            .best_resource(self.skill_level(skill), skill)
+                            .is_none() =>
+            {
+                Ok(self.order_board.add_multiple(
+                    missing_mats,
+                    None,
+                    &Purpose::Leveling {
+                        char: self.name().to_owned(),
+                        skill,
+                    },
+                )?)
             }
+            Err(e) => Err(e.into()),
         }
     }
 
@@ -347,6 +344,7 @@ impl CharacterController {
                 ItemSource::Resource(r) => self.can_gather(r).is_ok(),
                 ItemSource::Monster(m) => self.can_kill(m).is_ok(),
                 ItemSource::Craft => self.can_craft(&order.item).is_ok(),
+
                 ItemSource::TaskReward => order.in_progress() <= 0,
                 ItemSource::Task => true,
                 ItemSource::Npc(_) => true,
@@ -354,66 +352,26 @@ impl CharacterController {
             })
     }
 
-    /// Creates orders based on the missing (not available in bank) materials requiered to craft
-    /// the `quantity` of the given `item`. Orders are created with the given `priority` and
-    /// `purpose`. Returns true if an order has been made.
-    fn order_missing_mats(&self, item: &str, quantity: i32, purpose: Purpose) -> bool {
-        let mut ordered: bool = false;
-        if quantity <= 0 {
-            return false;
-        }
-        self.items
-            .mats_for(item, quantity)
-            .into_iter()
-            .filter(|m| self.bank.has_available(&m.code, Some(&self.name())) < m.quantity)
-            .update(|m| {
-                m.quantity -= if self.order_board.is_ordered(&m.code) {
-                    0
-                } else {
-                    self.bank.has_available(&m.code, Some(&self.name()))
-                }
-            })
-            .for_each(|m| {
-                if self
-                    .order_board
-                    .add(&m.code, m.quantity, None, purpose.clone())
-                    .is_ok()
-                {
-                    ordered = true
-                }
-            });
-        ordered
-    }
-
     /// Checks if the character is able to get the missing items for the `order` in one command
     /// Resource and Monsters sources return false because drop rate might not be 100%
     /// TODO: maybe check drop rate of item and return `true` if it is 100%
     fn can_complete_order(&self, order: &Order) -> bool {
+        let missing = self.order_board.total_missing_for(order);
         self.items
             .best_source_of(&order.item)
             .iter()
             .any(|s| match s {
                 ItemSource::Resource(_) => false,
                 ItemSource::Monster(_) => false,
-                ItemSource::Craft => {
-                    self.can_craft(&order.item).is_ok()
-                        && self
-                            .bank
-                            .missing_mats_for(
-                                &order.item,
-                                self.order_board.total_missing_for(order),
-                                Some(&self.name()),
-                            )
-                            .is_empty()
-                }
-                ItemSource::TaskReward => {
-                    self.has_available(TASKS_COIN) >= TASK_EXCHANGE_PRICE + MIN_COIN_THRESHOLD
-                }
+                ItemSource::Craft => self
+                    .can_craft_now(
+                        &order.item,
+                        min(missing, self.max_craftable_items(&order.item)),
+                    )
+                    .is_ok(),
+                ItemSource::TaskReward => self.can_exchange_task().is_ok(),
                 ItemSource::Task => self.has_available(&self.task()) >= self.task_missing(),
-                ItemSource::Npc(_) => {
-                    let missing = self.order_board.total_missing_for(order);
-                    self.can_buy_item(&order.item, missing).is_ok()
-                }
+                ItemSource::Npc(_) => self.can_buy_item(&order.item, missing).is_ok(),
             })
     }
 
@@ -456,26 +414,24 @@ impl CharacterController {
             .map(|fight| fight.amount_of(&order.item))
     }
 
-    fn progress_crafting_order(&self, order: &Order) -> Result<i32, CraftCommandError> {
-        self.can_craft(&order.item)?;
-        if self.order_missing_mats(
-            &order.item,
-            self.order_board.total_missing_for(order),
-            order.purpose.clone(),
-        ) {
-            return Ok(0);
-        }
+    fn progress_crafting_order(&self, order: &Order) -> Result<i32, CraftOrderProgressionError> {
         let quantity = min(
-            self.max_craftable_items(&order.item),
             self.order_board.total_missing_for(order),
+            self.max_craftable_items(&order.item),
         );
-        if quantity <= 0 {
-            return Err(CraftCommandError::InsufficientMaterials);
+        match self.can_craft_now(&order.item, quantity) {
+            Ok(_) => {
+                order.inc_in_progress(quantity);
+                let crafted = self.craft_from_bank(&order.item, quantity);
+                order.dec_in_progress(quantity);
+                Ok(crafted.map(|craft| craft.amount_of(&order.item))?)
+            }
+            Err(CraftCommandError::InsufficientMaterials(missing_mats)) => Ok(self
+                .order_board
+                .add_multiple(missing_mats, None, &order.purpose)
+                .map(|_| 0)?),
+            Err(e) => Err(e.into()),
         }
-        order.inc_in_progress(quantity);
-        let crafted = self.craft_from_bank(&order.item, quantity);
-        order.dec_in_progress(quantity);
-        crafted.map(|craft| craft.amount_of(&order.item))
     }
 
     fn progress_task_reward_order(
@@ -650,15 +606,12 @@ impl CharacterController {
         if self.task_missing() <= 0 {
             return Err(TaskTradeCommandError::TaskAlreadyCompleted);
         }
-        if self.task_missing()
-            > self.bank.has_available(&self.task(), Some(&self.name()))
-                + self.inventory.total_of(&self.task())
-        {
+
+        let missing_quantity = self.task_missing() - self.has_in_bank_or_inv(&self.task());
+        if missing_quantity > 0 {
             return Err(TaskTradeCommandError::MissingItems {
                 item: self.task().to_owned(),
-                quantity: self.task_missing()
-                    - self.bank.has_available(&self.task(), Some(&self.name()))
-                    - self.inventory.total_of(&self.task()),
+                quantity: missing_quantity,
             });
         }
         Ok(())
@@ -1012,16 +965,13 @@ impl CharacterController {
         item: &str,
         quantity: i32,
     ) -> Result<SkillInfoSchema, CraftCommandError> {
-        self.can_craft(item)?;
+        self.can_craft_now(item, quantity)?;
         let Some(item) = self.items.get(item) else {
             return Err(CraftCommandError::ItemNotFound);
         };
         let Some(skill) = item.skill_to_craft() else {
             return Err(CraftCommandError::ItemNotCraftable);
         };
-        if self.max_craftable_items_from_bank(&item.code) < quantity {
-            return Err(CraftCommandError::InsufficientMaterials);
-        }
         info!(
             "{}: going to craft '{}'x{} from bank.",
             self.name(),
@@ -1053,6 +1003,18 @@ impl CharacterController {
     }
 
     // Checks that the `Character` has the required skill level to craft the given item `code`
+    pub fn can_craft_now(&self, item: &str, quantity: i32) -> Result<(), CraftCommandError> {
+        self.can_craft(item)?;
+        if self.max_craftable_items(item) < quantity {
+            return Err(CraftCommandError::InsufficientInventorySpace);
+        }
+        let missing_mats = self.missing_mats_for(item, quantity);
+        if !missing_mats.is_empty() {
+            return Err(CraftCommandError::InsufficientMaterials(missing_mats));
+        }
+        Ok(())
+    }
+
     pub fn can_craft(&self, item: &str) -> Result<(), CraftCommandError> {
         let Some(item) = self.items.get(item) else {
             return Err(CraftCommandError::ItemNotFound);
@@ -1065,10 +1027,6 @@ impl CharacterController {
         }
         if self.client.skill_level(skill) < item.level {
             return Err(CraftCommandError::InsufficientSkillLevel(skill, item.level));
-        }
-        // TODO: improve condition
-        if self.inventory.is_full() {
-            return Err(CraftCommandError::InsufficientInventorySpace);
         }
         Ok(())
     }
@@ -1935,6 +1893,22 @@ impl CharacterController {
                     .is_some_and(|e| e.code == item)
             })
             .count()
+    }
+
+    fn missing_mats_for(&self, item_code: &str, quantity: i32) -> Vec<SimpleItemSchema> {
+        self.items
+            .mats_of(item_code)
+            .into_iter()
+            .filter(|m| self.has_in_bank_or_inv(&m.code) < m.quantity * quantity)
+            .update(|m| {
+                m.quantity = m.quantity * quantity
+                    - if self.order_board.is_ordered(&m.code) {
+                        0
+                    } else {
+                        self.has_in_bank_or_inv(&m.code)
+                    }
+            })
+            .collect_vec()
     }
 
     pub fn skill_enabled(&self, s: Skill) -> bool {
