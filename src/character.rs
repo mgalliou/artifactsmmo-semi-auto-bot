@@ -1927,7 +1927,7 @@ impl HasCharacterData for CharacterController {
     }
 
     fn server(&self) -> Arc<Server> {
-        todo!()
+        self.client.server()
     }
 
     fn refresh_data(&self) {
