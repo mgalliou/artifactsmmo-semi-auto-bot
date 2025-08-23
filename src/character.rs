@@ -445,14 +445,10 @@ impl CharacterController {
                 order.dec_in_progress(1);
                 Ok(exchanged?)
             }
-            Err(TasksCoinExchangeCommandError::InsufficientCoins(quantity)) => {
-                //TODO: check is this was needed
-                // let quantity = TASK_EXCHANGE_PRICE + MIN_COIN_THRESHOLD
-                //     - if self.order_board.is_ordered(TASKS_COIN) {
-                //         0
-                //     } else {
-                //         self.has_in_bank_or_inv(TASKS_COIN)
-                //     };
+            Err(TasksCoinExchangeCommandError::InsufficientCoins(mut quantity)) => {
+                if !self.order_board.is_ordered(TASKS_COIN) {
+                    quantity -= self.has_in_bank_or_inv(TASKS_COIN)
+                }
                 self.order_board
                     .add(TASKS_COIN, quantity, None, order.purpose.to_owned())?;
                 Ok(0)
