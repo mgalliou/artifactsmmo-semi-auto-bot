@@ -117,15 +117,20 @@ impl CharacterController {
                 Err(TaskProgressionError::TaskTradeCommandError(
                     TaskTradeCommandError::MissingItems { item, quantity },
                 )) => {
-                    let _ = self.order_board.add(
-                        &item,
-                        quantity,
-                        Some(&self.name()),
-                        Purpose::Task {
-                            char: self.name().to_owned(),
-                        },
-                    );
-                    continue;
+                    if self
+                        .order_board
+                        .add(
+                            &item,
+                            quantity,
+                            Some(&self.name()),
+                            Purpose::Task {
+                                char: self.name().to_owned(),
+                            },
+                        )
+                        .is_ok()
+                    {
+                        continue;
+                    }
                 }
                 Err(_) => (),
             }
@@ -1731,6 +1736,8 @@ impl CharacterController {
     }
 
     fn order_if_needed(&self, slot: Slot, item: &str, quantity: i32) -> bool {
+        //TODO: prevent ordering item if the maximum quantity equipable by the whole account is
+        //available(no more than 5 weapons, 10 rings, etc... utilities are exempt)
         if self.has_available(item) < quantity {
             return self
                 .order_board
@@ -1876,19 +1883,6 @@ impl CharacterController {
         self.inventory.total_of(item) + self.bank.has_available(item, Some(&self.name()))
     }
 
-    /// Checks if the given item `code` is equiped.
-    fn has_equiped(&self, item: &str) -> i32 {
-        Slot::iter()
-            .filter_map(|s| {
-                if self.equiped_in(s) == item {
-                    Some(self.quantity_in_slot(s))
-                } else {
-                    None
-                }
-            })
-            .sum()
-    }
-
     fn missing_mats_for(&self, item_code: &str, quantity: i32) -> Vec<SimpleItemSchema> {
         self.items
             .mats_of(item_code)
@@ -1905,12 +1899,12 @@ impl CharacterController {
             .collect_vec()
     }
 
-    pub fn skill_enabled(&self, s: Skill) -> bool {
-        self.conf().read().unwrap().skills.contains(&s)
-    }
-
     pub fn current_map(&self) -> Arc<MapSchema> {
         self.client.current_map()
+    }
+
+    pub fn skill_enabled(&self, s: Skill) -> bool {
+        self.conf().read().unwrap().skills.contains(&s)
     }
 
     pub fn toggle_idle(&self) {
