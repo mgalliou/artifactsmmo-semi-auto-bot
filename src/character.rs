@@ -1716,26 +1716,22 @@ impl CharacterController {
                 self.order_if_needed(s, &item.code, quantity);
             }
         });
-        if gear.ring1.is_some() && gear.ring1 == gear.ring2 {
-            self.order_if_needed(Slot::Ring1, &gear.ring1.as_ref().unwrap().code, 2);
+        if let Some(ref ring1) = gear.ring1
+            && gear.ring1 == gear.ring2
+        {
+            self.order_if_needed(Slot::Ring1, &ring1.code, 2);
         } else {
             if let Some(ref ring1) = gear.ring1 {
                 self.order_if_needed(Slot::Ring1, &ring1.code, 1);
             }
-            if let Some(ref ring2) = gear.ring1 {
+            if let Some(ref ring2) = gear.ring2 {
                 self.order_if_needed(Slot::Ring2, &ring2.code, 1);
             }
         }
     }
 
     fn order_if_needed(&self, slot: Slot, item: &str, quantity: i32) -> bool {
-        if (self.equiped_in(slot).is_empty()
-            || self
-                .items
-                .get(&self.equiped_in(slot))
-                .is_some_and(|equiped| item != equiped.code))
-            && self.has_in_bank_or_inv(item) < quantity
-        {
+        if self.has_available(item) < quantity {
             return self
                 .order_board
                 .add(
@@ -1872,7 +1868,7 @@ impl CharacterController {
 
     /// Returns the amount of the given item `code` available in bank, inventory and gear.
     pub fn has_available(&self, item: &str) -> i32 {
-        self.has_equiped(item) as i32 + self.has_in_bank_or_inv(item)
+        self.has_equiped(item) + self.has_in_bank_or_inv(item)
     }
 
     /// Returns the amount of the given item `code` available in bank and inventory.
@@ -1881,14 +1877,16 @@ impl CharacterController {
     }
 
     /// Checks if the given item `code` is equiped.
-    fn has_equiped(&self, item: &str) -> usize {
+    fn has_equiped(&self, item: &str) -> i32 {
         Slot::iter()
-            .filter(|s| {
-                self.items
-                    .get(&self.equiped_in(*s))
-                    .is_some_and(|e| e.code == item)
+            .filter_map(|s| {
+                if self.equiped_in(s) == item {
+                    Some(self.quantity_in_slot(s))
+                } else {
+                    None
+                }
             })
-            .count()
+            .sum()
     }
 
     fn missing_mats_for(&self, item_code: &str, quantity: i32) -> Vec<SimpleItemSchema> {
