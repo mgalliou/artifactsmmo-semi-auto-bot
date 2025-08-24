@@ -4,12 +4,13 @@ use crate::{
     bot_config::{BotConfig, CharConfig, Goal},
     error::{
         BankExpansionCommandError, BuyNpcCommandError, BuyNpcOrderProgressionError,
-        CraftCommandError, CraftOrderProgressionError, CraftSkillLevelingError, DeleteCommandError,
-        DepositItemCommandError, EquipCommandError, GatherCommandError, GoldDepositCommandError,
-        GoldWithdrawCommandError, KillMonsterCommandError, MoveCommandError, OrderDepositError,
-        OrderProgressionError, RecycleCommandError, SkillLevelingError,
-        TaskAcceptationCommandError, TaskCancellationCommandError, TaskCompletionCommandError,
-        TaskProgressionError, TaskTradeCommandError, TasksCoinExchangeCommandError,
+        CombatLevelingError, CraftCommandError, CraftOrderProgressionError,
+        CraftSkillLevelingError, DeleteCommandError, DepositItemCommandError, EquipCommandError,
+        GatherCommandError, GoldDepositCommandError, GoldWithdrawCommandError,
+        KillMonsterCommandError, MoveCommandError, OrderDepositError, OrderProgressionError,
+        RecycleCommandError, SkillLevelingError, TaskAcceptationCommandError,
+        TaskCancellationCommandError, TaskCompletionCommandError, TaskProgressionError,
+        TaskTradeCommandError, TasksCoinExchangeCommandError,
         TasksCoinExchangeOrderProgressionError, UnequipCommandError, UseItemCommandError,
         WithdrawItemCommandError,
     },
@@ -202,14 +203,18 @@ impl CharacterController {
         }
     }
 
-    fn level_skill_by_gathering(&self, skill: Skill) -> Result<(), GatherCommandError> {
-        let Some(resource) = self
-            .leveling_helper
-            .best_resource(self.skill_level(skill), skill)
-        else {
-            return Err(GatherCommandError::MapNotFound);
+    /// Find a target and kill it if possible.
+    fn level_combat(&self) -> Result<(), CombatLevelingError> {
+        if !self.skill_enabled(Skill::Combat) {
+            return Err(KillMonsterCommandError::SkillDisabled(Skill::Combat).into());
+        }
+        if self.task_type().is_some_and(|t| t == TaskType::Monsters) {
+            return Ok(self.progress_task()?).map(|_| ());
+        }
+        let Some(monster) = self.leveling_helper.best_monster(self) else {
+            return Err(CombatLevelingError::NoMonsterFound);
         };
-        self.gather_resource(&resource)?;
+        self.kill_monster(&monster)?;
         Ok(())
     }
 
@@ -251,24 +256,14 @@ impl CharacterController {
         }
     }
 
-    /// Find a target and kill it if possible.
-    fn level_combat(&self) -> Result<(), KillMonsterCommandError> {
-        if !self.skill_enabled(Skill::Combat) {
-            return Err(KillMonsterCommandError::SkillDisabled(Skill::Combat));
-        }
-        if let Ok(_) | Err(TaskCompletionCommandError::NoTask) = self.complete_task()
-            && let Err(e) = self.accept_task(TaskType::Monsters)
-        {
-            error!("{} error while accepting new task: {:?}", self.name(), e)
-        }
-        if self.task_type().is_some_and(|t| t == TaskType::Monsters) && self.progress_task().is_ok()
-        {
-            return Ok(());
-        }
-        let Some(monster) = self.leveling_helper.best_monster(self) else {
-            return Err(KillMonsterCommandError::MapNotFound);
+    fn level_skill_by_gathering(&self, skill: Skill) -> Result<(), GatherCommandError> {
+        let Some(resource) = self
+            .leveling_helper
+            .best_resource(self.skill_level(skill), skill)
+        else {
+            return Err(GatherCommandError::MapNotFound);
         };
-        self.kill_monster(&monster)?;
+        self.gather_resource(&resource)?;
         Ok(())
     }
 
@@ -868,7 +863,7 @@ impl CharacterController {
         if !self.skill_enabled(skill) {
             return Err(GatherCommandError::SkillDisabled(skill));
         }
-        if self.client.skill_level(skill) < resource.level {
+        if self.skill_level(skill) < resource.level {
             return Err(GatherCommandError::InsufficientSkillLevel(skill));
         }
         Ok(())

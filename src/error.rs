@@ -343,10 +343,22 @@ pub enum SkillLevelingError {
     SkillAlreadyMaxed,
     #[error("Failed to kill monster to level combat: {0}")]
     KillMonsterCommandError(#[from] KillMonsterCommandError),
+    #[error("Failed to level combat: {0}")]
+    CombatLevelingError(#[from] CombatLevelingError),
     #[error("Failed to level skill by crafting: {0}")]
     CraftSkillLevelingError(#[from] CraftSkillLevelingError),
     #[error("Failed to gather to level skill: {0}")]
     GatherCommandError(#[from] GatherCommandError),
+}
+
+#[derive(Debug, Error)]
+pub enum CombatLevelingError {
+    #[error("Failed to progress task : {0}")]
+    TaskProgressionError(#[from] TaskProgressionError),
+    #[error("No monster killable providing xp found")]
+    NoMonsterFound,
+    #[error("Failed to kill monster to level combat: {0}")]
+    KillMonsterCommandError(#[from] KillMonsterCommandError),
 }
 
 #[derive(Debug, Error)]
