@@ -445,10 +445,7 @@ impl CharacterController {
                 order.dec_in_progress(1);
                 Ok(exchanged?)
             }
-            Err(TasksCoinExchangeCommandError::InsufficientCoins(mut quantity)) => {
-                if !self.order_board.is_ordered(TASKS_COIN) {
-                    quantity -= self.has_in_bank_or_inv(TASKS_COIN)
-                }
+            Err(TasksCoinExchangeCommandError::InsufficientCoins(quantity)) => {
                 self.order_board
                     .add(TASKS_COIN, quantity, None, order.purpose.to_owned())?;
                 Ok(0)
@@ -637,7 +634,12 @@ impl CharacterController {
         let min_coins = TASK_EXCHANGE_PRICE + MIN_COIN_THRESHOLD;
         if coin_available < min_coins {
             return Err(TasksCoinExchangeCommandError::InsufficientCoins(
-                min_coins - coin_available,
+                min_coins
+                    - if self.order_board.is_ordered(TASKS_COIN) {
+                        0
+                    } else {
+                        coin_available
+                    },
             ));
         }
         Ok(())
@@ -683,46 +685,6 @@ impl CharacterController {
         //TODO: maybe reserve droped items
         result
     }
-
-    //fn can_exchange_gift(&self) -> Result<(), CharacterError> {
-    //    if self.inventory.total_of(GIFT) + self.bank.has_available(GIFT, Some(&self.inner.name())) < 1 {
-    //        return Err(CharacterError::NotEnoughGift);
-    //    }
-    //    Ok(())
-    //}
-
-    //fn exchange_gift(&self) -> Result<RewardsSchema, CharacterError> {
-    //    self.can_exchange_gift()?;
-    //    let quantity = min(
-    //        self.inventory.max_items() / 2,
-    //        self.bank.has_available(GIFT, Some(&self.inner.name())),
-    //    );
-    //    if self.inventory.total_of(GIFT) >= 1 {
-    //        if let Err(e) = self.inventory.reserv(GIFT, self.inventory.total_of(GIFT)) {
-    //            error!(
-    //                "{}: error while reserving gift in inventory: {}",
-    //                self.inner.name(),
-    //                e
-    //            );
-    //        }
-    //    } else {
-    //        if self.bank.reserv(GIFT, quantity, &self.inner.name()).is_err() {
-    //            return Err(CharacterError::NotEnoughGift);
-    //        }
-    //        self.deposit_all();
-    //        self.withdraw_item(GIFT, quantity)?;
-    //    }
-    //    if let Err(e) = self.move_to_closest_map_of_type(ContentType::SantaClaus) {
-    //        error!(
-    //            "{}: error while moving to santa claus: {:?}",
-    //            self.inner.name(),
-    //            e
-    //        );
-    //    };
-    //    let result = self.inner.request_gift_exchange().map_err(|e| e.into());
-    //    self.inventory.decrease_reservation(GIFT, 1);
-    //    result
-    //}
 
     fn cancel_task(&self) -> Result<(), TaskCancellationCommandError> {
         if self.bank.has_available(TASKS_COIN, Some(&self.name()))
@@ -800,7 +762,9 @@ impl CharacterController {
             }
             Err(e) => return Err(e),
         }
-        self.order_best_gear_against(monster);
+        if self.config.order_gear {
+            self.order_best_gear_against(monster);
+        }
         drop(_browsed);
         self.equip_gear(&mut available);
         Ok(())
@@ -882,7 +846,9 @@ impl CharacterController {
             },
         );
         self.reserv_gear(&mut available);
-        self.order_best_gear_for_skill(skill);
+        if self.config.order_gear {
+            self.order_best_gear_for_skill(skill);
+        }
         drop(_browsed);
         self.equip_gear(&mut available);
     }
@@ -898,7 +864,7 @@ impl CharacterController {
                 ..Default::default()
             },
         );
-        self.order_gear(&mut gear);
+        self.order_gear(&mut gear)
     }
 
     pub fn can_fight(&self, monster: &MonsterSchema) -> Result<(), KillMonsterCommandError> {
@@ -1646,12 +1612,17 @@ impl CharacterController {
         let currency_available = if npc_item.currency == "gold" {
             self.gold() + self.bank.gold()
         } else {
-            self.has_available(&npc_item.currency)
+            self.has_in_bank_or_inv(&npc_item.currency)
         };
         if currency_available < total_price {
             return Err(BuyNpcCommandError::InsufficientCurrency {
                 currency: npc_item.currency.to_string(),
-                quantity: total_price - currency_available,
+                quantity: total_price
+                    - if self.order_board.is_ordered(&npc_item.currency) {
+                        0
+                    } else {
+                        currency_available
+                    },
             });
         }
         Ok((npc_item, total_price))
@@ -1914,6 +1885,46 @@ impl CharacterController {
     pub fn conf(&self) -> &RwLock<CharConfig> {
         self.config.characters.get(self.client.id).unwrap()
     }
+
+    //fn can_exchange_gift(&self) -> Result<(), CharacterError> {
+    //    if self.inventory.total_of(GIFT) + self.bank.has_available(GIFT, Some(&self.inner.name())) < 1 {
+    //        return Err(CharacterError::NotEnoughGift);
+    //    }
+    //    Ok(())
+    //}
+
+    //fn exchange_gift(&self) -> Result<RewardsSchema, CharacterError> {
+    //    self.can_exchange_gift()?;
+    //    let quantity = min(
+    //        self.inventory.max_items() / 2,
+    //        self.bank.has_available(GIFT, Some(&self.inner.name())),
+    //    );
+    //    if self.inventory.total_of(GIFT) >= 1 {
+    //        if let Err(e) = self.inventory.reserv(GIFT, self.inventory.total_of(GIFT)) {
+    //            error!(
+    //                "{}: error while reserving gift in inventory: {}",
+    //                self.inner.name(),
+    //                e
+    //            );
+    //        }
+    //    } else {
+    //        if self.bank.reserv(GIFT, quantity, &self.inner.name()).is_err() {
+    //            return Err(CharacterError::NotEnoughGift);
+    //        }
+    //        self.deposit_all();
+    //        self.withdraw_item(GIFT, quantity)?;
+    //    }
+    //    if let Err(e) = self.move_to_closest_map_of_type(ContentType::SantaClaus) {
+    //        error!(
+    //            "{}: error while moving to santa claus: {:?}",
+    //            self.inner.name(),
+    //            e
+    //        );
+    //    };
+    //    let result = self.inner.request_gift_exchange().map_err(|e| e.into());
+    //    self.inventory.decrease_reservation(GIFT, 1);
+    //    result
+    //}
 }
 
 impl HasCharacterData for CharacterController {

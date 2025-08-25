@@ -12,6 +12,8 @@ pub struct BotConfig {
     pub base_url: String,
     pub token: String,
     pub characters: Vec<RwLock<CharConfig>>,
+    #[serde(default)]
+    pub order_gear: bool
 }
 
 impl BotConfig {
