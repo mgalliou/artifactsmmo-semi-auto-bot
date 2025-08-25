@@ -1,12 +1,8 @@
 use artifactsmmo_sdk::{
     char::{
-        Skill,
         error::{
-            BankExpansionError, BuyNpcError, CraftError, DeleteError, DepositError, EquipError,
-            FightError, GatherError, GoldDepositError, GoldWithdrawError, MoveError, RecycleError,
-            RestError, TaskAcceptationError, TaskCancellationError, TaskCompletionError,
-            TaskTradeError, TasksCoinExchangeError, UnequipError, UseError, WithdrawError,
-        },
+            BankExpansionError, BuyNpcError, CraftError, DeleteError, DepositError, EquipError, FightError, GatherError, GoldDepositError, GoldWithdrawError, MoveError, RecycleError, RestError, SellNpcError, TaskAcceptationError, TaskCancellationError, TaskCompletionError, TaskTradeError, TasksCoinExchangeError, UnequipError, UseError, WithdrawError
+        }, Skill
     },
     models::SimpleItemSchema,
 };
@@ -263,6 +259,8 @@ pub enum BuyNpcCommandError {
     ItemNotFound(String),
     #[error("Item not purchasable")]
     ItemNotPurchasable,
+    #[error("No NPC found on map to purchase item")]
+    NpcNotFound,
     #[error("Insufficient currency: '{currency}'x{quantity}")]
     InsufficientCurrency { currency: String, quantity: i32 },
     #[error("Failed to deposit all before withdrawing currency: {0}")]
@@ -271,10 +269,30 @@ pub enum BuyNpcCommandError {
     GoldWithdrawCommandError(#[from] GoldWithdrawCommandError),
     #[error("Failed to withdraw currency from bank: {0}")]
     WithdrawItemCommandError(#[from] WithdrawItemCommandError),
-    #[error("No map with an NPC selling the item found: {0}")]
+    #[error("Failed to move to NPC: {0}")]
     MoveCommandError(#[from] MoveCommandError),
     #[error("Failed to request npc purchase : {0}")]
     ClientError(#[from] BuyNpcError),
+}
+
+#[derive(Debug, Error)]
+pub enum SellNpcCommandError {
+    #[error("Item not found: {0}")]
+    ItemNotFound(String),
+    #[error("Item not sellable")]
+    ItemNotSellable,
+    #[error("No NPC found on map to sell item")]
+    NpcNotFound,
+    #[error("Insufficient item quantity")]
+    InsufficientQuantity { quantity: i32 },
+    #[error("Failed to deposit all before selling item: {0}")]
+    DepositItemCommandError(#[from] DepositItemCommandError),
+    #[error("Failed to item to sell: {0}")]
+    WithdrawItemCommandError(#[from] WithdrawItemCommandError),
+    #[error("Failed to move to NPC: {0}")]
+    MoveCommandError(#[from] MoveCommandError),
+    #[error("Failed to request npc purchase : {0}")]
+    ClientError(#[from] SellNpcError),
 }
 
 #[derive(Debug, Error)]

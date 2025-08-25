@@ -9,7 +9,7 @@ use crate::{
         CraftSkillLevelingError, DeleteCommandError, DepositItemCommandError, EquipCommandError,
         GatherCommandError, GoldDepositCommandError, GoldWithdrawCommandError,
         KillMonsterCommandError, MoveCommandError, OrderDepositError, OrderProgressionError,
-        RecycleCommandError, SkillLevelingError, TaskAcceptationCommandError,
+        RecycleCommandError, SellNpcCommandError, SkillLevelingError, TaskAcceptationCommandError,
         TaskCancellationCommandError, TaskCompletionCommandError, TaskProgressionError,
         TaskTradeCommandError, TasksCoinExchangeCommandError,
         TasksCoinExchangeOrderProgressionError, UnequipCommandError, UseItemCommandError,
@@ -1560,6 +1560,7 @@ impl CharacterController {
             }
         } else {
             let missing_quantity = total_price - self.inventory.total_of(&npc_item.currency);
+            //TODO: reserv item already in inventory
             if let Err(e) = self
                 .bank
                 .reserv(&npc_item.currency, missing_quantity, &self.name())
@@ -1571,9 +1572,9 @@ impl CharacterController {
                 )
             }
             if missing_quantity > 0 {
-                self.deposit_all()?;
+                self.deposit_all_but(&npc_item.currency)?;
                 self.withdraw_item(&npc_item.currency, missing_quantity)?;
-                if let Err(e) = self.inventory.reserv(&npc_item.currency, missing_quantity) {
+                if let Err(e) = self.inventory.reserv(&npc_item.currency, total_price) {
                     error!(
                         "{}: failed to reserv bought item '{}'x{}: {:?}",
                         self.name(),
@@ -1619,7 +1620,63 @@ impl CharacterController {
                     },
             });
         }
+        if self.maps.with_content_code(&npc_item.npc).is_empty() {
+            return Err(BuyNpcCommandError::NpcNotFound);
+        }
         Ok((npc_item, total_price))
+    }
+
+    fn sell_item(&self, item_code: &str, quantity: i32) -> Result<(), SellNpcCommandError> {
+        let npc_item = self.can_sell_item(item_code, quantity)?;
+        let missing_quantity = quantity - self.inventory.total_of(&npc_item.currency);
+        //TODO: reserv item already in inventory
+        if let Err(e) = self.bank.reserv(item_code, missing_quantity, &self.name()) {
+            error!(
+                "{}: failed to reserv item before withdrawing currency for purchase: {}",
+                self.name(),
+                e
+            )
+        }
+        if missing_quantity > 0 {
+            self.deposit_all_but(item_code)?;
+            self.withdraw_item(item_code, missing_quantity)?;
+            if let Err(e) = self.inventory.reserv(item_code, quantity) {
+                error!(
+                    "{}: failed to reserv bought item '{}'x{}: {:?}",
+                    self.name(),
+                    item_code,
+                    quantity,
+                    e
+                );
+            }
+        }
+        self.move_to_closest_map_with_content_code(&npc_item.npc)?;
+        self.client.npc_sell(item_code, quantity)?;
+        self.inventory.decrease_reservation(item_code, quantity);
+        Ok(())
+    }
+
+    fn can_sell_item(
+        &self,
+        item_code: &str,
+        quantity: i32,
+    ) -> Result<Arc<NpcItem>, SellNpcCommandError> {
+        let Some(npc_item) = self.npcs.items.get(item_code) else {
+            return Err(SellNpcCommandError::ItemNotFound(item_code.to_string()));
+        };
+        if npc_item.sell_price.is_none() {
+            return Err(SellNpcCommandError::ItemNotSellable);
+        };
+        let available = self.has_in_bank_or_inv(&npc_item.currency);
+        if available < quantity {
+            return Err(SellNpcCommandError::InsufficientQuantity {
+                quantity: quantity - available,
+            });
+        }
+        if self.maps.with_content_code(&npc_item.npc).is_empty() {
+            return Err(SellNpcCommandError::NpcNotFound);
+        }
+        Ok(npc_item)
     }
 
     /// TODO: improve with only ordering food crafted from fishing
