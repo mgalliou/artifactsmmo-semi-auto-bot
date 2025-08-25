@@ -1,7 +1,6 @@
 use artifactsmmo_sdk::{
     Items,
     bank::Bank as BankClient,
-    consts::FOOD_BLACK_LIST,
     items::ItemSchemaExt,
     models::{BankSchema, ItemSchema, SimpleItemSchema},
 };
@@ -13,6 +12,8 @@ use std::{
     sync::{Arc, RwLock},
 };
 use thiserror::Error;
+
+use crate::FOOD_BLACK_LIST;
 
 #[derive(Default)]
 pub struct Bank {

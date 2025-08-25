@@ -1,7 +1,6 @@
 use artifactsmmo_sdk::{
     Items,
     char::{Character as CharacterClient, HasCharacterData},
-    consts::FOOD_BLACK_LIST,
     items::ItemSchemaExt,
     models::{InventorySlot, ItemSchema, SimpleItemSchema},
 };
@@ -13,6 +12,8 @@ use std::{
     sync::{Arc, RwLock},
 };
 use thiserror::Error;
+
+use crate::FOOD_BLACK_LIST;
 
 #[derive(Default)]
 pub struct Inventory {
@@ -88,7 +89,7 @@ impl Inventory {
                 self.items.get(&i.code).filter(|i| {
                     i.is_food()
                         && i.level <= self.client.level()
-                        && !FOOD_BLACK_LIST.contains(&i.code.as_str())
+                        && !FOOD_BLACK_LIST.contains(&i.code.as_ref())
                 })
             })
             .collect_vec()
