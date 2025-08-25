@@ -135,7 +135,7 @@ fn respond(
             EventsAction::Active => {
                 bot.client
                     .events
-                    .all()
+                    .active()
                     .iter()
                     .for_each(|e| println!("{}", e.to_string()));
             }
