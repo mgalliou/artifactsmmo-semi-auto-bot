@@ -1,6 +1,7 @@
 use artifactsmmo_sdk::{
     Items,
     bank::Bank as BankClient,
+    consts::FOOD_BLACK_LIST,
     items::ItemSchemaExt,
     models::{BankSchema, ItemSchema, SimpleItemSchema},
 };
@@ -113,13 +114,12 @@ impl Bank {
     }
 
     pub fn consumable_food(&self, level: i32) -> Vec<Arc<ItemSchema>> {
-        self.client
-            .content()
+        self.content()
             .iter()
             .filter_map(|i| {
-                self.items
-                    .get(&i.code)
-                    .filter(|i| i.is_consumable_at(level))
+                self.items.get(&i.code).filter(|i| {
+                    i.is_food() && i.level <= level && !FOOD_BLACK_LIST.contains(&i.code.as_str())
+                })
             })
             .collect_vec()
     }

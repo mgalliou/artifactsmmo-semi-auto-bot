@@ -71,7 +71,7 @@ impl CharacterController {
     ) -> Self {
         Self {
             config,
-            inventory: Arc::new(Inventory::new(client.clone())),
+            inventory: Arc::new(Inventory::new(client.clone(), items.clone())),
             client,
             maps,
             items,
@@ -1628,8 +1628,9 @@ impl CharacterController {
         });
         if let Some(best_food) = self
             .items
-            .best_consumable_foods(self.level())
+            .all()
             .iter()
+            .filter(|i| i.is_food() && i.level <= self.level())
             .max_by_key(|i| {
                 self.account
                     .time_to_get(&i.code)

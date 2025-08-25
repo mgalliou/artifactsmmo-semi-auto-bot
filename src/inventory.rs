@@ -1,5 +1,8 @@
 use artifactsmmo_sdk::{
+    Items,
     char::{Character as CharacterClient, HasCharacterData},
+    consts::FOOD_BLACK_LIST,
+    items::ItemSchemaExt,
     models::{InventorySlot, ItemSchema, SimpleItemSchema},
 };
 use core::fmt;
@@ -15,13 +18,15 @@ use thiserror::Error;
 pub struct Inventory {
     client: Arc<CharacterClient>,
     reservations: RwLock<Vec<Arc<InventoryReservation>>>,
+    items: Arc<Items>,
 }
 
 impl Inventory {
-    pub fn new(client: Arc<CharacterClient>) -> Self {
+    pub fn new(client: Arc<CharacterClient>, items: Arc<Items>) -> Self {
         Inventory {
             client,
             reservations: RwLock::new(vec![]),
+            items,
         }
     }
 
@@ -77,7 +82,16 @@ impl Inventory {
     }
 
     pub fn consumable_food(&self) -> Vec<Arc<ItemSchema>> {
-        self.client.inventory.consumable_food()
+        self.content()
+            .iter()
+            .filter_map(|i| {
+                self.items.get(&i.code).filter(|i| {
+                    i.is_food()
+                        && i.level <= self.client.level()
+                        && !FOOD_BLACK_LIST.contains(&i.code.as_str())
+                })
+            })
+            .collect_vec()
     }
 
     /// Returns the amount not reserved of the given item `code` in the `Character` inventory.
