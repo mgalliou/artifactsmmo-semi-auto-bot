@@ -1,8 +1,13 @@
 use artifactsmmo_sdk::{
     char::{
+        Skill,
         error::{
-            BankExpansionError, BuyNpcError, CraftError, DeleteError, DepositError, EquipError, FightError, GatherError, GoldDepositError, GoldWithdrawError, MoveError, RecycleError, RestError, SellNpcError, TaskAcceptationError, TaskCancellationError, TaskCompletionError, TaskTradeError, TasksCoinExchangeError, UnequipError, UseError, WithdrawError
-        }, Skill
+            BankExpansionError, BuyNpcError, CraftError, DeleteError, DepositError, EquipError,
+            FightError, GatherError, GoldDepositError, GoldWithdrawError, MoveError, RecycleError,
+            RestError, SellNpcError, TaskAcceptationError, TaskCancellationError,
+            TaskCompletionError, TaskTradeError, TasksCoinExchangeError, UnequipError, UseError,
+            WithdrawError,
+        },
     },
     models::SimpleItemSchema,
 };
@@ -395,4 +400,12 @@ pub enum OrderDepositError {
     NoItemToDeposit,
     #[error("Failed to deposit order items")]
     DepositItemCommandError(#[from] DepositItemCommandError),
+}
+
+#[derive(Debug, Error)]
+pub enum BankCleanupError {
+    #[error("Failed to sell item from bank: {0}")]
+    SellNpcCommandError(#[from] SellNpcCommandError),
+    #[error("No item to handle")]
+    NoItemToHandle,
 }

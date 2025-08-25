@@ -4,14 +4,14 @@ use crate::{
     bank::Bank,
     bot_config::{BotConfig, CharConfig, Goal},
     error::{
-        BankExpansionCommandError, BuyNpcCommandError, BuyNpcOrderProgressionError,
-        CombatLevelingError, CraftCommandError, CraftOrderProgressionError,
-        CraftSkillLevelingError, DeleteCommandError, DepositItemCommandError, EquipCommandError,
-        GatherCommandError, GoldDepositCommandError, GoldWithdrawCommandError,
-        KillMonsterCommandError, MoveCommandError, OrderDepositError, OrderProgressionError,
-        RecycleCommandError, SellNpcCommandError, SkillLevelingError, TaskAcceptationCommandError,
-        TaskCancellationCommandError, TaskCompletionCommandError, TaskProgressionError,
-        TaskTradeCommandError, TasksCoinExchangeCommandError,
+        BankCleanupError, BankExpansionCommandError, BuyNpcCommandError,
+        BuyNpcOrderProgressionError, CombatLevelingError, CraftCommandError,
+        CraftOrderProgressionError, CraftSkillLevelingError, DeleteCommandError,
+        DepositItemCommandError, EquipCommandError, GatherCommandError, GoldDepositCommandError,
+        GoldWithdrawCommandError, KillMonsterCommandError, MoveCommandError, OrderDepositError,
+        OrderProgressionError, RecycleCommandError, SellNpcCommandError, SkillLevelingError,
+        TaskAcceptationCommandError, TaskCancellationCommandError, TaskCompletionCommandError,
+        TaskProgressionError, TaskTradeCommandError, TasksCoinExchangeCommandError,
         TasksCoinExchangeOrderProgressionError, UnequipCommandError, UseItemCommandError,
         WithdrawItemCommandError,
     },
@@ -22,7 +22,7 @@ use crate::{
 };
 use anyhow::Result;
 use artifactsmmo_sdk::{
-    HasDrops, Items, Maps, Monsters, Server, Simulator,
+    GOLDEN_EGG, GOLDEN_SHRIMP, HasDrops, Items, Maps, Monsters, Server, Simulator,
     char::{Character as CharacterClient, HasCharacterData, Skill, error::RestError},
     consts::{
         BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, MAX_LEVEL, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE,
@@ -110,6 +110,9 @@ impl CharacterController {
             }
             self.maps.refresh_from_events();
             self.order_food();
+            if self.cleanup_bank().is_ok() {
+                continue;
+            }
             if self.handle_goals() {
                 continue;
             }
@@ -1718,6 +1721,25 @@ impl CharacterController {
             )
         {
             error!("{} failed to add or reset food order: {:?}", self.name(), e)
+        }
+    }
+
+    fn cleanup_bank(&self) -> Result<(), BankCleanupError> {
+        if let Some(item) = self
+            .bank
+            .content()
+            .iter()
+            .find(|i| i.code == GOLDEN_SHRIMP || i.code == GOLDEN_EGG)
+        {
+            Ok(self.sell_item(
+                &item.code,
+                min(
+                    self.bank.has_available(&item.code, Some(&self.name())),
+                    self.inventory.max_items(),
+                ),
+            )?)
+        } else {
+            Err(BankCleanupError::NoItemToHandle)
         }
     }
 

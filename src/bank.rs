@@ -39,8 +39,9 @@ impl Bank {
         self.client.details()
     }
 
-    pub fn content(&self) -> Arc<Vec<SimpleItemSchema>> {
-        self.client.content()
+    pub fn content(&self) -> Vec<SimpleItemSchema> {
+        //TODO: check if the clone is costly
+        self.client.content().clone().to_vec()
     }
 
     pub fn is_full(&self) -> bool {
