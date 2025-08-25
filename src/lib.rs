@@ -24,3 +24,6 @@ pub const FOOD_BLACK_LIST: [&str; 8] = [
     COOKED_HELLHOUND_MEAT,
     MAPLE_SYRUP,
 ];
+
+pub const MIN_COIN_THRESHOLD: i32 = 4;
+pub const MIN_FOOD_THRESHOLD: i32 = 1000;

@@ -17,12 +17,12 @@ use crate::{
     gear_finder::{Filter, GearFinder},
     inventory::Inventory,
     leveling_helper::LevelingHelper,
-    orderboard::{Order, OrderBoard, Purpose},
+    orderboard::{Order, OrderBoard, Purpose}, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
 };
 use anyhow::Result;
 use artifactsmmo_sdk::{
     char::{error::RestError, Character as CharacterClient, HasCharacterData, Skill}, consts::{
-        BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, MAX_LEVEL, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD, TASKS_COIN, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE
+        BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, MAX_LEVEL,  TASKS_COIN, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE
     }, gear::{Gear, Slot}, items::{ItemSchemaExt, ItemSource}, maps::MapSchemaExt, models::{
         CharacterSchema, DropSchema, FightResult, FightSchema, MapContentType, MapSchema,
         MonsterSchema, NpcItem, RecyclingItemsSchema, ResourceSchema, RewardsSchema,
@@ -678,7 +678,7 @@ impl CharacterController {
 
     fn cancel_task(&self) -> Result<(), TaskCancellationCommandError> {
         if self.bank.has_available(TASKS_COIN, Some(&self.name()))
-            < TASK_EXCHANGE_PRICE + MIN_COIN_THRESHOLD
+            < TASK_CANCEL_PRICE + MIN_COIN_THRESHOLD
         {
             return Err(TaskCancellationCommandError::NotEnoughCoins);
         }
