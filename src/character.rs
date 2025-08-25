@@ -1585,15 +1585,6 @@ impl CharacterController {
         self.client.npc_buy(item_code, quantity)?;
         self.inventory
             .decrease_reservation(&npc_item.currency, total_price);
-        if let Err(e) = self.inventory.reserv(item_code, quantity) {
-            error!(
-                "{}: failed to reserv bought item '{}'x{}: {:?}",
-                self.name(),
-                item_code,
-                quantity,
-                e
-            );
-        }
         Ok(())
     }
 
