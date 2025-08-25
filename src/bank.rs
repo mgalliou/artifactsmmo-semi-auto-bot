@@ -5,7 +5,7 @@ use artifactsmmo_sdk::{
     models::{BankSchema, ItemSchema, SimpleItemSchema},
 };
 use itertools::Itertools;
-use log::info;
+use log::debug;
 use std::{
     cmp::max,
     fmt::{self, Display, Formatter},
@@ -146,7 +146,7 @@ impl Bank {
             Ok(())
         } else if self.quantity_not_reserved(item) >= quantity - res.quantity() {
             res.inc_quantity(quantity - res.quantity());
-            info!(
+            debug!(
                 "bank: increased reservation quantity by '{}': [{}]",
                 quantity, res
             );
@@ -186,7 +186,7 @@ impl Bank {
             self.remove_reservation(&res)
         } else {
             res.dec_quantity(quantity);
-            info!(
+            debug!(
                 "bank: decreased reservation quantity by '{}': [{}]",
                 quantity, res
             );
@@ -200,7 +200,7 @@ impl Bank {
             owner: owner.to_owned(),
         });
         self.reservations.write().unwrap().push(res.clone());
-        info!("bank: added reservation to bank: {}", res);
+        debug!("bank: added reservation to bank: {}", res);
     }
 
     fn remove_reservation(&self, reservation: &Reservation) {
@@ -208,7 +208,7 @@ impl Bank {
             .write()
             .unwrap()
             .retain(|r| **r != *reservation);
-        info!("bank: removed reservation: {}", reservation);
+        debug!("bank: removed reservation: {}", reservation);
     }
 
     pub fn reservations(&self) -> Vec<Arc<Reservation>> {
