@@ -1,4 +1,5 @@
 use crate::{
+    MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
     account::AccountController,
     bank::Bank,
     bot_config::{BotConfig, CharConfig, Goal},
@@ -17,17 +18,27 @@ use crate::{
     gear_finder::{Filter, GearFinder},
     inventory::Inventory,
     leveling_helper::LevelingHelper,
-    orderboard::{Order, OrderBoard, Purpose}, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
+    orderboard::{Order, OrderBoard, Purpose},
 };
 use anyhow::Result;
 use artifactsmmo_sdk::{
-    char::{error::RestError, Character as CharacterClient, HasCharacterData, Skill}, consts::{
-        BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, MAX_LEVEL,  TASKS_COIN, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE
-    }, gear::{Gear, Slot}, items::{ItemSchemaExt, ItemSource}, maps::MapSchemaExt, models::{
+    HasDrops, Items, Maps, Monsters, Server, Simulator,
+    char::{Character as CharacterClient, HasCharacterData, Skill, error::RestError},
+    consts::{
+        BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, MAX_LEVEL, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE,
+        TASKS_COIN,
+    },
+    gear::{Gear, Slot},
+    items::{ItemSchemaExt, ItemSource},
+    maps::MapSchemaExt,
+    models::{
         CharacterSchema, DropSchema, FightResult, FightSchema, MapContentType, MapSchema,
         MonsterSchema, NpcItem, RecyclingItemsSchema, ResourceSchema, RewardsSchema,
         SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
-    }, monsters::MonsterSchemaExt, npcs::Npcs, resources::ResourceSchemaExt, HasDrops, Items, Maps, Monsters, Server, Simulator
+    },
+    monsters::MonsterSchemaExt,
+    npcs::Npcs,
+    resources::ResourceSchemaExt,
 };
 use itertools::Itertools;
 use log::{debug, error, info, warn};
@@ -685,7 +696,7 @@ impl CharacterController {
         if self.inventory.has_available(TASKS_COIN) <= 0 {
             if self
                 .bank
-                .reserv("tasks_coin", TASK_CANCEL_PRICE, &self.name())
+                .reserv(TASKS_COIN, TASK_CANCEL_PRICE, &self.name())
                 .is_err()
             {
                 return Err(TaskCancellationCommandError::NotEnoughCoins);
@@ -717,9 +728,9 @@ impl CharacterController {
         }
         if self.inventory.free_space() < monster.max_drop_quantity()
             || self
-                .client
                 .current_map()
-                .content_type_is(MapContentType::Bank)
+                .monster()
+                .is_none_or(|m| m != monster.code)
         {
             self.deposit_all()?;
         };
@@ -791,24 +802,26 @@ impl CharacterController {
         &self,
         resource: &ResourceSchema,
     ) -> Result<SkillDataSchema, GatherCommandError> {
-        self.can_gather(resource)?;
-        let Some(map) = self
-            .maps
-            .closest_with_content_code_from(self.client.current_map(), &resource.code)
-        else {
-            return Err(GatherCommandError::MapNotFound);
-        };
+        self.can_gather_now(resource)?;
         if self.inventory.free_space() < resource.max_drop_quantity()
             || self
-                .client
                 .current_map()
-                .content_type_is(MapContentType::Bank)
+                .resource()
+                .is_none_or(|r| r != resource.code)
         {
             self.deposit_all()?;
         };
         self.check_for_skill_gear(resource.skill.into());
-        self.r#move(map.x, map.y)?;
+        self.move_to_closest_map_with_content_code(&resource.code)?;
         Ok(self.client.gather()?)
+    }
+
+    fn can_gather_now(&self, resource: &ResourceSchema) -> Result<(), GatherCommandError> {
+        self.can_gather(resource)?;
+        if self.maps.with_content_code(&resource.code).is_empty() {
+            return Err(GatherCommandError::MapNotFound);
+        };
+        Ok(())
     }
 
     // Checks that the `Character` has the required skill level to gather the given `resource`
