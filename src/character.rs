@@ -21,23 +21,13 @@ use crate::{
 };
 use anyhow::Result;
 use artifactsmmo_sdk::{
-    HasDrops, Items, Maps, Monsters, Server, Simulator,
-    char::{Character as CharacterClient, HasCharacterData, Skill, error::RestError},
-    consts::{
-        BANK_MIN_FREE_SLOT, CRAFT_TIME, MAX_LEVEL, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
-        TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE, TASKS_COIN,
-    },
-    gear::{Gear, Slot},
-    items::{ItemSchemaExt, ItemSource},
-    maps::MapSchemaExt,
-    models::{
+    char::{error::RestError, Character as CharacterClient, HasCharacterData, Skill}, consts::{
+        BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, MAX_LEVEL, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD, TASKS_COIN, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE
+    }, gear::{Gear, Slot}, items::{ItemSchemaExt, ItemSource}, maps::MapSchemaExt, models::{
         CharacterSchema, DropSchema, FightResult, FightSchema, MapContentType, MapSchema,
         MonsterSchema, NpcItem, RecyclingItemsSchema, ResourceSchema, RewardsSchema,
         SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
-    },
-    monsters::MonsterSchemaExt,
-    npcs::Npcs,
-    resources::ResourceSchemaExt,
+    }, monsters::MonsterSchemaExt, npcs::Npcs, resources::ResourceSchemaExt, HasDrops, Items, Maps, Monsters, Server, Simulator
 };
 use itertools::Itertools;
 use log::{debug, error, info, warn};
@@ -480,7 +470,7 @@ impl CharacterController {
                 Ok(purchase?)
             }
             Err(BuyNpcCommandError::InsufficientCurrency { currency, quantity }) => {
-                if currency != "gold" {
+                if currency != GOLD {
                     self.order_board
                         .add(&currency, quantity, None, order.purpose.clone())?;
                 }
@@ -1550,7 +1540,7 @@ impl CharacterController {
 
     fn buy_item(&self, item_code: &str, quantity: i32) -> Result<(), BuyNpcCommandError> {
         let (npc_item, total_price) = self.can_buy_item(item_code, quantity)?;
-        if npc_item.currency == "gold" {
+        if npc_item.currency == GOLD {
             let missing_quantity = total_price - self.gold();
             if missing_quantity > 0 {
                 self.withdraw_gold(missing_quantity)?;
@@ -1600,7 +1590,7 @@ impl CharacterController {
             return Err(BuyNpcCommandError::ItemNotPurchasable);
         };
         let total_price = buy_price * quantity;
-        let currency_available = if npc_item.currency == "gold" {
+        let currency_available = if npc_item.currency == GOLD {
             self.gold() + self.bank.gold()
         } else {
             self.has_in_bank_or_inv(&npc_item.currency)
