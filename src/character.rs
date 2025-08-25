@@ -1670,7 +1670,7 @@ impl CharacterController {
         if npc_item.sell_price.is_none() {
             return Err(SellNpcCommandError::ItemNotSellable);
         };
-        let available = self.has_in_bank_or_inv(&npc_item.currency);
+        let available = self.has_in_bank_or_inv(item_code);
         if available < quantity {
             return Err(SellNpcCommandError::InsufficientQuantity {
                 quantity: quantity - available,
@@ -1725,19 +1725,19 @@ impl CharacterController {
     }
 
     fn cleanup_bank(&self) -> Result<(), BankCleanupError> {
-        if let Some(item) = self
-            .bank
-            .content()
-            .iter()
-            .find(|i| i.code == GOLDEN_SHRIMP || i.code == GOLDEN_EGG)
-        {
-            Ok(self.sell_item(
-                &item.code,
-                min(
-                    self.bank.has_available(&item.code, Some(&self.name())),
-                    self.inventory.max_items(),
-                ),
-            )?)
+        if self.bank.content().iter().any(|i| {
+            (i.code == GOLDEN_SHRIMP || i.code == GOLDEN_EGG)
+                && self
+                    .sell_item(
+                        &i.code,
+                        min(
+                            self.bank.has_available(&i.code, Some(&self.name())),
+                            self.inventory.max_items(),
+                        ),
+                    )
+                    .is_ok()
+        }) {
+            Ok(())
         } else {
             Err(BankCleanupError::NoItemToHandle)
         }
