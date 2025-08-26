@@ -766,10 +766,10 @@ impl CharacterController {
             }
             Err(e) => return Err(e),
         }
+        drop(_browsed);
         if self.config.order_gear {
             self.order_best_gear_against(monster);
         }
-        drop(_browsed);
         self.equip_gear(&mut available);
         Ok(())
     }
@@ -852,10 +852,10 @@ impl CharacterController {
             },
         );
         self.reserv_gear(&mut available);
+        drop(_browsed);
         if self.config.order_gear {
             self.order_best_gear_for_skill(skill);
         }
-        drop(_browsed);
         self.equip_gear(&mut available);
     }
 
