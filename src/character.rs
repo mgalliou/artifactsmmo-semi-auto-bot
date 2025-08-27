@@ -277,9 +277,6 @@ impl CharacterController {
     /// the skill level required needs to be leveled.
     fn handle_orderboard(&self) -> bool {
         let orders = self.order_board.orders_by_priority();
-        if orders.iter().cloned().any(|o| self.turn_in_order(o)) {
-            return true;
-        }
         let mut completable = orders
             .iter()
             .filter(|o| self.can_complete_order(o))

@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use log::{debug, info};
 use std::{
-    cmp::min,
+    cmp::{self, min},
     fmt::{self, Display, Formatter},
     mem::discriminant,
     sync::{Arc, RwLock},
@@ -59,17 +59,12 @@ impl OrderBoard {
     pub fn orders_by_priority(&self) -> Vec<Arc<Order>> {
         let mut orders: Vec<Arc<Order>> = vec![];
         Purpose::iter().for_each(|p| {
-            let filtered = self
-                .orders_filtered(|o| discriminant(&o.purpose) == discriminant(&p))
-                .iter()
-                .cloned()
-                .chunk_by(|o| o.purpose.clone())
-                .into_iter()
-                .flat_map(|(_, chunk)| chunk.sorted_by_key(|o| o.creation).rev())
-                .collect_vec();
+            let mut filtered =
+                self.orders_filtered(|o| discriminant(&o.purpose) == discriminant(&p));
+            filtered.sort_by_key(|o| o.creation);
+            filtered.reverse();
             orders.extend(filtered);
         });
-        //orders.sort_by_key(|o| !self.items.is_from_event(&o.item));
         orders
     }
 
@@ -250,7 +245,7 @@ impl Display for Order {
             self.deposited(),
             self.quantity(),
             self.purpose,
-            self.creation
+            self.creation.format("%H:%M:%S %d/%m/%y")
         )
     }
 }
@@ -267,7 +262,7 @@ pub enum OrderError {
     UnknownItem,
 }
 
-#[derive(Debug, PartialEq, Clone, EnumIs, EnumIter)]
+#[derive(Debug, PartialEq, Eq, Clone, EnumIs, EnumIter)]
 pub enum Purpose {
     Food {
         char: String,
