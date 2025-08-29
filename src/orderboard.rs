@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use log::{debug, info};
 use std::{
-    cmp::{self, min},
+    cmp::min,
     fmt::{self, Display, Formatter},
     mem::discriminant,
     sync::{Arc, RwLock},

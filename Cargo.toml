@@ -8,7 +8,7 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.99"
-artifactsmmo-sdk = { path = "../artifactsmmo-sdk" }
+artifactsmmo-sdk = { git = "https://github.com/mgalliou/artifactsmmo-sdk" }
 chrono = "0.4.41"
 clap = { version = "4.5.45", features = ["derive"] }
 figment = { version = "0.10.19", features = ["toml"] }
