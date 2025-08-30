@@ -22,13 +22,24 @@ use crate::{
 };
 use anyhow::Result;
 use artifactsmmo_sdk::{
-    char::{error::RestError, Character as CharacterClient, HasCharacterData, Skill}, consts::{
-        BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, MAX_LEVEL, TASKS_COIN, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE
-    }, gear::{Gear, Slot}, items::{ItemSchemaExt, ItemSource}, maps::MapSchemaExt, models::{
+    GOLDEN_EGG, GOLDEN_SHRIMP, HasDrops, Items, Maps, Monsters, Server, Simulator,
+    char::{Character as CharacterClient, HasCharacterData, Skill, error::RestError},
+    consts::{
+        BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, MAX_LEVEL, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE,
+        TASKS_COIN,
+    },
+    gear::{Gear, Slot},
+    items::{ItemSchemaExt, ItemSource},
+    maps::MapSchemaExt,
+    models::{
         CharacterSchema, DropSchema, FightResult, FightSchema, MapContentType, MapSchema,
         MonsterSchema, NpcItem, RecyclingItemsSchema, ResourceSchema, RewardsSchema,
         SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
-    }, monsters::MonsterSchemaExt, npcs::Npcs, resources::ResourceSchemaExt, simulator::HasEffects, HasDrops, Items, Maps, Monsters, Server, Simulator, GOLDEN_EGG, GOLDEN_SHRIMP
+    },
+    monsters::MonsterSchemaExt,
+    npcs::Npcs,
+    resources::ResourceSchemaExt,
+    simulator::HasEffects,
 };
 use itertools::Itertools;
 use log::{debug, error, info, warn};
@@ -897,8 +908,11 @@ impl CharacterController {
     /// Checks if the `Character` could kill the given `monster` with the given
     /// `gear`
     fn can_kill_with(&self, monster: &MonsterSchema, gear: &Gear) -> bool {
-        Simulator::average_fight(self.client.level(), 0, gear, monster, false).result
-            == FightResult::Win
+        (1..=100)
+            .map(|_| Simulator::random_fight(self.client.level(), 0, gear, monster, false).result)
+            .filter(|r| *r == FightResult::Win)
+            .count()
+            >= 95
     }
 
     fn can_kill_now(&self, monster: &MonsterSchema) -> bool {
