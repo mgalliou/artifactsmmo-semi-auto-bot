@@ -736,10 +736,10 @@ impl CharacterController {
         };
         self.check_for_combat_gear(monster)?;
         self.withdraw_food();
-        if !self.can_kill_now(monster) {
+        if !self.can_kill_now(monster) || self.health() < 10 {
             self.eat_food_from_inventory();
         }
-        if !self.can_kill_now(monster)
+        if (!self.can_kill_now(monster) || self.health() < 10)
             && let Err(e) = self.rest()
         {
             error!("{} failed to rest: {:?}", self.name(), e)
@@ -907,11 +907,12 @@ impl CharacterController {
     /// Checks if the `Character` could kill the given `monster` with the given
     /// `gear`
     fn can_kill_with(&self, monster: &MonsterSchema, gear: &Gear) -> bool {
-        Simulator::fight(self.client.level(), 0, gear, monster, false).result == FightResult::Win
+        Simulator::average_fight(self.client.level(), 0, gear, monster, false).result
+            == FightResult::Win
     }
 
     fn can_kill_now(&self, monster: &MonsterSchema) -> bool {
-        Simulator::fight(
+        Simulator::average_fight(
             self.level(),
             self.missing_hp(),
             &self.client.gear(),
@@ -1870,7 +1871,7 @@ impl CharacterController {
 
     pub fn time_to_kill(&self, monster: &MonsterSchema) -> Option<i32> {
         let gear = self.can_kill(monster).ok()?;
-        let fight = Simulator::fight(self.level(), 0, &gear, monster, false);
+        let fight = Simulator::average_fight(self.level(), 0, &gear, monster, false);
         Some(fight.cd + (fight.hp_lost / 5 + if fight.hp_lost % 5 > 0 { 1 } else { 0 }))
     }
 

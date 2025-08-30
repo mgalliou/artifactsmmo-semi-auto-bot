@@ -247,7 +247,7 @@ fn respond(
                 )
             };
             println!("{}", gear);
-            let fight = Simulator::fight(char.level(), 0, &gear, &monster, true);
+            let fight = Simulator::average_fight(char.level(), 0, &gear, &monster, true);
             println!("{:?}", fight)
         }
         Commands::Deposit { item, quantity } => {

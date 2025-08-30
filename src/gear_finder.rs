@@ -29,7 +29,7 @@ impl GearFinder {
     ) -> Gear {
         self.bests_against(char, monster, filter)
             .into_iter()
-            .map(|g| (Simulator::fight(char.level(), 0, &g, monster, false), g))
+            .map(|g| (Simulator::average_fight(char.level(), 0, &g, monster, false), g))
             .filter(|(f, _g)| f.result == FightResult::Win)
             .min_set_by_key(|(f, _g)| f.cd + Simulator::time_to_rest(f.hp_lost))
             .into_iter()
@@ -46,7 +46,7 @@ impl GearFinder {
     ) -> Gear {
         self.bests_against(char, monster, filter)
             .into_iter()
-            .map(|g| (Simulator::fight(char.level(), 0, &g, monster, true), g))
+            .map(|g| (Simulator::average_fight(char.level(), 0, &g, monster, true), g))
             .min_set_by_key(|(f, _g)| f.cd + Simulator::time_to_rest(f.hp_lost))
             .into_iter()
             .max_by_key(|(f, _g)| f.hp)
