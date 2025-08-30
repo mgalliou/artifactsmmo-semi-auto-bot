@@ -32,8 +32,8 @@ use artifactsmmo_sdk::{
     items::{ItemSchemaExt, ItemSource},
     maps::MapSchemaExt,
     models::{
-        CharacterSchema, DropSchema, FightResult, FightSchema, MapContentType, MapSchema,
-        MonsterSchema, NpcItem, RecyclingItemsSchema, ResourceSchema, RewardsSchema,
+        CharacterSchema, DropSchema, FightResult, FightSchema, ItemSchema, MapContentType,
+        MapSchema, MonsterSchema, NpcItem, RecyclingItemsSchema, ResourceSchema, RewardsSchema,
         SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
     },
     monsters::MonsterSchemaExt,
@@ -417,16 +417,14 @@ impl CharacterController {
     }
 
     fn progress_crafting_order(&self, order: &Order) -> Result<i32, CraftOrderProgressionError> {
-        let quantity = min(
-            self.order_board.total_missing_for(order),
-            self.max_craftable_items(&order.item),
-        );
-        match self.can_craft_now(&order.item, quantity) {
+        let total_missing = self.order_board.total_missing_for(order);
+        match self.can_craft_now(&order.item, total_missing) {
             Ok(_) => {
+                let quantity = min(total_missing, self.max_craftable_items(&order.item));
                 order.inc_in_progress(quantity);
-                let crafted = self.craft_from_bank(&order.item, quantity);
+                let result = self.craft_from_bank(&order.item, quantity);
                 order.dec_in_progress(quantity);
-                Ok(crafted.map(|craft| craft.amount_of(&order.item))?)
+                Ok(result.map(|craft| craft.amount_of(&order.item))?)
             }
             Err(CraftCommandError::InsufficientMaterials(missing_mats)) => Ok(self
                 .order_board
@@ -935,13 +933,7 @@ impl CharacterController {
         item: &str,
         quantity: i32,
     ) -> Result<SkillInfoSchema, CraftCommandError> {
-        self.can_craft_now(item, quantity)?;
-        let Some(item) = self.items.get(item) else {
-            return Err(CraftCommandError::ItemNotFound);
-        };
-        let Some(skill) = item.skill_to_craft() else {
-            return Err(CraftCommandError::ItemNotCraftable);
-        };
+        let (item, skill) = self.can_craft_now(item, quantity)?;
         info!(
             "{}: going to craft '{}'x{} from bank.",
             self.name(),
@@ -973,19 +965,23 @@ impl CharacterController {
     }
 
     // Checks that the `Character` has the required skill level to craft the given item `code`
-    pub fn can_craft_now(&self, item: &str, quantity: i32) -> Result<(), CraftCommandError> {
-        self.can_craft(item)?;
-        if self.max_craftable_items(item) < quantity {
-            return Err(CraftCommandError::InsufficientInventorySpace);
-        }
-        let missing_mats = self.missing_mats_for(item, quantity);
+    pub fn can_craft_now(
+        &self,
+        item: &str,
+        quantity: i32,
+    ) -> Result<(Arc<ItemSchema>, Skill), CraftCommandError> {
+        let (item, skill) = self.can_craft(item)?;
+        let missing_mats = self.missing_mats_for(&item.code, quantity);
         if !missing_mats.is_empty() {
             return Err(CraftCommandError::InsufficientMaterials(missing_mats));
         }
-        Ok(())
+        if self.max_craftable_items(&item.code) < quantity {
+            return Err(CraftCommandError::InsufficientInventorySpace);
+        }
+        Ok((item, skill))
     }
 
-    pub fn can_craft(&self, item: &str) -> Result<(), CraftCommandError> {
+    pub fn can_craft(&self, item: &str) -> Result<(Arc<ItemSchema>, Skill), CraftCommandError> {
         let Some(item) = self.items.get(item) else {
             return Err(CraftCommandError::ItemNotFound);
         };
@@ -998,7 +994,7 @@ impl CharacterController {
         if self.client.skill_level(skill) < item.level {
             return Err(CraftCommandError::InsufficientSkillLevel(skill, item.level));
         }
-        Ok(())
+        Ok((item, skill))
     }
 
     pub fn recycle_item(
