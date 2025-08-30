@@ -1,5 +1,4 @@
 use std::{env, sync::Arc};
-
 use anyhow::Result;
 use artifactsmmo_sdk::Client;
 use artifactsmmo_semi_auto_bot::{bot::Bot, cli};

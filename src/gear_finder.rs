@@ -1,10 +1,6 @@
 use crate::{account::AccountController, character::CharacterController};
 use artifactsmmo_sdk::{
-    Items, Simulator,
-    char::{HasCharacterData, Skill},
-    gear::Gear,
-    items::{ItemSchemaExt, Type},
-    models::{FightResult, ItemSchema, MonsterSchema},
+    char::{HasCharacterData, Skill}, gear::Gear, items::{ItemSchemaExt, Type}, models::{FightResult, ItemSchema, MonsterSchema}, simulator::HasEffects, Items, Simulator
 };
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
