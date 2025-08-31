@@ -1,7 +1,7 @@
 use crate::{
     MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
     account::AccountController,
-    bank::Bank,
+    bank::{Bank, BankError},
     bot_config::{BotConfig, CharConfig, Goal},
     error::{
         BankCleanupError, BankExpansionCommandError, BuyNpcCommandError,
@@ -105,7 +105,7 @@ impl CharacterController {
             }
             if self.inventory.is_full() {
                 if let Err(e) = self.deposit_all() {
-                    error!("Failed to deposit all in main loop: {}", e)
+                    error!("{}: failed depositing in main loop: {e}", self.name())
                 }
                 continue;
             }
@@ -236,7 +236,10 @@ impl CharacterController {
                 if !(skill.is_gathering() || skill.is_cooking())
                     && let Err(e) = self.recycle_item(&item.code, quantity)
                 {
-                    error!("Failed to recycle crafted items for leveling: {}", e)
+                    error!(
+                        "{}: failed recycling crafted items for leveling: {e}",
+                        self.name()
+                    )
                 };
                 Ok(())
             }
@@ -562,23 +565,20 @@ impl CharacterController {
         let q = min(self.task_missing(), self.inventory.max_items());
         if let Err(e) = self.bank.reserv_item(&self.task(), q, &self.name()) {
             error!(
-                "{}: failed reserving items for item task: {}",
-                self.name(),
-                e
+                "{}: failed reserving items for task trade: {e}",
+                self.name()
             )
         }
         if let Err(e) = self.deposit_all() {
             error!(
-                "{}: failed depositing all before task trading: {}",
+                "{}: failed depositing all before task trading: {e}",
                 self.name(),
-                e
             )
         }
         if let Err(e) = self.withdraw_item(&self.task(), q) {
             error!(
-                "{}: failed withdrawing item for task trading: {}",
+                "{}: failed withdrawing item for task trading: {e}",
                 self.name(),
-                e
             );
             self.bank
                 .decrease_reservation(&self.task(), q, &self.name());
@@ -658,9 +658,8 @@ impl CharacterController {
                 .reserv(TASKS_COIN, self.inventory.total_of(TASKS_COIN))
             {
                 error!(
-                    "{}: error while reserving tasks coins in inventory: {}",
+                    "{}: failed reserving tasks coins already in inventory: {e}",
                     self.name(),
-                    e
                 );
             }
         } else {
@@ -674,7 +673,10 @@ impl CharacterController {
                 return Err(TasksCoinExchangeCommandError::InsufficientCoins(quantity));
             }
             if let Err(e) = self.deposit_all_but(TASKS_COIN) {
-                error!("Failed to deposit all while exchanging task: {}", e)
+                error!(
+                    "{}: failed to deposit all while exchanging task: {e}",
+                    self.name()
+                )
             }
             self.withdraw_item(TASKS_COIN, quantity)?;
         }
@@ -701,7 +703,10 @@ impl CharacterController {
                 return Err(TaskCancellationCommandError::NotEnoughCoins);
             }
             if let Err(e) = self.deposit_all() {
-                error!("Failed to deposit all while canceling task: {}", e)
+                error!(
+                    "{}: failed depositing while canceling task: {e}",
+                    self.name()
+                )
             }
             self.withdraw_item(TASKS_COIN, TASK_CANCEL_PRICE)?;
         }
@@ -723,7 +728,7 @@ impl CharacterController {
         if let Ok(_) | Err(TaskCompletionCommandError::NoTask) = self.complete_task()
             && let Err(e) = self.accept_task(TaskType::Monsters)
         {
-            error!("{} error while accepting new task: {:?}", self.name(), e)
+            error!("{}: failed accepting new task: {e}", self.name())
         }
         if self.inventory.free_space() < monster.max_drop_quantity()
             || self
@@ -741,7 +746,7 @@ impl CharacterController {
         if (!self.can_kill_now(monster) || self.health() < 10)
             && let Err(e) = self.rest()
         {
-            error!("{} failed to rest: {:?}", self.name(), e)
+            error!("{}: failed to rest: {e}", self.name())
         }
         self.move_to_closest_map_with_content_code(&monster.code)?;
         Ok(self.client.fight()?)
@@ -1022,19 +1027,10 @@ impl CharacterController {
                 .bank
                 .reserv_item(&item.code, missing_quantity, &self.name())
             {
-                error!(
-                    "{}: failed reserving '{}' before recyling: {}",
-                    self.name(),
-                    &item.code,
-                    e
-                );
+                error!("{}: failed reserving before recyling: {e}", self.name());
             }
             if let Err(e) = self.deposit_all_but(&item.code) {
-                error!(
-                    "{}: failed depositing all before recycling from bank: {}",
-                    &self.name(),
-                    e
-                )
+                error!("{}: failed depositing before recycling: {e}", &self.name(),)
             }
             self.withdraw_item(&item.code, missing_quantity)?;
         }
@@ -1081,18 +1077,14 @@ impl CharacterController {
             let missing_quantity = quantity - self.inventory.has_available(item);
             if let Err(e) = self.bank.reserv_item(item, missing_quantity, &self.name()) {
                 error!(
-                    "{}: failed reserving '{}' before item deletion: {}",
+                    "{}: failed reserving before item deletion: {e}",
                     self.name(),
-                    item,
-                    e
                 );
             }
             if let Err(e) = self.deposit_all_but(item) {
                 error!(
-                    "{}: failed depositing all but '{}' while deleting item: {}",
+                    "{}: failed depositing before item deletion: {e}",
                     self.name(),
-                    item,
-                    e
                 )
             }
             self.withdraw_item(item, missing_quantity)?;
@@ -1108,7 +1100,7 @@ impl CharacterController {
         if self.inventory.total_items() <= 0 {
             return Ok(());
         }
-        info!("{}: going to deposit all items to the bank.", self.name(),);
+        info!("{}: going to deposit all items to the bank", self.name());
         self.deposit_items(&self.inventory.simple_content(), None)
     }
 
@@ -1166,7 +1158,7 @@ impl CharacterController {
         if self.bank.free_slots() <= BANK_MIN_FREE_SLOT
             && let Err(e) = self.expand_bank()
         {
-            error!("{}: failed to expand bank capacity: {:?}", self.name(), e)
+            error!("{}: failed to expand bank capacity: {e}", self.name())
         }
         let deposit = self.client.deposit_item(items);
         match deposit {
@@ -1175,7 +1167,7 @@ impl CharacterController {
                 if let Some(ref owner) = owner {
                     items.iter().for_each(|i| {
                         if let Err(e) = self.bank.increase_reservation(&i.code, i.quantity, owner) {
-                            error!("{}: failed to reserv deposited item: {:?}", self.name(), e)
+                            error!("{}: failed reserving deposited item: {e}", self.name())
                         }
                     })
                 }
@@ -1183,19 +1175,10 @@ impl CharacterController {
                     self.inventory.decrease_reservation(&i.code, i.quantity);
                 });
             }
-            Err(ref e) => error!(
-                "{}: error while depositing items ({:?}): {}",
-                self.name(),
-                items,
-                e
-            ),
+            Err(ref e) => error!("{}: error depositing: {e}", self.name()),
         }
         if let Err(e) = self.deposit_all_gold() {
-            error!(
-                "{}: failed to deposit gold to the bank: {:?}",
-                self.name(),
-                e
-            )
+            error!("{}: failed to deposit gold to the bank: {e}", self.name(),)
         }
         Ok(deposit?)
     }
@@ -1224,19 +1207,18 @@ impl CharacterController {
             self.bank.has_available(&food.code, Some(&self.name())),
         );
         if let Err(e) = self.bank.reserv_item(&food.code, quantity, &self.name()) {
-            error!("{}: failed reserving food: {}", self.name(), e)
+            error!("{}: failed reserving food: {e}", self.name())
         };
         drop(_browsed);
         // TODO: only deposit what is necessary, food already in inventory should be kept
         if let Err(e) = self.deposit_all() {
             error!(
-                "{}: depositing all before withdrawing food: {}",
+                "{}: failed depositing before withdrawing food: {e}",
                 self.name(),
-                e
             )
         }
         if let Err(e) = self.withdraw_item(&food.code, quantity) {
-            error!("{}: failed withdrawing food: {}", self.name(), e)
+            error!("{}: failed withdrawing food: {e}", self.name())
         }
     }
 
@@ -1268,17 +1250,12 @@ impl CharacterController {
         self.move_to_closest_map_of_type(MapContentType::Bank)?;
         let result = self.client.withdraw_item(items);
         if result.is_ok() {
+            //TODO : add metods to batch reserv/unreserv
             items.iter().for_each(|i| {
                 self.bank
                     .decrease_reservation(&i.code, i.quantity, &self.name());
                 if let Err(e) = self.inventory.reserv(&i.code, i.quantity) {
-                    error!(
-                        "{}: failed to reserv withdrawed item '{}'x{}: {:?}",
-                        self.name(),
-                        i.code,
-                        i.quantity,
-                        e
-                    );
+                    error!("{}: failed to reserv withdrawed item: {e}", self.name(),);
                 }
             });
         }
@@ -1555,13 +1532,7 @@ impl CharacterController {
             let missing_quantity = total_price - self.inventory.total_of(&npc_item.currency);
             self.withdraw_item(&npc_item.currency, missing_quantity)?;
             if let Err(e) = self.inventory.reserv(&npc_item.currency, total_price) {
-                error!(
-                    "{}: failed to reserv bought item '{}'x{}: {:?}",
-                    self.name(),
-                    item_code,
-                    quantity,
-                    e
-                );
+                error!("{}: failed to reserv bought item: {e}", self.name());
             }
         }
         self.move_to_closest_map_with_content_code(&npc_item.npc)?;
@@ -1614,9 +1585,8 @@ impl CharacterController {
             .reserv_item(item_code, missing_quantity, &self.name())
         {
             error!(
-                "{}: failed to reserv item before withdrawing currency for purchase: {}",
+                "{}: failed reserving item from bank for selling: {e}",
                 self.name(),
-                e
             )
         }
         if missing_quantity > 0 {
@@ -1624,11 +1594,8 @@ impl CharacterController {
             self.withdraw_item(item_code, missing_quantity)?;
             if let Err(e) = self.inventory.reserv(item_code, quantity) {
                 error!(
-                    "{}: failed to reserv bought item '{}'x{}: {:?}",
+                    "{}: failed reserving item from inventory for selling: {e}",
                     self.name(),
-                    item_code,
-                    quantity,
-                    e
                 );
             }
         }
@@ -1671,11 +1638,7 @@ impl CharacterController {
                 .inventory
                 .reserv(&f.code, self.inventory.total_of(&f.code))
             {
-                error!(
-                    "{} failed to reserv food currently in inventory: {}",
-                    self.name(),
-                    e
-                )
+                error!("{} failed reserving food in inventory: {e}", self.name(),)
             }
         });
         if let Some(best_food) = self
@@ -1699,7 +1662,7 @@ impl CharacterController {
                 },
             )
         {
-            error!("{} failed to add or reset food order: {:?}", self.name(), e)
+            error!("{} failed to add or reset food order: {e}", self.name())
         }
     }
 
@@ -1813,7 +1776,7 @@ impl CharacterController {
                 self.bank
                     .reserv_item(item, quantity - self.inventory.total_of(item), &self.name())
         {
-            error!("{} failed to reserv '{}': {:?}", self.name(), item, e)
+            error!("{}: failed reserving '{item}'x{quantity}: {e}", self.name())
         }
     }
 
