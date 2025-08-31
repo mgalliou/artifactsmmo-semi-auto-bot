@@ -298,20 +298,12 @@ impl CharacterController {
     /// Deposit items requiered by the given `order` if needed.
     /// Returns true if items has be deposited.
     fn turn_in_order(&self, order: Arc<Order>) -> bool {
-        if self.order_board.should_be_turned_in(&order) {
-            return self.deposit_order(&order).is_ok();
-        }
+        if self.order_board.should_be_turned_in(&order)
+            && self.inventory.has_available(&order.item) > 0
+        {
+            return self.deposit_all_but_reserved().is_ok();
+        };
         false
-    }
-
-    fn deposit_order(&self, order: &Order) -> Result<(), OrderDepositError> {
-        let mut quantity = self.inventory.has_available(&order.item);
-        if quantity <= 0 {
-            return Err(OrderDepositError::NoItemToDeposit);
-        }
-        quantity = min(quantity, order.missing());
-        self.deposit_item(&order.item, quantity, order.owner.clone())?;
-        Ok(())
     }
 
     fn handle_order(&self, order: Arc<Order>) -> Result<i32, OrderProgressionError> {
