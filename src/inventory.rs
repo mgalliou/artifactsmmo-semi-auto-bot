@@ -198,6 +198,10 @@ impl Inventory {
             .sum()
     }
 
+    pub fn is_reserved(&self, item: &str) -> bool {
+        self.quantity_reserved(item) > 0
+    }
+
     fn quantity_reservable(&self, item: &str) -> i32 {
         self.total_of(item) - self.quantity_reserved(item)
     }
@@ -210,6 +214,7 @@ impl Inventory {
             .find(|r| r.item == item)
             .cloned()
     }
+
 }
 
 #[derive(Debug)]

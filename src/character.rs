@@ -733,7 +733,7 @@ impl CharacterController {
                 .monster()
                 .is_none_or(|m| m != monster.code)
         {
-            self.deposit_all()?;
+            self.deposit_all_but_reserved()?;
         };
         self.check_for_combat_gear(monster)?;
         self.withdraw_food();
@@ -1100,6 +1100,19 @@ impl CharacterController {
             return Ok(());
         }
         self.deposit_items(&self.inventory.simple_content(), None)
+    }
+
+    pub fn deposit_all_but_reserved(&self) -> Result<(), DepositItemCommandError> {
+        if self.inventory.total_items() <= 0 {
+            return Ok(());
+        }
+        let items = self
+            .inventory
+            .simple_content()
+            .into_iter()
+            .filter(|i| self.inventory.is_reserved(&i.code))
+            .collect_vec();
+        self.deposit_items(&items, None)
     }
 
     pub fn deposit_all_but(&self, item: &str) -> Result<(), DepositItemCommandError> {
@@ -1625,7 +1638,6 @@ impl CharacterController {
         Ok(npc_item)
     }
 
-    /// TODO: improve with only ordering food crafted from fishing
     fn order_food(&self) {
         if !self.skill_enabled(Skill::Combat) {
             return;
