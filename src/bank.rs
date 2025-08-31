@@ -126,6 +126,12 @@ impl Bank {
             .collect_vec()
     }
 
+    pub fn has_multiple_available(&self, items: &[SimpleItemSchema], owner: &str) -> bool {
+        items
+            .iter()
+            .any(|i| self.has_available(&i.code, Some(owner)) < i.quantity)
+    }
+
     /// Returns the `quantity` of the given item `code` available to the given `owner`.
     /// If no owner is given returns the quantity not reserved.
     pub fn has_available(&self, item: &str, owner: Option<&str>) -> i32 {

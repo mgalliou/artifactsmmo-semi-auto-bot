@@ -212,7 +212,9 @@ pub enum MoveCommandError {
 pub enum WithdrawItemCommandError {
     #[error("Missing item quantity")]
     InsufficientQuantity,
-    #[error("Failed to deposit item before withdrawing")]
+    #[error("Insufficient inventory space")]
+    InsufficientInventorySpace,
+    #[error("Failed to deposit item before withdrawing: {0}")]
     DepositItemCommandError(#[from] DepositItemCommandError),
     #[error("Failed to move to bank: {0}")]
     MoveCommandError(#[from] MoveCommandError),

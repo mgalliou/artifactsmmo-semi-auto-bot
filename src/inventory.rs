@@ -68,6 +68,10 @@ impl Inventory {
         self.client.inventory.free_slots()
     }
 
+    pub fn has_space_for_multiple(&self, items: &[SimpleItemSchema]) -> bool {
+        self.client.inventory.has_space_for_multiple(items)
+    }
+
     pub fn has_space_for(&self, item: &str, quantity: i32) -> bool {
         self.client.inventory.has_space_for(item, quantity)
     }

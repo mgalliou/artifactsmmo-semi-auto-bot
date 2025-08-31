@@ -1234,11 +1234,11 @@ impl CharacterController {
         if items.is_empty() {
             return Ok(());
         }
-        if items
-            .iter()
-            .any(|i| self.bank.has_available(&i.code, Some(&self.name())) < i.quantity)
-        {
+        if self.bank.has_multiple_available(items, &self.name()) {
             return Err(WithdrawItemCommandError::InsufficientQuantity);
+        }
+        if !self.inventory.has_space_for_multiple(items) {
+            return Err(WithdrawItemCommandError::InsufficientInventorySpace);
         }
         info!("{}: going to withdraw items: {items:?}", self.name());
         self.move_to_closest_map_of_type(MapContentType::Bank)?;
