@@ -63,6 +63,11 @@ impl Inventory {
         self.client.inventory.free_space()
     }
 
+    /// Returns the free spaces in the `Character` inventory.
+    pub fn free_slot(&self) -> usize {
+        self.client.inventory.free_slots()
+    }
+
     pub fn has_space_for(&self, item: &str, quantity: i32) -> bool {
         self.client.inventory.has_space_for(item, quantity)
     }
@@ -160,10 +165,7 @@ impl Inventory {
             quantity: RwLock::new(quantity),
         });
         self.reservations.write().unwrap().push(res.clone());
-        debug!(
-            "{}: added inventory reservation: res",
-            self.client.name(),
-        );
+        debug!("{}: added inventory reservation: res", self.client.name(),);
     }
 
     pub fn remove_reservation(&self, reservation: &InventoryReservation) {

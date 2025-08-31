@@ -1097,7 +1097,6 @@ impl CharacterController {
         if self.inventory.total_items() <= 0 {
             return Ok(());
         }
-        info!("{}: going to deposit all items to the bank", self.name());
         self.deposit_items(&self.inventory.simple_content(), None)
     }
 
@@ -1105,10 +1104,6 @@ impl CharacterController {
         if self.inventory.total_items() <= 0 {
             return Ok(());
         }
-        info!(
-            "{}: going to deposit all items but '{item}' to the bank.",
-            self.name(),
-        );
         let mut items = self.inventory.simple_content();
         items.retain(|i| i.code != item);
         self.deposit_items(&items, None)
@@ -1151,6 +1146,7 @@ impl CharacterController {
         if self.bank.details().slots < items_not_in_bank {
             return Err(DepositItemCommandError::InsufficientBankSpace);
         };
+        info!("{}: going to deposit items: {items:?}", self.name(),);
         self.move_to_closest_map_of_type(MapContentType::Bank)?;
         if self.bank.free_slots() <= BANK_MIN_FREE_SLOT
             && let Err(e) = self.expand_bank()
@@ -1244,6 +1240,7 @@ impl CharacterController {
         {
             return Err(WithdrawItemCommandError::InsufficientQuantity);
         }
+        info!("{}: going to withdraw items: {items:?}", self.name());
         self.move_to_closest_map_of_type(MapContentType::Bank)?;
         let result = self.client.withdraw_item(items);
         if result.is_ok() {
@@ -1513,10 +1510,24 @@ impl CharacterController {
             }
         } else {
             let missing_quantity = total_price - self.inventory.total_of(&npc_item.currency);
-            //TODO: reserv currency in bank
+            if let Err(e) =
+                self.bank
+                    .reserv_item(&npc_item.currency, missing_quantity, &self.name())
+            {
+                error!(
+                    "{}: failed reserving currency in bank for purchase: {e}",
+                    self.name(),
+                )
+            }
+            if let Err(e) = self.deposit_all_but(&npc_item.currency) {
+                error!("{}: failed depositing  before purchase: {e}", self.name(),)
+            }
             self.withdraw_item(&npc_item.currency, missing_quantity)?;
             if let Err(e) = self.inventory.reserv_item(&npc_item.currency, total_price) {
-                error!("{}: failed reserving currency in inventory: {e}", self.name());
+                error!(
+                    "{}: failed reserving currency in inventory for purchase: {e}",
+                    self.name()
+                );
             }
         }
         self.move_to_closest_map_with_content_code(&npc_item.npc)?;
