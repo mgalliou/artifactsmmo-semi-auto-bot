@@ -17,27 +17,27 @@ use crate::orderboard::OrderError;
 
 #[derive(Debug, Error)]
 pub enum KillMonsterCommandError {
-    #[error("{0} skill is disabled")]
+    #[error("'{0}' skill is disabled")]
     SkillDisabled(Skill),
     #[error("No map with monster found")]
     MapNotFound,
     #[error("Unable to check bank for available gear")]
     BankUnavailable,
-    #[error("No gear powerfull enough available to kill monster")]
+    #[error("No gear powerfull enough available to kill '{monster_code}'")]
     GearTooWeak { monster_code: String },
     #[error("Failed to deposit before gathering: {0}")]
     DepositItemCommandError(#[from] DepositItemCommandError),
     #[error("Failed to move: {0}")]
     MoveCommandError(#[from] MoveCommandError),
-    #[error("Failed to fight")]
+    #[error("Failed to request fight: {0}")]
     ClientError(#[from] FightError),
 }
 
 #[derive(Debug, Error)]
 pub enum GatherCommandError {
-    #[error("{0} skill is disabled")]
+    #[error("'{0}' skill is disabled")]
     SkillDisabled(Skill),
-    #[error("Insufficient skill ({0}) level")]
+    #[error("Insufficient '{0}' level")]
     InsufficientSkillLevel(Skill),
     #[error("Insufficient inventory space")]
     MapNotFound,
@@ -55,13 +55,13 @@ pub enum CraftCommandError {
     ItemNotFound,
     #[error("Item not craftable")]
     ItemNotCraftable,
-    #[error("Skill ({0}) is disabled")]
+    #[error("'{0}' skill is disabled")]
     SkillDisabled(Skill),
-    #[error("Insufficient skill ({0}) level")]
+    #[error("Insufficient '{0}' level: {1}")]
     InsufficientSkillLevel(Skill, i32),
     #[error("Insufficient inventory space")]
     InsufficientInventorySpace,
-    #[error("Not enough materials available: {0:?}")]
+    #[error("Insufficient materials quantity available: {0:?}")]
     InsufficientMaterials(Vec<SimpleItemSchema>),
     #[error("Failed to deposit items: {0}")]
     DepositItemCommandError(#[from] DepositItemCommandError),
@@ -79,28 +79,28 @@ pub enum RecycleCommandError {
     ItemNotFound,
     #[error("Item not craftable")]
     ItemNotCraftable,
-    #[error("{0} skill is disabled")]
+    #[error("'{0}' skill is disabled")]
     SkillDisabled(Skill),
-    #[error("Insufficient skill level")]
+    #[error("Insufficient '{0}' level: {1}")]
     InsufficientSkillLevel(Skill, i32),
+    #[error("Insufficient item quantity available")]
+    InsufficientQuantity,
     #[error("Insufficient inventory space")]
     InsufficientInventorySpace,
-    #[error("Not enough item available")]
-    InsufficientQuantity,
-    #[error("Failed to withdraw mats")]
+    #[error("Failed to withdraw mats: {0}")]
     WithdrawItemCommandError(#[from] WithdrawItemCommandError),
-    #[error("Failed to move to workbench")]
+    #[error("Failed to move to workbench: {0}")]
     MoveCommandError(#[from] MoveCommandError),
-    #[error("Failed to craft item")]
+    #[error("Failed to request item recycle: {0}")]
     ClientError(#[from] RecycleError),
 }
 #[derive(Debug, Error)]
 pub enum DeleteCommandError {
-    #[error("Not enough item available")]
+    #[error("Insufficient item quantity available")]
     InsufficientQuantity,
-    #[error("Failed to withdraw item")]
+    #[error("Failed to withdraw item: {0}")]
     WithdrawItemCommandError(#[from] WithdrawItemCommandError),
-    #[error("Failed to craft item")]
+    #[error("Failed to request item deletion: {0}")]
     ClientError(#[from] DeleteError),
 }
 
@@ -114,9 +114,9 @@ pub enum TaskTradeCommandError {
     TaskAlreadyCompleted,
     #[error("Missing item(s): '{item}'x{quantity}")]
     MissingItems { item: String, quantity: i32 },
-    #[error("Failed to move to tasks master")]
+    #[error("Failed to move to tasks master: {0}")]
     MoveCommandError(#[from] MoveCommandError),
-    #[error("Failed to exchange task coins")]
+    #[error("Failed to request task trade: {0}")]
     ClientError(#[from] TaskTradeError),
 }
 
@@ -124,9 +124,9 @@ pub enum TaskTradeCommandError {
 pub enum TaskAcceptationCommandError {
     #[error("Task already in progress")]
     TaskAlreadyInProgress,
-    #[error("Failed to move to tasks master")]
+    #[error("Failed to move to tasks master: {0}")]
     MoveCommandError(#[from] MoveCommandError),
-    #[error("Failed to exchange task coins")]
+    #[error("Failed to request task acceptation: {0}")]
     TaskAcceptationError(#[from] TaskAcceptationError),
 }
 
@@ -136,33 +136,33 @@ pub enum TaskCompletionCommandError {
     NoTask,
     #[error("Task no finished")]
     TaskNotFinished,
-    #[error("Failed to move to tasks master")]
+    #[error("Failed to move to tasks master: {0}")]
     MoveCommandError(#[from] MoveCommandError),
-    #[error("Failed to complete task")]
+    #[error("Failed to request task completion: {0}")]
     ClientError(#[from] TaskCompletionError),
 }
 
 #[derive(Debug, Error)]
 pub enum TasksCoinExchangeCommandError {
-    #[error("Not enough coins")]
-    InsufficientCoins(i32),
-    #[error("Failed to withdraw coins required")]
+    #[error("Missing coin quantity: {0}")]
+    MissingCoins(i32),
+    #[error("Failed to withdraw coins required: {0}")]
     WithdrawItemCommandError(#[from] WithdrawItemCommandError),
-    #[error("Failed to move to tasks master")]
+    #[error("Failed to move to tasks master: {0}")]
     MoveCommandError(#[from] MoveCommandError),
-    #[error("Failed to request task coin exchange")]
+    #[error("Failed to request tasks coins exchange: {0}")]
     ClientError(#[from] TasksCoinExchangeError),
 }
 
 #[derive(Debug, Error)]
 pub enum TaskCancellationCommandError {
-    #[error("Not enough coins")]
-    NotEnoughCoins,
-    #[error("Failed to withdraw coins required")]
+    #[error("Missing coin quantity")]
+    MissingCoins,
+    #[error("Failed to withdraw coins required: {0}")]
     WithdrawItemCommandError(#[from] WithdrawItemCommandError),
-    #[error("Failed to move to task master")]
+    #[error("Failed to move to task master: {0}")]
     MoveCommandError(#[from] MoveCommandError),
-    #[error("Failed to cancel task")]
+    #[error("Failed to request task cancellation: {0}")]
     ClientError(#[from] TaskCancellationError),
 }
 
@@ -172,11 +172,11 @@ pub enum BankExpansionCommandError {
     BankUnavailable,
     #[error("Insufficient gold")]
     InsufficientGold,
-    #[error("Failed to move to bank")]
+    #[error("Failed to move to bank: {0}")]
     MoveCommandError(#[from] MoveCommandError),
-    #[error("Failed to withdraw required gold")]
+    #[error("Failed to withdraw required gold: {0}")]
     GoldWithdrawCommandError(#[from] GoldWithdrawCommandError),
-    #[error("Failed to withdraw gold: {0}")]
+    #[error("Failed to request bank expansion: {0}")]
     ClientError(#[from] BankExpansionError),
 }
 
@@ -184,9 +184,9 @@ pub enum BankExpansionCommandError {
 pub enum GoldWithdrawCommandError {
     #[error("Insufficient gold")]
     InsufficientGold,
-    #[error("Failed to move to bank")]
+    #[error("Failed to move to bank: {0}")]
     MoveCommandError(#[from] MoveCommandError),
-    #[error("Failed to withdraw gold: {0}")]
+    #[error("Failed to request gold withdrawal: {0}")]
     ClientError(#[from] GoldWithdrawError),
 }
 
@@ -194,7 +194,7 @@ pub enum GoldWithdrawCommandError {
 pub enum GoldDepositCommandError {
     #[error("Insufficient gold")]
     InsufficientGold,
-    #[error("Failed to move to bank")]
+    #[error("Failed to move to bank: {0}")]
     MoveCommandError(#[from] MoveCommandError),
     #[error("Failed to request gold deposit: {0}")]
     ClientError(#[from] GoldDepositError),
@@ -210,7 +210,7 @@ pub enum MoveCommandError {
 
 #[derive(Debug, Error)]
 pub enum WithdrawItemCommandError {
-    #[error("Missing item quantity")]
+    #[error("Insufficient item quantity available")]
     InsufficientQuantity,
     #[error("Insufficient inventory space")]
     InsufficientInventorySpace,
@@ -224,8 +224,8 @@ pub enum WithdrawItemCommandError {
 
 #[derive(Debug, Error)]
 pub enum DepositItemCommandError {
-    #[error("Missing item quantity")]
-    MissingQuantity,
+    #[error("Insufficient item quantity available")]
+    InsufficientQuantity,
     #[error("Failed to move to bank: {0}")]
     MoveCommandError(#[from] MoveCommandError),
     #[error("Insufficient bank space")]
@@ -248,11 +248,11 @@ pub enum EquipCommandError {
 
 #[derive(Debug, Error)]
 pub enum UnequipCommandError {
-    #[error("Failed to rest")]
-    RestError(#[from] RestError),
     #[error("Insufficient inventory space")]
     InsufficientInventorySpace,
-    #[error("Failed to unequip item")]
+    #[error("Failed to rest: {0}")]
+    RestError(#[from] RestError),
+    #[error("Failed to unequip item: {0}")]
     ClientError(#[from] UnequipError),
 }
 
@@ -292,11 +292,11 @@ pub enum SellNpcCommandError {
     ItemNotSellable,
     #[error("No NPC found on map to sell item")]
     NpcNotFound,
-    #[error("Insufficient item quantity")]
+    #[error("Insufficient item quantity available")]
     InsufficientQuantity { quantity: i32 },
     #[error("Failed to deposit all before selling item: {0}")]
     DepositItemCommandError(#[from] DepositItemCommandError),
-    #[error("Failed to item to sell: {0}")]
+    #[error("Failed to withdraw item to sell: {0}")]
     WithdrawItemCommandError(#[from] WithdrawItemCommandError),
     #[error("Failed to move to NPC: {0}")]
     MoveCommandError(#[from] MoveCommandError),
@@ -326,7 +326,7 @@ pub enum OrderProgressionError {
 
 #[derive(Debug, Error)]
 pub enum CraftOrderProgressionError {
-    #[error("Failed to command craft: {0}")]
+    #[error("Failed to craft items: {0}")]
     CraftCommandError(#[from] CraftCommandError),
     #[error("Failed to order missing mats: {0}")]
     OrderError(#[from] OrderError),
@@ -344,7 +344,7 @@ pub enum TaskProgressionError {
     TaskCancellationCommandError(#[from] TaskCancellationCommandError),
     #[error("Failed to fight: {0}")]
     KillMonsterCommandError(#[from] KillMonsterCommandError),
-    #[error("Order error: ")]
+    #[error("Order error missing items: {0}")]
     OrderError(#[from] OrderError),
 }
 
@@ -374,7 +374,7 @@ pub enum SkillLevelingError {
     CombatLevelingError(#[from] CombatLevelingError),
     #[error("Failed to level skill by crafting: {0}")]
     CraftSkillLevelingError(#[from] CraftSkillLevelingError),
-    #[error("Failed to gather to level skill: {0}")]
+    #[error("Failed to gather for leveling skill: {0}")]
     GatherCommandError(#[from] GatherCommandError),
 }
 
@@ -402,7 +402,7 @@ pub enum CraftSkillLevelingError {
 pub enum OrderDepositError {
     #[error("No item to deposit in inventory")]
     NoItemToDeposit,
-    #[error("Failed to deposit order items")]
+    #[error("Failed to deposit order items: {0}")]
     DepositItemCommandError(#[from] DepositItemCommandError),
 }
 

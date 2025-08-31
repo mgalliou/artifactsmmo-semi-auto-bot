@@ -448,7 +448,7 @@ impl CharacterController {
                 order.dec_in_progress(1);
                 Ok(exchanged?)
             }
-            Err(TasksCoinExchangeCommandError::InsufficientCoins(quantity)) => {
+            Err(TasksCoinExchangeCommandError::MissingCoins(quantity)) => {
                 self.order_board
                     .add(TASKS_COIN, quantity, None, order.purpose.to_owned())?;
                 Ok(0)
@@ -632,7 +632,7 @@ impl CharacterController {
         let coin_available = self.has_in_bank_or_inv(TASKS_COIN);
         let min_coins = TASK_EXCHANGE_PRICE + MIN_COIN_THRESHOLD;
         if coin_available < min_coins {
-            return Err(TasksCoinExchangeCommandError::InsufficientCoins(
+            return Err(TasksCoinExchangeCommandError::MissingCoins(
                 min_coins
                     - if self.order_board.is_ordered(TASKS_COIN) {
                         0
@@ -669,7 +669,7 @@ impl CharacterController {
                 .reserv_item(TASKS_COIN, quantity, &self.name())
                 .is_err()
             {
-                return Err(TasksCoinExchangeCommandError::InsufficientCoins(quantity));
+                return Err(TasksCoinExchangeCommandError::MissingCoins(quantity));
             }
             if let Err(e) = self.deposit_all_but(TASKS_COIN) {
                 error!(
@@ -690,7 +690,7 @@ impl CharacterController {
         if self.bank.has_available(TASKS_COIN, Some(&self.name()))
             < TASK_CANCEL_PRICE + MIN_COIN_THRESHOLD
         {
-            return Err(TaskCancellationCommandError::NotEnoughCoins);
+            return Err(TaskCancellationCommandError::MissingCoins);
         }
         if self.inventory.has_available(TASKS_COIN) <= 0 {
             if self
@@ -698,7 +698,7 @@ impl CharacterController {
                 .reserv_item(TASKS_COIN, TASK_CANCEL_PRICE, &self.name())
                 .is_err()
             {
-                return Err(TaskCancellationCommandError::NotEnoughCoins);
+                return Err(TaskCancellationCommandError::MissingCoins);
             }
             if let Err(e) = self.deposit_all() {
                 error!(
@@ -1137,7 +1137,7 @@ impl CharacterController {
             .iter()
             .any(|i| self.inventory.total_of(&i.code) < i.quantity)
         {
-            return Err(DepositItemCommandError::MissingQuantity);
+            return Err(DepositItemCommandError::InsufficientQuantity);
         }
         let items_not_in_bank = items
             .iter()
