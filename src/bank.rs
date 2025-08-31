@@ -1,7 +1,7 @@
 use artifactsmmo_sdk::{
     Items,
     bank::Bank as BankClient,
-    items::{self, ItemSchemaExt},
+    items::ItemSchemaExt,
     models::{BankSchema, ItemSchema, SimpleItemSchema},
 };
 use itertools::Itertools;
@@ -154,10 +154,7 @@ impl Bank {
             Ok(())
         } else if self.quantity_not_reserved(item) >= quantity - res.quantity() {
             res.inc_quantity(quantity - res.quantity());
-            debug!(
-                "bank: increased reservation quantity by '{}': [{}]",
-                quantity, res
-            );
+            debug!("bank: increased reservation by '{quantity}': {res}",);
             Ok(())
         } else {
             Err(BankError::QuantityUnavailable(quantity))
@@ -186,7 +183,13 @@ impl Bank {
         Ok(())
     }
 
-    pub fn decrease_reservation(&self, item: &str, quantity: i32, owner: &str) {
+    pub fn unreserv_items(&self, items: &[SimpleItemSchema], owner: &str) {
+        for item in items.iter() {
+            self.unreserv_item(&item.code, item.quantity, owner);
+        }
+    }
+
+    pub fn unreserv_item(&self, item: &str, quantity: i32, owner: &str) {
         let Some(res) = self.get_reservation(item, owner) else {
             return;
         };
@@ -194,10 +197,7 @@ impl Bank {
             self.remove_reservation(&res)
         } else {
             res.dec_quantity(quantity);
-            debug!(
-                "bank: decreased reservation quantity by '{}': [{}]",
-                quantity, res
-            );
+            debug!("bank: decreased reservation by '{quantity}': {res}",);
         }
     }
 
@@ -208,7 +208,7 @@ impl Bank {
             owner: owner.to_owned(),
         });
         self.reservations.write().unwrap().push(res.clone());
-        debug!("bank: added reservation to bank: {}", res);
+        debug!("bank: added reservation: {res}");
     }
 
     fn remove_reservation(&self, reservation: &Reservation) {
@@ -216,7 +216,7 @@ impl Bank {
             .write()
             .unwrap()
             .retain(|r| **r != *reservation);
-        debug!("bank: removed reservation: {}", reservation);
+        debug!("bank: removed reservation: {reservation}");
     }
 
     pub fn reservations(&self) -> Vec<Arc<Reservation>> {

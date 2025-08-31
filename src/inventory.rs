@@ -101,7 +101,18 @@ impl Inventory {
     }
 
     /// Make sure the `quantity` of `item` is reserved
-    pub fn reserv(&self, item: &str, quantity: i32) -> Result<(), InventoryReservationError> {
+    pub fn reserv_items(
+        &self,
+        items: &[SimpleItemSchema],
+    ) -> Result<(), InventoryReservationError> {
+        for item in items.iter() {
+            self.reserv_item(&item.code, item.quantity)?
+        }
+        Ok(())
+    }
+
+    /// Make sure the `quantity` of `item` is reserved
+    pub fn reserv_item(&self, item: &str, quantity: i32) -> Result<(), InventoryReservationError> {
         let quantity_to_reserv = quantity - self.quantity_reserved(item);
         if quantity_to_reserv == 0 {
             return Ok(());
@@ -114,16 +125,21 @@ impl Inventory {
         };
         res.inc_quantity(quantity_to_reserv);
         debug!(
-            "inventory({}): increased reservation quantity by '{}': [{}]",
+            "{}: increased '{item}' inventory reservation by {quantity}",
             self.client.name(),
-            quantity,
-            res
         );
         Ok(())
     }
 
     /// Decrease the reserved quantity of `item`
-    pub fn decrease_reservation(&self, item: &str, quantity: i32) {
+    pub fn unreserv_items(&self, items: &[SimpleItemSchema]) {
+        for item in items.iter() {
+            self.unreserv_item(&item.code, item.quantity);
+        }
+    }
+
+    /// Decrease the reserved quantity of `item`
+    pub fn unreserv_item(&self, item: &str, quantity: i32) {
         let Some(res) = self.get_reservation(item) else {
             return;
         };
@@ -132,10 +148,8 @@ impl Inventory {
         } else {
             res.dec_quantity(quantity);
             debug!(
-                "inventory({}): decreased reservation quantity by '{}': [{}]",
+                "{}: decreased '{item}' inventory reservation by {quantity}",
                 self.client.name(),
-                quantity,
-                res
             );
         }
     }
@@ -147,9 +161,8 @@ impl Inventory {
         });
         self.reservations.write().unwrap().push(res.clone());
         debug!(
-            "{}: added reservation to inventory: {}",
+            "{}: added inventory reservation: res",
             self.client.name(),
-            res
         );
     }
 
@@ -159,9 +172,8 @@ impl Inventory {
             .unwrap()
             .retain(|r| **r != *reservation);
         debug!(
-            "inventory({}): removed reservation: {}",
+            "{}: removed inventory reservation: {reservation}",
             self.client.name(),
-            reservation
         );
     }
 
