@@ -883,10 +883,7 @@ impl CharacterController {
 
     /// Checks if the `Character` is able to kill the given monster and returns
     /// the best available gear to do so.
-    pub fn can_kill<'a>(
-        &'a self,
-        monster: &'a MonsterSchema,
-    ) -> Result<Gear, KillMonsterCommandError> {
+    pub fn can_kill(&self, monster: &MonsterSchema) -> Result<Gear, KillMonsterCommandError> {
         self.can_fight(monster)?;
         let available = self.gear_finder.best_winning_against(
             self,
@@ -909,22 +906,27 @@ impl CharacterController {
     /// `gear`
     fn can_kill_with(&self, monster: &MonsterSchema, gear: &Gear) -> bool {
         (1..=100)
-            .map(|_| Simulator::random_fight(self.client.level(), 0, gear, monster, false).result)
+            .map(|_| Simulator::random_fight(self.level(), 0, gear, monster, false).result)
             .filter(|r| *r == FightResult::Win)
             .count()
             >= 95
     }
 
     fn can_kill_now(&self, monster: &MonsterSchema) -> bool {
-        Simulator::average_fight(
-            self.level(),
-            self.missing_hp(),
-            &self.client.gear(),
-            monster,
-            false,
-        )
-        .result
-            == FightResult::Win
+        (1..=100)
+            .map(|_| {
+                Simulator::random_fight(
+                    self.level(),
+                    self.missing_hp(),
+                    &self.client.gear(),
+                    monster,
+                    false,
+                )
+                .result
+            })
+            .filter(|r| *r == FightResult::Win)
+            .count()
+            >= 95
     }
 
     /// Crafts the given `quantity` of the given item `code` if the required
@@ -1856,6 +1858,7 @@ impl CharacterController {
     }
 
     /// Returns the amount of the given item `code` available in bank and inventory.
+    //TODO: maybe use `inventory.has_available`
     fn has_in_bank_or_inv(&self, item: &str) -> i32 {
         self.inventory.total_of(item) + self.bank.has_available(item, Some(&self.name()))
     }
