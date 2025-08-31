@@ -1,6 +1,6 @@
-use artifactsmmo_sdk::consts::{
+use artifactsmmo_sdk::{consts::{
     APPLE, APPLE_PIE, CARROT, COOKED_HELLHOUND_MEAT, EGG, FISH_SOUP, MAPLE_SYRUP, MUSHROOM_SOUP,
-};
+}, models::SimpleItemSchema};
 
 pub mod account;
 pub mod bank;

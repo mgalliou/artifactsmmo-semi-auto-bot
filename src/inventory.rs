@@ -101,12 +101,12 @@ impl Inventory {
     }
 
     /// Make sure the `quantity` of `item` is reserved
-    pub fn reserv(&self, item: &str, quantity: i32) -> Result<(), ReservationError> {
+    pub fn reserv(&self, item: &str, quantity: i32) -> Result<(), InventoryReservationError> {
         let quantity_to_reserv = quantity - self.quantity_reserved(item);
         if quantity_to_reserv == 0 {
             return Ok(());
         } else if quantity_to_reserv > self.quantity_reservable(item) {
-            return Err(ReservationError::InsufficientQuantity);
+            return Err(InventoryReservationError::InsufficientQuantity);
         }
         let Some(res) = self.get_reservation(item) else {
             self.add_reservation(item, quantity);
@@ -201,7 +201,7 @@ pub struct InventoryReservation {
 }
 
 #[derive(Debug, Error)]
-pub enum ReservationError {
+pub enum InventoryReservationError {
     #[error("Insufficient item quantity in inventory: ")]
     InsufficientQuantity,
 }

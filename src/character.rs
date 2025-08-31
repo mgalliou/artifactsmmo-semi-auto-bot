@@ -560,7 +560,7 @@ impl CharacterController {
     fn trade_task(&self) -> Result<TaskTradeSchema, TaskTradeCommandError> {
         self.can_trade_task()?;
         let q = min(self.task_missing(), self.inventory.max_items());
-        if let Err(e) = self.bank.reserv(&self.task(), q, &self.name()) {
+        if let Err(e) = self.bank.reserv_item(&self.task(), q, &self.name()) {
             error!(
                 "{}: failed reserving items for item task: {}",
                 self.name(),
@@ -668,7 +668,7 @@ impl CharacterController {
             //`withdraw_item` method
             if self
                 .bank
-                .reserv(TASKS_COIN, quantity, &self.name())
+                .reserv_item(TASKS_COIN, quantity, &self.name())
                 .is_err()
             {
                 return Err(TasksCoinExchangeCommandError::InsufficientCoins(quantity));
@@ -695,7 +695,7 @@ impl CharacterController {
         if self.inventory.has_available(TASKS_COIN) <= 0 {
             if self
                 .bank
-                .reserv(TASKS_COIN, TASK_CANCEL_PRICE, &self.name())
+                .reserv_item(TASKS_COIN, TASK_CANCEL_PRICE, &self.name())
                 .is_err()
             {
                 return Err(TaskCancellationCommandError::NotEnoughCoins);
@@ -941,15 +941,12 @@ impl CharacterController {
             quantity
         );
         let mats = self.items.mats_for(&item.code, quantity);
-        mats.iter().for_each(|m| {
-            if let Err(e) = self.bank.reserv(&m.code, m.quantity, &self.name()) {
-                error!(
-                    "{}: failed reserving mats to craft from bank: {}",
-                    self.name(),
-                    e
-                )
-            }
-        });
+        if let Err(e) = self.bank.reserv_items(&mats, &self.name()) {
+            error!(
+                "{}: failed reserving mats to craft from bank: {e}",
+                self.name(),
+            )
+        };
         self.check_for_skill_gear(skill);
         self.deposit_all()?;
         self.withdraw_items(&mats)?;
@@ -1021,7 +1018,10 @@ impl CharacterController {
         );
         if self.inventory.total_of(&item.code) < quantity {
             let missing_quantity = quantity - self.inventory.has_available(&item.code);
-            if let Err(e) = self.bank.reserv(&item.code, missing_quantity, &self.name()) {
+            if let Err(e) = self
+                .bank
+                .reserv_item(&item.code, missing_quantity, &self.name())
+            {
                 error!(
                     "{}: failed reserving '{}' before recyling: {}",
                     self.name(),
@@ -1079,7 +1079,7 @@ impl CharacterController {
         info!("{}: going to delete '{}'x{}.", self.name(), item, quantity);
         if self.inventory.has_available(item) < quantity {
             let missing_quantity = quantity - self.inventory.has_available(item);
-            if let Err(e) = self.bank.reserv(item, missing_quantity, &self.name()) {
+            if let Err(e) = self.bank.reserv_item(item, missing_quantity, &self.name()) {
                 error!(
                     "{}: failed reserving '{}' before item deletion: {}",
                     self.name(),
@@ -1223,7 +1223,7 @@ impl CharacterController {
             self.inventory.max_items() - 30,
             self.bank.has_available(&food.code, Some(&self.name())),
         );
-        if let Err(e) = self.bank.reserv(&food.code, quantity, &self.name()) {
+        if let Err(e) = self.bank.reserv_item(&food.code, quantity, &self.name()) {
             error!("{}: failed reserving food: {}", self.name(), e)
         };
         drop(_browsed);
@@ -1242,7 +1242,7 @@ impl CharacterController {
 
     pub fn withdraw_item(&self, item: &str, quantity: i32) -> Result<(), WithdrawItemCommandError> {
         self.withdraw_items(&[SimpleItemSchema {
-            code: item.to_string(),
+            code: item.into(),
             quantity,
         }])
     }
@@ -1363,14 +1363,6 @@ impl CharacterController {
                 slot.max_quantity(),
                 self.bank.has_available(item, Some(&self.name())),
             );
-            if self.inventory.free_space() < quantity
-                && let Err(e) = self.deposit_all()
-            {
-                error!(
-                    "Failed to deposit all while equiping item from bank or inventory: {}",
-                    e
-                )
-            }
             if let Err(e) = self.withdraw_item(item, quantity) {
                 error!(
                     "{} failed withdraw item from bank or inventory: {:?}",
@@ -1561,29 +1553,15 @@ impl CharacterController {
             }
         } else {
             let missing_quantity = total_price - self.inventory.total_of(&npc_item.currency);
-            //TODO: reserv item already in inventory
-            if let Err(e) = self
-                .bank
-                .reserv(&npc_item.currency, missing_quantity, &self.name())
-            {
+            self.withdraw_item(&npc_item.currency, missing_quantity)?;
+            if let Err(e) = self.inventory.reserv(&npc_item.currency, total_price) {
                 error!(
-                    "{}: failed to reserv item before withdrawing currency for purchase: {}",
+                    "{}: failed to reserv bought item '{}'x{}: {:?}",
                     self.name(),
+                    item_code,
+                    quantity,
                     e
-                )
-            }
-            if missing_quantity > 0 {
-                self.deposit_all_but(&npc_item.currency)?;
-                self.withdraw_item(&npc_item.currency, missing_quantity)?;
-                if let Err(e) = self.inventory.reserv(&npc_item.currency, total_price) {
-                    error!(
-                        "{}: failed to reserv bought item '{}'x{}: {:?}",
-                        self.name(),
-                        item_code,
-                        quantity,
-                        e
-                    );
-                }
+                );
             }
         }
         self.move_to_closest_map_with_content_code(&npc_item.npc)?;
@@ -1631,7 +1609,10 @@ impl CharacterController {
         let npc_item = self.can_sell_item(item_code, quantity)?;
         let missing_quantity = quantity - self.inventory.total_of(&npc_item.currency);
         //TODO: reserv item already in inventory
-        if let Err(e) = self.bank.reserv(item_code, missing_quantity, &self.name()) {
+        if let Err(e) = self
+            .bank
+            .reserv_item(item_code, missing_quantity, &self.name())
+        {
             error!(
                 "{}: failed to reserv item before withdrawing currency for purchase: {}",
                 self.name(),
@@ -1830,7 +1811,7 @@ impl CharacterController {
             && self.inventory.total_of(item) < quantity
             && let Err(e) =
                 self.bank
-                    .reserv(item, quantity - self.inventory.total_of(item), &self.name())
+                    .reserv_item(item, quantity - self.inventory.total_of(item), &self.name())
         {
             error!("{} failed to reserv '{}': {:?}", self.name(), item, e)
         }

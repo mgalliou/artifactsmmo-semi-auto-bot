@@ -1,7 +1,7 @@
 use artifactsmmo_sdk::{
     Items,
     bank::Bank as BankClient,
-    items::ItemSchemaExt,
+    items::{self, ItemSchemaExt},
     models::{BankSchema, ItemSchema, SimpleItemSchema},
 };
 use itertools::Itertools;
@@ -136,10 +136,17 @@ impl Bank {
         }
     }
 
+    pub fn reserv_items(&self, items: &[SimpleItemSchema], owner: &str) -> Result<(), BankError> {
+        for m in items.iter() {
+            self.reserv_item(&m.code, m.quantity, owner)?
+        }
+        Ok(())
+    }
+
     /// Make sure that the `quantity` of `item` is reserved to the `owner`.
     /// Create the reservation if possible. Increase the reservation quantity if
     /// necessary and possible.
-    pub fn reserv(&self, item: &str, quantity: i32, owner: &str) -> Result<(), BankError> {
+    pub fn reserv_item(&self, item: &str, quantity: i32, owner: &str) -> Result<(), BankError> {
         let Some(res) = self.get_reservation(item, owner) else {
             return self.increase_reservation(item, quantity, owner);
         };
@@ -347,8 +354,8 @@ mod tests {
             code: "gold_ore".to_owned(),
             quantity: 100,
         }]);
-        let _ = bank.reserv("gold_ore", 50, "char1");
-        let _ = bank.reserv("gold_ore", 50, "char1");
+        let _ = bank.reserv_item("gold_ore", 50, "char1");
+        let _ = bank.reserv_item("gold_ore", 50, "char1");
         assert_eq!(100, bank.has_available("gold_ore", Some("char1")));
         assert_eq!(50, bank.quantity_reserved("gold_ore"))
     }
