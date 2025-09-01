@@ -513,20 +513,11 @@ impl CharacterController {
 
     fn trade_task(&self) -> Result<TaskTradeSchema, TaskTradeCommandError> {
         self.can_trade_task()?;
-        let q = min(self.task_missing(), self.inventory.max_items());
-        if let Err(e) = self.bank.reserv_item(&self.task(), q, &self.name()) {
-            error!(
-                "{}: failed reserving items for task trade: {e}",
-                self.name()
-            )
-        }
-        if let Err(e) = self.deposit_all() {
-            error!("{}: failed depositing before task trade: {e}", self.name(),)
-        }
-        self.withdraw_item(&self.task(), q)?;
+        let quantity = min(self.task_missing(), self.inventory.max_items());
+        self.lock_in_inventory(&self.task(), quantity)?;
         self.move_to_closest_taskmaster(self.task_type())?;
-        let res = self.client.task_trade(&self.task(), q);
-        self.inventory.unreserv_item(&self.task(), q);
+        let res = self.client.task_trade(&self.task(), quantity);
+        self.inventory.unreserv_item(&self.task(), quantity);
         Ok(res?)
     }
 
@@ -593,34 +584,7 @@ impl CharacterController {
             self.bank.has_available(TASKS_COIN, Some(&self.name())),
         );
         quantity = quantity - (quantity % TASK_EXCHANGE_PRICE);
-        if self.inventory.total_of(TASKS_COIN) >= TASK_EXCHANGE_PRICE {
-            if let Err(e) = self
-                .inventory
-                .reserv_item(TASKS_COIN, self.inventory.total_of(TASKS_COIN))
-            {
-                error!(
-                    "{}: failed reserving tasks coins already in inventory: {e}",
-                    self.name(),
-                );
-            }
-        } else {
-            //TODO: should add variant for reservation error, or reservation should be handled in
-            //`withdraw_item` method
-            if self
-                .bank
-                .reserv_item(TASKS_COIN, quantity, &self.name())
-                .is_err()
-            {
-                return Err(TasksCoinExchangeCommandError::MissingCoins(quantity));
-            }
-            if let Err(e) = self.deposit_all_but(TASKS_COIN) {
-                error!(
-                    "{}: failed to deposit all while exchanging task: {e}",
-                    self.name()
-                )
-            }
-            self.withdraw_item(TASKS_COIN, quantity)?;
-        }
+        self.lock_in_inventory(TASKS_COIN, quantity)?;
         self.move_to_closest_taskmaster(self.task_type())?;
         let result = self.client.exchange_tasks_coin().map_err(|e| e.into());
         self.inventory
@@ -634,22 +598,7 @@ impl CharacterController {
         {
             return Err(TaskCancellationCommandError::MissingCoins);
         }
-        if self.inventory.has_available(TASKS_COIN) <= 0 {
-            if self
-                .bank
-                .reserv_item(TASKS_COIN, TASK_CANCEL_PRICE, &self.name())
-                .is_err()
-            {
-                return Err(TaskCancellationCommandError::MissingCoins);
-            }
-            if let Err(e) = self.deposit_all() {
-                error!(
-                    "{}: failed depositing while canceling task: {e}",
-                    self.name()
-                )
-            }
-            self.withdraw_item(TASKS_COIN, TASK_CANCEL_PRICE)?;
-        }
+        self.lock_in_inventory(TASKS_COIN, TASK_CANCEL_PRICE)?;
         self.move_to_closest_taskmaster(self.task_type())?;
         let result = self.client.cancel_task().map_err(|e| e.into());
         self.inventory.unreserv_item(TASKS_COIN, TASK_CANCEL_PRICE);
@@ -960,19 +909,7 @@ impl CharacterController {
             &item.code,
             quantity
         );
-        if self.inventory.total_of(&item.code) < quantity {
-            let missing_quantity = quantity - self.inventory.has_available(&item.code);
-            if let Err(e) = self
-                .bank
-                .reserv_item(&item.code, missing_quantity, &self.name())
-            {
-                error!("{}: failed reserving before recyling: {e}", self.name());
-            }
-            if let Err(e) = self.deposit_all_but(&item.code) {
-                error!("{}: failed depositing before recycling: {e}", &self.name(),)
-            }
-            self.withdraw_item(&item.code, missing_quantity)?;
-        }
+        self.lock_in_inventory(&item.code, quantity)?;
         let Some(map) = self.maps.with_workshop_for(skill) else {
             return Err(MoveCommandError::MapNotFound.into());
         };
@@ -1012,25 +949,37 @@ impl CharacterController {
             return Err(DeleteCommandError::InsufficientQuantity);
         }
         info!("{}: going to delete '{}'x{}.", self.name(), item, quantity);
-        if self.inventory.has_available(item) < quantity {
-            let missing_quantity = quantity - self.inventory.has_available(item);
-            if let Err(e) = self.bank.reserv_item(item, missing_quantity, &self.name()) {
-                error!(
-                    "{}: failed reserving before item deletion: {e}",
-                    self.name(),
-                );
-            }
-            if let Err(e) = self.deposit_all_but(item) {
-                error!(
-                    "{}: failed depositing before item deletion: {e}",
-                    self.name(),
-                )
-            }
-            self.withdraw_item(item, missing_quantity)?;
-        }
+        self.lock_in_inventory(item, quantity)?;
         let result = self.client.delete(item, quantity);
         self.inventory.unreserv_item(&self.task(), quantity);
         Ok(result?)
+    }
+
+    pub fn lock_in_inventory(
+        &self,
+        item: &str,
+        quantity: i32,
+    ) -> Result<(), WithdrawItemCommandError> {
+        let in_inventory = self.inventory.has_available(item);
+        if in_inventory > 0
+            && let Err(e) = self.inventory.reserv_item(item, in_inventory)
+        {
+            error!(
+                "{}: failed reserving already in inventory: {e}",
+                self.name(),
+            );
+        }
+        let missing = quantity - in_inventory;
+        if missing > 0 {
+            if let Err(e) = self.bank.reserv_item(item, missing, &self.name()) {
+                error!("{}: failed reserving items in bank: {e}", self.name())
+            }
+            if let Err(e) = self.deposit_all_but(item) {
+                error!("{}: failed depositing: {e}", self.name())
+            }
+            self.withdraw_item(item, missing)?;
+        };
+        Ok(())
     }
 
     /// Deposits all the gold and items in the character inventory into the bank.
@@ -1278,16 +1227,11 @@ impl CharacterController {
         if prev_equiped.as_ref().is_some_and(|e| e.code == item) {
             return;
         }
-        if self.inventory.total_of(item) <= 0
-            && self.bank.has_available(item, Some(&self.name())) > 0
-        {
-            let quantity = min(
-                slot.max_quantity(),
-                self.bank.has_available(item, Some(&self.name())),
-            );
-            if let Err(e) = self.withdraw_item(item, quantity) {
-                error!("{} failed withdrawing item for equiping: {e}", self.name(),);
-            }
+        //TODO: handle utilities
+        let quantity = slot.max_quantity();
+        if let Err(e) = self.lock_in_inventory(item, quantity) {
+            error!("{}: failed to get item in inventory: {e}", self.name());
+            return;
         }
         if let Err(e) = self.equip_item(
             item,
@@ -1464,26 +1408,7 @@ impl CharacterController {
                 self.withdraw_gold(missing_quantity)?;
             }
         } else {
-            let missing_quantity = total_price - self.inventory.total_of(&npc_item.currency);
-            if let Err(e) =
-                self.bank
-                    .reserv_item(&npc_item.currency, missing_quantity, &self.name())
-            {
-                error!(
-                    "{}: failed reserving currency in bank for purchase: {e}",
-                    self.name(),
-                )
-            }
-            if let Err(e) = self.deposit_all_but(&npc_item.currency) {
-                error!("{}: failed depositing  before purchase: {e}", self.name(),)
-            }
-            self.withdraw_item(&npc_item.currency, missing_quantity)?;
-            if let Err(e) = self.inventory.reserv_item(&npc_item.currency, total_price) {
-                error!(
-                    "{}: failed reserving currency in inventory for purchase: {e}",
-                    self.name()
-                );
-            }
+            self.lock_in_inventory(&npc_item.currency, total_price)?;
         }
         self.move_to_closest_map_with_content_code(&npc_item.npc)?;
         self.client.npc_buy(item_code, quantity)?;
@@ -1526,32 +1451,12 @@ impl CharacterController {
         Ok((npc_item, total_price))
     }
 
-    fn sell_item(&self, item_code: &str, quantity: i32) -> Result<(), SellNpcCommandError> {
-        let npc_item = self.can_sell_item(item_code, quantity)?;
-        let missing_quantity = quantity - self.inventory.total_of(&npc_item.currency);
-        //TODO: reserv item already in inventory
-        if let Err(e) = self
-            .bank
-            .reserv_item(item_code, missing_quantity, &self.name())
-        {
-            error!(
-                "{}: failed reserving item from bank for selling: {e}",
-                self.name(),
-            )
-        }
-        if missing_quantity > 0 {
-            self.deposit_all_but(item_code)?;
-            self.withdraw_item(item_code, missing_quantity)?;
-            if let Err(e) = self.inventory.reserv_item(item_code, quantity) {
-                error!(
-                    "{}: failed reserving item from inventory for selling: {e}",
-                    self.name(),
-                );
-            }
-        }
+    fn sell_item(&self, item: &str, quantity: i32) -> Result<(), SellNpcCommandError> {
+        let npc_item = self.can_sell_item(item, quantity)?;
+        self.lock_in_inventory(item, quantity)?;
         self.move_to_closest_map_with_content_code(&npc_item.npc)?;
-        self.client.npc_sell(item_code, quantity)?;
-        self.inventory.unreserv_item(item_code, quantity);
+        self.client.npc_sell(item, quantity)?;
+        self.inventory.unreserv_item(item, quantity);
         Ok(())
     }
 
