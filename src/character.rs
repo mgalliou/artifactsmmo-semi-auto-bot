@@ -1102,7 +1102,7 @@ impl CharacterController {
             .inventory
             .simple_content()
             .into_iter()
-            .filter(|i| self.inventory.is_reserved(&i.code))
+            .filter(|i| !self.inventory.is_reserved(&i.code))
             .collect_vec();
         self.deposit_items(&items, None)
     }
