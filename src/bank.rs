@@ -9,7 +9,10 @@ use log::debug;
 use std::{
     cmp::max,
     fmt::{self, Display, Formatter},
-    sync::{Arc, RwLock},
+    sync::{
+        Arc, RwLock,
+        atomic::{AtomicI32, Ordering::Relaxed},
+    },
 };
 use thiserror::Error;
 
@@ -210,7 +213,7 @@ impl Bank {
     fn add_reservation(&self, item: &str, quantity: i32, owner: &str) {
         let res = Arc::new(Reservation {
             item: item.to_owned(),
-            quantity: RwLock::new(quantity),
+            quantity: AtomicI32::new(quantity),
             owner: owner.to_owned(),
         });
         self.reservations.write().unwrap().push(res.clone());
@@ -291,20 +294,20 @@ pub enum BankError {
 pub struct Reservation {
     owner: String,
     item: String,
-    quantity: RwLock<i32>,
+    quantity: AtomicI32,
 }
 
 impl Reservation {
-    pub fn inc_quantity(&self, i: i32) {
-        *self.quantity.write().unwrap() += i;
+    pub fn inc_quantity(&self, n: i32) {
+        self.quantity.fetch_add(n, Relaxed);
     }
 
-    pub fn dec_quantity(&self, i: i32) {
-        *self.quantity.write().unwrap() -= i;
+    pub fn dec_quantity(&self, n: i32) {
+        self.quantity.fetch_sub(n, Relaxed);
     }
 
     pub fn quantity(&self) -> i32 {
-        *self.quantity.read().unwrap()
+        self.quantity.load(Relaxed)
     }
 }
 
@@ -318,7 +321,7 @@ impl Clone for Reservation {
     fn clone(&self) -> Self {
         Self {
             item: self.item.clone(),
-            quantity: RwLock::new(self.quantity()),
+            quantity: AtomicI32::new(self.quantity()),
             owner: self.owner.clone(),
         }
     }

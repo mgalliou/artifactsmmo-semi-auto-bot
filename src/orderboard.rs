@@ -6,7 +6,10 @@ use std::{
     cmp::min,
     fmt::{self, Display, Formatter},
     mem::discriminant,
-    sync::{Arc, RwLock},
+    sync::{
+        Arc, RwLock,
+        atomic::{AtomicI32, Ordering::Relaxed},
+    },
 };
 use strum::IntoEnumIterator;
 use strum_macros::{EnumIs, EnumIter};
@@ -117,8 +120,8 @@ impl OrderBoard {
         purpose: Purpose,
     ) -> Result<(), OrderError> {
         if let Some(o) = self.get(item, owner, &purpose) {
-            *o.deposited.write().unwrap() = 0;
-            debug!("orderboard: reset: {}.", o);
+            o.reset();
+            debug!("orderboard: order reseted: {o}");
             Ok(())
         } else {
             self.add(item, quantity, owner, purpose)
@@ -146,8 +149,8 @@ impl OrderBoard {
 
     pub fn remove(&self, order: &Order) {
         let mut orders = self.orders.write().unwrap();
-        info!("orderboard: removed: {}.", order);
         orders.retain(|r| !r.is_similar(order));
+        info!("orderboard: order removed: {}", order);
     }
 
     pub fn should_be_turned_in(&self, order: &Order) -> bool {
@@ -164,12 +167,12 @@ impl OrderBoard {
 #[derive(Debug)]
 pub struct Order {
     pub item: String,
-    pub quantity: RwLock<i32>,
+    quantity: AtomicI32,
     pub owner: Option<String>,
     pub purpose: Purpose,
-    pub in_progress: RwLock<i32>,
+    in_progress: AtomicI32,
     // Number of item deposited into the bank
-    pub deposited: RwLock<i32>,
+    deposited: AtomicI32,
     pub creation: DateTime<Utc>,
 }
 
@@ -186,10 +189,10 @@ impl Order {
         Ok(Order {
             owner: owner.map(|o| o.to_owned()),
             item: item.to_owned(),
-            quantity: RwLock::new(quantity),
+            quantity: AtomicI32::new(quantity),
             purpose,
-            in_progress: RwLock::new(0),
-            deposited: RwLock::new(0),
+            in_progress: AtomicI32::new(0),
+            deposited: AtomicI32::new(0),
             creation: Utc::now(),
         })
     }
@@ -199,7 +202,7 @@ impl Order {
     }
 
     pub fn in_progress(&self) -> i32 {
-        *self.in_progress.read().unwrap()
+        self.in_progress.load(Relaxed)
     }
 
     pub fn turned_in(&self) -> bool {
@@ -207,11 +210,11 @@ impl Order {
     }
 
     pub fn deposited(&self) -> i32 {
-        *self.deposited.read().unwrap()
+        self.deposited.load(Relaxed)
     }
 
     pub fn quantity(&self) -> i32 {
-        *self.quantity.read().unwrap()
+        self.quantity.load(Relaxed)
     }
 
     pub fn missing(&self) -> i32 {
@@ -219,15 +222,19 @@ impl Order {
     }
 
     pub fn inc_deposited(&self, n: i32) {
-        *self.deposited.write().unwrap() += n;
+        self.deposited.fetch_add(n, Relaxed);
     }
 
     pub fn inc_in_progress(&self, n: i32) {
-        *self.in_progress.write().unwrap() += n;
+        self.in_progress.fetch_add(n, Relaxed);
     }
 
     pub fn dec_in_progress(&self, n: i32) {
-        *self.in_progress.write().unwrap() -= n;
+        self.in_progress.fetch_add(n, Relaxed);
+    }
+
+    pub fn reset(&self) {
+        self.deposited.store(0, Relaxed);
     }
 }
 

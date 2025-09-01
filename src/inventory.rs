@@ -9,7 +9,10 @@ use itertools::Itertools;
 use log::debug;
 use std::{
     fmt::{Display, Formatter},
-    sync::{Arc, RwLock},
+    sync::{
+        Arc, RwLock,
+        atomic::{AtomicI32, Ordering::Relaxed},
+    },
 };
 use thiserror::Error;
 
@@ -152,7 +155,7 @@ impl Inventory {
         let Some(res) = self.get_reservation(item) else {
             return;
         };
-        if quantity >= *res.quantity.read().unwrap() {
+        if quantity >= res.quantity() {
             self.remove_reservation(&res);
         } else {
             res.dec_quantity(quantity);
@@ -166,7 +169,7 @@ impl Inventory {
     fn add_reservation(&self, item: &str, quantity: i32) {
         let res = Arc::new(InventoryReservation {
             item: item.to_owned(),
-            quantity: RwLock::new(quantity),
+            quantity: AtomicI32::new(quantity),
         });
         self.reservations.write().unwrap().push(res.clone());
         debug!("{}: added inventory reservation: res", self.client.name(),);
@@ -214,13 +217,12 @@ impl Inventory {
             .find(|r| r.item == item)
             .cloned()
     }
-
 }
 
 #[derive(Debug)]
 pub struct InventoryReservation {
     item: String,
-    quantity: RwLock<i32>,
+    quantity: AtomicI32,
 }
 
 #[derive(Debug, Error)]
@@ -230,22 +232,22 @@ pub enum InventoryReservationError {
 }
 
 impl InventoryReservation {
-    pub fn inc_quantity(&self, i: i32) {
-        *self.quantity.write().unwrap() += i;
+    pub fn inc_quantity(&self, n: i32) {
+        self.quantity.fetch_add(n, Relaxed);
     }
 
-    pub fn dec_quantity(&self, i: i32) {
-        *self.quantity.write().unwrap() -= i;
+    pub fn dec_quantity(&self, n: i32) {
+        self.quantity.fetch_sub(n, Relaxed);
     }
 
     pub fn quantity(&self) -> i32 {
-        *self.quantity.read().unwrap()
+        self.quantity.load(Relaxed)
     }
 }
 
 impl Display for InventoryReservation {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "'{}'x{}", self.item, self.quantity.read().unwrap(),)
+        write!(f, "'{}'x{}", self.item, self.quantity())
     }
 }
 
