@@ -29,6 +29,8 @@ pub enum KillMonsterCommandError {
     DepositItemCommandError(#[from] DepositItemCommandError),
     #[error("Failed to move: {0}")]
     MoveCommandError(#[from] MoveCommandError),
+    #[error("Failed to rest: {0}")]
+    RestError(#[from] RestError),
     #[error("Failed to request fight: {0}")]
     ClientError(#[from] FightError),
 }

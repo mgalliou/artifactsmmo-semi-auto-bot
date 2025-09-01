@@ -631,14 +631,14 @@ impl CharacterController {
             self.deposit_all_but_reserved()?;
         };
         self.check_for_combat_gear(monster)?;
-        self.withdraw_food();
+        if let Err(e) = self.withdraw_food() {
+            error!("{}: failed to withdraw food: {e}", self.name())
+        }
         if !self.can_kill_now(monster) || self.health() < 10 {
             self.eat_food_from_inventory();
         }
-        if (!self.can_kill_now(monster) || self.health() < 10)
-            && let Err(e) = self.rest()
-        {
-            error!("{}: failed to rest: {e}", self.name())
+        if !self.can_kill_now(monster) || self.health() < 10 {
+            self.rest()?;
         }
         self.move_to_closest_map_with_content_code(&monster.code)?;
         Ok(self.client.fight()?)
@@ -1084,14 +1084,14 @@ impl CharacterController {
         Ok(deposit?)
     }
 
-    fn withdraw_food(&self) {
-        let Ok(_browsed) = self.bank.browsed.write() else {
-            return;
-        };
+    fn withdraw_food(&self) -> Result<(), WithdrawItemCommandError> {
         if !self.inventory.consumable_food().is_empty()
-            && !self.client.current_map().content_code_is("bank")
+            && self
+                .client
+                .current_map()
+                .content_type_is(MapContentType::Monster)
         {
-            return;
+            return Ok(());
         }
         let Some(food) = self
             .bank
@@ -1100,27 +1100,14 @@ impl CharacterController {
             .filter(|f| self.bank.has_available(&f.code, Some(&self.name())) > 0)
             .max_by_key(|f| f.heal())
         else {
-            return;
+            return Ok(());
         };
         // TODO: defined quantity withdrowned depending on the monster drop rate and damages
         let quantity = min(
             self.inventory.max_items() - 30,
             self.bank.has_available(&food.code, Some(&self.name())),
         );
-        if let Err(e) = self.bank.reserv_item(&food.code, quantity, &self.name()) {
-            error!("{}: failed reserving food: {e}", self.name())
-        };
-        drop(_browsed);
-        // TODO: only deposit what is necessary, food already in inventory should be kept
-        if let Err(e) = self.deposit_all() {
-            error!(
-                "{}: failed depositing before withdrawing food: {e}",
-                self.name(),
-            )
-        }
-        if let Err(e) = self.withdraw_item(&food.code, quantity) {
-            error!("{}: failed withdrawing food: {e}", self.name())
-        }
+        self.lock_in_inventory(&food.code, quantity)
     }
 
     pub fn withdraw_item(&self, item: &str, quantity: i32) -> Result<(), WithdrawItemCommandError> {
