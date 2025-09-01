@@ -401,17 +401,21 @@ impl CharacterController {
 
     fn progress_crafting_order(&self, order: &Order) -> Result<i32, CraftOrderProgressionError> {
         let total_missing = self.order_board.total_missing_for(order);
-        match self.can_craft_now(&order.item, total_missing) {
+        let quantity = min(total_missing, self.max_craftable_items(&order.item));
+        match self.can_craft_now(&order.item, quantity) {
             Ok(_) => {
-                let quantity = min(total_missing, self.max_craftable_items(&order.item));
                 order.inc_in_progress(quantity);
                 let result = self.craft_from_bank(&order.item, quantity);
                 order.dec_in_progress(quantity);
                 Ok(result.map(|craft| craft.amount_of(&order.item))?)
             }
-            Err(CraftCommandError::InsufficientMaterials(missing_mats)) => Ok(self
+            Err(CraftCommandError::InsufficientMaterials(_missing_mats)) => Ok(self
                 .order_board
-                .add_multiple(missing_mats, None, &order.purpose)
+                .add_multiple(
+                    self.missing_mats_for(&order.item, total_missing),
+                    None,
+                    &order.purpose,
+                )
                 .map(|_| 0)?),
             Err(e) => Err(e.into()),
         }
