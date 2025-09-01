@@ -501,9 +501,8 @@ impl CharacterController {
             Ok(r) => Ok(r.drops),
             Err(KillMonsterCommandError::GearTooWeak { monster_code }) => {
                 warn!(
-                    "{}: No gear powerfull enough to kill {}",
+                    "{}: no gear powerfull enough to kill {monster_code}",
                     self.name(),
-                    monster_code
                 );
                 self.cancel_task()?;
                 Ok(vec![])
@@ -522,18 +521,9 @@ impl CharacterController {
             )
         }
         if let Err(e) = self.deposit_all() {
-            error!(
-                "{}: failed depositing all before task trading: {e}",
-                self.name(),
-            )
+            error!("{}: failed depositing before task trade: {e}", self.name(),)
         }
-        if let Err(e) = self.withdraw_item(&self.task(), q) {
-            error!(
-                "{}: failed withdrawing item for task trading: {e}",
-                self.name(),
-            );
-            self.bank.unreserv_item(&self.task(), q, &self.name());
-        };
+        self.withdraw_item(&self.task(), q)?;
         self.move_to_closest_taskmaster(self.task_type())?;
         let res = self.client.task_trade(&self.task(), q);
         self.inventory.unreserv_item(&self.task(), q);

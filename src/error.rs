@@ -98,7 +98,7 @@ pub enum RecycleCommandError {
 pub enum DeleteCommandError {
     #[error("Insufficient item quantity available")]
     InsufficientQuantity,
-    #[error("Failed to withdraw item: {0}")]
+    #[error("Failed to withdraw items: {0}")]
     WithdrawItemCommandError(#[from] WithdrawItemCommandError),
     #[error("Failed to request item deletion: {0}")]
     ClientError(#[from] DeleteError),
@@ -114,6 +114,8 @@ pub enum TaskTradeCommandError {
     TaskAlreadyCompleted,
     #[error("Missing item(s): '{item}'x{quantity}")]
     MissingItems { item: String, quantity: i32 },
+    #[error("Failed to withdraw items: {0}")]
+    WithdrawItemCommandError(#[from] WithdrawItemCommandError),
     #[error("Failed to move to tasks master: {0}")]
     MoveCommandError(#[from] MoveCommandError),
     #[error("Failed to request task trade: {0}")]
