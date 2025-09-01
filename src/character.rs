@@ -311,24 +311,17 @@ impl CharacterController {
             Ok(progress) => {
                 if progress > 0 {
                     info!(
-                        "{}: progressed by {} on order: {}, in inventories: {}",
+                        "{}: progressed by {progress} on order: {order} (in inventories: {})",
                         self.name(),
-                        progress,
-                        order,
                         self.account.available_in_inventories(&order.item),
                     );
                 }
                 self.turn_in_order(order);
                 Ok(progress)
             }
-            Err(err) => {
-                debug!(
-                    "{}: no progress done on order {}: {}",
-                    self.name(),
-                    order,
-                    err
-                );
-                Err(err)
+            Err(e) => {
+                debug!("{}: no progress done on order ({order}): {e}", self.name(),);
+                Err(e)
             }
         }
     }
@@ -345,7 +338,6 @@ impl CharacterController {
                 ItemSource::TaskReward => order.in_progress() <= 0,
                 ItemSource::Task => true,
                 ItemSource::Npc(_) => true,
-                //ItemSource::Gift => true,
             })
     }
 
@@ -484,34 +476,6 @@ impl CharacterController {
             Err(e) => Err(e.into()),
         }
     }
-
-    //fn progress_gift_order(&self, order: &Order) -> Option<i32> {
-    //    match self.can_exchange_gift() {
-    //        Ok(()) => {
-    //            order.inc_in_progress(1);
-    //            let exchanged = self.exchange_gift().map(|r| r.amount_of(&order.item)).ok();
-    //            order.dec_in_progress(1);
-    //            exchanged
-    //        }
-    //        Err(e) => {
-    //            if self.order_board.total_missing_for(order) <= 0 {
-    //                return None;
-    //            }
-    //            if let CharacterError::NotEnoughGift = e {
-    //                let q = 1 - if self.order_board.is_ordered(GIFT) {
-    //                    0
-    //                } else {
-    //                    self.has_in_bank_or_inv(GIFT)
-    //                };
-    //                return self.order_board
-    //                    .add(None, GIFT, q, order.purpose.to_owned())
-    //                    .ok()
-    //                    .map(|_| 0);
-    //            }
-    //            None
-    //        }
-    //    }
-    //}
 
     fn progress_task(&self) -> Result<Vec<DropSchema>, TaskProgressionError> {
         if self.task().is_empty() {
@@ -901,7 +865,7 @@ impl CharacterController {
             .map(|_| Simulator::random_fight(self.level(), 0, gear, monster, false).result)
             .filter(|r| *r == FightResult::Win)
             .count()
-            >= 95
+            >= 99
     }
 
     fn can_kill_now(&self, monster: &MonsterSchema) -> bool {
@@ -918,7 +882,7 @@ impl CharacterController {
             })
             .filter(|r| *r == FightResult::Win)
             .count()
-            >= 95
+            >= 99
     }
 
     /// Crafts the given `quantity` of the given item `code` if the required
@@ -1845,7 +1809,7 @@ impl CharacterController {
 
     /// Calculates the maximum number of items that can be crafted in one go based on available
     /// inventory max items and bank materials.
-    fn max_craftable_items_from_bank(&self, item: &str) -> i32 {
+    pub fn max_craftable_items_from_bank(&self, item: &str) -> i32 {
         min(
             self.bank.has_mats_for(item, Some(&self.name())),
             self.inventory.max_items() / self.items.mats_quantity_for(item),
@@ -1904,11 +1868,32 @@ impl CharacterController {
         self.config.characters.get(self.client.id).unwrap()
     }
 
-    //fn can_exchange_gift(&self) -> Result<(), CharacterError> {
-    //    if self.inventory.total_of(GIFT) + self.bank.has_available(GIFT, Some(&self.inner.name())) < 1 {
-    //        return Err(CharacterError::NotEnoughGift);
+    //fn progress_gift_order(&self, order: &Order) -> Option<i32> {
+    //    match self.can_exchange_gift() {
+    //        Ok(()) => {
+    //            order.inc_in_progress(1);
+    //            let exchanged = self.exchange_gift().map(|r| r.amount_of(&order.item)).ok();
+    //            order.dec_in_progress(1);
+    //            exchanged
+    //        }
+    //        Err(e) => {
+    //            if self.order_board.total_missing_for(order) <= 0 {
+    //                return None;
+    //            }
+    //            if let CharacterError::NotEnoughGift = e {
+    //                let q = 1 - if self.order_board.is_ordered(GIFT) {
+    //                    0
+    //                } else {
+    //                    self.has_in_bank_or_inv(GIFT)
+    //                };
+    //                return self.order_board
+    //                    .add(None, GIFT, q, order.purpose.to_owned())
+    //                    .ok()
+    //                    .map(|_| 0);
+    //            }
+    //            None
+    //        }
     //    }
-    //    Ok(())
     //}
 
     //fn exchange_gift(&self) -> Result<RewardsSchema, CharacterError> {
@@ -1943,6 +1928,14 @@ impl CharacterController {
     //    self.inventory.decrease_reservation(GIFT, 1);
     //    result
     //}
+
+    //fn can_exchange_gift(&self) -> Result<(), CharacterError> {
+    //    if self.inventory.total_of(GIFT) + self.bank.has_available(GIFT, Some(&self.inner.name())) < 1 {
+    //        return Err(CharacterError::NotEnoughGift);
+    //    }
+    //    Ok(())
+    //}
+
 }
 
 impl HasCharacterData for CharacterController {
