@@ -140,8 +140,9 @@ impl CharacterController {
                 }
                 Err(_) => (),
             }
-            for s in self.conf().read().unwrap().skills.iter() {
-                if self.level_skill_up(*s).is_ok() {
+            let skills = self.conf().read().unwrap().skills.clone();
+            for s in skills {
+                if self.level_skill_up(s).is_ok() {
                     continue;
                 }
             }
@@ -149,11 +150,9 @@ impl CharacterController {
     }
 
     fn handle_goals(&self) -> bool {
-        let first_level_goal_not_reached = self
-            .conf()
-            .read()
-            .unwrap()
-            .goals
+        let goals = self.conf().read().unwrap().goals.clone();
+
+        let first_level_goal_not_reached = goals
             .iter()
             .find(|g| {
                 if let Goal::ReachSkillLevel { skill, level } = g {
@@ -164,10 +163,7 @@ impl CharacterController {
             })
             .cloned();
         // TODO: improve the way ReachSkillLevel is handled
-        self.conf()
-            .read()
-            .unwrap()
-            .goals
+        goals
             .iter()
             .filter(|g| {
                 g.is_reach_skill_level()

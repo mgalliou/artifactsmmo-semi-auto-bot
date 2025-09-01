@@ -6,7 +6,7 @@ use artifactsmmo_sdk::{
 };
 use clap::{Parser, Subcommand, value_parser};
 use rustyline::{DefaultEditor, error::ReadlineError};
-use std::{process::exit, str::FromStr, sync::Arc};
+use std::{process::exit, sync::Arc};
 
 use crate::{bot::Bot, character::CharacterController, gear_finder::Filter, orderboard::Purpose};
 
@@ -269,21 +269,13 @@ fn respond(
                 let Some(char) = character else {
                     bail!("no character selected");
                 };
-                char.conf()
-                    .write()
-                    .unwrap()
-                    .skills
-                    .insert(Skill::from_str(&skill).unwrap());
+                char.conf().write().unwrap().skills.insert(skill);
             }
             SkillAction::Remove { skill } => {
                 let Some(char) = character else {
                     bail!("no character selected");
                 };
-                char.conf()
-                    .write()
-                    .unwrap()
-                    .skills
-                    .remove(&Skill::from_str(&skill).unwrap());
+                char.conf().write().unwrap().skills.remove(&skill);
             }
             SkillAction::List => {
                 let Some(char) = character else {
@@ -483,11 +475,11 @@ enum EventsAction {
 #[command(alias = "s")]
 enum SkillAction {
     Add {
-        skill: String,
+        skill: Skill,
     },
     #[command(alias = "rm")]
     Remove {
-        skill: String,
+        skill: Skill,
     },
     #[command(alias = "l")]
     List,
