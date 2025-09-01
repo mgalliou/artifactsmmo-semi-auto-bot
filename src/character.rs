@@ -53,7 +53,7 @@ use strum::IntoEnumIterator;
 #[derive(Default)]
 pub struct CharacterController {
     config: Arc<BotConfig>,
-    pub client: Arc<CharacterClient>,
+    client: Arc<CharacterClient>,
     pub inventory: Arc<Inventory>,
     maps: Arc<Maps>,
     account: Arc<AccountController>,

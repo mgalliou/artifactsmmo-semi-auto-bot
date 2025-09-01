@@ -727,7 +727,7 @@ mod tests {
             level: 30,
             ..Default::default()
         };
-        char.client.update_data(data);
+        char.update_data(data);
 
         let weapons = gear_finder.best_weapons_against(
             &char,
