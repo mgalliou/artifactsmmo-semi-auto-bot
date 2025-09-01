@@ -230,7 +230,7 @@ impl Order {
     }
 
     pub fn dec_in_progress(&self, n: i32) {
-        self.in_progress.fetch_add(n, Relaxed);
+        self.in_progress.fetch_sub(n, Relaxed);
     }
 
     pub fn reset(&self) {
