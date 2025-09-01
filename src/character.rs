@@ -838,7 +838,24 @@ impl CharacterController {
             quantity
         );
         let mats = self.items.mats_for(&item.code, quantity);
-        if let Err(e) = self.bank.reserv_items(&mats, &self.name()) {
+        let missing_from_inventory = mats
+            .iter()
+            .filter_map(|m| {
+                let missing = m.quantity - self.inventory.has_available(&m.code);
+                if missing > 0 {
+                    Some(SimpleItemSchema {
+                        code: m.code.clone(),
+                        quantity: missing,
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect_vec();
+        if let Err(e) = self
+            .bank
+            .reserv_items(&missing_from_inventory, &self.name())
+        {
             error!(
                 "{}: failed reserving mats to craft from bank: {e}",
                 self.name(),
