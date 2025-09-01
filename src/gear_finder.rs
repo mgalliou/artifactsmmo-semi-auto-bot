@@ -1,6 +1,11 @@
 use crate::{account::AccountController, character::CharacterController};
 use artifactsmmo_sdk::{
-    char::{HasCharacterData, Skill}, gear::Gear, items::{ItemSchemaExt, Type}, models::{FightResult, ItemSchema, MonsterSchema}, simulator::HasEffects, Items, Simulator
+    Items, Simulator,
+    char::{HasCharacterData, Skill},
+    gear::Gear,
+    items::{ItemSchemaExt, Type},
+    models::{ItemSchema, MonsterSchema},
+    simulator::HasEffects,
 };
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
@@ -25,8 +30,13 @@ impl GearFinder {
     ) -> Gear {
         self.bests_against(char, monster, filter)
             .into_iter()
-            .map(|g| (Simulator::average_fight(char.level(), 0, &g, monster, false), g))
-            .filter(|(f, _g)| f.result == FightResult::Win)
+            .map(|g| {
+                (
+                    Simulator::average_fight(char.level(), 0, &g, monster, false),
+                    g,
+                )
+            })
+            .filter(|(f, _g)| f.is_winning())
             .min_set_by_key(|(f, _g)| f.cd + Simulator::time_to_rest(f.hp_lost))
             .into_iter()
             .max_by_key(|(f, _g)| f.hp)
@@ -42,7 +52,12 @@ impl GearFinder {
     ) -> Gear {
         self.bests_against(char, monster, filter)
             .into_iter()
-            .map(|g| (Simulator::average_fight(char.level(), 0, &g, monster, true), g))
+            .map(|g| {
+                (
+                    Simulator::average_fight(char.level(), 0, &g, monster, true),
+                    g,
+                )
+            })
             .min_set_by_key(|(f, _g)| f.cd + Simulator::time_to_rest(f.hp_lost))
             .into_iter()
             .max_by_key(|(f, _g)| f.hp)

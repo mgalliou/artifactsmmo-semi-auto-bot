@@ -8,10 +8,10 @@ use crate::{
         BuyNpcOrderProgressionError, CombatLevelingError, CraftCommandError,
         CraftOrderProgressionError, CraftSkillLevelingError, DeleteCommandError,
         DepositItemCommandError, EquipCommandError, GatherCommandError, GoldDepositCommandError,
-        GoldWithdrawCommandError, KillMonsterCommandError, MoveCommandError, OrderDepositError,
-        OrderProgressionError, RecycleCommandError, SellNpcCommandError, SkillLevelingError,
-        TaskAcceptationCommandError, TaskCancellationCommandError, TaskCompletionCommandError,
-        TaskProgressionError, TaskTradeCommandError, TasksCoinExchangeCommandError,
+        GoldWithdrawCommandError, KillMonsterCommandError, MoveCommandError, OrderProgressionError,
+        RecycleCommandError, SellNpcCommandError, SkillLevelingError, TaskAcceptationCommandError,
+        TaskCancellationCommandError, TaskCompletionCommandError, TaskProgressionError,
+        TaskTradeCommandError, TasksCoinExchangeCommandError,
         TasksCoinExchangeOrderProgressionError, UnequipCommandError, UseItemCommandError,
         WithdrawItemCommandError,
     },
@@ -32,8 +32,8 @@ use artifactsmmo_sdk::{
     items::{ItemSchemaExt, ItemSource},
     maps::MapSchemaExt,
     models::{
-        CharacterSchema, DropSchema, FightResult, FightSchema, ItemSchema, MapContentType,
-        MapSchema, MonsterSchema, NpcItem, RecyclingItemsSchema, ResourceSchema, RewardsSchema,
+        CharacterSchema, DropSchema, FightSchema, ItemSchema, MapContentType, MapSchema,
+        MonsterSchema, NpcItem, RecyclingItemsSchema, ResourceSchema, RewardsSchema,
         SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
     },
     monsters::MonsterSchemaExt,
@@ -862,15 +862,14 @@ impl CharacterController {
     /// `gear`
     fn can_kill_with(&self, monster: &MonsterSchema, gear: &Gear) -> bool {
         (1..=100)
-            .map(|_| Simulator::random_fight(self.level(), 0, gear, monster, false).result)
-            .filter(|r| *r == FightResult::Win)
+            .filter(|_| Simulator::random_fight(self.level(), 0, gear, monster, false).is_winning())
             .count()
             >= 99
     }
 
     fn can_kill_now(&self, monster: &MonsterSchema) -> bool {
         (1..=100)
-            .map(|_| {
+            .filter(|_| {
                 Simulator::random_fight(
                     self.level(),
                     self.missing_hp(),
@@ -878,9 +877,8 @@ impl CharacterController {
                     monster,
                     false,
                 )
-                .result
+                .is_winning()
             })
-            .filter(|r| *r == FightResult::Win)
             .count()
             >= 99
     }
@@ -1935,7 +1933,6 @@ impl CharacterController {
     //    }
     //    Ok(())
     //}
-
 }
 
 impl HasCharacterData for CharacterController {
