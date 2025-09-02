@@ -36,9 +36,7 @@ use artifactsmmo_sdk::{
         MonsterSchema, NpcItem, RecyclingItemsSchema, ResourceSchema, RewardsSchema,
         SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
     },
-    monsters::MonsterSchemaExt,
     npcs::Npcs,
-    resources::ResourceSchemaExt,
     simulator::HasEffects,
 };
 use itertools::Itertools;
@@ -622,7 +620,7 @@ impl CharacterController {
         {
             error!("{}: failed accepting new task: {e}", self.name())
         }
-        if self.inventory.free_space() < monster.max_drop_quantity()
+        if self.inventory.has_space_for_drops_from(monster)
             || self
                 .current_map()
                 .monster()
@@ -699,7 +697,7 @@ impl CharacterController {
         resource: &ResourceSchema,
     ) -> Result<SkillDataSchema, GatherCommandError> {
         self.can_gather_now(resource)?;
-        if self.inventory.free_space() < resource.max_drop_quantity()
+        if self.inventory.has_space_for_drops_from(resource)
             || self
                 .current_map()
                 .resource()

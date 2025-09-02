@@ -1,8 +1,5 @@
 use artifactsmmo_sdk::{
-    Items,
-    char::{Character as CharacterClient, HasCharacterData},
-    items::ItemSchemaExt,
-    models::{InventorySlot, ItemSchema, SimpleItemSchema},
+    char::{Character as CharacterClient, HasCharacterData}, items::ItemSchemaExt, models::{InventorySlot, ItemSchema, SimpleItemSchema}, HasDropTable, Items
 };
 use core::fmt;
 use itertools::Itertools;
@@ -69,6 +66,10 @@ impl Inventory {
     /// Returns the free spaces in the `Character` inventory.
     pub fn free_slot(&self) -> usize {
         self.client.inventory.free_slots()
+    }
+
+    pub fn has_space_for_drops_from<H: HasDropTable>(&self, entity: &H) -> bool {
+        self.client.inventory.has_space_for_drops_from(entity)
     }
 
     pub fn has_space_for_multiple(&self, items: &[SimpleItemSchema]) -> bool {
