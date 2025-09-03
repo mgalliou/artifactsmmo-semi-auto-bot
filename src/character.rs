@@ -42,17 +42,13 @@ use artifactsmmo_sdk::{
 };
 use itertools::Itertools;
 use log::{debug, error, info, warn};
-use std::{
-    cmp::min,
-    option::Option,
-    sync::{Arc, RwLock},
-};
+use std::{cmp::min, option::Option, sync::Arc};
 use strum::IntoEnumIterator;
 
 #[derive(Default)]
 pub struct CharacterController {
     client: Arc<CharacterClient>,
-    config: Arc<BotConfig>,
+    bot_config: Arc<BotConfig>,
     pub inventory: Arc<Inventory>,
     bank: Arc<BankController>,
     account: Arc<AccountController>,
@@ -69,7 +65,7 @@ pub struct CharacterController {
 impl CharacterController {
     pub fn new(
         char_client: Arc<CharacterClient>,
-        config: Arc<BotConfig>,
+        bot_cfg: Arc<BotConfig>,
         client: &Arc<Client>,
         account: Arc<AccountController>,
         order_board: Arc<OrderBoard>,
@@ -78,7 +74,7 @@ impl CharacterController {
     ) -> Self {
         Self {
             client: char_client.clone(),
-            config,
+            bot_config: bot_cfg,
             inventory: Arc::new(Inventory::new(char_client, client.items.clone())),
             bank: account.bank.clone(),
             account,
@@ -96,7 +92,7 @@ impl CharacterController {
     pub fn run_loop(&self) {
         info!("{}: started !", self.name());
         loop {
-            if self.conf().read().unwrap().idle {
+            if self.config().is_idle() {
                 continue;
             }
             if self.inventory.is_full() {
@@ -136,7 +132,7 @@ impl CharacterController {
                 }
                 Err(_) => (),
             }
-            let skills = self.conf().read().unwrap().skills.clone();
+            let skills = self.config().skills();
             for s in skills {
                 if self.level_skill_up(s).is_ok() {
                     continue;
@@ -146,7 +142,7 @@ impl CharacterController {
     }
 
     fn handle_goals(&self) -> bool {
-        let goals = self.conf().read().unwrap().goals.clone();
+        let goals = self.config().goals.clone();
 
         let first_level_goal_not_reached = goals
             .iter()
@@ -475,7 +471,7 @@ impl CharacterController {
 
     fn progress_task(&self) -> Result<Vec<DropSchema>, TaskProgressionError> {
         if self.task().is_empty() {
-            let r#type = self.conf().read().unwrap().task_type;
+            let r#type = self.config().task_type;
             return Ok(self.accept_task(r#type).map(|_| vec![])?);
         }
         if self.task_finished() {
@@ -661,7 +657,7 @@ impl CharacterController {
             Err(e) => return Err(e),
         }
         drop(_browsed);
-        if self.config.order_gear {
+        if self.bot_config.order_gear() {
             self.order_best_gear_against(monster);
         }
         self.equip_gear(&mut available);
@@ -673,9 +669,10 @@ impl CharacterController {
             self,
             monster,
             Filter {
-                can_craft: true,
+                craftable: true,
                 from_task: false,
                 from_monster: false,
+                from_npc: true,
                 ..Default::default()
             },
         );
@@ -747,7 +744,7 @@ impl CharacterController {
         );
         self.reserv_gear(&mut available);
         drop(_browsed);
-        if self.config.order_gear {
+        if self.bot_config.order_gear() {
             self.order_best_gear_for_skill(skill);
         }
         self.equip_gear(&mut available);
@@ -758,9 +755,10 @@ impl CharacterController {
             self,
             skill,
             Filter {
-                can_craft: true,
+                craftable: true,
                 from_task: false,
                 from_monster: false,
+                from_npc: true,
                 ..Default::default()
             },
         );
@@ -1750,20 +1748,19 @@ impl CharacterController {
     }
 
     pub fn skill_enabled(&self, s: Skill) -> bool {
-        self.conf().read().unwrap().skills.contains(&s)
+        self.config().skill_is_enabled(s)
     }
 
     pub fn toggle_idle(&self) {
-        let mut conf = self.conf().write().unwrap();
-        conf.idle ^= true;
-        info!("{} toggled idle: {}.", self.name(), conf.idle);
-        if !conf.idle {
+        self.config().toggle_idle();
+        info!("{} toggled idle: {}.", self.name(), self.config().is_idle());
+        if !self.config().is_idle() {
             self.client.refresh_data()
         }
     }
 
-    pub fn conf(&self) -> &RwLock<CharConfig> {
-        self.config.characters.get(self.client.id).unwrap()
+    pub fn config(&self) -> Arc<CharConfig> {
+        self.bot_config.get_char_config(self.client.id).unwrap()
     }
 
     //fn progress_gift_order(&self, order: &Order) -> Option<i32> {

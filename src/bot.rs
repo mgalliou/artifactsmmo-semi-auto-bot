@@ -1,6 +1,10 @@
 use crate::{
-    account::AccountController, bank::BankController, bot_config::BotConfig,
-    gear_finder::GearFinder, leveling_helper::LevelingHelper, orderboard::OrderBoard,
+    account::AccountController,
+    bank::BankController,
+    bot_config::BotConfig,
+    gear_finder::GearFinder,
+    leveling_helper::LevelingHelper,
+    orderboard::OrderBoard,
 };
 use artifactsmmo_sdk::Client;
 use log::error;

@@ -4,45 +4,103 @@ use figment::{
     providers::{Format, Toml},
 };
 use serde::Deserialize;
-use std::{collections::HashSet, fmt::Display, sync::RwLock};
+use std::{
+    collections::HashSet,
+    fmt::Display,
+    sync::{
+        Arc, RwLock,
+        atomic::{AtomicBool, Ordering},
+    },
+};
 use strum_macros::{AsRefStr, EnumIs, EnumIter, EnumString};
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default)]
 pub struct BotConfig {
-    pub base_url: String,
-    pub token: String,
-    pub characters: Vec<RwLock<CharConfig>>,
-    #[serde(default)]
-    pub order_gear: bool
+    inner: RwLock<Arc<BaseBotConfig>>,
 }
 
 impl BotConfig {
+    pub fn from_file() -> Self {
+        Self {
+            inner: RwLock::new(Arc::new(BaseBotConfig::from_file())),
+        }
+    }
+
+    pub fn reload(&self) {
+        *self.inner.write().unwrap() = Arc::new(BaseBotConfig::from_file())
+    }
+
+    pub fn order_gear(&self) -> bool {
+        self.inner().order_gear
+    }
+
+    pub fn get_char_config(&self, i: usize) -> Option<Arc<CharConfig>> {
+        self.inner().get_char_config(i)
+    }
+
+    fn inner(&self) -> Arc<BaseBotConfig> {
+        self.inner.read().unwrap().clone()
+    }
+}
+
+#[derive(Debug, Default, Deserialize)]
+pub struct BaseBotConfig {
+    pub base_url: String,
+    pub token: String,
+    pub characters: RwLock<Vec<Arc<CharConfig>>>,
+    #[serde(default)]
+    pub order_gear: bool,
+}
+
+impl BaseBotConfig {
     pub fn from_file() -> Self {
         Figment::new()
             .merge(Toml::file_exact("ArtifactsMMO.toml"))
             .extract()
             .unwrap()
     }
+
+    pub fn get_char_config(&self, i: usize) -> Option<Arc<CharConfig>> {
+        self.characters.read().unwrap().get(i).cloned()
+    }
 }
 
-#[derive(Debug, Default, Clone, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 pub struct CharConfig {
     #[serde(default)]
-    pub idle: bool,
-    pub skills: HashSet<Skill>,
+    idle: AtomicBool,
     #[serde(default)]
     pub task_type: TaskType,
+    #[serde(default)]
+    skills: RwLock<HashSet<Skill>>,
+    #[serde(default)]
     pub goals: Vec<Goal>,
-    #[serde(default)]
-    pub target_monster: Option<String>,
-    #[serde(default)]
-    pub target_craft: Option<String>,
-    #[serde(default)]
-    pub target_item: Option<String>,
-    #[serde(default)]
-    pub do_events: bool,
-    #[serde(default)]
-    pub do_tasks: bool,
+}
+
+impl CharConfig {
+    pub fn toggle_idle(&self) {
+        self.idle.fetch_not(Ordering::Relaxed);
+    }
+
+    pub fn is_idle(&self) -> bool {
+        self.idle.load(Ordering::Relaxed)
+    }
+
+    pub fn skill_is_enabled(&self, skill: Skill) -> bool {
+        self.skills.write().unwrap().contains(&skill)
+    }
+
+    pub fn disable_skill(&self, skill: Skill) {
+        self.skills.write().unwrap().insert(skill);
+    }
+
+    pub fn enable_skill(&self, skill: Skill) {
+        self.skills.write().unwrap().remove(&skill);
+    }
+
+    pub fn skills(&self) -> HashSet<Skill> {
+        (*self.skills.read().unwrap()).clone()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Deserialize, AsRefStr, EnumIter, EnumString, EnumIs)]

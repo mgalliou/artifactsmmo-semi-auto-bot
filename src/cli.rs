@@ -174,11 +174,11 @@ fn respond(
             char.delete_item(&item, quantity)?;
         }
         Commands::Gear {
-            can_craft,
+            available,
+            craftable,
             from_task,
             from_monster,
-            //from_gift,
-            available,
+            from_npc,
             utilities,
             winning,
             monster,
@@ -191,10 +191,10 @@ fn respond(
             };
             let filter = Filter {
                 available,
-                can_craft,
+                craftable,
                 from_task,
                 from_monster,
-                //from_gift,
+                from_npc,
                 utilities,
             };
             println!(
@@ -208,9 +208,9 @@ fn respond(
         }
         Commands::Simulate {
             available,
-            can_craft,
+            craftable,
             from_task,
-            //from_gift,
+            from_npc,
             from_monster,
             utilities,
             winning,
@@ -224,10 +224,10 @@ fn respond(
             };
             let filter = Filter {
                 available,
-                can_craft,
+                craftable,
                 from_task,
                 from_monster,
-                //from_gift,
+                from_npc,
                 utilities,
             };
             let gear = if winning {
@@ -238,10 +238,10 @@ fn respond(
                     &monster,
                     Filter {
                         available,
-                        can_craft,
+                        craftable,
                         from_task,
                         from_monster,
-                        //from_gift,
+                        from_npc,
                         utilities,
                     },
                 )
@@ -269,19 +269,19 @@ fn respond(
                 let Some(char) = character else {
                     bail!("no character selected");
                 };
-                char.conf().write().unwrap().skills.insert(skill);
+                char.config().enable_skill(skill);
             }
             SkillAction::Remove { skill } => {
                 let Some(char) = character else {
                     bail!("no character selected");
                 };
-                char.conf().write().unwrap().skills.remove(&skill);
+                char.config().disable_skill(skill);
             }
             SkillAction::List => {
                 let Some(char) = character else {
                     bail!("no character selected");
                 };
-                char.conf().read().unwrap().skills.iter().for_each(|s| {
+                char.config().skills().iter().for_each(|s| {
                     println!(
                         "{}({}): {}/{} ({}%)",
                         s,
@@ -313,6 +313,9 @@ fn respond(
                 char.task_total()
             );
         }
+        Commands::Config { action } => match action {
+            ConfigAction::Reload => bot.config.reload(),
+        },
     }
     Ok(())
 }
@@ -331,6 +334,10 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    Config {
+        #[command(subcommand)]
+        action: ConfigAction,
+    },
     Orderboard {
         #[command(subcommand)]
         action: OrderboardAction,
@@ -378,11 +385,11 @@ enum Commands {
         #[arg(short = 'a', long)]
         available: bool,
         #[arg(short = 'c', long)]
-        can_craft: bool,
+        craftable: bool,
         #[arg(short = 't', long)]
         from_task: bool,
-        //#[arg(short = 'g', long)]
-        //from_gift: bool,
+        #[arg(short = 'n', long)]
+        from_npc: bool,
         #[arg(short = 'm', long)]
         from_monster: bool,
         #[arg(short = 'u', long)]
@@ -396,11 +403,11 @@ enum Commands {
         #[arg(short = 'a', long)]
         available: bool,
         #[arg(short = 'c', long)]
-        can_craft: bool,
+        craftable: bool,
         #[arg(short = 't', long)]
         from_task: bool,
-        //#[arg(short = 'g', long)]
-        //from_gift: bool,
+        #[arg(short = 'n', long)]
+        from_npc: bool,
         #[arg(short = 'm', long)]
         from_monster: bool,
         #[arg(short = 'u', long)]
@@ -419,6 +426,13 @@ enum Commands {
         #[arg(default_value_t = 1)]
         quantity: i32,
     },
+}
+
+#[derive(Subcommand)]
+#[command(alias = "cfg")]
+enum ConfigAction {
+    #[command(alias = "rl")]
+    Reload,
 }
 
 #[derive(Subcommand)]

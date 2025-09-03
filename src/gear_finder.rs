@@ -525,11 +525,11 @@ impl GearFinder {
         if filter.available {
             return char.has_available(&i.code) > 0;
         }
-        if i.code == "sanguine_edge_of_rosen" {
+        if filter.craftable && i.is_craftable() && !self.account.can_craft(&i.code) {
             return false;
         }
-        if filter.can_craft && i.craft_schema().is_some() && !self.account.can_craft(&i.code) {
-            return false;
+        if !filter.from_npc && self.items.is_buyable(&i.code) {
+            return false
         }
         if !filter.from_task && i.is_crafted_from_task() {
             return false;
@@ -542,9 +542,6 @@ impl GearFinder {
         {
             return false;
         }
-        //if !filter.from_gift && ITEMS.best_source_of(&i.code).is_some_and(|s| s.is_gift()) {
-        //    return false;
-        //}
         true
     }
 
@@ -647,10 +644,10 @@ impl GearFinder {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Filter {
     pub available: bool,
-    pub from_monster: bool,
+    pub craftable: bool,
     pub from_task: bool,
-    pub can_craft: bool,
-    //pub from_gift: bool,
+    pub from_npc: bool,
+    pub from_monster: bool,
     pub utilities: bool,
 }
 
@@ -658,10 +655,10 @@ impl Default for Filter {
     fn default() -> Self {
         Self {
             available: false,
-            can_craft: false,
+            craftable: true,
             from_task: true,
+            from_npc: true,
             from_monster: true,
-            //from_gift: false,
             utilities: false,
         }
     }
