@@ -3,9 +3,9 @@
 Rust implementation of a semi-autonomous bot for the
 [ArtifactsMMO](https://artifactsmmo.com/) game.
 
-> :warning: Keep in mind that this is a work in progress and that things will
-> probably not work the way you expect it to, based on what is described in this
-> `README`. :warning:
+> [!WARNING]
+> Keep in mind that this is a work in progress and that things will probably not
+> work the way you expect it to based on what is described in this `README`.
 
 ## Architecture
 
