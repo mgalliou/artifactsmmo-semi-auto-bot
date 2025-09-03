@@ -22,7 +22,7 @@ use crate::{
 };
 use anyhow::Result;
 use artifactsmmo_sdk::{
-    GOLDEN_EGG, GOLDEN_SHRIMP, HasDrops, Items, Maps, Monsters, Server, Simulator,
+    GOLDEN_EGG, GOLDEN_SHRIMP, HasDrops, Items, Maps, Monsters, Server, Simulator, Tasks,
     char::{Character as CharacterClient, HasCharacterData, Skill, error::RestError},
     consts::{
         BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, MAX_LEVEL, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE,
@@ -38,6 +38,7 @@ use artifactsmmo_sdk::{
     },
     npcs::Npcs,
     simulator::HasEffects,
+    tasks::TaskFullSchemaExt,
 };
 use itertools::Itertools;
 use log::{debug, error, info, warn};
@@ -59,6 +60,7 @@ pub struct CharacterController {
     order_board: Arc<OrderBoard>,
     items: Arc<Items>,
     monsters: Arc<Monsters>,
+    tasks: Arc<Tasks>,
     npcs: Arc<Npcs>,
     gear_finder: Arc<GearFinder>,
     leveling_helper: Arc<LevelingHelper>,
@@ -71,6 +73,7 @@ impl CharacterController {
         client: Arc<CharacterClient>,
         items: Arc<Items>,
         monsters: Arc<Monsters>,
+        tasks: Arc<Tasks>,
         npcs: Arc<Npcs>,
         maps: Arc<Maps>,
         bank: Arc<Bank>,
@@ -87,6 +90,7 @@ impl CharacterController {
             items,
             monsters,
             npcs,
+            tasks,
             bank,
             order_board,
             account,
@@ -553,14 +557,15 @@ impl CharacterController {
     }
 
     fn complete_task(&self) -> Result<RewardsSchema, TaskCompletionCommandError> {
-        if self.task().is_empty() {
+        let Some(task) = self.tasks.get(&self.task()) else {
             return Err(TaskCompletionCommandError::NoTask);
-        }
+        };
         if !self.task_finished() {
             return Err(TaskCompletionCommandError::TaskNotFinished);
         }
-        //TODO: improve condition based on the task's rewards
-        if self.inventory.free_slot() < 2 || self.inventory.free_space() < 10 {
+        if self.inventory.free_space() < task.rewards_quantity()
+            || self.inventory.free_slot() < task.rewards_slots()
+        {
             self.deposit_all()?;
         }
         self.move_to_closest_taskmaster(self.task_type())?;
