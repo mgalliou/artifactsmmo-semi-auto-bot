@@ -8,12 +8,12 @@ use itertools::Itertools;
 use rayon::iter::{ParallelBridge, ParallelIterator};
 use std::sync::Arc;
 
-use crate::{account::AccountController, bank::Bank, character::CharacterController};
+use crate::{account::AccountController, bank::BankController, character::CharacterController};
 
 #[derive(Default)]
 pub struct LevelingHelper {
     account: Arc<AccountController>,
-    bank: Arc<Bank>,
+    bank: Arc<BankController>,
     items: Arc<Items>,
     monsters: Arc<Monsters>,
     resources: Arc<Resources>,
@@ -27,7 +27,7 @@ impl LevelingHelper {
         resources: Arc<Resources>,
         maps: Arc<Maps>,
         account: Arc<AccountController>,
-        bank: Arc<Bank>,
+        bank: Arc<BankController>,
     ) -> Self {
         Self {
             items,

@@ -19,7 +19,7 @@ use thiserror::Error;
 use crate::FOOD_BLACK_LIST;
 
 #[derive(Default)]
-pub struct Bank {
+pub struct BankController {
     client: Arc<BankClient>,
     items: Arc<Items>,
     pub reservations: RwLock<Vec<Arc<Reservation>>>,
@@ -27,7 +27,7 @@ pub struct Bank {
     pub being_expanded: RwLock<()>,
 }
 
-impl Bank {
+impl BankController {
     pub fn new(client: Arc<BankClient>, items: Arc<Items>) -> Self {
         Self {
             client,
@@ -339,14 +339,14 @@ mod tests {
 
     #[test]
     fn reserv_with_not_item() {
-        let bank = Bank::default();
+        let bank = BankController::default();
         let result = bank.increase_reservation("iron_ore", 50, "char1");
         assert_eq!(Err(BankError::QuantityUnavailable(50)), result);
     }
 
     #[test]
     fn reserv_with_item_available() {
-        let bank = Bank::default();
+        let bank = BankController::default();
         *bank.client.content.write().unwrap() = Arc::new(vec![SimpleItemSchema {
             code: "copper_ore".to_owned(),
             quantity: 100,
@@ -358,7 +358,7 @@ mod tests {
 
     #[test]
     fn reserv_if_not_with_item_available() {
-        let bank = Bank::default();
+        let bank = BankController::default();
         *bank.client.content.write().unwrap() = Arc::new(vec![SimpleItemSchema {
             code: "gold_ore".to_owned(),
             quantity: 100,

@@ -1,6 +1,6 @@
 use crate::{
-    account::AccountController, bank::Bank, bot_config::BotConfig, gear_finder::GearFinder,
-    leveling_helper::LevelingHelper, orderboard::OrderBoard,
+    account::AccountController, bank::BankController, bot_config::BotConfig,
+    gear_finder::GearFinder, leveling_helper::LevelingHelper, orderboard::OrderBoard,
 };
 use artifactsmmo_sdk::Client;
 use log::error;
@@ -17,18 +17,22 @@ pub struct Bot {
     pub gear_finder: Arc<GearFinder>,
     pub leveling_helper: Arc<LevelingHelper>,
     pub account: Arc<AccountController>,
-    pub bank: Arc<Bank>,
+    pub bank: Arc<BankController>,
 }
 
 impl Bot {
     pub fn new(client: Arc<Client>) -> Self {
         let config = Arc::new(BotConfig::from_file());
+        let bank = Arc::new(BankController::new(
+            client.account.bank.clone(),
+            client.items.clone(),
+        ));
         let account = Arc::new(AccountController::new(
             config.clone(),
             client.account.clone(),
             client.items.clone(),
+            bank.clone(),
         ));
-        let bank = Arc::new(Bank::new(client.account.bank.clone(), client.items.clone()));
         Self {
             config,
             client: client.clone(),
@@ -50,11 +54,10 @@ impl Bot {
     pub fn run_characters(&self) {
         self.account.init_characters(
             self.client.clone(),
-            self.order_board.clone(),
             self.account.clone(),
+            self.order_board.clone(),
             self.gear_finder.clone(),
             self.leveling_helper.clone(),
-            self.bank.clone(),
         );
         for c in self.account.characters() {
             sleep(Duration::from_millis(250));

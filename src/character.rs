@@ -1,7 +1,7 @@
 use crate::{
     MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
     account::AccountController,
-    bank::Bank,
+    bank::BankController,
     bot_config::{BotConfig, CharConfig, Goal},
     error::{
         BankCleanupError, BankExpansionCommandError, BuyNpcCommandError,
@@ -22,7 +22,7 @@ use crate::{
 };
 use anyhow::Result;
 use artifactsmmo_sdk::{
-    GOLDEN_EGG, GOLDEN_SHRIMP, HasDrops, Items, Maps, Monsters, Server, Simulator, Tasks,
+    Client, GOLDEN_EGG, GOLDEN_SHRIMP, HasDrops, Items, Maps, Monsters, Server, Simulator, Tasks,
     char::{Character as CharacterClient, HasCharacterData, Skill, error::RestError},
     consts::{
         BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, MAX_LEVEL, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE,
@@ -51,49 +51,43 @@ use strum::IntoEnumIterator;
 
 #[derive(Default)]
 pub struct CharacterController {
-    config: Arc<BotConfig>,
     client: Arc<CharacterClient>,
+    config: Arc<BotConfig>,
     pub inventory: Arc<Inventory>,
-    maps: Arc<Maps>,
+    bank: Arc<BankController>,
     account: Arc<AccountController>,
-    bank: Arc<Bank>,
-    order_board: Arc<OrderBoard>,
+    maps: Arc<Maps>,
     items: Arc<Items>,
     monsters: Arc<Monsters>,
     tasks: Arc<Tasks>,
     npcs: Arc<Npcs>,
+    order_board: Arc<OrderBoard>,
     gear_finder: Arc<GearFinder>,
     leveling_helper: Arc<LevelingHelper>,
 }
 
 impl CharacterController {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
+        char_client: Arc<CharacterClient>,
         config: Arc<BotConfig>,
-        client: Arc<CharacterClient>,
-        items: Arc<Items>,
-        monsters: Arc<Monsters>,
-        tasks: Arc<Tasks>,
-        npcs: Arc<Npcs>,
-        maps: Arc<Maps>,
-        bank: Arc<Bank>,
-        order_board: Arc<OrderBoard>,
+        client: &Arc<Client>,
         account: Arc<AccountController>,
+        order_board: Arc<OrderBoard>,
         gear_finder: Arc<GearFinder>,
         leveling_helper: Arc<LevelingHelper>,
     ) -> Self {
         Self {
+            client: char_client.clone(),
             config,
-            inventory: Arc::new(Inventory::new(client.clone(), items.clone())),
-            client,
-            maps,
-            items,
-            monsters,
-            npcs,
-            tasks,
-            bank,
-            order_board,
+            inventory: Arc::new(Inventory::new(char_client, client.items.clone())),
+            bank: account.bank.clone(),
             account,
+            maps: client.maps.clone(),
+            items: client.items.clone(),
+            monsters: client.monsters.clone(),
+            tasks: client.tasks.clone(),
+            npcs: client.npcs.clone(),
+            order_board,
             gear_finder,
             leveling_helper,
         }

@@ -1,6 +1,6 @@
 use crate::{
-    bank::Bank, bot_config::BotConfig, character::CharacterController, gear_finder::GearFinder,
-    leveling_helper::LevelingHelper, orderboard::OrderBoard,
+    bank::BankController, bot_config::BotConfig, character::CharacterController,
+    gear_finder::GearFinder, leveling_helper::LevelingHelper, orderboard::OrderBoard,
 };
 use artifactsmmo_sdk::{
     Client, Items,
@@ -17,15 +17,22 @@ pub struct AccountController {
     config: Arc<BotConfig>,
     client: Arc<AccountClient>,
     items: Arc<Items>,
+    pub bank: Arc<BankController>,
     pub characters: RwLock<Vec<Arc<CharacterController>>>,
 }
 
 impl AccountController {
-    pub fn new(config: Arc<BotConfig>, client: Arc<AccountClient>, items: Arc<Items>) -> Self {
+    pub fn new(
+        config: Arc<BotConfig>,
+        client: Arc<AccountClient>,
+        items: Arc<Items>,
+        bank: Arc<BankController>,
+    ) -> Self {
         Self {
             config,
             client,
             items,
+            bank,
             characters: RwLock::new(vec![]),
         }
     }
@@ -33,11 +40,10 @@ impl AccountController {
     pub fn init_characters(
         &self,
         client: Arc<Client>,
-        order_board: Arc<OrderBoard>,
         account: Arc<AccountController>,
+        order_board: Arc<OrderBoard>,
         gear_finder: Arc<GearFinder>,
         leveling_helper: Arc<LevelingHelper>,
-        bank: Arc<Bank>,
     ) {
         let Ok(mut chars) = self.characters.write() else {
             return;
@@ -48,16 +54,11 @@ impl AccountController {
             .iter()
             .map(|char_client| {
                 Arc::new(CharacterController::new(
-                    self.config.clone(),
                     char_client.clone(),
-                    self.items.clone(),
-                    client.monsters.clone(),
-                    client.tasks.clone(),
-                    client.npcs.clone(),
-                    client.maps.clone(),
-                    bank.clone(),
-                    order_board.clone(),
+                    self.config.clone(),
+                    &client,
                     account.clone(),
+                    order_board.clone(),
                     gear_finder.clone(),
                     leveling_helper.clone(),
                 ))
