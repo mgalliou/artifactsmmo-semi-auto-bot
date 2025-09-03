@@ -1549,19 +1549,11 @@ impl CharacterController {
     fn order_gear(&self, gear: &mut Gear) {
         gear.align_to(&self.client.gear());
         Slot::iter().for_each(|s| {
-            if !s.is_artifact_1()
-                && !s.is_artifact_2()
-                && !s.is_artifact_3()
-                && !s.is_ring_1()
+            if !s.is_ring_1()
                 && !s.is_ring_2()
                 && let Some(item) = gear.slot(s)
             {
-                let quantity = if s.is_utility_1() || s.is_utility_2() {
-                    100
-                } else {
-                    1
-                };
-                self.order_if_needed(s, &item.code, quantity);
+                self.order_if_needed(s, &item.code, s.max_quantity());
             }
         });
         if let Some(ref ring1) = gear.ring1

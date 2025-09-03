@@ -36,7 +36,9 @@ impl GearFinder {
             })
             .min_set_by_key(|(f, _g)| f.cd + Simulator::time_to_rest(f.hp_lost))
             .into_iter()
-            .max_by_key(|(f, _g)| f.hp)
+            .max_set_by_key(|(f, _g)| f.hp)
+            .into_iter()
+            .max_by_key(|(_f, _g)| _g.wisdom())
             .map(|(_f, g)| g)
             .unwrap_or_default()
     }
@@ -311,6 +313,16 @@ impl GearFinder {
             .filter(|i| i.health() > 0)
             .max_by_key(|i| i.health())
             .cloned();
+        let best_wisdom = equipables
+            .iter()
+            .filter(|i| i.wisdom() > 0)
+            .max_by_key(|i| i.wisdom())
+            .cloned();
+        let best_prospecting = equipables
+            .iter()
+            .filter(|i| i.prospecting() > 0)
+            .max_by_key(|i| i.wisdom())
+            .cloned();
         if !bests_for_damage.is_empty() {
             bests.extend(bests_for_damage);
         }
@@ -323,6 +335,12 @@ impl GearFinder {
                 .all(|u| u.health() < best_health_increase.health())
         {
             bests.push(best_health_increase);
+        }
+        if let Some(best_wisdom) = best_wisdom {
+            bests.push(best_wisdom);
+        }
+        if let Some(best_prospecting) = best_prospecting {
+            bests.push(best_prospecting);
         }
         bests
             .into_iter()
@@ -417,7 +435,7 @@ impl GearFinder {
         let mut items = armor_types
             .iter()
             .filter_map(|&item_type| {
-                let armors = self.best_armor_for_skill(char, item_type, filter, vec![]);
+                let armors = self.best_armors_for_skill(char, item_type, filter, vec![]);
                 (!armors.is_empty()).then_some(
                     armors
                         .iter()
@@ -437,7 +455,7 @@ impl GearFinder {
         self.gen_all_gears(self.best_tool(char, skill, filter), items)
     }
 
-    fn best_armor_for_skill(
+    fn best_armors_for_skill(
         &self,
         char: &CharacterController,
         r#type: Type,
@@ -496,7 +514,7 @@ impl GearFinder {
         char: &CharacterController,
         filter: Filter,
     ) -> Vec<ItemWrapper> {
-        let rings = self.best_armor_for_skill(char, Type::Ring, filter, vec![]);
+        let rings = self.best_armors_for_skill(char, Type::Ring, filter, vec![]);
         let ring2_black_list = rings
             .iter()
             .flatten()
@@ -509,7 +527,7 @@ impl GearFinder {
             })
             .cloned()
             .collect_vec();
-        let rings2 = self.best_armor_for_skill(char, Type::Ring, filter, ring2_black_list);
+        let rings2 = self.best_armors_for_skill(char, Type::Ring, filter, ring2_black_list);
         let mut ring_sets = [rings, rings2]
             .iter()
             .multi_cartesian_product()
@@ -529,7 +547,7 @@ impl GearFinder {
             return false;
         }
         if !filter.from_npc && self.items.is_buyable(&i.code) {
-            return false
+            return false;
         }
         if !filter.from_task && i.is_crafted_from_task() {
             return false;
@@ -621,7 +639,7 @@ impl GearFinder {
         char: &CharacterController,
         filter: Filter,
     ) -> Vec<ItemWrapper> {
-        let mut artifacts = self.best_armor_for_skill(char, Type::Artifact, filter, vec![]);
+        let mut artifacts = self.best_armors_for_skill(char, Type::Artifact, filter, vec![]);
         artifacts.push(None);
         let mut sets = [artifacts.clone(), artifacts.clone(), artifacts]
             .iter()
