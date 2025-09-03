@@ -559,6 +559,10 @@ impl CharacterController {
         if !self.task_finished() {
             return Err(TaskCompletionCommandError::TaskNotFinished);
         }
+        //TODO: improve condition based on the task's rewards
+        if self.inventory.free_slot() < 2 || self.inventory.free_space() < 10 {
+            self.deposit_all()?;
+        }
         self.move_to_closest_taskmaster(self.task_type())?;
         Ok(self.client.complete_task()?)
     }

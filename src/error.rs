@@ -140,6 +140,8 @@ pub enum TaskCompletionCommandError {
     NoTask,
     #[error("Task no finished")]
     TaskNotFinished,
+    #[error("Failed to deposit items before completing task: {0}")]
+    DepositItemCommandError(#[from] DepositItemCommandError),
     #[error("Failed to move to tasks master: {0}")]
     MoveCommandError(#[from] MoveCommandError),
     #[error("Failed to request task completion: {0}")]
