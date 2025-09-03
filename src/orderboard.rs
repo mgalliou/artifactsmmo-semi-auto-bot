@@ -1,7 +1,7 @@
 use artifactsmmo_sdk::{Items, char::Skill, gear::Slot, models::SimpleItemSchema};
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
-use log::{debug, info};
+use log::{debug, error, info};
 use std::{
     cmp::min,
     fmt::{self, Display, Formatter},
@@ -128,16 +128,24 @@ impl OrderBoard {
         }
     }
 
-    pub fn register_deposited_items(&self, items: &[SimpleItemSchema], owner: &Option<String>) {
+    pub fn register_deposited_items(&self, items: &[SimpleItemSchema]) {
         items.iter().for_each(|i| {
             let mut remaining = i.quantity;
             for o in self.orders_by_priority().iter() {
                 if remaining <= 0 {
                     break;
                 }
-                if i.code == o.item && *owner == o.owner {
+                if i.code == o.item {
                     let quantity = min(o.quantity(), remaining);
                     o.inc_deposited(quantity);
+                    if let Some(ref owner) = o.owner
+                        && let Err(e) = self
+                            .account
+                            .bank
+                            .increase_reservation(&o.item, quantity, owner)
+                    {
+                        error!("orderboard: failed reserving deposited item: {e}")
+                    }
                     if o.turned_in() {
                         self.remove(o);
                     }

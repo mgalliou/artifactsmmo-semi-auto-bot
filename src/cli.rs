@@ -257,7 +257,7 @@ fn respond(
             if item == "all" {
                 char.deposit_all()?;
             } else {
-                char.deposit_item(&item, quantity, None)?;
+                char.deposit_item(&item, quantity)?;
             }
         }
         Commands::Unequip {

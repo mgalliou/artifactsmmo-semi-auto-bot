@@ -1008,7 +1008,7 @@ impl CharacterController {
         if self.inventory.total_items() <= 0 {
             return Ok(());
         }
-        self.deposit_items(&self.inventory.simple_content(), None)
+        self.deposit_items(&self.inventory.simple_content())
     }
 
     pub fn deposit_all_but_reserved(&self) -> Result<(), DepositItemCommandError> {
@@ -1021,7 +1021,7 @@ impl CharacterController {
             .into_iter()
             .filter(|i| !self.inventory.is_reserved(&i.code))
             .collect_vec();
-        self.deposit_items(&items, None)
+        self.deposit_items(&items)
     }
 
     pub fn deposit_all_but(&self, item: &str) -> Result<(), DepositItemCommandError> {
@@ -1030,30 +1030,18 @@ impl CharacterController {
         }
         let mut items = self.inventory.simple_content();
         items.retain(|i| i.code != item);
-        self.deposit_items(&items, None)
+        self.deposit_items(&items)
     }
 
-    pub fn deposit_item(
-        &self,
-        item: &str,
-        quantity: i32,
-        owner: Option<String>,
-    ) -> Result<(), DepositItemCommandError> {
-        self.deposit_items(
-            &[SimpleItemSchema {
-                code: item.to_string(),
-                quantity,
-            }],
-            owner,
-        )
+    pub fn deposit_item(&self, item: &str, quantity: i32) -> Result<(), DepositItemCommandError> {
+        self.deposit_items(&[SimpleItemSchema {
+            code: item.to_string(),
+            quantity,
+        }])
     }
 
     /// TODO: finish implementing, a check for bank space and expansion
-    pub fn deposit_items(
-        &self,
-        items: &[SimpleItemSchema],
-        owner: Option<String>,
-    ) -> Result<(), DepositItemCommandError> {
+    pub fn deposit_items(&self, items: &[SimpleItemSchema]) -> Result<(), DepositItemCommandError> {
         if items.is_empty() {
             return Ok(());
         }
@@ -1080,14 +1068,7 @@ impl CharacterController {
         let deposit = self.client.deposit_item(items);
         match deposit {
             Ok(_) => {
-                self.order_board.register_deposited_items(items, &owner);
-                if let Some(ref owner) = owner {
-                    items.iter().for_each(|i| {
-                        if let Err(e) = self.bank.increase_reservation(&i.code, i.quantity, owner) {
-                            error!("{}: failed reserving deposited item: {e}", self.name())
-                        }
-                    })
-                }
+                self.order_board.register_deposited_items(items);
                 items.iter().for_each(|i| {
                     self.inventory.unreserv_item(&i.code, i.quantity);
                 });
@@ -1252,7 +1233,7 @@ impl CharacterController {
         }
         if let Some(i) = prev_equiped
             && self.inventory.total_of(&i.code) > 0
-            && let Err(e) = self.deposit_item(&i.code, self.inventory.total_of(&i.code), None)
+            && let Err(e) = self.deposit_item(&i.code, self.inventory.total_of(&i.code))
         {
             error!(
                 "{} failed depositing item previously equiped: {e}",
@@ -1294,7 +1275,7 @@ impl CharacterController {
                         self.name(),
                         &item.code,
                     )
-                } else if let Err(e) = self.deposit_item(&item.code, quantity, None) {
+                } else if let Err(e) = self.deposit_item(&item.code, quantity) {
                     error!(
                         "{}: failed to deposit '{}'x{quantity} during `unequip_and_deposit_all`: {e}",
                         self.name(),
