@@ -620,7 +620,7 @@ impl CharacterController {
         {
             error!("{}: failed accepting new task: {e}", self.name())
         }
-        if self.inventory.has_space_for_drops_from(monster)
+        if !self.inventory.has_space_for_drops_from(monster)
             || self
                 .current_map()
                 .monster()
@@ -697,7 +697,7 @@ impl CharacterController {
         resource: &ResourceSchema,
     ) -> Result<SkillDataSchema, GatherCommandError> {
         self.can_gather_now(resource)?;
-        if self.inventory.has_space_for_drops_from(resource)
+        if !self.inventory.has_space_for_drops_from(resource)
             || self
                 .current_map()
                 .resource()
