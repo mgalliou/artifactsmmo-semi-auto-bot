@@ -1,4 +1,4 @@
-use artifactsmmo_sdk::{Items, char::Skill, gear::Slot, models::SimpleItemSchema};
+use artifactsmmo_sdk::{Items, char::Skill, models::SimpleItemSchema};
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use log::{debug, error, info};
@@ -279,31 +279,11 @@ pub enum OrderError {
 
 #[derive(Debug, PartialEq, Eq, Clone, EnumIs, EnumIter)]
 pub enum Purpose {
-    Food {
-        char: String,
-    },
+    Food { char: String },
     Cli,
-    Gather {
-        char: String,
-        skill: Skill,
-        item_code: String,
-    },
-    Tool {
-        char: String,
-        item_code: String,
-    },
-    Gear {
-        char: String,
-        slot: Slot,
-        item_code: String,
-    },
-    Task {
-        char: String,
-    },
-    Leveling {
-        char: String,
-        skill: Skill,
-    },
+    Gear { char: String, item_code: String },
+    Task { char: String },
+    Leveling { char: String, skill: Skill },
 }
 
 impl Display for Purpose {
@@ -314,19 +294,9 @@ impl Display for Purpose {
             match self {
                 Purpose::Cli => "command line".to_owned(),
                 Purpose::Leveling { char, skill } => format!("leveling {char}'s {skill}"),
-                Purpose::Gather {
-                    char,
-                    skill,
-                    item_code,
-                } => format!("{char}'s '{item_code}' ({skill})"),
                 Purpose::Food { char } => format!("{char}'s food"),
-                Purpose::Gear {
-                    char,
-                    slot,
-                    item_code,
-                } => format!("{char}'s '{item_code}' ({slot})"),
+                Purpose::Gear { char, item_code } => format!("{char}'s '{item_code}'"),
                 Purpose::Task { char } => format!("{char}'s  task"),
-                Purpose::Tool { char, item_code } => format!("{char}'s tool: {item_code}"),
             }
         )
     }

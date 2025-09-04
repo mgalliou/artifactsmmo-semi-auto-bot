@@ -1203,9 +1203,9 @@ impl CharacterController {
 
     fn equip_gear(&self, gear: &mut Gear) {
         gear.align_to(&self.client.gear());
-        Slot::iter().for_each(|s| {
-            if let Some(item) = gear.slot(s) {
-                self.equip_from_inventory_or_bank(&item.code, s);
+        Slot::iter().for_each(|slot| {
+            if let Some(item) = gear.item_in(slot) {
+                self.equip_from_inventory_or_bank(&item.code, slot);
             }
         });
     }
@@ -1529,86 +1529,76 @@ impl CharacterController {
 
     fn order_gear(&self, gear: &mut Gear) {
         gear.align_to(&self.client.gear());
-        Slot::iter().for_each(|s| {
-            if !s.is_ring_1()
-                && !s.is_ring_2()
-                && let Some(item) = gear.slot(s)
+        Slot::iter().for_each(|slot| {
+            if let Some(item) = gear.item_in(slot)
+                && !slot.is_ring()
             {
-                self.order_if_needed(s, &item.code, s.max_quantity());
+                self.order_if_needed(&item.code, slot.max_quantity());
             }
         });
         if let Some(ref ring1) = gear.ring1
             && gear.ring1 == gear.ring2
         {
-            self.order_if_needed(Slot::Ring1, &ring1.code, 2);
+            self.order_if_needed(&ring1.code, 2);
         } else {
             if let Some(ref ring1) = gear.ring1 {
-                self.order_if_needed(Slot::Ring1, &ring1.code, 1);
+                self.order_if_needed(&ring1.code, 1);
             }
             if let Some(ref ring2) = gear.ring2 {
-                self.order_if_needed(Slot::Ring2, &ring2.code, 1);
+                self.order_if_needed(&ring2.code, 1);
             }
         }
     }
 
-    fn order_if_needed(&self, slot: Slot, item: &str, quantity: i32) -> bool {
+    fn order_if_needed(&self, item: &str, quantity: i32) -> bool {
         //TODO: prevent ordering item if the maximum quantity equipable by the whole account is
         //available(no more than 5 weapons, 10 rings, etc... utilities are exempt)
-        if self.has_available(item) < quantity {
-            return self
-                .order_board
-                .add(
-                    item,
-                    quantity - self.has_available(item),
-                    None,
-                    Purpose::Gear {
-                        char: self.name().to_owned(),
-                        slot,
-                        item_code: item.to_owned(),
-                    },
-                )
-                .is_ok();
-        }
-        false
+        let missing_quantity = quantity - self.has_available(item);
+        if missing_quantity < 1 {
+            return false;
+        };
+        self.order_board
+            .add(
+                item,
+                missing_quantity,
+                None,
+                Purpose::Gear {
+                    char: self.name().to_owned(),
+                    item_code: item.to_owned(),
+                },
+            )
+            .is_ok()
     }
 
     fn reserv_gear(&self, gear: &mut Gear) {
         gear.align_to(&self.client.gear());
-        Slot::iter().for_each(|s| {
-            if !(s.is_ring_1() || s.is_ring_2())
-                && let Some(item) = gear.slot(s)
+        Slot::iter().for_each(|slot| {
+            if let Some(item) = gear.item_in(slot)
+                && !slot.is_ring()
             {
-                let quantity = if s.is_utility_1() || s.is_utility_2() {
-                    100
-                } else {
-                    1
-                };
-                self.reserv_if_needed_and_available(s, &item.code, quantity);
+                self.reserv_if_needed_and_available(&item.code, slot.max_quantity(), slot);
             }
         });
-        if gear.ring1.is_some() && gear.ring1 == gear.ring2 {
-            self.reserv_if_needed_and_available(Slot::Ring1, &gear.ring1.as_ref().unwrap().code, 2);
+        if let Some(ref ring1) = gear.ring1
+            && gear.ring1 == gear.ring2
+        {
+            self.reserv_if_needed_and_available(&ring1.code, 2, Slot::Ring1);
         } else {
             if let Some(ref ring1) = gear.ring1 {
-                self.reserv_if_needed_and_available(Slot::Ring1, &ring1.code, 1);
+                self.reserv_if_needed_and_available(&ring1.code, 1, Slot::Ring1);
             }
             if let Some(ref ring2) = gear.ring2 {
-                self.reserv_if_needed_and_available(Slot::Ring2, &ring2.code, 1);
+                self.reserv_if_needed_and_available(&ring2.code, 1, Slot::Ring2);
             }
         }
     }
 
     /// Reserves the given `quantity` of the `item` if needed and available.
-    fn reserv_if_needed_and_available(&self, s: Slot, item: &str, quantity: i32) {
-        if (self.equiped_in(s).is_empty()
-            || self
-                .items
-                .get(&self.equiped_in(s))
-                .is_some_and(|equiped| item != equiped.code))
-            && self.inventory.total_of(item) < quantity
-            && let Err(e) =
-                self.bank
-                    .reserv_item(item, quantity - self.inventory.total_of(item), &self.name())
+    fn reserv_if_needed_and_available(&self, item: &str, quantity: i32, s: Slot) {
+        let missing_quantity = quantity - self.inventory.total_of(item);
+        if self.equiped_in(s) != item
+            && missing_quantity > 0
+            && let Err(e) = self.bank.reserv_item(item, missing_quantity, &self.name())
         {
             error!("{}: failed reserving '{item}'x{quantity}: {e}", self.name())
         }
@@ -1617,7 +1607,10 @@ impl CharacterController {
     #[allow(dead_code)]
     fn time_to_get_gear(&self, gear: &Gear) -> Option<i32> {
         Slot::iter()
-            .map(|s| gear.slot(s).and_then(|i| self.items.time_to_get(&i.code)))
+            .map(|slot| {
+                gear.item_in(slot)
+                    .and_then(|i| self.items.time_to_get(&i.code))
+            })
             .sum()
     }
 
