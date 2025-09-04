@@ -22,13 +22,24 @@ use crate::{
 };
 use anyhow::Result;
 use artifactsmmo_sdk::{
-    char::{error::RestError, Character as CharacterClient, HasCharacterData, Skill}, consts::{
-        BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, MAX_LEVEL, TASKS_COIN, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE
-    }, gear::{Gear, Slot}, items::{ItemSchemaExt, ItemSource}, maps::MapSchemaExt, models::{
+    Client, GOLDEN_EGG, GOLDEN_SHRIMP, HasDrops, Items, Maps, Monsters, Server, SimpleItemSchemas,
+    Simulator, Tasks,
+    char::{Character as CharacterClient, HasCharacterData, Skill, error::RestError},
+    consts::{
+        BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, MAX_LEVEL, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE,
+        TASKS_COIN,
+    },
+    gear::{Gear, Slot},
+    items::{ItemSchemaExt, ItemSource},
+    maps::MapSchemaExt,
+    models::{
         CharacterSchema, DropSchema, FightSchema, ItemSchema, MapContentType, MapSchema,
         MonsterSchema, NpcItem, RecyclingItemsSchema, ResourceSchema, RewardsSchema,
         SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
-    }, npcs::Npcs, simulator::HasEffects, tasks::TaskFullSchemaExt, Client, HasDrops, Items, Maps, Monsters, Server, SimpleItemSchemas, Simulator, Tasks, GOLDEN_EGG, GOLDEN_SHRIMP
+    },
+    npcs::Npcs,
+    simulator::HasEffects,
+    tasks::TaskFullSchemaExt,
 };
 use itertools::Itertools;
 use log::{debug, error, info, warn};

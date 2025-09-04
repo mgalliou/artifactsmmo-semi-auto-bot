@@ -1,8 +1,8 @@
-use std::{env, sync::Arc};
 use anyhow::Result;
 use artifactsmmo_sdk::Client;
 use artifactsmmo_semi_auto_bot::{bot::Bot, cli};
 use log::LevelFilter;
+use std::{env, sync::Arc};
 
 fn main() -> Result<()> {
     simple_logging::log_to_file("artifactsmmo.log", LevelFilter::Info)?;

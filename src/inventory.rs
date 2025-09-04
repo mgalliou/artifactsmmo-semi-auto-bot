@@ -1,5 +1,8 @@
 use artifactsmmo_sdk::{
-    char::{Character as CharacterClient, HasCharacterData}, items::ItemSchemaExt, models::{InventorySlot, ItemSchema, SimpleItemSchema}, HasDropTable, Items
+    HasDropTable, Items,
+    char::{Character as CharacterClient, HasCharacterData},
+    items::ItemSchemaExt,
+    models::{InventorySlot, ItemSchema, SimpleItemSchema},
 };
 use core::fmt;
 use itertools::Itertools;
