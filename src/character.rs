@@ -22,23 +22,13 @@ use crate::{
 };
 use anyhow::Result;
 use artifactsmmo_sdk::{
-    Client, GOLDEN_EGG, GOLDEN_SHRIMP, HasDrops, Items, Maps, Monsters, Server, Simulator, Tasks,
-    char::{Character as CharacterClient, HasCharacterData, Skill, error::RestError},
-    consts::{
-        BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, MAX_LEVEL, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE,
-        TASKS_COIN,
-    },
-    gear::{Gear, Slot},
-    items::{ItemSchemaExt, ItemSource},
-    maps::MapSchemaExt,
-    models::{
+    char::{error::RestError, Character as CharacterClient, HasCharacterData, Skill}, consts::{
+        BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, MAX_LEVEL, TASKS_COIN, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE
+    }, gear::{Gear, Slot}, items::{ItemSchemaExt, ItemSource}, maps::MapSchemaExt, models::{
         CharacterSchema, DropSchema, FightSchema, ItemSchema, MapContentType, MapSchema,
         MonsterSchema, NpcItem, RecyclingItemsSchema, ResourceSchema, RewardsSchema,
         SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
-    },
-    npcs::Npcs,
-    simulator::HasEffects,
-    tasks::TaskFullSchemaExt,
+    }, npcs::Npcs, simulator::HasEffects, tasks::TaskFullSchemaExt, Client, HasDrops, Items, Maps, Monsters, Server, SimpleItemSchemas, Simulator, Tasks, GOLDEN_EGG, GOLDEN_SHRIMP
 };
 use itertools::Itertools;
 use log::{debug, error, info, warn};
@@ -1058,7 +1048,7 @@ impl CharacterController {
         if self.bank.details().slots < items_not_in_bank {
             return Err(DepositItemCommandError::InsufficientBankSpace);
         };
-        info!("{}: going to deposit items: {items:?}", self.name(),);
+        info!("{}: going to deposit items: {items:?}", self.name());
         self.move_to_closest_map_of_type(MapContentType::Bank)?;
         if self.bank.free_slots() <= BANK_MIN_FREE_SLOT
             && let Err(e) = self.expand_bank()

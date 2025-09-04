@@ -253,7 +253,11 @@ impl GearFinder {
                 ]
             })
             .sorted()
-            .filter_map(|artifacts| ArtifactSet::new(artifacts).map(ItemWrapper::Artifacts))
+            .filter_map(|artifacts| {
+                ArtifactSet::new(artifacts)
+                    .filter(|s| !s.is_empty())
+                    .map(ItemWrapper::Artifacts)
+            })
             .collect_vec();
         sets.dedup();
         sets
@@ -708,21 +712,19 @@ struct ArtifactSet {
 impl ArtifactSet {
     fn new(mut artifacts: [Option<String>; 3]) -> Option<Self> {
         artifacts.sort();
-        if artifacts[0]
-            .as_ref()
-            .is_some_and(|a| artifacts[1].as_ref().is_some_and(|b| a == b))
-            || artifacts[1]
-                .as_ref()
-                .is_some_and(|a| artifacts[2].as_ref().is_some_and(|b| a == b))
-            || artifacts[2]
-                .as_ref()
-                .is_some_and(|a| artifacts[0].as_ref().is_some_and(|b| a == b))
+        if artifacts[0].is_some() && artifacts[0] == artifacts[1]
+            || artifacts[1].is_some() && artifacts[1] == artifacts[2]
+            || artifacts[0].is_some() && artifacts[0] == artifacts[2]
         {
             None
         } else {
             artifacts.sort();
             Some(ArtifactSet { artifacts })
         }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.artifacts[0].is_none() && self.artifacts[1].is_none() && self.artifacts[2].is_none()
     }
 }
 
