@@ -36,9 +36,7 @@ impl GearFinder {
             })
             .min_set_by_key(|(f, _g)| f.cd + Simulator::time_to_rest(f.hp_lost))
             .into_iter()
-            .max_set_by_key(|(f, _g)| f.hp)
-            .into_iter()
-            .max_by_key(|(_f, _g)| _g.wisdom())
+            .max_by_key(|(f, _g)| f.hp)
             .map(|(_f, g)| g)
             .unwrap_or_default()
     }
@@ -313,16 +311,16 @@ impl GearFinder {
             .filter(|i| i.health() > 0)
             .max_by_key(|i| i.health())
             .cloned();
-        let best_wisdom = equipables
-            .iter()
-            .filter(|i| i.wisdom() > 0)
-            .max_by_key(|i| i.wisdom())
-            .cloned();
-        let best_prospecting = equipables
-            .iter()
-            .filter(|i| i.prospecting() > 0)
-            .max_by_key(|i| i.wisdom())
-            .cloned();
+        // let best_wisdom = equipables
+        //     .iter()
+        //     .filter(|i| i.wisdom() > 0)
+        //     .max_by_key(|i| i.wisdom())
+        //     .cloned();
+        // let best_prospecting = equipables
+        //     .iter()
+        //     .filter(|i| i.prospecting() > 0)
+        //     .max_by_key(|i| i.wisdom())
+        //     .cloned();
         if !bests_for_damage.is_empty() {
             bests.extend(bests_for_damage);
         }
@@ -336,12 +334,12 @@ impl GearFinder {
         {
             bests.push(best_health_increase);
         }
-        if let Some(best_wisdom) = best_wisdom {
-            bests.push(best_wisdom);
-        }
-        if let Some(best_prospecting) = best_prospecting {
-            bests.push(best_prospecting);
-        }
+        // if let Some(best_wisdom) = best_wisdom {
+        //     bests.push(best_wisdom);
+        // }
+        // if let Some(best_prospecting) = best_prospecting {
+        //     bests.push(best_prospecting);
+        // }
         bests
             .into_iter()
             .map(|i| Some(i.code.to_owned()))
