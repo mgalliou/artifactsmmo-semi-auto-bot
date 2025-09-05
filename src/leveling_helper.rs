@@ -72,6 +72,42 @@ impl LevelingHelper {
             .collect_vec()
     }
 
+    pub fn best_craft(
+        &self,
+        level: i32,
+        skill: Skill,
+        char: &CharacterController,
+    ) -> Option<Arc<ItemSchema>> {
+        self.best_crafts_hardcoded(level, skill)
+            .into_iter()
+            .filter_map(|i| {
+                let mats_with_ttg = self
+                    .bank
+                    .missing_mats_for(
+                        &i.code,
+                        char.max_craftable_items(&i.code),
+                        Some(&char.name()),
+                    )
+                    .into_iter()
+                    .par_bridge()
+                    .map(|m| (m.clone(), self.account.time_to_get(&m.code)))
+                    .collect::<Vec<_>>();
+                if mats_with_ttg.iter().all(|(_, ttg)| ttg.is_some()) {
+                    Some((
+                        i,
+                        mats_with_ttg
+                            .iter()
+                            .filter_map(|(m, ttg)| ttg.as_ref().map(|ttg| (ttg * m.quantity)))
+                            .sum::<i32>(),
+                    ))
+                } else {
+                    None
+                }
+            })
+            .min_by_key(|(_, ttg)| *ttg)
+            .map(|(i, _)| i)
+    }
+
     /// Returns the best items to level the given `skill` at the given `level.
     pub fn best_crafts_hardcoded(&self, level: i32, skill: Skill) -> Vec<Arc<ItemSchema>> {
         match skill {
@@ -151,42 +187,6 @@ impl LevelingHelper {
             .collect_vec()
     }
 
-    pub fn best_craft(
-        &self,
-        level: i32,
-        skill: Skill,
-        char: &CharacterController,
-    ) -> Option<Arc<ItemSchema>> {
-        self.best_crafts_hardcoded(level, skill)
-            .into_iter()
-            .filter_map(|i| {
-                let mats_with_ttg = self
-                    .bank
-                    .missing_mats_for(
-                        &i.code,
-                        char.max_craftable_items(&i.code),
-                        Some(&char.name()),
-                    )
-                    .into_iter()
-                    .par_bridge()
-                    .map(|m| (m.clone(), self.account.time_to_get(&m.code)))
-                    .collect::<Vec<_>>();
-                if mats_with_ttg.iter().all(|(_, ttg)| ttg.is_some()) {
-                    Some((
-                        i,
-                        mats_with_ttg
-                            .iter()
-                            .filter_map(|(m, ttg)| ttg.as_ref().map(|ttg| (ttg * m.quantity)))
-                            .sum::<i32>(),
-                    ))
-                } else {
-                    None
-                }
-            })
-            .min_by_key(|(_, ttg)| *ttg)
-            .map(|(i, _)| i)
-    }
-
     pub fn best_resource(&self, level: i32, skill: Skill) -> Option<Arc<ResourceSchema>> {
         self.resources
             .all()
@@ -194,7 +194,7 @@ impl LevelingHelper {
             .filter(|r| {
                 Skill::from(r.skill) == skill
                     && r.level <= level
-                    && level - r.level <= 10
+                    && level - r.level < 11
                     && !self.maps.with_content_code(&r.code).is_empty()
             })
             .max_by_key(|r| r.level)

@@ -98,6 +98,20 @@ impl Inventory {
         self.client.inventory.contains_mats_for(item, quantity)
     }
 
+    pub fn missing_mats_for(&self, item: &str, quantity: i32) -> Vec<SimpleItemSchema> {
+        self.items
+            .mats_for(item, quantity)
+            .iter()
+            .filter_map(|m| {
+                let missing = m.quantity - self.has_available(&m.code);
+                (missing > 0).then_some(SimpleItemSchema {
+                    code: m.code.clone(),
+                    quantity: missing,
+                })
+            })
+            .collect_vec()
+    }
+
     pub fn consumable_food(&self) -> Vec<Arc<ItemSchema>> {
         self.content()
             .iter()
@@ -113,7 +127,13 @@ impl Inventory {
 
     /// Returns the amount not reserved of the given item `code` in the `Character` inventory.
     pub fn has_available(&self, item: &str) -> i32 {
-        self.total_of(item) - self.quantity_reserved(item)
+        let reserved = self.quantity_reserved(item);
+        let total = self.total_of(item);
+        if reserved > total {
+            0
+        } else {
+            total - reserved
+        }
     }
 
     /// Make sure the `quantity` of `item` is reserved
@@ -195,13 +215,7 @@ impl Inventory {
             .read()
             .unwrap()
             .iter()
-            .filter_map(|r| {
-                if r.item == item {
-                    Some(r.quantity())
-                } else {
-                    None
-                }
-            })
+            .filter_map(|r| (r.item == item).then_some(r.quantity()))
             .sum()
     }
 

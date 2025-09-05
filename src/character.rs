@@ -33,9 +33,9 @@ use artifactsmmo_sdk::{
     items::{ItemSchemaExt, ItemSource},
     maps::MapSchemaExt,
     models::{
-        CharacterSchema, DropSchema, FightSchema, ItemSchema, MapContentType, MapSchema,
-        MonsterSchema, NpcItem, RecyclingItemsSchema, ResourceSchema, RewardsSchema,
-        SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
+        CharacterSchema, DropSchema, FightSchema, MapContentType, MapSchema, MonsterSchema,
+        NpcItem, RecyclingItemsSchema, ResourceSchema, RewardsSchema, SimpleItemSchema,
+        SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
     },
     npcs::Npcs,
     simulator::HasEffects,
@@ -830,69 +830,47 @@ impl CharacterController {
         item: &str,
         quantity: i32,
     ) -> Result<SkillInfoSchema, CraftCommandError> {
-        let (item, skill) = self.can_craft_now(item, quantity)?;
+        let skill = self.can_craft_now(item, quantity)?;
         info!(
             "{}: going to craft '{}'x{} from bank.",
             self.name(),
-            item.code,
+            item,
             quantity
         );
-        let mats = self.items.mats_for(&item.code, quantity);
-        let missing_from_inventory = mats
-            .iter()
-            .filter_map(|m| {
-                let missing = m.quantity - self.inventory.has_available(&m.code);
-                if missing > 0 {
-                    Some(SimpleItemSchema {
-                        code: m.code.clone(),
-                        quantity: missing,
-                    })
-                } else {
-                    None
-                }
-            })
-            .collect_vec();
-        if let Err(e) = self
-            .bank
-            .reserv_items(&missing_from_inventory, &self.name())
-        {
+        let mats = self.items.mats_for(item, quantity);
+        let missing_mats = self.inventory.missing_mats_for(item, quantity);
+        if let Err(e) = self.bank.reserv_items(&missing_mats, &self.name()) {
             error!(
                 "{}: failed reserving mats to craft from bank: {e}",
                 self.name(),
             )
         };
         self.check_for_skill_gear(skill);
-        self.deposit_all()?;
-        self.withdraw_items(&mats)?;
+        self.deposit_all_but_multiple(&mats)?;
+        self.withdraw_items(&self.inventory.missing_mats_for(item, quantity))?;
         let Some(map) = self.maps.with_workshop_for(skill) else {
             return Err(MoveCommandError::MapNotFound.into());
         };
         self.r#move(map.x, map.y)?;
-        let craft = self.client.craft(&item.code, quantity)?;
-        mats.iter().for_each(|m| {
-            self.inventory.unreserv_item(&m.code, m.quantity);
-        });
+        let craft = self.client.craft(item, quantity)?;
+        self.inventory.unreserv_items(&mats);
         Ok(craft)
     }
 
     // Checks that the `Character` has the required skill level to craft the given item `code`
-    pub fn can_craft_now(
-        &self,
-        item: &str,
-        quantity: i32,
-    ) -> Result<(Arc<ItemSchema>, Skill), CraftCommandError> {
-        let (item, skill) = self.can_craft(item)?;
-        let missing_mats = self.missing_mats_for(&item.code, quantity);
+    pub fn can_craft_now(&self, item: &str, quantity: i32) -> Result<Skill, CraftCommandError> {
+        let skill = self.can_craft(item)?;
+        let missing_mats = self.missing_mats_for(item, quantity);
         if !missing_mats.is_empty() {
             return Err(CraftCommandError::InsufficientMaterials(missing_mats));
         }
-        if self.max_craftable_items(&item.code) < quantity {
+        if self.max_craftable_items(item) < quantity {
             return Err(CraftCommandError::InsufficientInventorySpace);
         }
-        Ok((item, skill))
+        Ok(skill)
     }
 
-    pub fn can_craft(&self, item: &str) -> Result<(Arc<ItemSchema>, Skill), CraftCommandError> {
+    pub fn can_craft(&self, item: &str) -> Result<Skill, CraftCommandError> {
         let Some(item) = self.items.get(item) else {
             return Err(CraftCommandError::ItemNotFound);
         };
@@ -905,7 +883,7 @@ impl CharacterController {
         if self.client.skill_level(skill) < item.level {
             return Err(CraftCommandError::InsufficientSkillLevel(skill, item.level));
         }
-        Ok((item, skill))
+        Ok(skill)
     }
 
     pub fn recycle_item(
@@ -913,34 +891,23 @@ impl CharacterController {
         item: &str,
         quantity: i32,
     ) -> Result<RecyclingItemsSchema, RecycleCommandError> {
-        self.can_recycle(item, quantity)?;
-        let Some(item) = self.items.get(item) else {
-            return Err(RecycleCommandError::ItemNotFound);
-        };
-        let Some(skill) = item.skill_to_craft() else {
-            return Err(RecycleCommandError::ItemNotCraftable);
-        };
-        let quantity_available = self.has_in_bank_or_inv(&item.code);
+        let skill = self.can_recycle(item, quantity)?;
+        let quantity_available = self.has_in_bank_or_inv(item);
         if quantity_available < quantity {
             return Err(RecycleCommandError::InsufficientQuantity);
         }
-        info!(
-            "{}: going to recycle '{}x{}'.",
-            self.name(),
-            &item.code,
-            quantity
-        );
-        self.lock_in_inventory(&item.code, quantity)?;
+        info!("{}: going to recycle '{item}'x{quantity}", self.name(),);
+        self.lock_in_inventory(item, quantity)?;
         let Some(map) = self.maps.with_workshop_for(skill) else {
             return Err(MoveCommandError::MapNotFound.into());
         };
         self.r#move(map.x, map.y)?;
-        let result = self.client.recycle(&item.code, quantity);
+        let result = self.client.recycle(item, quantity);
         self.inventory.unreserv_item(&self.task(), quantity);
         Ok(result?)
     }
 
-    pub fn can_recycle(&self, item: &str, quantity: i32) -> Result<(), RecycleCommandError> {
+    pub fn can_recycle(&self, item: &str, quantity: i32) -> Result<Skill, RecycleCommandError> {
         let Some(item) = self.items.get(item) else {
             return Err(RecycleCommandError::ItemNotFound);
         };
@@ -958,7 +925,7 @@ impl CharacterController {
         if self.inventory.max_items() < item.recycled_quantity() * quantity {
             return Err(RecycleCommandError::InsufficientInventorySpace);
         }
-        Ok(())
+        Ok(skill)
     }
 
     pub fn delete_item(
@@ -986,14 +953,20 @@ impl CharacterController {
             && let Err(e) = self.inventory.reserv_item(item, in_inventory)
         {
             error!(
-                "{}: failed reserving already in inventory: {e}",
+                "{}: failed reserving item already in inventory: {e}",
                 self.name(),
             );
+        }
+        if in_inventory >= quantity {
+            return Ok(());
         }
         let missing = quantity - in_inventory;
         if missing > 0 {
             if let Err(e) = self.bank.reserv_item(item, missing, &self.name()) {
-                error!("{}: failed reserving items in bank: {e}", self.name())
+                error!(
+                    "{}: failed reserving '{item}'x{missing} in bank: {e}",
+                    self.name()
+                )
             }
             if let Err(e) = self.deposit_all_but(item) {
                 error!("{}: failed depositing: {e}", self.name())
@@ -1032,6 +1005,33 @@ impl CharacterController {
         let mut items = self.inventory.simple_content();
         items.retain(|i| i.code != item);
         self.deposit_items(&items)
+    }
+
+    pub fn deposit_all_but_multiple(
+        &self,
+        items: &[SimpleItemSchema],
+    ) -> Result<(), DepositItemCommandError> {
+        if self.inventory.total_items() <= 0 {
+            return Ok(());
+        }
+        let inv_items = self
+            .inventory
+            .simple_content()
+            .iter_mut()
+            .filter_map(|inv| {
+                for item in items.iter() {
+                    if inv.code == item.code {
+                        if inv.quantity > item.quantity {
+                            inv.quantity -= item.quantity;
+                        } else {
+                            return None;
+                        }
+                    }
+                }
+                Some(inv.clone())
+            })
+            .collect_vec();
+        self.deposit_items(&inv_items)
     }
 
     pub fn deposit_item(&self, item: &str, quantity: i32) -> Result<(), DepositItemCommandError> {
@@ -1227,7 +1227,10 @@ impl CharacterController {
         //TODO: handle utilities
         let quantity = slot.max_quantity();
         if let Err(e) = self.lock_in_inventory(item, quantity) {
-            error!("{}: failed to get item in inventory: {e}", self.name());
+            error!(
+                "{}: failed to get '{item}'x{quantity} in inventory: {e}",
+                self.name()
+            );
             return;
         }
         if let Err(e) = self.equip_item(
@@ -1236,7 +1239,7 @@ impl CharacterController {
             min(slot.max_quantity(), self.inventory.total_of(item)),
         ) {
             error!(
-                "{} failed equiping item from bank or inventory: {e}",
+                "{} failed equiping {item} from bank or inventory: {e}",
                 self.name(),
             );
         }
@@ -1260,13 +1263,8 @@ impl CharacterController {
         let Some(item) = self.items.get(item_code) else {
             return Err(EquipCommandError::ItemNotFound);
         };
-        if self.inventory.free_space() + item.inventory_space() <= 0
-            && let Err(e) = self.deposit_all_but(item_code)
-        {
-            error!(
-                "{}: failed depositing before equiping item: {e}",
-                self.name()
-            )
+        if self.inventory.free_space() + item.inventory_space() <= 0 {
+            self.deposit_all_but(item_code)?;
         }
         self.unequip_slot(slot, self.quantity_in_slot(slot))?;
         self.client.equip(item_code, slot, quantity)?;
@@ -1708,12 +1706,10 @@ impl CharacterController {
             .into_iter()
             .filter(|m| self.has_in_bank_or_inv(&m.code) < m.quantity * quantity)
             .update(|m| {
-                m.quantity = m.quantity * quantity
-                    - if self.order_board.is_ordered(&m.code) {
-                        0
-                    } else {
-                        self.has_in_bank_or_inv(&m.code)
-                    }
+                m.quantity *= quantity;
+                if !self.order_board.is_ordered(&m.code) {
+                    m.quantity -= self.has_in_bank_or_inv(&m.code)
+                }
             })
             .collect_vec()
     }

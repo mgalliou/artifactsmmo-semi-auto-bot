@@ -246,6 +246,8 @@ pub enum EquipCommandError {
     ItemNotFound,
     #[error("Conditions not met")]
     ConditionsNotMet,
+    #[error("Failed to deposit all before equiping item: {0}")]
+    DepositItemCommandError(#[from] DepositItemCommandError),
     #[error("Failed to unequip equiped item before equiping item: {0}")]
     UnequipCommandError(#[from] UnequipCommandError),
     #[error("Failed to request equip item: {0}")]

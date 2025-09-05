@@ -286,7 +286,7 @@ impl BankController {
 pub enum BankError {
     #[error("Item unvailable")]
     ItemUnavailable,
-    #[error("Quantiny unvailable: {0}")]
+    #[error("Quantity unavailable: {0}")]
     QuantityUnavailable(i32),
 }
 
