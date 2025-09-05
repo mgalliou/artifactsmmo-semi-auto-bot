@@ -288,61 +288,40 @@ impl GearFinder {
             .iter()
             .filter(|i| i.damage_increase_against_with(monster, weapon) > 0.0)
             .max_by_key(|i| OrderedFloat(i.damage_increase_against_with(monster, weapon)));
-        let bests_for_damage = equipables
-            .iter()
-            .filter(|i| {
-                // TODO: find a better way to handle negative damage reduction on damage increases
-                // (snowman_hat)
-                if let Some(best) = best_for_damage {
-                    i.damage_increase_against_with(monster, weapon)
-                        >= best.damage_increase_against_with(monster, weapon) * 0.75
-                } else {
-                    false
-                }
-            })
-            .sorted_by_key(|i| OrderedFloat(i.damage_increase_against_with(monster, weapon)))
-            .rev()
-            .take(3)
-            .cloned()
-            .collect_vec();
         let best_reduction = equipables
             .iter()
             .filter(|i| i.damage_reduction_against(monster) > 0.0)
-            .max_by_key(|i| OrderedFloat(i.damage_reduction_against(monster)))
-            .cloned();
+            .max_by_key(|i| OrderedFloat(i.damage_reduction_against(monster)));
         let best_health_increase = equipables
             .iter()
             .filter(|i| i.health() > 0)
-            .max_by_key(|i| i.health())
-            .cloned();
+            .max_by_key(|i| i.health());
         // let best_wisdom = equipables
         //     .iter()
         //     .filter(|i| i.wisdom() > 0)
-        //     .max_by_key(|i| i.wisdom())
-        //     .cloned();
+        //     .max_by_key(|i| i.wisdom());
         // let best_prospecting = equipables
         //     .iter()
         //     .filter(|i| i.prospecting() > 0)
-        //     .max_by_key(|i| i.wisdom())
-        //     .cloned();
-        if !bests_for_damage.is_empty() {
-            bests.extend(bests_for_damage);
+        //     .max_by_key(|i| i.wisdom());
+        if let Some(best_for_damage) = best_for_damage {
+            bests.push(best_for_damage.clone());
         }
         if let Some(best_reduction) = best_reduction {
-            bests.push(best_reduction);
+            bests.push(best_reduction.clone());
         }
         if let Some(best_health_increase) = best_health_increase
             && bests
                 .iter()
                 .all(|u| u.health() < best_health_increase.health())
         {
-            bests.push(best_health_increase);
+            bests.push(best_health_increase.clone());
         }
         // if let Some(best_wisdom) = best_wisdom {
-        //     bests.push(best_wisdom);
+        //     bests.push(best_wisdom.clone());
         // }
         // if let Some(best_prospecting) = best_prospecting {
-        //     bests.push(best_prospecting);
+        //     bests.push(best_prospecting.clone());
         // }
         bests
             .into_iter()
