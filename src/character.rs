@@ -1059,7 +1059,11 @@ impl CharacterController {
         if self.bank.details().slots < items_not_in_bank {
             return Err(DepositItemCommandError::InsufficientBankSpace);
         };
-        info!("{}: going to deposit items: {items:?}", self.name());
+        info!(
+            "{}: going to deposit items: {}",
+            self.name(),
+            SimpleItemSchemas(&items.to_vec())
+        );
         self.move_to_closest_map_of_type(MapContentType::Bank)?;
         if self.bank.free_slots() <= BANK_MIN_FREE_SLOT
             && let Err(e) = self.expand_bank()
@@ -1133,7 +1137,11 @@ impl CharacterController {
         if !self.inventory.has_space_for_multiple(items) {
             return Err(WithdrawItemCommandError::InsufficientInventorySpace);
         }
-        info!("{}: going to withdraw items: {items:?}", self.name());
+        info!(
+            "{}: going to withdraw items: {}",
+            self.name(),
+            SimpleItemSchemas(&items.to_vec())
+        );
         self.move_to_closest_map_of_type(MapContentType::Bank)?;
         let result = self.client.withdraw_item(items);
         if result.is_ok() {
