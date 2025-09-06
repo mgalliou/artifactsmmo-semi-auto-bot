@@ -671,7 +671,7 @@ impl CharacterController {
             monster,
             Filter {
                 craftable: true,
-                from_task: false,
+                from_task: true,
                 from_monster: false,
                 from_npc: true,
                 ..Default::default()
@@ -757,7 +757,7 @@ impl CharacterController {
             skill,
             Filter {
                 craftable: true,
-                from_task: false,
+                from_task: true,
                 from_monster: false,
                 from_npc: true,
                 ..Default::default()
