@@ -88,7 +88,7 @@ impl AccountController {
             .cloned()
     }
 
-    pub fn available_in_inventories(&self, item: &str) -> i32 {
+    pub fn available_in_inventories(&self, item: &str) -> u32 {
         self.characters
             .read()
             .unwrap()
@@ -106,7 +106,7 @@ impl AccountController {
             .any(|c| c.can_craft(item).is_ok())
     }
 
-    pub fn max_skill_level(&self, skill: Skill) -> i32 {
+    pub fn max_skill_level(&self, skill: Skill) -> u32 {
         self.characters
             .read()
             .unwrap()
@@ -116,7 +116,7 @@ impl AccountController {
             .unwrap_or(1)
     }
 
-    pub fn fisher_max_items(&self) -> i32 {
+    pub fn fisher_max_items(&self) -> u32 {
         self.characters
             .read()
             .unwrap()
@@ -132,7 +132,7 @@ impl AccountController {
             .unwrap_or(0)
     }
 
-    pub fn time_to_get(&self, item: &str) -> Option<i32> {
+    pub fn time_to_get(&self, item: &str) -> Option<u32> {
         self.items
             .best_source_of(item)
             .iter()
@@ -158,7 +158,7 @@ impl AccountController {
                         .mats_of(item)
                         .into_iter()
                         .map(|m| (m.clone(), self.time_to_get(&m.code)))
-                        .collect::<Vec<(SimpleItemSchema, Option<i32>)>>();
+                        .collect::<Vec<(SimpleItemSchema, Option<u32>)>>();
                     if mats_wit_ttg.iter().all(|(_, ttg)| ttg.is_some()) {
                         Some(
                             mats_wit_ttg
@@ -167,7 +167,7 @@ impl AccountController {
                                     ttg.as_ref()
                                         .map(|ttg| (ttg * m.quantity) + (5 * m.quantity))
                                 })
-                                .sum::<i32>(),
+                                .sum::<u32>(),
                         )
                     } else {
                         None

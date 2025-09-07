@@ -1,5 +1,5 @@
 use artifactsmmo_sdk::{
-    Items, Maps, Monsters, Resources,
+    HasLevel, Items, Maps, Monsters, Resources,
     char::{HasCharacterData, Skill},
     items::ItemSchemaExt,
     models::{ItemSchema, MonsterSchema, ResourceSchema},
@@ -43,10 +43,14 @@ impl LevelingHelper {
     /// when crafted.
     pub fn crafts_providing_exp(
         &self,
-        level: i32,
+        level: u32,
         skill: Skill,
     ) -> impl Iterator<Item = Arc<ItemSchema>> {
-        let min = if level > 11 { level - 10 } else { 1 };
+        let min: u32 = if level > 11 {
+            level.saturating_sub(10)
+        } else {
+            1
+        };
         self.items
             .all()
             .into_iter()
@@ -56,7 +60,7 @@ impl LevelingHelper {
 
     /// Takes a `level` and a `skill` and returns the items of the lowest level
     /// providing experience when crafted.
-    pub fn lowest_crafts_providing_exp(&self, level: i32, skill: Skill) -> Vec<Arc<ItemSchema>> {
+    pub fn lowest_crafts_providing_exp(&self, level: u32, skill: Skill) -> Vec<Arc<ItemSchema>> {
         self.crafts_providing_exp(level, skill)
             .min_set_by_key(|i| i.level)
             .into_iter()
@@ -65,7 +69,7 @@ impl LevelingHelper {
 
     /// Takes a `level` and a `skill` and returns the items of the highest level
     /// providing experience when crafted.
-    pub fn highest_crafts_providing_exp(&self, level: i32, skill: Skill) -> Vec<Arc<ItemSchema>> {
+    pub fn highest_crafts_providing_exp(&self, level: u32, skill: Skill) -> Vec<Arc<ItemSchema>> {
         self.crafts_providing_exp(level, skill)
             .max_set_by_key(|i| i.level)
             .into_iter()
@@ -74,7 +78,7 @@ impl LevelingHelper {
 
     pub fn best_craft(
         &self,
-        level: i32,
+        level: u32,
         skill: Skill,
         char: &CharacterController,
     ) -> Option<Arc<ItemSchema>> {
@@ -98,7 +102,7 @@ impl LevelingHelper {
                         mats_with_ttg
                             .iter()
                             .filter_map(|(m, ttg)| ttg.as_ref().map(|ttg| (ttg * m.quantity)))
-                            .sum::<i32>(),
+                            .sum::<u32>(),
                     ))
                 } else {
                     None
@@ -109,7 +113,7 @@ impl LevelingHelper {
     }
 
     /// Returns the best items to level the given `skill` at the given `level.
-    pub fn best_crafts_hardcoded(&self, level: i32, skill: Skill) -> Vec<Arc<ItemSchema>> {
+    pub fn best_crafts_hardcoded(&self, level: u32, skill: Skill) -> Vec<Arc<ItemSchema>> {
         match skill {
             Skill::Gearcrafting => {
                 if level >= 20 {
@@ -160,7 +164,7 @@ impl LevelingHelper {
         .collect_vec()
     }
 
-    pub fn best_crafts(&self, level: i32, skill: Skill) -> Vec<Arc<ItemSchema>> {
+    pub fn best_crafts(&self, level: u32, skill: Skill) -> Vec<Arc<ItemSchema>> {
         self.crafts_providing_exp(level, skill)
             .filter(|i| {
                 ![
@@ -187,14 +191,14 @@ impl LevelingHelper {
             .collect_vec()
     }
 
-    pub fn best_resource(&self, level: i32, skill: Skill) -> Option<Arc<ResourceSchema>> {
+    pub fn best_resource(&self, level: u32, skill: Skill) -> Option<Arc<ResourceSchema>> {
         self.resources
             .all()
             .into_iter()
             .filter(|r| {
                 Skill::from(r.skill) == skill
-                    && r.level <= level
-                    && level - r.level < 11
+                    && r.level() <= level
+                    && level.saturating_sub(r.level()) < 11
                     && !self.maps.with_content_code(&r.code).is_empty()
             })
             .max_by_key(|r| r.level)
@@ -204,7 +208,7 @@ impl LevelingHelper {
         self.monsters
             .all()
             .into_iter()
-            .filter(|m| char.level() >= m.level && m.code != "imp" && m.code != "death_knight")
+            .filter(|m| char.level() >= m.level() && m.code != "imp" && m.code != "death_knight")
             .max_by_key(|m| if char.can_kill(m).is_ok() { m.level } else { 0 })
     }
 }

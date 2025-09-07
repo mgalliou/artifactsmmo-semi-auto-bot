@@ -25,5 +25,5 @@ pub const FOOD_BLACK_LIST: [&str; 8] = [
     MAPLE_SYRUP,
 ];
 
-pub const MIN_COIN_THRESHOLD: i32 = 4;
-pub const MIN_FOOD_THRESHOLD: i32 = 1000;
+pub const MIN_COIN_THRESHOLD: u32 = 4;
+pub const MIN_FOOD_THRESHOLD: u32 = 1000;

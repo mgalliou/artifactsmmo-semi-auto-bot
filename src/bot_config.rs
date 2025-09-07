@@ -110,7 +110,7 @@ pub enum Goal {
     Orders,
     ReachSkillLevel {
         skill: Skill,
-        level: i32,
+        level: u32,
     },
     FollowMaxSkillLevel {
         skill: Skill,

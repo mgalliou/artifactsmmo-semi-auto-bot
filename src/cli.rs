@@ -289,7 +289,7 @@ fn respond(
                         char.skill_xp(*s),
                         char.skill_max_xp(*s),
                         (f64::from(char.skill_xp(*s)) / f64::from(char.skill_max_xp(*s)) * 100.0)
-                            .round() as i32
+                            .round() as u32
                     )
                 });
             }
@@ -355,8 +355,8 @@ enum Commands {
         action: EventsAction,
     },
     Char {
-        #[arg(value_parser = value_parser!(i32), default_value = "0")]
-        i: i32,
+        #[arg(value_parser = value_parser!(u32), default_value = "0")]
+        i: u32,
     },
     Map,
     Task,
@@ -365,17 +365,17 @@ enum Commands {
     Craft {
         item: String,
         #[arg(default_value_t = 1)]
-        quantity: i32,
+        quantity: u32,
     },
     Recycle {
         item: String,
         #[arg(default_value_t = 1)]
-        quantity: i32,
+        quantity: u32,
     },
     Delete {
         item: String,
         #[arg(default_value_t = 1)]
-        quantity: i32,
+        quantity: u32,
     },
     Skill {
         #[command(subcommand)]
@@ -419,12 +419,12 @@ enum Commands {
     Deposit {
         item: String,
         #[arg(default_value_t = 1)]
-        quantity: i32,
+        quantity: u32,
     },
     Unequip {
         slot: String,
         #[arg(default_value_t = 1)]
-        quantity: i32,
+        quantity: u32,
     },
 }
 
@@ -441,7 +441,7 @@ enum OrderboardAction {
     Add {
         item: String,
         #[arg(default_value_t = 1)]
-        quantity: i32,
+        quantity: u32,
     },
     #[command(alias = "rm")]
     Remove { item: String },

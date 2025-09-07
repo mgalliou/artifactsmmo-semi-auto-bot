@@ -60,7 +60,7 @@ pub enum CraftCommandError {
     #[error("'{0}' skill is disabled")]
     SkillDisabled(Skill),
     #[error("Insufficient '{0}' level: {1}")]
-    InsufficientSkillLevel(Skill, i32),
+    InsufficientSkillLevel(Skill, u32),
     #[error("Insufficient inventory space")]
     InsufficientInventorySpace,
     #[error("Insufficient materials quantity available: {0:?}")]
@@ -84,7 +84,7 @@ pub enum RecycleCommandError {
     #[error("'{0}' skill is disabled")]
     SkillDisabled(Skill),
     #[error("Insufficient '{0}' level: {1}")]
-    InsufficientSkillLevel(Skill, i32),
+    InsufficientSkillLevel(Skill, u32),
     #[error("Insufficient item quantity available")]
     InsufficientQuantity,
     #[error("Insufficient inventory space")]
@@ -115,7 +115,7 @@ pub enum TaskTradeCommandError {
     #[error("Task already completed")]
     TaskAlreadyCompleted,
     #[error("Missing item(s): '{item}'x{quantity}")]
-    MissingItems { item: String, quantity: i32 },
+    MissingItems { item: String, quantity: u32 },
     #[error("Failed to withdraw items: {0}")]
     WithdrawItemCommandError(#[from] WithdrawItemCommandError),
     #[error("Failed to move to tasks master: {0}")]
@@ -151,7 +151,7 @@ pub enum TaskCompletionCommandError {
 #[derive(Debug, Error)]
 pub enum TasksCoinExchangeCommandError {
     #[error("Missing coin quantity: {0}")]
-    MissingCoins(i32),
+    MissingCoins(u32),
     #[error("Failed to withdraw coins required: {0}")]
     WithdrawItemCommandError(#[from] WithdrawItemCommandError),
     #[error("Failed to move to tasks master: {0}")]
@@ -279,7 +279,7 @@ pub enum BuyNpcCommandError {
     #[error("No NPC found on map to purchase item")]
     NpcNotFound,
     #[error("Insufficient currency: '{currency}'x{quantity}")]
-    InsufficientCurrency { currency: String, quantity: i32 },
+    InsufficientCurrency { currency: String, quantity: u32 },
     #[error("Failed to deposit all before withdrawing currency: {0}")]
     DepositItemCommandError(#[from] DepositItemCommandError),
     #[error("Failed to withdraw gold from bank: {0}")]
@@ -301,7 +301,7 @@ pub enum SellNpcCommandError {
     #[error("No NPC found on map to sell item")]
     NpcNotFound,
     #[error("Insufficient item quantity available")]
-    InsufficientQuantity { quantity: i32 },
+    InsufficientQuantity { quantity: u32 },
     #[error("Failed to deposit all before selling item: {0}")]
     DepositItemCommandError(#[from] DepositItemCommandError),
     #[error("Failed to withdraw item to sell: {0}")]

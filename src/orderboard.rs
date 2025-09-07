@@ -8,7 +8,7 @@ use std::{
     mem::discriminant,
     sync::{
         Arc, RwLock,
-        atomic::{AtomicI32, Ordering::Relaxed},
+        atomic::{AtomicU32, Ordering::Relaxed},
     },
 };
 use strum::IntoEnumIterator;
@@ -95,7 +95,7 @@ impl OrderBoard {
     pub fn add(
         &self,
         item: &str,
-        quantity: i32,
+        quantity: u32,
         owner: Option<&str>,
         purpose: Purpose,
     ) -> Result<(), OrderError> {
@@ -115,7 +115,7 @@ impl OrderBoard {
     pub fn add_or_reset(
         &self,
         item: &str,
-        quantity: i32,
+        quantity: u32,
         owner: Option<&str>,
         purpose: Purpose,
     ) -> Result<(), OrderError> {
@@ -132,7 +132,7 @@ impl OrderBoard {
         items.iter().for_each(|i| {
             let mut remaining = i.quantity;
             for o in self.orders_by_priority().iter() {
-                if remaining <= 0 {
+                if remaining == 0 {
                     break;
                 }
                 if i.code == o.item {
@@ -149,7 +149,7 @@ impl OrderBoard {
                     if o.turned_in() {
                         self.remove(o);
                     }
-                    remaining -= quantity;
+                    remaining = remaining.saturating_sub(quantity);
                 }
             }
         });
@@ -167,20 +167,23 @@ impl OrderBoard {
                 <= self.account.available_in_inventories(&order.item) + order.in_progress()
     }
 
-    pub fn total_missing_for(&self, order: &Order) -> i32 {
-        order.missing() - self.account.available_in_inventories(&order.item) - order.in_progress()
+    pub fn total_missing_for(&self, order: &Order) -> u32 {
+        order
+            .missing()
+            .saturating_sub(self.account.available_in_inventories(&order.item))
+            .saturating_sub(order.in_progress())
     }
 }
 
 #[derive(Debug)]
 pub struct Order {
     pub item: String,
-    quantity: AtomicI32,
+    quantity: AtomicU32,
     pub owner: Option<String>,
     pub purpose: Purpose,
-    in_progress: AtomicI32,
+    in_progress: AtomicU32,
     // Number of item deposited into the bank
-    deposited: AtomicI32,
+    deposited: AtomicU32,
     pub creation: DateTime<Utc>,
 }
 
@@ -188,19 +191,19 @@ impl Order {
     pub fn new(
         owner: Option<&str>,
         item: &str,
-        quantity: i32,
+        quantity: u32,
         purpose: Purpose,
     ) -> Result<Order, OrderError> {
-        if quantity <= 0 {
+        if quantity == 0 {
             return Err(OrderError::InvalidQuantity);
         }
         Ok(Order {
             owner: owner.map(|o| o.to_owned()),
             item: item.to_owned(),
-            quantity: AtomicI32::new(quantity),
+            quantity: AtomicU32::new(quantity),
             purpose,
-            in_progress: AtomicI32::new(0),
-            deposited: AtomicI32::new(0),
+            in_progress: AtomicU32::new(0),
+            deposited: AtomicU32::new(0),
             creation: Utc::now(),
         })
     }
@@ -209,7 +212,7 @@ impl Order {
         self.item == other.item && self.owner == other.owner && self.purpose == other.purpose
     }
 
-    pub fn in_progress(&self) -> i32 {
+    pub fn in_progress(&self) -> u32 {
         self.in_progress.load(Relaxed)
     }
 
@@ -217,28 +220,29 @@ impl Order {
         self.deposited() >= self.quantity()
     }
 
-    pub fn deposited(&self) -> i32 {
+    pub fn deposited(&self) -> u32 {
         self.deposited.load(Relaxed)
     }
 
-    pub fn quantity(&self) -> i32 {
+    pub fn quantity(&self) -> u32 {
         self.quantity.load(Relaxed)
     }
 
-    pub fn missing(&self) -> i32 {
-        self.quantity() - self.deposited()
+    pub fn missing(&self) -> u32 {
+        self.quantity().saturating_sub(self.deposited())
     }
 
-    pub fn inc_deposited(&self, n: i32) {
+    pub fn inc_deposited(&self, n: u32) {
         self.deposited.fetch_add(n, Relaxed);
     }
 
-    pub fn inc_in_progress(&self, n: i32) {
+    pub fn inc_in_progress(&self, n: u32) {
         self.in_progress.fetch_add(n, Relaxed);
     }
 
-    pub fn dec_in_progress(&self, n: i32) {
-        self.in_progress.fetch_sub(n, Relaxed);
+    pub fn dec_in_progress(&self, n: u32) {
+        let result = self.in_progress().saturating_sub(n);
+        self.in_progress.store(result, Relaxed);
     }
 
     pub fn reset(&self) {

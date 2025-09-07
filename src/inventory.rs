@@ -1,5 +1,5 @@
 use artifactsmmo_sdk::{
-    HasDropTable, Items,
+    HasDropTable, HasQuantity, Items,
     char::{Character as CharacterClient, HasCharacterData},
     items::ItemSchemaExt,
     models::{InventorySlot, ItemSchema, SimpleItemSchema},
@@ -11,7 +11,7 @@ use std::{
     fmt::{Display, Formatter},
     sync::{
         Arc, RwLock,
-        atomic::{AtomicI32, Ordering::Relaxed},
+        atomic::{AtomicU32, Ordering::Relaxed},
     },
 };
 use thiserror::Error;
@@ -46,29 +46,29 @@ impl Inventory {
             .filter(|i| !i.code.is_empty())
             .map(|s| SimpleItemSchema {
                 code: s.code.clone(),
-                quantity: s.quantity,
+                quantity: s.quantity(),
             })
             .collect_vec()
     }
 
     /// Returns the amount of item in the `Character` inventory.
-    pub fn total_items(&self) -> i32 {
+    pub fn total_items(&self) -> u32 {
         self.client.inventory.total_items()
     }
 
     /// Returns the maximum number of item the inventory can contain.
-    pub fn max_items(&self) -> i32 {
+    pub fn max_items(&self) -> u32 {
         self.client.inventory.max_items()
     }
 
     /// Returns the free spaces in the `Character` inventory.
-    pub fn free_space(&self) -> i32 {
+    pub fn free_space(&self) -> u32 {
         self.client.inventory.free_space()
     }
 
     /// Returns the free spaces in the `Character` inventory.
-    pub fn free_slot(&self) -> usize {
-        self.client.inventory.free_slots()
+    pub fn free_slot(&self) -> u32 {
+        self.client.inventory.free_slots() as u32
     }
 
     pub fn has_space_for_drops_from<H: HasDropTable>(&self, entity: &H) -> bool {
@@ -79,7 +79,7 @@ impl Inventory {
         self.client.inventory.has_space_for_multiple(items)
     }
 
-    pub fn has_space_for(&self, item: &str, quantity: i32) -> bool {
+    pub fn has_space_for(&self, item: &str, quantity: u32) -> bool {
         self.client.inventory.has_space_for(item, quantity)
     }
 
@@ -90,20 +90,20 @@ impl Inventory {
     }
 
     /// Returns the amount of the given item `code` in the `Character` inventory.
-    pub fn total_of(&self, item: &str) -> i32 {
+    pub fn total_of(&self, item: &str) -> u32 {
         self.client.inventory.total_of(item)
     }
 
-    pub fn contains_mats_for(&self, item: &str, quantity: i32) -> bool {
+    pub fn contains_mats_for(&self, item: &str, quantity: u32) -> bool {
         self.client.inventory.contains_mats_for(item, quantity)
     }
 
-    pub fn missing_mats_for(&self, item: &str, quantity: i32) -> Vec<SimpleItemSchema> {
+    pub fn missing_mats_for(&self, item: &str, quantity: u32) -> Vec<SimpleItemSchema> {
         self.items
             .mats_for(item, quantity)
             .iter()
             .filter_map(|m| {
-                let missing = m.quantity - self.has_available(&m.code);
+                let missing = m.quantity.saturating_sub(self.has_available(&m.code));
                 (missing > 0).then_some(SimpleItemSchema {
                     code: m.code.clone(),
                     quantity: missing,
@@ -126,14 +126,10 @@ impl Inventory {
     }
 
     /// Returns the amount not reserved of the given item `code` in the `Character` inventory.
-    pub fn has_available(&self, item: &str) -> i32 {
+    pub fn has_available(&self, item: &str) -> u32 {
         let reserved = self.quantity_reserved(item);
         let total = self.total_of(item);
-        if reserved > total {
-            0
-        } else {
-            total - reserved
-        }
+        total.saturating_sub(reserved)
     }
 
     /// Make sure the `quantity` of `item` is reserved
@@ -148,17 +144,17 @@ impl Inventory {
     }
 
     /// Make sure the `quantity` of `item` is reserved
-    pub fn reserv_item(&self, item: &str, quantity: i32) -> Result<(), InventoryReservationError> {
-        let quantity_to_reserv = quantity - self.quantity_reserved(item);
+    pub fn reserv_item(&self, item: &str, quantity: u32) -> Result<(), InventoryReservationError> {
+        let Some(res) = self.get_reservation(item) else {
+            self.add_reservation(item, quantity);
+            return Ok(());
+        };
+        let quantity_to_reserv = quantity.saturating_sub(self.quantity_reserved(item));
         if quantity_to_reserv == 0 {
             return Ok(());
         } else if quantity_to_reserv > self.quantity_reservable(item) {
             return Err(InventoryReservationError::InsufficientQuantity);
         }
-        let Some(res) = self.get_reservation(item) else {
-            self.add_reservation(item, quantity);
-            return Ok(());
-        };
         res.inc_quantity(quantity_to_reserv);
         debug!(
             "{}: increased '{item}' inventory reservation by {quantity}",
@@ -175,7 +171,7 @@ impl Inventory {
     }
 
     /// Decrease the reserved quantity of `item`
-    pub fn unreserv_item(&self, item: &str, quantity: i32) {
+    pub fn unreserv_item(&self, item: &str, quantity: u32) {
         let Some(res) = self.get_reservation(item) else {
             return;
         };
@@ -190,10 +186,10 @@ impl Inventory {
         }
     }
 
-    fn add_reservation(&self, item: &str, quantity: i32) {
+    fn add_reservation(&self, item: &str, quantity: u32) {
         let res = Arc::new(InventoryReservation {
             item: item.to_owned(),
-            quantity: AtomicI32::new(quantity),
+            quantity: AtomicU32::new(quantity),
         });
         self.reservations.write().unwrap().push(res.clone());
         debug!("{}: added inventory reservation: res", self.client.name(),);
@@ -210,7 +206,7 @@ impl Inventory {
         );
     }
 
-    fn quantity_reserved(&self, item: &str) -> i32 {
+    fn quantity_reserved(&self, item: &str) -> u32 {
         self.reservations
             .read()
             .unwrap()
@@ -223,8 +219,9 @@ impl Inventory {
         self.quantity_reserved(item) > 0
     }
 
-    fn quantity_reservable(&self, item: &str) -> i32 {
-        self.total_of(item) - self.quantity_reserved(item)
+    fn quantity_reservable(&self, item: &str) -> u32 {
+        self.total_of(item)
+            .saturating_sub(self.quantity_reserved(item))
     }
 
     fn get_reservation(&self, item: &str) -> Option<Arc<InventoryReservation>> {
@@ -240,7 +237,7 @@ impl Inventory {
 #[derive(Debug)]
 pub struct InventoryReservation {
     item: String,
-    quantity: AtomicI32,
+    quantity: AtomicU32,
 }
 
 #[derive(Debug, Error)]
@@ -250,15 +247,16 @@ pub enum InventoryReservationError {
 }
 
 impl InventoryReservation {
-    pub fn inc_quantity(&self, n: i32) {
+    pub fn inc_quantity(&self, n: u32) {
         self.quantity.fetch_add(n, Relaxed);
     }
 
-    pub fn dec_quantity(&self, n: i32) {
-        self.quantity.fetch_sub(n, Relaxed);
+    pub fn dec_quantity(&self, n: u32) {
+        let new = self.quantity().saturating_sub(n);
+        self.quantity.store(new, Relaxed);
     }
 
-    pub fn quantity(&self) -> i32 {
+    pub fn quantity(&self) -> u32 {
         self.quantity.load(Relaxed)
     }
 }

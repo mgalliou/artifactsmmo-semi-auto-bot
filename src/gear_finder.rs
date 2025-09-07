@@ -34,7 +34,7 @@ impl GearFinder {
                 let fight = Simulator::average_fight(char.level(), 0, &g, monster, false);
                 fight.is_winning().then_some((fight, g))
             })
-            .min_set_by_key(|(f, _g)| f.cd + Simulator::time_to_rest(f.hp_lost))
+            .min_set_by_key(|(f, _g)| f.cd + Simulator::time_to_rest(f.hp_lost as u32))
             .into_iter()
             .max_by_key(|(f, _g)| f.hp)
             .map(|(_f, g)| g)
@@ -55,7 +55,7 @@ impl GearFinder {
                     g,
                 )
             })
-            .min_set_by_key(|(f, _g)| f.cd + Simulator::time_to_rest(f.hp_lost))
+            .min_set_by_key(|(f, _g)| f.cd + Simulator::time_to_rest(f.hp_lost as u32))
             .into_iter()
             .max_by_key(|(f, _g)| f.hp)
             .map(|(_f, g)| g)
