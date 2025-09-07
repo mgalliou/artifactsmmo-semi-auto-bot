@@ -1,5 +1,4 @@
 use crate::{
-    MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
     account::AccountController,
     bank::BankController,
     bot_config::{BotConfig, CharConfig, Goal},
@@ -19,15 +18,14 @@ use crate::{
     inventory::Inventory,
     leveling_helper::LevelingHelper,
     orderboard::{Order, OrderBoard, Purpose},
+    MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
 };
 use anyhow::Result;
 use artifactsmmo_sdk::{
-    Client, GOLDEN_EGG, GOLDEN_SHRIMP, HasDrops, HasLevel, Items, Maps, Monsters, Server,
-    SimpleItemSchemas, Simulator, Tasks,
-    char::{Character as CharacterClient, HasCharacterData, Skill, error::RestError},
+    char::{error::RestError, Character as CharacterClient, HasCharacterData, Skill},
     consts::{
-        BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, MAX_LEVEL, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE,
-        TASKS_COIN,
+        BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, MAX_LEVEL, TASKS_COIN, TASK_CANCEL_PRICE,
+        TASK_EXCHANGE_PRICE,
     },
     gear::{Gear, Slot},
     items::{ItemSchemaExt, ItemSource},
@@ -41,6 +39,8 @@ use artifactsmmo_sdk::{
     npcs_items::NpcItemExt,
     simulator::HasEffects,
     tasks::TaskFullSchemaExt,
+    Client, HasDrops, HasLevel, Items, Maps, Monsters, Server, SimpleItemSchemas, Simulator, Tasks,
+    GOLDEN_EGG, GOLDEN_SHRIMP,
 };
 use itertools::Itertools;
 use log::{debug, error, info, warn};

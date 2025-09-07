@@ -157,6 +157,10 @@ impl GearFinder {
         if !artifact_sets.is_empty() {
             items.push(artifact_sets);
         }
+        let runes = self.best_runes(char, filter);
+        if !runes.is_empty() {
+            items.push(runes)
+        }
         self.gen_all_gears(Some(weapon.clone()), items)
     }
 
@@ -520,6 +524,21 @@ impl GearFinder {
         ring_sets
     }
 
+    fn best_runes(&self, char: &CharacterController, filter: Filter) -> Vec<ItemWrapper> {
+        self.items
+            .all()
+            .into_iter()
+            .filter(|i| {
+                self.is_eligible(i, filter, char)
+                    && i.r#type().is_rune()
+                    && char.meets_conditions_for(i)
+            })
+            .max_set_by_key(|i| i.burn())
+            .iter()
+            .map(|i| ItemWrapper::Armor(Some(i.code.to_owned())))
+            .collect_vec()
+    }
+
     fn is_eligible(&self, i: &ItemSchema, filter: Filter, char: &CharacterController) -> bool {
         if filter.available {
             return char.has_available(&i.code) > 0;
@@ -610,6 +629,8 @@ impl GearFinder {
                     self.item_from_wrappers(&items, Type::Artifact, 0),
                     self.item_from_wrappers(&items, Type::Artifact, 1),
                     self.item_from_wrappers(&items, Type::Artifact, 2),
+                    self.item_from_wrappers(&items, Type::Rune, 0),
+                    self.item_from_wrappers(&items, Type::Bag, 0),
                 )
             })
             .collect_vec()
