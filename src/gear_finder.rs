@@ -394,8 +394,27 @@ impl GearFinder {
             .collect_vec()
     }
 
-    pub fn best_for_skill(&self, char: &CharacterController, skill: Skill, filter: Filter) -> Gear {
-        self.bests_for_skill(char, skill, filter)
+    pub fn best_for_crafting(
+        &self,
+        char: &CharacterController,
+        skill: Skill,
+        filter: Filter,
+    ) -> Gear {
+        self.bests_for_skill(char, skill, filter, false)
+            .into_iter()
+            .max_set_by_key(|g| g.wisdom())
+            .into_iter()
+            .max_by_key(|g| g.prospecting())
+            .unwrap_or_default()
+    }
+
+    pub fn best_for_gathering(
+        &self,
+        char: &CharacterController,
+        skill: Skill,
+        filter: Filter,
+    ) -> Gear {
+        self.bests_for_skill(char, skill, filter, true)
             .into_iter()
             .max_set_by_key(|g| g.prospecting())
             .into_iter()
@@ -408,6 +427,7 @@ impl GearFinder {
         char: &CharacterController,
         skill: Skill,
         filter: Filter,
+        with_tool: bool,
     ) -> Vec<Gear> {
         let armor_types = [
             Type::Helmet,
@@ -437,7 +457,12 @@ impl GearFinder {
         if !artifact_sets.is_empty() {
             items.push(artifact_sets);
         }
-        self.gen_all_gears(self.best_tool(char, skill, filter), items)
+        let tool = if with_tool {
+            self.best_tool(char, skill, filter)
+        } else {
+            Option::None
+        };
+        self.gen_all_gears(tool, items)
     }
 
     fn best_armors_for_skill(

@@ -1,4 +1,5 @@
 use crate::{
+    MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
     account::AccountController,
     bank::BankController,
     bot_config::{BotConfig, CharConfig, Goal},
@@ -18,14 +19,15 @@ use crate::{
     inventory::Inventory,
     leveling_helper::LevelingHelper,
     orderboard::{Order, OrderBoard, Purpose},
-    MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
 };
 use anyhow::Result;
 use artifactsmmo_sdk::{
-    char::{error::RestError, Character as CharacterClient, HasCharacterData, Skill},
+    Client, GOLDEN_EGG, GOLDEN_SHRIMP, HasDrops, HasLevel, Items, Maps, Monsters, Server,
+    SimpleItemSchemas, Simulator, Tasks,
+    char::{Character as CharacterClient, HasCharacterData, Skill, error::RestError},
     consts::{
-        BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, MAX_LEVEL, TASKS_COIN, TASK_CANCEL_PRICE,
-        TASK_EXCHANGE_PRICE,
+        BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, MAX_LEVEL, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE,
+        TASKS_COIN,
     },
     gear::{Gear, Slot},
     items::{ItemSchemaExt, ItemSource},
@@ -39,8 +41,6 @@ use artifactsmmo_sdk::{
     npcs_items::NpcItemExt,
     simulator::HasEffects,
     tasks::TaskFullSchemaExt,
-    Client, HasDrops, HasLevel, Items, Maps, Monsters, Server, SimpleItemSchemas, Simulator, Tasks,
-    GOLDEN_EGG, GOLDEN_SHRIMP,
 };
 use itertools::Itertools;
 use log::{debug, error, info, warn};
@@ -706,7 +706,7 @@ impl CharacterController {
         {
             self.deposit_all()?;
         };
-        self.check_for_skill_gear(resource.skill.into());
+        self.check_for_gathering_gear(resource.skill.into());
         self.move_to_closest_map_with_content_code(&resource.code)?;
         Ok(self.client.gather()?)
     }
@@ -731,11 +731,11 @@ impl CharacterController {
         Ok(())
     }
 
-    fn check_for_skill_gear(&self, skill: Skill) {
+    fn check_for_crafting_gear(&self, skill: Skill) {
         let Ok(_browsed) = self.bank.browsed.write() else {
             return;
         };
-        let mut available = self.gear_finder.best_for_skill(
+        let mut available = self.gear_finder.best_for_crafting(
             self,
             skill,
             Filter {
@@ -746,13 +746,48 @@ impl CharacterController {
         self.reserv_gear(&mut available);
         drop(_browsed);
         if self.bot_config.order_gear() {
-            self.order_best_gear_for_skill(skill);
+            self.order_best_crafting_gear(skill);
         }
         self.equip_gear(&mut available);
     }
 
-    fn order_best_gear_for_skill(&self, skill: Skill) {
-        let mut gear = self.gear_finder.best_for_skill(
+    fn check_for_gathering_gear(&self, skill: Skill) {
+        let Ok(_browsed) = self.bank.browsed.write() else {
+            return;
+        };
+        let mut available = self.gear_finder.best_for_gathering(
+            self,
+            skill,
+            Filter {
+                available: true,
+                ..Default::default()
+            },
+        );
+        self.reserv_gear(&mut available);
+        drop(_browsed);
+        if self.bot_config.order_gear() {
+            self.order_best_gathering_gear(skill);
+        }
+        self.equip_gear(&mut available);
+    }
+
+    fn order_best_gathering_gear(&self, skill: Skill) {
+        let mut gear = self.gear_finder.best_for_gathering(
+            self,
+            skill,
+            Filter {
+                craftable: true,
+                from_task: true,
+                from_monster: false,
+                from_npc: true,
+                ..Default::default()
+            },
+        );
+        self.order_gear(&mut gear)
+    }
+
+    fn order_best_crafting_gear(&self, skill: Skill) {
+        let mut gear = self.gear_finder.best_for_crafting(
             self,
             skill,
             Filter {
@@ -845,7 +880,7 @@ impl CharacterController {
                 self.name(),
             )
         };
-        self.check_for_skill_gear(skill);
+        self.check_for_crafting_gear(skill);
         self.deposit_all_but_multiple(&mats)?;
         self.withdraw_items(&self.inventory.missing_mats_for(item, quantity))?;
         let Some(map) = self.maps.with_workshop_for(skill) else {
