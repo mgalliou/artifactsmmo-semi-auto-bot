@@ -223,7 +223,8 @@ impl CharacterController {
         let quantity = self.max_craftable_items(&item.code);
         match self.craft_from_bank(&item.code, quantity) {
             Ok(_) => {
-                if !skill.is_gathering() && !skill.is_cooking()
+                if !skill.is_gathering()
+                    && !skill.is_cooking()
                     && let Err(e) = self.recycle_item(&item.code, quantity)
                 {
                     error!(
@@ -847,7 +848,7 @@ impl CharacterController {
                 Simulator::random_fight(
                     self.level(),
                     self.missing_hp(),
-                    &self.client.gear(),
+                    &self.gear(),
                     monster,
                     false,
                 )
@@ -990,7 +991,7 @@ impl CharacterController {
                 .reserv_item(item, min(in_inventory, quantity))
         {
             error!(
-                "{}: failed reserving item already in inventory: {e}",
+                "{}: failed reserving '{item}' already in inventory: {e}",
                 self.name(),
             );
         }
@@ -1006,7 +1007,7 @@ impl CharacterController {
                 )
             }
             if let Err(e) = self.deposit_all_but(item) {
-                error!("{}: failed depositing: {e}", self.name())
+                error!("{}: failed depositing all but '{item}': {e}", self.name())
             }
             self.withdraw_item(item, missing)?;
         };
@@ -1125,10 +1126,7 @@ impl CharacterController {
 
     fn withdraw_food(&self) -> Result<(), WithdrawItemCommandError> {
         if !self.inventory.consumable_food().is_empty()
-            && self
-                .client
-                .current_map()
-                .content_type_is(MapContentType::Monster)
+            && self.current_map().content_type_is(MapContentType::Monster)
         {
             return Ok(());
         }
@@ -1248,7 +1246,7 @@ impl CharacterController {
     }
 
     fn equip_gear(&self, gear: &mut Gear) {
-        gear.align_to(&self.client.gear());
+        gear.align_to(&self.gear());
         Slot::iter().for_each(|slot| {
             if let Some(item) = gear.item_in(slot) {
                 self.equip_from_inventory_or_bank(&item.code, slot);
@@ -1342,10 +1340,10 @@ impl CharacterController {
         if !self.inventory.has_space_for(&equiped.code, quantity) {
             return Err(UnequipCommandError::InsufficientInventorySpace);
         }
-        if self.client.health() <= equiped.health() {
+        if self.health() <= equiped.health() {
             self.eat_food_from_inventory();
         }
-        if self.client.health() <= equiped.health() {
+        if self.health() <= equiped.health() {
             self.rest()?;
         }
         Ok(self.client.unequip(slot, quantity)?)
@@ -1361,7 +1359,7 @@ impl CharacterController {
         }
         let Some(map) = self
             .maps
-            .closest_tasksmaster_from(self.client.current_map(), task_type)
+            .closest_tasksmaster_from(self.current_map(), task_type)
         else {
             return Err(MoveCommandError::MapNotFound);
         };
@@ -1376,10 +1374,7 @@ impl CharacterController {
         if current_map.content_type_is(r#type) {
             return Ok(current_map);
         }
-        let Some(map) = self
-            .maps
-            .closest_of_type_from(self.client.current_map(), r#type)
-        else {
+        let Some(map) = self.maps.closest_of_type_from(self.current_map(), r#type) else {
             return Err(MoveCommandError::MapNotFound);
         };
         self.r#move(map.x, map.y)
@@ -1395,7 +1390,7 @@ impl CharacterController {
         }
         let Some(map) = self
             .maps
-            .closest_with_content_code_from(self.client.current_map(), code)
+            .closest_with_content_code_from(self.current_map(), code)
         else {
             return Err(MoveCommandError::MapNotFound);
         };
@@ -1403,8 +1398,8 @@ impl CharacterController {
     }
 
     fn r#move(&self, x: i32, y: i32) -> Result<Arc<MapSchema>, MoveCommandError> {
-        if self.client.position() == (x, y) {
-            return Ok(self.client.current_map());
+        if self.position() == (x, y) {
+            return Ok(self.current_map());
         }
         Ok(self.client.r#move(x, y)?)
     }
@@ -1574,7 +1569,7 @@ impl CharacterController {
     }
 
     fn order_gear(&self, gear: &mut Gear) {
-        gear.align_to(&self.client.gear());
+        gear.align_to(&self.gear());
         Slot::iter().for_each(|slot| {
             if let Some(item) = gear.item_in(slot)
                 && !slot.is_ring()
@@ -1618,7 +1613,7 @@ impl CharacterController {
     }
 
     fn reserv_gear(&self, gear: &mut Gear) {
-        gear.align_to(&self.client.gear());
+        gear.align_to(&self.gear());
         Slot::iter().for_each(|slot| {
             if let Some(item) = gear.item_in(slot)
                 && !slot.is_ring()
@@ -1752,6 +1747,10 @@ impl CharacterController {
                 }
             })
             .collect_vec()
+    }
+
+    pub fn gear(&self) -> Gear {
+        self.client.gear()
     }
 
     pub fn current_map(&self) -> Arc<MapSchema> {
