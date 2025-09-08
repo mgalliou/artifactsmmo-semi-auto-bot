@@ -984,9 +984,10 @@ impl CharacterController {
         quantity: u32,
     ) -> Result<(), WithdrawItemCommandError> {
         let in_inventory = self.inventory.has_available(item);
-        //FIXME: quantity reserved should me min(quantity, in_inventory)
         if in_inventory > 0
-            && let Err(e) = self.inventory.reserv_item(item, in_inventory)
+            && let Err(e) = self
+                .inventory
+                .reserv_item(item, min(in_inventory, quantity))
         {
             error!(
                 "{}: failed reserving item already in inventory: {e}",
