@@ -22,8 +22,8 @@ use crate::{
 };
 use anyhow::Result;
 use artifactsmmo_sdk::{
-    Client, GOLDEN_EGG, GOLDEN_SHRIMP, HasDrops, HasLevel, Items, Maps, Monsters, Server,
-    SimpleItemSchemas, Simulator, Tasks,
+    CanProvideXp, Client, GOLDEN_EGG, GOLDEN_SHRIMP, HasDrops, HasLevel, Items, Maps, Monsters,
+    Server, SimpleItemSchemas, Simulator, Tasks,
     char::{Character as CharacterClient, HasCharacterData, Skill, error::RestError},
     consts::{
         BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, MAX_LEVEL, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE,
@@ -33,9 +33,9 @@ use artifactsmmo_sdk::{
     items::{ItemSchemaExt, ItemSource},
     maps::MapSchemaExt,
     models::{
-        CharacterSchema, DropSchema, FightSchema, MapContentType, MapSchema, MonsterSchema,
-        NpcItem, RecyclingItemsSchema, ResourceSchema, RewardsSchema, SimpleItemSchema,
-        SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
+        CharacterSchema, DropSchema, FightSchema, ItemSchema, MapContentType, MapSchema,
+        MonsterSchema, NpcItem, RecyclingItemsSchema, ResourceSchema, RewardsSchema,
+        SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
     },
     npcs::Npcs,
     npcs_items::NpcItemExt,
@@ -707,7 +707,7 @@ impl CharacterController {
         {
             self.deposit_all()?;
         };
-        self.check_for_gathering_gear(resource.skill.into());
+        self.check_for_gathering_gear(resource);
         self.move_to_closest_map_with_content_code(&resource.code)?;
         Ok(self.client.gather()?)
     }
@@ -732,13 +732,14 @@ impl CharacterController {
         Ok(())
     }
 
-    fn check_for_crafting_gear(&self, skill: Skill) {
+    fn check_for_crafting_gear(&self, item: &ItemSchema) {
         let Ok(_browsed) = self.bank.browsed.write() else {
             return;
         };
         let mut available = self.gear_finder.best_for_crafting(
             self,
-            skill,
+            item.skill_to_craft().unwrap(),
+            item.level,
             Filter {
                 available: true,
                 ..Default::default()
@@ -747,18 +748,19 @@ impl CharacterController {
         self.reserv_gear(&mut available);
         drop(_browsed);
         if self.bot_config.order_gear() {
-            self.order_best_crafting_gear(skill);
+            self.order_best_crafting_gear(item);
         }
         self.equip_gear(&mut available);
     }
 
-    fn check_for_gathering_gear(&self, skill: Skill) {
+    fn check_for_gathering_gear(&self, resource: &ResourceSchema) {
         let Ok(_browsed) = self.bank.browsed.write() else {
             return;
         };
         let mut available = self.gear_finder.best_for_gathering(
             self,
-            skill,
+            resource.skill.into(),
+            resource.level(),
             Filter {
                 available: true,
                 ..Default::default()
@@ -767,15 +769,16 @@ impl CharacterController {
         self.reserv_gear(&mut available);
         drop(_browsed);
         if self.bot_config.order_gear() {
-            self.order_best_gathering_gear(skill);
+            self.order_best_gathering_gear(resource);
         }
         self.equip_gear(&mut available);
     }
 
-    fn order_best_gathering_gear(&self, skill: Skill) {
+    fn order_best_gathering_gear(&self, resource: &ResourceSchema) {
         let mut gear = self.gear_finder.best_for_gathering(
             self,
-            skill,
+            resource.skill.into(),
+            resource.level(),
             Filter {
                 craftable: true,
                 from_task: true,
@@ -787,10 +790,11 @@ impl CharacterController {
         self.order_gear(&mut gear)
     }
 
-    fn order_best_crafting_gear(&self, skill: Skill) {
+    fn order_best_crafting_gear(&self, item: &ItemSchema) {
         let mut gear = self.gear_finder.best_for_crafting(
             self,
-            skill,
+            item.skill_to_craft().unwrap(),
+            item.level,
             Filter {
                 craftable: true,
                 from_task: true,
@@ -881,7 +885,11 @@ impl CharacterController {
                 self.name(),
             )
         };
-        self.check_for_crafting_gear(skill);
+        if let Some(item) = self.items.get(item)
+            && item.provides_xp_at(self.skill_level(skill))
+        {
+            self.check_for_crafting_gear(&item);
+        }
         self.deposit_all_but_multiple(&mats)?;
         self.withdraw_items(&self.inventory.missing_mats_for(item, quantity))?;
         let Some(map) = self.maps.with_workshop_for(skill) else {

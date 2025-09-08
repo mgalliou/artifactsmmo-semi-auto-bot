@@ -398,9 +398,10 @@ impl GearFinder {
         &self,
         char: &CharacterController,
         skill: Skill,
+        craft_level: u32,
         filter: Filter,
     ) -> Gear {
-        self.bests_for_skill(char, skill, filter, false)
+        self.bests_for_skill(char, skill, craft_level, filter, false)
             .into_iter()
             .max_set_by_key(|g| g.wisdom())
             .into_iter()
@@ -412,9 +413,10 @@ impl GearFinder {
         &self,
         char: &CharacterController,
         skill: Skill,
+        resource_level: u32,
         filter: Filter,
     ) -> Gear {
-        self.bests_for_skill(char, skill, filter, true)
+        self.bests_for_skill(char, skill, resource_level, filter, true)
             .into_iter()
             .max_set_by_key(|g| g.prospecting())
             .into_iter()
@@ -426,6 +428,7 @@ impl GearFinder {
         &self,
         char: &CharacterController,
         skill: Skill,
+        skill_level: u32,
         filter: Filter,
         with_tool: bool,
     ) -> Vec<Gear> {
@@ -440,7 +443,8 @@ impl GearFinder {
         let mut items = armor_types
             .iter()
             .filter_map(|&item_type| {
-                let armors = self.best_armors_for_skill(char, item_type, filter, vec![]);
+                let armors =
+                    self.best_armors_for_skill(char, skill, skill_level, item_type, filter, vec![]);
                 (!armors.is_empty()).then_some(
                     armors
                         .iter()
@@ -449,25 +453,25 @@ impl GearFinder {
                 )
             })
             .collect_vec();
-        let ring_sets = self.gen_rings_sets_for_skill(char, filter);
+        let ring_sets = self.gen_rings_sets_for_skill(char, skill, skill_level, filter);
         if !ring_sets.is_empty() {
             items.push(ring_sets);
         }
-        let artifact_sets = self.gen_artifacts_sets_for_skill(char, filter);
+        let artifact_sets = self.gen_artifacts_sets_for_skill(char, skill, skill_level, filter);
         if !artifact_sets.is_empty() {
             items.push(artifact_sets);
         }
-        let tool = if with_tool {
-            self.best_tool(char, skill, filter)
-        } else {
-            Option::None
-        };
+        let tool = with_tool
+            .then_some(self.best_tool(char, skill, filter))
+            .flatten();
         self.gen_all_gears(tool, items)
     }
 
     fn best_armors_for_skill(
         &self,
         char: &CharacterController,
+        skill: Skill,
+        skill_level: u32,
         r#type: Type,
         filter: Filter,
         black_list: Vec<String>,
@@ -480,9 +484,11 @@ impl GearFinder {
             .filter(|i| {
                 !black_list.contains(&i.code)
                     && i.r#type() == r#type
-                    && char.meets_conditions_for(i)
                     && self.is_eligible(i, filter, char)
-                    && (i.wisdom() > 0 || i.prospecting() > 0)
+                    && char.meets_conditions_for(i)
+                    && ((i.wisdom() > 0
+                        && char.skill_level(skill).saturating_sub(skill_level) <= 10)
+                        || i.prospecting() > 0)
             })
             .collect_vec();
         let best_for_wisdom = equipables.iter().max_by_key(|i| i.wisdom()).cloned();
@@ -522,9 +528,12 @@ impl GearFinder {
     fn gen_rings_sets_for_skill(
         &self,
         char: &CharacterController,
+        skill: Skill,
+        skill_level: u32,
         filter: Filter,
     ) -> Vec<ItemWrapper> {
-        let rings = self.best_armors_for_skill(char, Type::Ring, filter, vec![]);
+        let rings =
+            self.best_armors_for_skill(char, skill, skill_level, Type::Ring, filter, vec![]);
         let ring2_black_list = rings
             .iter()
             .flatten()
@@ -537,7 +546,14 @@ impl GearFinder {
             })
             .cloned()
             .collect_vec();
-        let rings2 = self.best_armors_for_skill(char, Type::Ring, filter, ring2_black_list);
+        let rings2 = self.best_armors_for_skill(
+            char,
+            skill,
+            skill_level,
+            Type::Ring,
+            filter,
+            ring2_black_list,
+        );
         let mut ring_sets = [rings, rings2]
             .iter()
             .multi_cartesian_product()
@@ -667,9 +683,12 @@ impl GearFinder {
     fn gen_artifacts_sets_for_skill(
         &self,
         char: &CharacterController,
+        skill: Skill,
+        skill_level: u32,
         filter: Filter,
     ) -> Vec<ItemWrapper> {
-        let mut artifacts = self.best_armors_for_skill(char, Type::Artifact, filter, vec![]);
+        let mut artifacts =
+            self.best_armors_for_skill(char, skill, skill_level, Type::Artifact, filter, vec![]);
         artifacts.push(None);
         let mut sets = [artifacts.clone(), artifacts.clone(), artifacts]
             .iter()
