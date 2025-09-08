@@ -197,14 +197,16 @@ fn respond(
                 from_npc,
                 utilities,
             };
-            println!(
-                "{}",
-                if winning {
-                    bot.gear_finder.best_winning_against(char, &monster, filter)
-                } else {
-                    bot.gear_finder.best_against(char, &monster, filter)
-                }
-            );
+            let gear = if winning {
+                bot.gear_finder.best_winning_against(char, &monster, filter)
+            } else {
+                Some(bot.gear_finder.best_against(char, &monster, filter))
+            };
+            if let Some(gear) = gear {
+                println!("{gear}")
+            } else {
+                println!("no winning gear found")
+            }
         }
         Commands::Simulate {
             available,
@@ -233,22 +235,15 @@ fn respond(
             let gear = if winning {
                 bot.gear_finder.best_winning_against(char, &monster, filter)
             } else {
-                bot.gear_finder.best_against(
-                    char,
-                    &monster,
-                    Filter {
-                        available,
-                        craftable,
-                        from_task,
-                        from_monster,
-                        from_npc,
-                        utilities,
-                    },
-                )
+                Some(bot.gear_finder.best_against(char, &monster, filter))
             };
-            println!("{}", gear);
-            let fight = Simulator::average_fight(char.level(), 0, &gear, &monster, true);
-            println!("{:?}", fight)
+            if let Some(gear) = gear {
+                println!("{}", gear);
+                let fight = Simulator::average_fight(char.level(), 0, &gear, &monster, true);
+                println!("{:?}", fight)
+            } else {
+                println!("no winning gear found")
+            }
         }
         Commands::Deposit { item, quantity } => {
             let Some(char) = character else {

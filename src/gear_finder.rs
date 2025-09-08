@@ -2,6 +2,7 @@ use crate::{account::AccountController, character::CharacterController};
 use artifactsmmo_sdk::{
     Items, Simulator,
     char::{HasCharacterData, Skill},
+    check_lvl_diff,
     gear::Gear,
     items::{ItemSchemaExt, Type},
     models::{ItemSchema, MonsterSchema},
@@ -27,7 +28,7 @@ impl GearFinder {
         char: &'a CharacterController,
         monster: &'a MonsterSchema,
         filter: Filter,
-    ) -> Gear {
+    ) -> Option<Gear> {
         self.bests_against(char, monster, filter)
             .into_iter()
             .filter_map(|g| {
@@ -38,7 +39,6 @@ impl GearFinder {
             .into_iter()
             .max_by_key(|(f, _g)| f.hp)
             .map(|(_f, g)| g)
-            .unwrap_or_default()
     }
 
     pub fn best_against<'a>(
@@ -84,12 +84,7 @@ impl GearFinder {
             .items
             .all()
             .into_iter()
-            .filter(|i| {
-                i.r#type().is_weapon()
-                    && !i.is_tool()
-                    && char.meets_conditions_for(i)
-                    && self.is_eligible(i, filter, char)
-            })
+            .filter(|i| i.r#type().is_weapon() && !i.is_tool() && self.is_eligible(i, filter, char))
             .collect_vec();
         let best = equipables
             .iter()
@@ -284,7 +279,6 @@ impl GearFinder {
             .filter(|i| {
                 !black_list.contains(&i.code)
                     && i.r#type() == r#type
-                    && char.meets_conditions_for(i)
                     && self.is_eligible(i, filter, char)
             })
             .collect_vec();
@@ -348,11 +342,7 @@ impl GearFinder {
             .items
             .all()
             .into_iter()
-            .filter(|i| {
-                !black_list.contains(&i.code.as_str())
-                    && char.meets_conditions_for(i)
-                    && self.is_eligible(i, filter, char)
-            })
+            .filter(|i| !black_list.contains(&i.code.as_str()) && self.is_eligible(i, filter, char))
             .collect_vec();
         let best_for_damage = equipables
             .iter()
@@ -485,9 +475,7 @@ impl GearFinder {
                 !black_list.contains(&i.code)
                     && i.r#type() == r#type
                     && self.is_eligible(i, filter, char)
-                    && char.meets_conditions_for(i)
-                    && ((i.wisdom() > 0
-                        && char.skill_level(skill).saturating_sub(skill_level) <= 10)
+                    && ((i.wisdom() > 0 && check_lvl_diff(char.skill_level(skill), skill_level))
                         || i.prospecting() > 0)
             })
             .collect_vec();
@@ -518,9 +506,8 @@ impl GearFinder {
             .into_iter()
             .filter(|i| {
                 i.r#type().is_weapon()
-                    && self.is_eligible(i, filter, char)
                     && i.skill_cooldown_reduction(skill) < 0
-                    && char.meets_conditions_for(i)
+                    && self.is_eligible(i, filter, char)
             })
             .min_by_key(|i| i.skill_cooldown_reduction(skill))
     }
@@ -569,37 +556,36 @@ impl GearFinder {
         self.items
             .all()
             .into_iter()
-            .filter(|i| {
-                self.is_eligible(i, filter, char)
-                    && i.r#type().is_rune()
-                    && char.meets_conditions_for(i)
-            })
+            .filter(|i| i.r#type().is_rune() && self.is_eligible(i, filter, char))
             .max_set_by_key(|i| i.burn())
             .iter()
             .map(|i| ItemWrapper::Armor(Some(i.code.to_owned())))
             .collect_vec()
     }
 
-    fn is_eligible(&self, i: &ItemSchema, filter: Filter, char: &CharacterController) -> bool {
+    fn is_eligible(&self, item: &ItemSchema, filter: Filter, char: &CharacterController) -> bool {
+        if !char.meets_conditions_for(item) {
+            return false;
+        }
         if filter.available {
-            return char.has_available(&i.code) > 0;
+            return char.has_available(&item.code) > 0;
         }
-        if ["steel_gloves", "leather_gloves"].contains(&i.code.as_str()) {
+        if ["steel_gloves", "leather_gloves"].contains(&item.code.as_str()) {
             return false;
         }
-        if filter.craftable && i.is_craftable() && !self.account.can_craft(&i.code) {
+        if filter.craftable && item.is_craftable() && !self.account.can_craft(&item.code) {
             return false;
         }
-        if !filter.from_npc && self.items.is_buyable(&i.code) {
+        if !filter.from_npc && self.items.is_buyable(&item.code) {
             return false;
         }
-        if !filter.from_task && i.is_crafted_from_task() {
+        if !filter.from_task && item.is_crafted_from_task() {
             return false;
         }
         if !filter.from_monster
             && self
                 .items
-                .best_source_of(&i.code)
+                .best_source_of(&item.code)
                 .is_some_and(|s| s.is_monster())
         {
             return false;
@@ -758,7 +744,6 @@ struct ArtifactSet {
 
 impl ArtifactSet {
     fn new(mut artifacts: [Option<String>; 3]) -> Option<Self> {
-        artifacts.sort();
         if artifacts[0].is_some() && artifacts[0] == artifacts[1]
             || artifacts[1].is_some() && artifacts[1] == artifacts[2]
             || artifacts[0].is_some() && artifacts[0] == artifacts[2]

@@ -667,7 +667,7 @@ impl CharacterController {
     }
 
     fn order_best_gear_against(&self, monster: &MonsterSchema) {
-        let mut gear = self.gear_finder.best_winning_against(
+        let Some(mut gear) = self.gear_finder.best_winning_against(
             self,
             monster,
             Filter {
@@ -677,7 +677,9 @@ impl CharacterController {
                 from_npc: true,
                 ..Default::default()
             },
-        );
+        ) else {
+            return;
+        };
         if self.can_kill_with(monster, &gear) {
             self.order_gear(&mut gear);
         };
@@ -820,15 +822,15 @@ impl CharacterController {
     /// the best available gear to do so.
     pub fn can_kill(&self, monster: &MonsterSchema) -> Result<Gear, KillMonsterCommandError> {
         self.can_fight(monster)?;
-        let available = self.gear_finder.best_winning_against(
+        if let Some(available) = self.gear_finder.best_winning_against(
             self,
             monster,
             Filter {
                 available: true,
                 ..Default::default()
             },
-        );
-        if self.can_kill_with(monster, &available) {
+        ) && self.can_kill_with(monster, &available)
+        {
             Ok(available)
         } else {
             Err(KillMonsterCommandError::GearTooWeak {

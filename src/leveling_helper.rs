@@ -1,5 +1,5 @@
 use artifactsmmo_sdk::{
-    HasLevel, Items, Maps, Monsters, Resources,
+    CanProvideXp, HasLevel, Items, Maps, Monsters, Resources,
     char::{HasCharacterData, Skill},
     items::ItemSchemaExt,
     models::{ItemSchema, MonsterSchema, ResourceSchema},
@@ -46,16 +46,9 @@ impl LevelingHelper {
         level: u32,
         skill: Skill,
     ) -> impl Iterator<Item = Arc<ItemSchema>> {
-        let min: u32 = if level > 11 {
-            level.saturating_sub(10)
-        } else {
-            1
-        };
-        self.items
-            .all()
-            .into_iter()
-            .filter(move |i| i.level >= min && i.level <= level)
-            .filter(move |i| i.skill_to_craft().is_some_and(|s| s == skill))
+        self.items.all().into_iter().filter(move |i| {
+            i.skill_to_craft().is_some_and(|s| s == skill) && i.provides_xp_at(level)
+        })
     }
 
     /// Takes a `level` and a `skill` and returns the items of the lowest level
@@ -196,9 +189,8 @@ impl LevelingHelper {
             .all()
             .into_iter()
             .filter(|r| {
-                Skill::from(r.skill) == skill
-                    && r.level() <= level
-                    && level.saturating_sub(r.level()) < 11
+                skill == r.skill.into()
+                    && r.provides_xp_at(level)
                     && !self.maps.with_content_code(&r.code).is_empty()
             })
             .max_by_key(|r| r.level)
