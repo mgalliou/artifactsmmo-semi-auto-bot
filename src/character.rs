@@ -223,7 +223,7 @@ impl CharacterController {
         let quantity = self.max_craftable_items(&item.code);
         match self.craft_from_bank(&item.code, quantity) {
             Ok(_) => {
-                if !(skill.is_gathering() || skill.is_cooking())
+                if !skill.is_gathering() && !skill.is_cooking()
                     && let Err(e) = self.recycle_item(&item.code, quantity)
                 {
                     error!(
@@ -1168,7 +1168,7 @@ impl CharacterController {
         if items.is_empty() {
             return Ok(());
         }
-        if self.bank.has_multiple_available(items, &self.name()) {
+        if !self.bank.has_multiple_available(items, &self.name()) {
             return Err(WithdrawItemCommandError::InsufficientQuantity);
         }
         if !self.inventory.has_space_for_multiple(items) {

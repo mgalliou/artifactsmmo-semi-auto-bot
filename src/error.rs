@@ -89,7 +89,7 @@ pub enum RecycleCommandError {
     InsufficientQuantity,
     #[error("Insufficient inventory space")]
     InsufficientInventorySpace,
-    #[error("Failed to withdraw mats: {0}")]
+    #[error("Failed to withdraw items: {0}")]
     WithdrawItemCommandError(#[from] WithdrawItemCommandError),
     #[error("Failed to move to workbench: {0}")]
     MoveCommandError(#[from] MoveCommandError),

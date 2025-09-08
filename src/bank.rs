@@ -135,7 +135,7 @@ impl BankController {
     pub fn has_multiple_available(&self, items: &[SimpleItemSchema], owner: &str) -> bool {
         items
             .iter()
-            .any(|i| self.has_available(&i.code, Some(owner)) < i.quantity)
+            .all(|i| self.has_available(&i.code, Some(owner)) >= i.quantity)
     }
 
     /// Returns the `quantity` of the given item `code` available to the given `owner`.

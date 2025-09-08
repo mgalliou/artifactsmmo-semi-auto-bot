@@ -127,9 +127,8 @@ impl Inventory {
 
     /// Returns the amount not reserved of the given item `code` in the `Character` inventory.
     pub fn has_available(&self, item: &str) -> u32 {
-        let reserved = self.quantity_reserved(item);
-        let total = self.total_of(item);
-        total.saturating_sub(reserved)
+        self.total_of(item)
+            .saturating_sub(self.quantity_reserved(item))
     }
 
     /// Make sure the `quantity` of `item` is reserved
