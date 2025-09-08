@@ -842,14 +842,14 @@ impl CharacterController {
     /// Checks if the `Character` could kill the given `monster` with the given
     /// `gear`
     fn can_kill_with(&self, monster: &MonsterSchema, gear: &Gear) -> bool {
-        (1..=100)
+        (1..=1000)
             .filter(|_| Simulator::random_fight(self.level(), 0, gear, monster, false).is_winning())
             .count()
-            >= 99
+            >= 950
     }
 
     fn can_kill_now(&self, monster: &MonsterSchema) -> bool {
-        (1..=100)
+        (1..=1000)
             .filter(|_| {
                 Simulator::random_fight(
                     self.level(),
@@ -861,7 +861,7 @@ impl CharacterController {
                 .is_winning()
             })
             .count()
-            >= 99
+            >= 950
     }
 
     /// Crafts the given `quantity` of the given item `code` if the required
