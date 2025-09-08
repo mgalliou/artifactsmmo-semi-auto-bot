@@ -568,6 +568,9 @@ impl GearFinder {
         if filter.available {
             return char.has_available(&i.code) > 0;
         }
+        if ["steel_gloves", "leather_gloves"].contains(&i.code.as_str()) {
+            return false;
+        }
         if filter.craftable && i.is_craftable() && !self.account.can_craft(&i.code) {
             return false;
         }
