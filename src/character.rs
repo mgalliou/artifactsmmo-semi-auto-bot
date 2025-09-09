@@ -461,14 +461,20 @@ impl CharacterController {
                 order.dec_in_progress(total_missing);
                 Ok(purchase?)
             }
-            Err(BuyNpcCommandError::InsufficientCurrency { currency, quantity }) => {
-                if currency != GOLD {
+            Err(e) => {
+                if let BuyNpcCommandError::InsufficientCurrency {
+                    ref currency,
+                    quantity,
+                } = e
+                    && currency != GOLD
+                {
                     self.order_board
-                        .add(&currency, quantity, None, order.purpose.clone())?;
+                        .add(currency, quantity, None, order.purpose.clone())?;
+                    Ok(0)
+                } else {
+                    Err(e.into())
                 }
-                Ok(0)
             }
-            Err(e) => Err(e.into()),
         }
     }
 
