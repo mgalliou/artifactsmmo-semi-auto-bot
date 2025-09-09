@@ -191,7 +191,10 @@ impl Inventory {
             quantity: AtomicU32::new(quantity),
         });
         self.reservations.write().unwrap().push(res.clone());
-        debug!("{}: added inventory reservation: res", self.client.name(),);
+        debug!(
+            "{}: added inventory reservation: {res}",
+            self.client.name(),
+        );
     }
 
     pub fn remove_reservation(&self, reservation: &InventoryReservation) {
@@ -241,7 +244,7 @@ pub struct InventoryReservation {
 
 #[derive(Debug, Error)]
 pub enum InventoryReservationError {
-    #[error("Insufficient item quantity in inventory: ")]
+    #[error("Insufficient item quantity in inventory")]
     InsufficientQuantity,
 }
 
