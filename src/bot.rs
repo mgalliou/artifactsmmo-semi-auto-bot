@@ -61,7 +61,7 @@ impl Bot {
         );
         for c in self.account.characters() {
             sleep(Duration::from_millis(250));
-            if let Err(e) = Builder::new().spawn(move || {
+            if let Err(e) = Builder::new().name(c.name().clone()).spawn(move || {
                 c.run_loop();
             }) {
                 error!("failed to spawn character thread: {}", e);
