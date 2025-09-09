@@ -906,6 +906,9 @@ impl CharacterController {
     // Checks that the `Character` has the required skill level to craft the given item `code`
     pub fn can_craft_now(&self, item: &str, quantity: u32) -> Result<Skill, CraftCommandError> {
         let skill = self.can_craft(item)?;
+        if quantity < 1 {
+            return Err(CraftCommandError::InvalidQuantity);
+        };
         let missing_mats = self.missing_mats_for(item, quantity);
         if !missing_mats.is_empty() {
             return Err(CraftCommandError::InsufficientMaterials(missing_mats));
@@ -938,10 +941,6 @@ impl CharacterController {
         quantity: u32,
     ) -> Result<RecyclingItemsSchema, RecycleCommandError> {
         let skill = self.can_recycle(item, quantity)?;
-        let quantity_available = self.has_in_bank_or_inv(item);
-        if quantity_available < quantity {
-            return Err(RecycleCommandError::InsufficientQuantity);
-        }
         info!("{}: going to recycle '{item}'x{quantity}", self.name(),);
         self.lock_in_inventory(item, quantity)?;
         let Some(map) = self.maps.with_workshop_for(skill) else {
@@ -968,8 +967,14 @@ impl CharacterController {
                 skill, item.level,
             ));
         };
+        if quantity < 1 {
+            return Err(RecycleCommandError::InvalidQuantity);
+       };
         if self.inventory.max_items() < item.recycled_quantity() * quantity {
             return Err(RecycleCommandError::InsufficientInventorySpace);
+        }
+        if self.has_in_bank_or_inv(&item.code) < quantity {
+            return Err(RecycleCommandError::InsufficientQuantity);
         }
         Ok(skill)
     }
@@ -982,6 +987,9 @@ impl CharacterController {
         if self.has_in_bank_or_inv(item) < quantity {
             return Err(DeleteCommandError::InsufficientQuantity);
         }
+        if quantity < 1 {
+            return Err(DeleteCommandError::InvalidQuantity);
+        };
         info!("{}: going to delete '{}'x{}.", self.name(), item, quantity);
         self.lock_in_inventory(item, quantity)?;
         let result = self.client.delete(item, quantity);

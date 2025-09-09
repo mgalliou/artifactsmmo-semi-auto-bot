@@ -63,6 +63,8 @@ pub enum CraftCommandError {
     InsufficientSkillLevel(Skill, u32),
     #[error("Insufficient inventory space")]
     InsufficientInventorySpace,
+    #[error("Invalid quantity")]
+    InvalidQuantity,
     #[error("Insufficient materials quantity available: {0:?}")]
     InsufficientMaterials(Vec<SimpleItemSchema>),
     #[error("Failed to deposit items: {0}")]
@@ -85,6 +87,8 @@ pub enum RecycleCommandError {
     SkillDisabled(Skill),
     #[error("Insufficient '{0}' level: {1}")]
     InsufficientSkillLevel(Skill, u32),
+    #[error("Invalid quantity")]
+    InvalidQuantity,
     #[error("Insufficient item quantity available")]
     InsufficientQuantity,
     #[error("Insufficient inventory space")]
@@ -98,6 +102,8 @@ pub enum RecycleCommandError {
 }
 #[derive(Debug, Error)]
 pub enum DeleteCommandError {
+    #[error("Invalid quantity")]
+    InvalidQuantity,
     #[error("Insufficient item quantity available")]
     InsufficientQuantity,
     #[error("Failed to withdraw items: {0}")]
