@@ -272,13 +272,6 @@ impl CharacterController {
     /// the skill level required needs to be leveled.
     fn handle_orderboard(&self) -> bool {
         let orders = self.order_board.orders_by_priority();
-        let mut completable = orders
-            .iter()
-            .filter(|o| self.can_complete_order(o))
-            .cloned();
-        if completable.any(|r| self.handle_order(r).is_ok()) {
-            return true;
-        }
         let mut progressable = orders.into_iter().filter(|o| self.can_progress(o));
         if progressable.any(|r| self.handle_order(r).is_ok()) {
             return true;
@@ -332,28 +325,28 @@ impl CharacterController {
             })
     }
 
-    /// Checks if the character is able to get the missing items for the `order` in one command
-    /// Resource and Monsters sources return false because drop rate might not be 100%
-    /// TODO: maybe check drop rate of item and return `true` if it is 100%
-    fn can_complete_order(&self, order: &Order) -> bool {
-        let missing = self.order_board.total_missing_for(order);
-        self.items
-            .best_source_of(&order.item)
-            .iter()
-            .any(|s| match s {
-                ItemSource::Resource(_) => false,
-                ItemSource::Monster(_) => false,
-                ItemSource::Craft => self
-                    .can_craft_now(
-                        &order.item,
-                        min(missing, self.max_craftable_items(&order.item)),
-                    )
-                    .is_ok(),
-                ItemSource::TaskReward => self.can_exchange_task().is_ok(),
-                ItemSource::Task => self.has_available(&self.task()) >= self.task_missing(),
-                ItemSource::Npc(_) => self.can_buy_item(&order.item, missing).is_ok(),
-            })
-    }
+    // /// Checks if the character is able to get the missing items for the `order` in one command
+    // /// Resource and Monsters sources return false because drop rate might not be 100%
+    // /// TODO: maybe check drop rate of item and return `true` if it is 100%
+    // fn can_complete_order(&self, order: &Order) -> bool {
+    //     let missing = self.order_board.total_missing_for(order);
+    //     self.items
+    //         .best_source_of(&order.item)
+    //         .iter()
+    //         .any(|s| match s {
+    //             ItemSource::Resource(_) => false,
+    //             ItemSource::Monster(_) => false,
+    //             ItemSource::Craft => self
+    //                 .can_craft_now(
+    //                     &order.item,
+    //                     min(missing, self.max_craftable_items(&order.item)),
+    //                 )
+    //                 .is_ok(),
+    //             ItemSource::TaskReward => self.can_exchange_task().is_ok(),
+    //             ItemSource::Task => self.has_available(&self.task()) >= self.task_missing(),
+    //             ItemSource::Npc(_) => self.can_buy_item(&order.item, missing).is_ok(),
+    //         })
+    // }
 
     fn progress_order(&self, order: &Order) -> Result<u32, OrderProgressionError> {
         if self.order_board.total_missing_for(order) == 0 {
