@@ -22,8 +22,8 @@ use crate::{
 };
 use anyhow::Result;
 use artifactsmmo_sdk::{
-    CanProvideXp, Client, GOLDEN_EGG, GOLDEN_SHRIMP, HasDrops, HasLevel, Items, Maps, Monsters,
-    Server, SimpleItemSchemas, Simulator, Tasks,
+    Client, GOLDEN_EGG, GOLDEN_SHRIMP, HasDrops, HasLevel, Items, Maps, Monsters, Server,
+    SimpleItemSchemas, Simulator, Tasks,
     char::{Character as CharacterClient, HasCharacterData, Skill, error::RestError},
     consts::{
         BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, MAX_LEVEL, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE,
@@ -622,6 +622,10 @@ impl CharacterController {
         monster: &MonsterSchema,
     ) -> Result<FightSchema, KillMonsterCommandError> {
         self.can_fight(monster)?;
+        if self.order_best_combat_gear(monster) {
+            return Ok(Default::default());
+        }
+        self.equip_combat_gear(monster)?;
         if let Ok(_) | Err(TaskCompletionCommandError::NoTask) = self.complete_task()
             && let Err(e) = self.accept_task(TaskType::Monsters)
         {
@@ -635,7 +639,6 @@ impl CharacterController {
         {
             self.deposit_all_but_reserved()?;
         };
-        self.check_for_combat_gear(monster)?;
         if let Err(e) = self.withdraw_food() {
             error!("{}: failed to withdraw food: {e}", self.name())
         }
@@ -647,48 +650,6 @@ impl CharacterController {
         }
         self.move_to_closest_map_with_content_code(&monster.code)?;
         Ok(self.client.fight()?)
-    }
-
-    fn check_for_combat_gear(
-        &self,
-        monster: &MonsterSchema,
-    ) -> Result<(), KillMonsterCommandError> {
-        let mut available: Gear;
-        let Ok(_browsed) = self.bank.browsed.write() else {
-            return Err(KillMonsterCommandError::BankUnavailable);
-        };
-        match self.can_kill(monster) {
-            Ok(gear) => {
-                available = gear;
-                self.reserv_gear(&mut available)
-            }
-            Err(e) => return Err(e),
-        }
-        drop(_browsed);
-        if self.bot_config.order_gear() {
-            self.order_best_gear_against(monster);
-        }
-        self.equip_gear(&mut available);
-        Ok(())
-    }
-
-    fn order_best_gear_against(&self, monster: &MonsterSchema) {
-        let Some(mut gear) = self.gear_finder.best_winning_against(
-            self,
-            monster,
-            Filter {
-                craftable: true,
-                from_task: true,
-                from_monster: false,
-                from_npc: true,
-                ..Default::default()
-            },
-        ) else {
-            return;
-        };
-        if self.can_kill_with(monster, &gear) {
-            self.order_gear(&mut gear);
-        };
     }
 
     fn rest(&self) -> Result<u32, RestError> {
@@ -707,6 +668,10 @@ impl CharacterController {
         resource: &ResourceSchema,
     ) -> Result<SkillDataSchema, GatherCommandError> {
         self.can_gather_now(resource)?;
+        if self.order_best_gathering_gear(resource) {
+            return Ok(Default::default());
+        }
+        self.equip_gathering_gear(resource);
         if !self.inventory.has_space_for_drops_from(resource)
             || self
                 .current_map()
@@ -715,7 +680,6 @@ impl CharacterController {
         {
             self.deposit_all()?;
         };
-        self.check_for_gathering_gear(resource);
         self.move_to_closest_map_with_content_code(&resource.code)?;
         Ok(self.client.gather()?)
     }
@@ -740,7 +704,18 @@ impl CharacterController {
         Ok(())
     }
 
-    fn check_for_crafting_gear(&self, item: &ItemSchema) {
+    fn equip_combat_gear(&self, monster: &MonsterSchema) -> Result<(), KillMonsterCommandError> {
+        let Ok(_browsed) = self.bank.browsed.write() else {
+            return Err(KillMonsterCommandError::BankUnavailable);
+        };
+        let mut gear = self.can_kill(monster)?;
+        self.reserv_gear(&mut gear);
+        drop(_browsed);
+        self.equip_gear(&mut gear);
+        Ok(())
+    }
+
+    fn equip_crafting_gear(&self, item: &ItemSchema) {
         let Ok(_browsed) = self.bank.browsed.write() else {
             return;
         };
@@ -755,13 +730,10 @@ impl CharacterController {
         );
         self.reserv_gear(&mut available);
         drop(_browsed);
-        if self.bot_config.order_gear() {
-            self.order_best_crafting_gear(item);
-        }
         self.equip_gear(&mut available);
     }
 
-    fn check_for_gathering_gear(&self, resource: &ResourceSchema) {
+    fn equip_gathering_gear(&self, resource: &ResourceSchema) {
         let Ok(_browsed) = self.bank.browsed.write() else {
             return;
         };
@@ -776,13 +748,30 @@ impl CharacterController {
         );
         self.reserv_gear(&mut available);
         drop(_browsed);
-        if self.bot_config.order_gear() {
-            self.order_best_gathering_gear(resource);
-        }
         self.equip_gear(&mut available);
     }
 
-    fn order_best_gathering_gear(&self, resource: &ResourceSchema) {
+    fn order_best_combat_gear(&self, monster: &MonsterSchema) -> bool {
+        if !self.bot_config.order_gear() {
+            return false;
+        }
+        let filter = Filter {
+            craftable: true,
+            from_task: true,
+            from_monster: false,
+            from_npc: true,
+            ..Default::default()
+        };
+        let Some(mut gear) = self.gear_finder.best_winning_against(self, monster, filter) else {
+            return false;
+        };
+        self.can_kill_with(monster, &gear) && self.order_gear(&mut gear)
+    }
+
+    fn order_best_gathering_gear(&self, resource: &ResourceSchema) -> bool {
+        if !self.bot_config.order_gear() {
+            return false;
+        }
         let mut gear = self.gear_finder.best_for_gathering(
             self,
             resource.skill.into(),
@@ -798,7 +787,10 @@ impl CharacterController {
         self.order_gear(&mut gear)
     }
 
-    fn order_best_crafting_gear(&self, item: &ItemSchema) {
+    fn order_best_crafting_gear(&self, item: &ItemSchema) -> bool {
+        if !self.bot_config.order_gear() {
+            return false;
+        }
         let mut gear = self.gear_finder.best_for_crafting(
             self,
             item.skill_to_craft().unwrap(),
@@ -878,54 +870,53 @@ impl CharacterController {
         item: &str,
         quantity: u32,
     ) -> Result<SkillInfoSchema, CraftCommandError> {
-        let skill = self.can_craft_now(item, quantity)?;
+        let (item, skill) = self.can_craft_now(item, quantity)?;
+        if self.order_best_crafting_gear(&item) {
+            return Ok(Default::default());
+        }
         info!(
-            "{}: going to craft '{}'x{} from bank.",
+            "{}: going to craft '{}'x{quantity} from bank.",
             self.name(),
-            item,
-            quantity
+            item.code,
         );
-        let mats = self.items.mats_for(item, quantity);
-        let missing_mats = self.inventory.missing_mats_for(item, quantity);
+        let mats = self.items.mats_for(&item.code, quantity);
+        let missing_mats = self.inventory.missing_mats_for(&item.code, quantity);
         if let Err(e) = self.bank.reserv_items(&missing_mats, &self.name()) {
             error!(
                 "{}: failed reserving mats to craft from bank: {e}",
                 self.name(),
             )
         };
-        if let Some(item) = self.items.get(item)
-            && item.provides_xp_at(self.skill_level(skill))
-        {
-            self.check_for_crafting_gear(&item);
-        }
+        self.equip_crafting_gear(&item);
         self.deposit_all_but_multiple(&mats)?;
-        self.withdraw_items(&self.inventory.missing_mats_for(item, quantity))?;
-        let Some(map) = self.maps.with_workshop_for(skill) else {
-            return Err(MoveCommandError::MapNotFound.into());
-        };
-        self.r#move(map.x, map.y)?;
-        let craft = self.client.craft(item, quantity)?;
+        self.withdraw_items(&self.inventory.missing_mats_for(&item.code, quantity))?;
+        self.move_to_closest_map_with_content_code(skill.as_ref())?;
+        let craft = self.client.craft(&item.code, quantity)?;
         self.inventory.unreserv_items(&mats);
         Ok(craft)
     }
 
     // Checks that the `Character` has the required skill level to craft the given item `code`
-    pub fn can_craft_now(&self, item: &str, quantity: u32) -> Result<Skill, CraftCommandError> {
-        let skill = self.can_craft(item)?;
+    pub fn can_craft_now(
+        &self,
+        item: &str,
+        quantity: u32,
+    ) -> Result<(Arc<ItemSchema>, Skill), CraftCommandError> {
+        let (item, skill) = self.can_craft(item)?;
         if quantity < 1 {
             return Err(CraftCommandError::InvalidQuantity);
         };
-        let missing_mats = self.missing_mats_for(item, quantity);
+        let missing_mats = self.missing_mats_for(&item.code, quantity);
         if !missing_mats.is_empty() {
             return Err(CraftCommandError::InsufficientMaterials(missing_mats));
         }
-        if self.max_craftable_items(item) < quantity {
+        if self.max_craftable_items(&item.code) < quantity {
             return Err(CraftCommandError::InsufficientInventorySpace);
         }
-        Ok(skill)
+        Ok((item, skill))
     }
 
-    pub fn can_craft(&self, item: &str) -> Result<Skill, CraftCommandError> {
+    pub fn can_craft(&self, item: &str) -> Result<(Arc<ItemSchema>, Skill), CraftCommandError> {
         let Some(item) = self.items.get(item) else {
             return Err(CraftCommandError::ItemNotFound);
         };
@@ -938,7 +929,7 @@ impl CharacterController {
         if self.client.skill_level(skill) < item.level {
             return Err(CraftCommandError::InsufficientSkillLevel(skill, item.level));
         }
-        Ok(skill)
+        Ok((item, skill))
     }
 
     pub fn recycle_item(
@@ -949,10 +940,7 @@ impl CharacterController {
         let skill = self.can_recycle(item, quantity)?;
         info!("{}: going to recycle '{item}'x{quantity}", self.name(),);
         self.lock_in_inventory(item, quantity)?;
-        let Some(map) = self.maps.with_workshop_for(skill) else {
-            return Err(MoveCommandError::MapNotFound.into());
-        };
-        self.r#move(map.x, map.y)?;
+        self.move_to_closest_map_with_content_code(skill.as_ref())?;
         let result = self.client.recycle(item, quantity);
         self.inventory.unreserv_item(&self.task(), quantity);
         Ok(result?)
@@ -1630,27 +1618,29 @@ impl CharacterController {
                 || self.sell_item(&item.code, surplus).is_ok())
     }
 
-    fn order_gear(&self, gear: &mut Gear) {
+    fn order_gear(&self, gear: &mut Gear) -> bool {
         gear.align_to(&self.gear());
+        let mut ordered = false;
         Slot::iter().for_each(|slot| {
             if let Some(item) = gear.item_in(slot)
                 && !slot.is_ring()
             {
-                self.order_if_needed(&item.code, slot.max_quantity());
+                ordered = self.order_if_needed(&item.code, slot.max_quantity());
             }
         });
         if let Some(ref ring1) = gear.ring1
             && gear.ring1 == gear.ring2
         {
-            self.order_if_needed(&ring1.code, 2);
+            ordered = self.order_if_needed(&ring1.code, 2);
         } else {
             if let Some(ref ring1) = gear.ring1 {
-                self.order_if_needed(&ring1.code, 1);
+                ordered = self.order_if_needed(&ring1.code, 1);
             }
             if let Some(ref ring2) = gear.ring2 {
-                self.order_if_needed(&ring2.code, 1);
+                ordered = self.order_if_needed(&ring2.code, 1);
             }
         }
+        ordered
     }
 
     fn order_if_needed(&self, item: &str, quantity: u32) -> bool {
