@@ -963,8 +963,11 @@ impl CharacterController {
             return Err(RecycleCommandError::ItemNotFound);
         };
         let Some(skill) = item.skill_to_craft() else {
-            return Err(RecycleCommandError::ItemNotCraftable);
+            return Err(RecycleCommandError::ItemNotRecyclable);
         };
+        if !item.is_recyclable() {
+            return Err(RecycleCommandError::ItemNotRecyclable);
+        }
         if !self.skill_enabled(skill) {
             return Err(RecycleCommandError::SkillDisabled(skill));
         };
@@ -1574,41 +1577,57 @@ impl CharacterController {
     }
 
     fn cleanup_bank(&self) -> Result<(), BankCleanupError> {
-        if self.bank.content().iter().any(|i| {
-            ((i.code == GOLDEN_SHRIMP || i.code == GOLDEN_EGG)
-                && self
-                    .sell_item(
-                        &i.code,
-                        min(
-                            self.bank.has_available(&i.code, Some(&self.name())),
-                            self.inventory.max_items(),
-                        ),
-                    )
-                    .is_ok())
-                || (self
-                    .items
-                    .get(&i.code)
-                    .is_some_and(|i| i.is_recyclable() && self.can_craft(&i.code).is_ok())
-                    && self.recycle_if_necessary(i))
-        }) {
+        if self.bank.content().iter().any(|i| self.process_item(i)) {
             Ok(())
         } else {
             Err(BankCleanupError::NoItemToHandle)
         }
     }
 
-    fn recycle_if_necessary(&self, item: &SimpleItemSchema) -> bool {
+    fn process_item(&self, item: &SimpleItemSchema) -> bool {
+        if item.code == GOLDEN_SHRIMP
+            || item.code == GOLDEN_EGG
+                && self
+                    .sell_item(
+                        &item.code,
+                        min(
+                            self.bank.has_available(&item.code, Some(&self.name())),
+                            self.inventory.max_items(),
+                        ),
+                    )
+                    .is_ok()
+        {
+            return true;
+        }
+        self.recycle_or_sell_if_necessary(item)
+    }
+
+    fn recycle_or_sell_if_necessary(&self, item: &SimpleItemSchema) -> bool {
         let upgrades = self.items.upgrades_of(&item.code);
-        upgrades.iter().any(|upgrade| {
+        if upgrades.iter().any(|upgrade| {
             if self.account.meets_conditions(upgrade) >= 5
                 && self.account.total_of(&upgrade.code)
                     >= if upgrade.r#type().is_ring() { 10 } else { 5 }
             {
                 self.recycle_item(&item.code, item.quantity).is_ok()
+                    || self.sell_item(&item.code, item.quantity).is_ok()
             } else {
                 false
             }
-        })
+        }) {
+            return true;
+        }
+        let Some(item) = self.items.get(&item.code) else {
+            return false;
+        };
+        let total = self.account.total_of(&item.code);
+        let max_quantity: u32 = if item.r#type().is_ring() { 10 } else { 5 };
+        let surplus = total.saturating_sub(max_quantity);
+        item.is_gear()
+            && !item.r#type().is_utility()
+            && surplus > 0
+            && (self.recycle_item(&item.code, surplus).is_ok()
+                || self.sell_item(&item.code, surplus).is_ok())
     }
 
     fn order_gear(&self, gear: &mut Gear) {

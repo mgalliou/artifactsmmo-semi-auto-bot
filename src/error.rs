@@ -81,8 +81,8 @@ pub enum CraftCommandError {
 pub enum RecycleCommandError {
     #[error("Item not found")]
     ItemNotFound,
-    #[error("Item not craftable")]
-    ItemNotCraftable,
+    #[error("Item not recyclable")]
+    ItemNotRecyclable,
     #[error("'{0}' skill is disabled")]
     SkillDisabled(Skill),
     #[error("Insufficient '{0}' level: {1}")]
