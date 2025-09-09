@@ -2,7 +2,7 @@ use crate::{
     account::AccountController, bank::BankController, bot_config::BotConfig,
     gear_finder::GearFinder, leveling_helper::LevelingHelper, orderboard::OrderBoard,
 };
-use artifactsmmo_sdk::Client;
+use artifactsmmo_sdk::{Client, char::HasCharacterData};
 use log::error;
 use std::{
     sync::Arc,

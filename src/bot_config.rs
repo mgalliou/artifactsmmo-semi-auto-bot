@@ -79,11 +79,11 @@ pub struct CharConfig {
 
 impl CharConfig {
     pub fn toggle_idle(&self) {
-        self.idle.fetch_not(Ordering::Relaxed);
+        self.idle.fetch_not(Ordering::SeqCst);
     }
 
     pub fn is_idle(&self) -> bool {
-        self.idle.load(Ordering::Relaxed)
+        self.idle.load(Ordering::SeqCst)
     }
 
     pub fn skill_is_enabled(&self, skill: Skill) -> bool {

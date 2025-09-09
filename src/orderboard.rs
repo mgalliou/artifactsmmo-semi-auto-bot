@@ -8,7 +8,7 @@ use std::{
     mem::discriminant,
     sync::{
         Arc, RwLock,
-        atomic::{AtomicU32, Ordering::Relaxed},
+        atomic::{AtomicU32, Ordering::SeqCst},
     },
 };
 use strum::IntoEnumIterator;
@@ -213,7 +213,7 @@ impl Order {
     }
 
     pub fn in_progress(&self) -> u32 {
-        self.in_progress.load(Relaxed)
+        self.in_progress.load(SeqCst)
     }
 
     pub fn turned_in(&self) -> bool {
@@ -221,11 +221,11 @@ impl Order {
     }
 
     pub fn deposited(&self) -> u32 {
-        self.deposited.load(Relaxed)
+        self.deposited.load(SeqCst)
     }
 
     pub fn quantity(&self) -> u32 {
-        self.quantity.load(Relaxed)
+        self.quantity.load(SeqCst)
     }
 
     pub fn missing(&self) -> u32 {
@@ -233,20 +233,20 @@ impl Order {
     }
 
     pub fn inc_deposited(&self, n: u32) {
-        self.deposited.fetch_add(n, Relaxed);
+        self.deposited.fetch_add(n, SeqCst);
     }
 
     pub fn inc_in_progress(&self, n: u32) {
-        self.in_progress.fetch_add(n, Relaxed);
+        self.in_progress.fetch_add(n, SeqCst);
     }
 
     pub fn dec_in_progress(&self, n: u32) {
         let result = self.in_progress().saturating_sub(n);
-        self.in_progress.store(result, Relaxed);
+        self.in_progress.store(result, SeqCst);
     }
 
     pub fn reset(&self) {
-        self.deposited.store(0, Relaxed);
+        self.deposited.store(0, SeqCst);
     }
 }
 

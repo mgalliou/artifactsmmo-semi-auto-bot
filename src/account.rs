@@ -3,11 +3,7 @@ use crate::{
     gear_finder::GearFinder, leveling_helper::LevelingHelper, orderboard::OrderBoard,
 };
 use artifactsmmo_sdk::{
-    Client, Items,
-    account::Account as AccountClient,
-    char::{HasCharacterData, Skill},
-    items::ItemSource,
-    models::SimpleItemSchema,
+    account::Account as AccountClient, char::{HasCharacterData, Skill}, items::ItemSource, models::{ItemSchema, SimpleItemSchema}, Client, Items
 };
 use itertools::Itertools;
 use std::sync::{Arc, RwLock};
@@ -96,6 +92,22 @@ impl AccountController {
             .cloned()
             .map(|c| c.inventory.has_available(item))
             .sum()
+    }
+
+    pub fn total_of(&self, item: &str) -> u32 {
+        self.bank.total_of(item)
+            + self
+                .characters()
+                .iter()
+                .map(|c| c.has_equiped(item) + c.inventory.total_of(item))
+                .sum::<u32>()
+    }
+
+    pub fn meets_conditions(&self, item: &ItemSchema) -> u32 {
+        self.characters()
+            .iter()
+            .filter(|c| c.meets_conditions_for(item))
+            .count() as u32
     }
 
     pub fn can_craft(&self, item: &str) -> bool {

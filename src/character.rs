@@ -969,7 +969,7 @@ impl CharacterController {
         };
         if quantity < 1 {
             return Err(RecycleCommandError::InvalidQuantity);
-       };
+        };
         if self.inventory.max_items() < item.recycled_quantity() * quantity {
             return Err(RecycleCommandError::InsufficientInventorySpace);
         }
@@ -1546,7 +1546,7 @@ impl CharacterController {
             .items
             .all()
             .iter()
-            .filter(|i| i.is_food() && i.level <= self.level())
+            .filter(|i| i.is_food() && i.level > self.level() - 10 && i.level <= self.level())
             .max_by_key(|i| {
                 self.account
                     .time_to_get(&i.code)
@@ -1569,7 +1569,7 @@ impl CharacterController {
 
     fn cleanup_bank(&self) -> Result<(), BankCleanupError> {
         if self.bank.content().iter().any(|i| {
-            (i.code == GOLDEN_SHRIMP || i.code == GOLDEN_EGG)
+            ((i.code == GOLDEN_SHRIMP || i.code == GOLDEN_EGG)
                 && self
                     .sell_item(
                         &i.code,
@@ -1578,12 +1578,31 @@ impl CharacterController {
                             self.inventory.max_items(),
                         ),
                     )
-                    .is_ok()
+                    .is_ok())
+                || (self
+                    .items
+                    .get(&i.code)
+                    .is_some_and(|i| i.is_recyclable() && self.can_craft(&i.code).is_ok())
+                    && self.recycle_if_necessary(i))
         }) {
             Ok(())
         } else {
             Err(BankCleanupError::NoItemToHandle)
         }
+    }
+
+    fn recycle_if_necessary(&self, item: &SimpleItemSchema) -> bool {
+        let upgrades = self.items.upgrades_of(&item.code);
+        upgrades.iter().any(|upgrade| {
+            if self.account.meets_conditions(upgrade) >= 5
+                && self.account.total_of(&upgrade.code)
+                    >= if upgrade.r#type().is_ring() { 10 } else { 5 }
+            {
+                self.recycle_item(&item.code, item.quantity).is_ok()
+            } else {
+                false
+            }
+        })
     }
 
     fn order_gear(&self, gear: &mut Gear) {

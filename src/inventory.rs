@@ -11,7 +11,7 @@ use std::{
     fmt::{Display, Formatter},
     sync::{
         Arc, RwLock,
-        atomic::{AtomicU32, Ordering::Relaxed},
+        atomic::{AtomicU32, Ordering::SeqCst},
     },
 };
 use thiserror::Error;
@@ -247,16 +247,16 @@ pub enum InventoryReservationError {
 
 impl InventoryReservation {
     pub fn inc_quantity(&self, n: u32) {
-        self.quantity.fetch_add(n, Relaxed);
+        self.quantity.fetch_add(n, SeqCst);
     }
 
     pub fn dec_quantity(&self, n: u32) {
         let new = self.quantity().saturating_sub(n);
-        self.quantity.store(new, Relaxed);
+        self.quantity.store(new, SeqCst);
     }
 
     pub fn quantity(&self) -> u32 {
-        self.quantity.load(Relaxed)
+        self.quantity.load(SeqCst)
     }
 }
 
