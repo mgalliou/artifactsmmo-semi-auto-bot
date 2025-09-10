@@ -146,16 +146,6 @@ impl CharacterController {
     fn handle_goals(&self) -> bool {
         let goals = self.config().goals.clone();
 
-        let first_level_goal_not_reached = goals
-            .iter()
-            .find(|g| {
-                if let Goal::ReachSkillLevel { skill, level } = g {
-                    self.skill_level(*skill) < *level
-                } else {
-                    false
-                }
-            })
-            .cloned();
         // TODO: improve the way ReachSkillLevel is handled
         goals.iter().any(|g| match g {
             Goal::Events => false,
@@ -185,9 +175,10 @@ impl CharacterController {
         if skill.is_combat() {
             return Ok(self.level_combat()?);
         }
-        match self.level_skill_by_crafting(skill).is_ok() {
-            true => Ok(()),
-            false => Ok(self.level_skill_by_gathering(skill)?),
+        match self.level_skill_by_crafting(skill) {
+            Ok(_) => Ok(()),
+            Err(_) if skill.is_gathering() => Ok(self.level_skill_by_gathering(skill)?),
+            Err(e) => Err(e.into()),
         }
     }
 
