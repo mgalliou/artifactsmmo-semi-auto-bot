@@ -1504,6 +1504,9 @@ impl CharacterController {
         item_code: &str,
         quantity: u32,
     ) -> Result<Arc<NpcItem>, SellNpcCommandError> {
+        if !self.config().is_trader() {
+            return Err(SellNpcCommandError::NotAllowed);
+        }
         let Some(npc_item) = self.npcs.items.get(item_code) else {
             return Err(SellNpcCommandError::ItemNotFound(item_code.to_string()));
         };

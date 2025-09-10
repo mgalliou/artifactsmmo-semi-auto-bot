@@ -300,6 +300,8 @@ pub enum BuyNpcCommandError {
 
 #[derive(Debug, Error)]
 pub enum SellNpcCommandError {
+    #[error("Character is not allowed")]
+    NotAllowed,
     #[error("Item not found: {0}")]
     ItemNotFound(String),
     #[error("Item not sellable")]

@@ -70,6 +70,8 @@ pub struct CharConfig {
     #[serde(default)]
     idle: AtomicBool,
     #[serde(default)]
+    is_trader: AtomicBool,
+    #[serde(default)]
     pub task_type: TaskType,
     #[serde(default)]
     skills: RwLock<HashSet<Skill>>,
@@ -84,6 +86,10 @@ impl CharConfig {
 
     pub fn is_idle(&self) -> bool {
         self.idle.load(Ordering::SeqCst)
+    }
+
+    pub fn is_trader(&self) -> bool {
+        self.is_trader.load(Ordering::SeqCst)
     }
 
     pub fn skill_is_enabled(&self, skill: Skill) -> bool {
