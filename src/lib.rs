@@ -14,7 +14,7 @@ pub mod inventory;
 pub mod leveling_helper;
 pub mod orderboard;
 
-pub const FOOD_BLACK_LIST: [&str; 8] = [
+pub const FOOD_BLACK_LIST: [&str; 9] = [
     APPLE,
     APPLE_PIE,
     EGG,
@@ -23,6 +23,7 @@ pub const FOOD_BLACK_LIST: [&str; 8] = [
     FISH_SOUP,
     COOKED_HELLHOUND_MEAT,
     MAPLE_SYRUP,
+    "corrupted_fruit"
 ];
 
 pub const MIN_COIN_THRESHOLD: u32 = 4;

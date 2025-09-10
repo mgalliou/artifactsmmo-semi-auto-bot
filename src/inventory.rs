@@ -191,10 +191,7 @@ impl Inventory {
             quantity: AtomicU32::new(quantity),
         });
         self.reservations.write().unwrap().push(res.clone());
-        debug!(
-            "{}: added inventory reservation: {res}",
-            self.client.name(),
-        );
+        debug!("{}: added inventory reservation: {res}", self.client.name(),);
     }
 
     pub fn remove_reservation(&self, reservation: &InventoryReservation) {

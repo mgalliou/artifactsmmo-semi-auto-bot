@@ -1,5 +1,5 @@
 use crate::{
-    MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
+    FOOD_BLACK_LIST, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
     account::AccountController,
     bank::BankController,
     bot_config::{BotConfig, CharConfig, Goal},
@@ -1536,7 +1536,12 @@ impl CharacterController {
             .items
             .all()
             .iter()
-            .filter(|i| i.is_food() && i.level > self.level() - 10 && i.level <= self.level())
+            .filter(|i| {
+                i.is_food()
+                    && i.level > self.level() - 10
+                    && i.level <= self.level()
+                    && !FOOD_BLACK_LIST.contains(&i.code.as_ref())
+            })
             .max_by_key(|i| {
                 self.account
                     .time_to_get(&i.code)
@@ -1547,7 +1552,7 @@ impl CharacterController {
             && let Err(e) = self.order_board.add_or_reset(
                 &best_food.code,
                 self.account.fisher_max_items(),
-                Some(&self.name()),
+                None,
                 Purpose::Food {
                     char: self.name().to_owned(),
                 },
