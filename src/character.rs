@@ -606,13 +606,13 @@ impl CharacterController {
         if let Ok(_) | Err(TaskCompletionCommandError::NoTask) = self.complete_task()
             && let Err(e) = self.accept_task(TaskType::Monsters)
         {
-            error!("{}: failed accepting new task: {e}", self.name())
+            error!(
+                "{}: failed accepting new task before killing monster: {e}",
+                self.name()
+            )
         }
         if !self.inventory.has_space_for_drops_from(monster)
-            || self
-                .current_map()
-                .monster()
-                .is_none_or(|m| m != monster.code)
+            || self.current_map().content_code_is(&monster.code)
         {
             self.deposit_all_but_reserved()?;
         };
@@ -650,10 +650,7 @@ impl CharacterController {
         }
         self.equip_gathering_gear(resource);
         if !self.inventory.has_space_for_drops_from(resource)
-            || self
-                .current_map()
-                .resource()
-                .is_none_or(|r| r != resource.code)
+            || self.current_map().content_code_is(&resource.code)
         {
             self.deposit_all()?;
         };
@@ -858,14 +855,11 @@ impl CharacterController {
         );
         let mats = self.items.mats_for(&item.code, quantity);
         let missing_mats = self.inventory.missing_mats_for(&item.code, quantity);
-        if let Err(e) = self.bank.reserv_items(&missing_mats, &self.name()) {
-            error!(
-                "{}: failed reserving mats to craft from bank: {e}",
-                self.name(),
-            )
-        };
+        self.bank.reserv_items(&missing_mats, &self.name())?;
         self.equip_crafting_gear(&item);
-        self.deposit_all_but_multiple(&mats)?;
+        if !self.inventory.has_space_for_multiple(&missing_mats) {
+            self.deposit_all_but_multiple(&mats)?;
+        }
         self.withdraw_items(&self.inventory.missing_mats_for(&item.code, quantity))?;
         self.move_to_closest_map_with_content_code(skill.as_ref())?;
         let craft = self.client.craft(&item.code, quantity)?;
@@ -992,14 +986,9 @@ impl CharacterController {
         }
         let missing = quantity.saturating_sub(in_inventory);
         if missing > 0 {
-            if let Err(e) = self.bank.reserv_item(item, missing, &self.name()) {
-                error!(
-                    "{}: failed reserving '{item}'x{missing} in bank: {e}",
-                    self.name()
-                )
-            }
-            if let Err(e) = self.deposit_all_but(item) {
-                error!("{}: failed depositing all but '{item}': {e}", self.name())
+            self.bank.reserv_item(item, missing, &self.name())?;
+            if !self.inventory.has_space_for(item, missing) {
+                self.deposit_all_but(item)?;
             }
             self.withdraw_item(item, missing)?;
         };
@@ -1240,70 +1229,42 @@ impl CharacterController {
     fn equip_gear(&self, gear: &mut Gear) {
         gear.align_to(&self.gear());
         Slot::iter().for_each(|slot| {
-            if let Some(item) = gear.item_in(slot) {
-                self.equip_from_inventory_or_bank(&item.code, slot);
+            if let Some(item) = gear.item_in(slot)
+                && let Err(e) = self.equip_item(&item.code, slot)
+            {
+                error!(
+                    "{}: failed equiping {} during gear equiping: {e}",
+                    self.name(),
+                    &item.code
+                )
             }
         });
     }
 
-    fn equip_from_inventory_or_bank(&self, item: &str, slot: Slot) {
-        let prev_equiped = self.items.get(&self.equiped_in(slot));
-        if prev_equiped.as_ref().is_some_and(|e| e.code == item) {
-            return;
+    fn equip_item(&self, item: &str, slot: Slot) -> Result<(), EquipCommandError> {
+        if self.equiped_in(slot) == item {
+            return Ok(());
         }
-        //TODO: handle utilities
-        let quantity = slot.max_quantity();
-        if let Err(e) = self.lock_in_inventory(item, quantity) {
-            error!(
-                "{}: failed to get '{item}'x{quantity} in inventory: {e}",
-                self.name()
-            );
-            return;
-        }
-        if let Err(e) = self.equip_item(
-            item,
-            slot,
-            min(slot.max_quantity(), self.inventory.total_of(item)),
-        ) {
-            error!(
-                "{} failed equiping {item} from bank or inventory: {e}",
-                self.name(),
-            );
-        }
-        if let Some(i) = prev_equiped
-            && self.inventory.total_of(&i.code) > 0
-            && let Err(e) = self.deposit_item(&i.code, self.inventory.total_of(&i.code))
-        {
-            error!(
-                "{} failed depositing item previously equiped: {e}",
-                self.name(),
-            );
-        }
-    }
-
-    fn equip_item(
-        &self,
-        item_code: &str,
-        slot: Slot,
-        quantity: u32,
-    ) -> Result<(), EquipCommandError> {
-        let Some(item) = self.items.get(item_code) else {
+        let Some(item) = self.items.get(item) else {
             return Err(EquipCommandError::ItemNotFound);
         };
+        let quantity = min(slot.max_quantity(), self.has_in_bank_or_inv(&item.code));
+        self.lock_in_inventory(&item.code, quantity)?;
+        self.unequip_slot(slot, self.quantity_in_slot(slot))?;
         if self
             .inventory
             .free_space()
             .saturating_add_signed(item.inventory_space())
             == 0
         {
-            self.deposit_all_but(item_code)?;
+            self.deposit_all_but(&item.code)?;
         }
-        self.unequip_slot(slot, self.quantity_in_slot(slot))?;
-        self.client.equip(item_code, slot, quantity)?;
-        self.inventory.unreserv_item(item_code, quantity);
+        self.client.equip(&item.code, slot, quantity)?;
+        self.inventory.unreserv_item(&item.code, quantity);
         Ok(())
     }
 
+    //TODO: move, comment, or ?
     pub fn unequip_and_deposit_all(&self) {
         Slot::iter().for_each(|s| {
             if let Some(item) = self.items.get(&self.equiped_in(s)) {
@@ -1316,7 +1277,7 @@ impl CharacterController {
                     )
                 } else if let Err(e) = self.deposit_item(&item.code, quantity) {
                     error!(
-                        "{}: failed to deposit '{}'x{quantity} during `unequip_and_deposit_all`: {e}",
+                        "{}: failed depositing '{}'x{quantity} during `unequip_and_deposit_all`: {e}",
                         self.name(),
                         &item.code,
                     )
@@ -1330,7 +1291,7 @@ impl CharacterController {
             return Ok(());
         };
         if !self.inventory.has_space_for(&equiped.code, quantity) {
-            return Err(UnequipCommandError::InsufficientInventorySpace);
+            self.deposit_all()?;
         }
         if self.health() <= equiped.health() {
             self.eat_food_from_inventory();
@@ -1338,7 +1299,11 @@ impl CharacterController {
         if self.health() <= equiped.health() {
             self.rest()?;
         }
-        Ok(self.client.unequip(slot, quantity)?)
+        self.client.unequip(slot, quantity)?;
+        if let Err(e) = self.deposit_item(&equiped.code, quantity) {
+            error!("{}: failed depositing unequiped item: {e}", self.name());
+        }
+        Ok(())
     }
 
     fn move_to_closest_taskmaster(
@@ -1477,6 +1442,7 @@ impl CharacterController {
     fn sell_item(&self, item: &str, quantity: u32) -> Result<(), SellNpcCommandError> {
         let npc_item = self.can_sell_item(item, quantity)?;
         self.lock_in_inventory(item, quantity)?;
+        //TODO: add check for inventory space
         self.move_to_closest_map_with_content_code(&npc_item.npc)?;
         self.client.npc_sell(item, quantity)?;
         self.inventory.unreserv_item(item, quantity);
@@ -1501,6 +1467,7 @@ impl CharacterController {
         if missing > 0 {
             return Err(SellNpcCommandError::InsufficientQuantity { quantity: missing });
         }
+        //TODO: add InsufficientInventorySpace variant if quantity is too high
         if self.maps.with_content_code(&npc_item.npc).is_empty() {
             return Err(SellNpcCommandError::NpcNotFound);
         }

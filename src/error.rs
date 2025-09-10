@@ -13,7 +13,7 @@ use artifactsmmo_sdk::{
 };
 use thiserror::Error;
 
-use crate::orderboard::OrderError;
+use crate::{bank::BankError, orderboard::OrderError};
 
 #[derive(Debug, Error)]
 pub enum KillMonsterCommandError {
@@ -67,6 +67,8 @@ pub enum CraftCommandError {
     InvalidQuantity,
     #[error("Insufficient materials quantity available: {0:?}")]
     InsufficientMaterials(Vec<SimpleItemSchema>),
+    #[error("Failed to reserv mats before crafting: {0}")]
+    ReservationError(#[from] BankError),
     #[error("Failed to deposit items: {0}")]
     DepositItemCommandError(#[from] DepositItemCommandError),
     #[error("Failed to withdraw mats: {0}")]
@@ -226,6 +228,8 @@ pub enum WithdrawItemCommandError {
     InsufficientQuantity,
     #[error("Insufficient inventory space")]
     InsufficientInventorySpace,
+    #[error("Failed to reserving item before withdrawing: {0}")]
+    ReservationError(#[from] BankError),
     #[error("Failed to deposit item before withdrawing: {0}")]
     DepositItemCommandError(#[from] DepositItemCommandError),
     #[error("Failed to move to bank: {0}")]
@@ -252,6 +256,8 @@ pub enum EquipCommandError {
     ItemNotFound,
     #[error("Conditions not met")]
     ConditionsNotMet,
+    #[error("Failed to withdraw item to equiping: {0}")]
+    WithdrawItemCommandError(#[from] WithdrawItemCommandError),
     #[error("Failed to deposit all before equiping item: {0}")]
     DepositItemCommandError(#[from] DepositItemCommandError),
     #[error("Failed to unequip equiped item before equiping item: {0}")]
@@ -262,8 +268,8 @@ pub enum EquipCommandError {
 
 #[derive(Debug, Error)]
 pub enum UnequipCommandError {
-    #[error("Insufficient inventory space")]
-    InsufficientInventorySpace,
+    #[error("Failed to deposit all before equiping item: {0}")]
+    DepositItemCommandError(#[from] DepositItemCommandError),
     #[error("Failed to rest: {0}")]
     RestError(#[from] RestError),
     #[error("Failed to unequip item: {0}")]
