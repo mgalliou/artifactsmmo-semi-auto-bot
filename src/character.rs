@@ -612,7 +612,7 @@ impl CharacterController {
             )
         }
         if !self.inventory.has_space_for_drops_from(monster)
-            || self.current_map().content_code_is(&monster.code)
+            || !self.current_map().content_code_is(&monster.code)
         {
             self.deposit_all_but_reserved()?;
         };
@@ -650,7 +650,7 @@ impl CharacterController {
         }
         self.equip_gathering_gear(resource);
         if !self.inventory.has_space_for_drops_from(resource)
-            || self.current_map().content_code_is(&resource.code)
+            || !self.current_map().content_code_is(&resource.code)
         {
             self.deposit_all()?;
         };
