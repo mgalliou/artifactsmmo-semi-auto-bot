@@ -157,32 +157,25 @@ impl CharacterController {
             })
             .cloned();
         // TODO: improve the way ReachSkillLevel is handled
-        goals
-            .iter()
-            .filter(|g| {
-                g.is_reach_skill_level()
-                    && first_level_goal_not_reached.is_some_and(|gnr| **g == gnr)
-                    || !g.is_reach_skill_level()
-            })
-            .any(|g| match g {
-                Goal::Events => false,
-                Goal::Orders => self.handle_orderboard(),
-                Goal::ReachSkillLevel { skill, level } if self.skill_level(*skill) < *level => {
-                    self.level_skill_up(*skill).is_ok()
-                }
-                Goal::FollowMaxSkillLevel {
-                    skill,
-                    skill_to_follow,
-                } if self.skill_level(*skill)
-                    < min(
-                        1 + self.account.max_skill_level(*skill_to_follow),
-                        MAX_LEVEL,
-                    ) =>
-                {
-                    self.level_skill_up(*skill).is_ok()
-                }
-                _ => false,
-            })
+        goals.iter().any(|g| match g {
+            Goal::Events => false,
+            Goal::Orders => self.handle_orderboard(),
+            Goal::ReachSkillLevel { skill, level } if self.skill_level(*skill) < *level => {
+                self.level_skill_up(*skill).is_ok()
+            }
+            Goal::FollowMaxSkillLevel {
+                skill,
+                skill_to_follow,
+            } if self.skill_level(*skill)
+                < min(
+                    1 + self.account.max_skill_level(*skill_to_follow),
+                    MAX_LEVEL,
+                ) =>
+            {
+                self.level_skill_up(*skill).is_ok()
+            }
+            _ => false,
+        })
     }
 
     fn level_skill_up(&self, skill: Skill) -> Result<(), SkillLevelingError> {
