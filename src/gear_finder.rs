@@ -213,7 +213,7 @@ impl GearFinder {
             .into_iter()
             .filter(|i| {
                 !black_list.contains(&i.code)
-                    && i.is_of_type(r#type)
+                    && i.type_is(r#type)
                     && self.is_eligible(i, filter, char)
             })
             .collect_vec();
@@ -423,7 +423,7 @@ impl GearFinder {
             .into_iter()
             .filter(|i| {
                 !black_list.contains(&i.code)
-                    && i.is_of_type(r#type)
+                    && i.type_is(r#type)
                     && self.is_eligible(i, filter, char)
                     && ((i.wisdom() > 0 && check_lvl_diff(char.skill_level(skill), skill_level))
                         || i.prospecting() > 0)
@@ -575,7 +575,7 @@ impl GearFinder {
             .and_then(|u| {
                 self.items
                     .get(u)
-                    .and_then(|i| i.is_of_type(slot.into()).then_some(i))
+                    .and_then(|i| i.type_is(slot.into()).then_some(i))
             })
         })
     }
