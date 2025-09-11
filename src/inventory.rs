@@ -92,53 +92,68 @@ impl Inventory {
     /// Make sure the `quantity` of `item` is reserved
     pub fn reserv_item(&self, item: &str, quantity: u32) -> Result<(), InventoryReservationError> {
         let Some(res) = self.get_reservation(item) else {
-            self.add_reservation(item, quantity);
-            return Ok(());
+            return self.add_reservation(item, quantity);
         };
-        let quantity_to_reserv = quantity.saturating_sub(self.quantity_reserved(item));
+        let quantity_to_reserv = quantity.saturating_sub(res.quantity());
         if quantity_to_reserv == 0 {
             return Ok(());
-        } else if quantity_to_reserv > self.quantity_reservable(item) {
-            return Err(InventoryReservationError::InsufficientQuantity);
+        };
+        self.increase_reservation(item, quantity_to_reserv)
+    }
+
+    pub fn increase_reservation(
+        &self,
+        item: &str,
+        quantity: u32,
+    ) -> Result<(), InventoryReservationError> {
+        if let Some(res) = self.get_reservation(item) {
+            if quantity > self.quantity_reservable(item) {
+                return Err(InventoryReservationError::QuantityUnavailable(quantity));
+            }
+            res.inc_quantity(quantity);
+        } else {
+            self.add_reservation(item, quantity)?;
         }
-        res.inc_quantity(quantity_to_reserv);
         debug!(
-            "{}: increased '{item}' inventory reservation by {quantity}",
-            self.client.name(),
+            "{}: increased '{item}' inventory reservation by '{quantity}'",
+            self.client.name()
         );
         Ok(())
     }
 
     /// Decrease the reserved quantity of `item`
-    pub fn unreserv_items(&self, items: &[SimpleItemSchema]) {
+    pub fn decrease_reservations(&self, items: &[SimpleItemSchema]) {
         for item in items.iter() {
-            self.unreserv_item(&item.code, item.quantity);
+            self.decrease_reservation(&item.code, item.quantity);
         }
     }
 
     /// Decrease the reserved quantity of `item`
-    pub fn unreserv_item(&self, item: &str, quantity: u32) {
+    pub fn decrease_reservation(&self, item: &str, quantity: u32) {
         let Some(res) = self.get_reservation(item) else {
             return;
         };
-        if quantity >= res.quantity() {
+        res.dec_quantity(quantity);
+        debug!(
+            "{}: decreased '{item}' inventory reservation by {quantity}",
+            self.client.name(),
+        );
+        if res.quantity() < 1 {
             self.remove_reservation(&res);
-        } else {
-            res.dec_quantity(quantity);
-            debug!(
-                "{}: decreased '{item}' inventory reservation by {quantity}",
-                self.client.name(),
-            );
         }
     }
 
-    fn add_reservation(&self, item: &str, quantity: u32) {
+    fn add_reservation(&self, item: &str, quantity: u32) -> Result<(), InventoryReservationError> {
+        if quantity > self.quantity_reservable(item) {
+            return Err(InventoryReservationError::QuantityUnavailable(quantity));
+        }
         let res = Arc::new(InventoryReservation {
             item: item.to_owned(),
             quantity: AtomicU32::new(quantity),
         });
         self.reservations.write().unwrap().push(res.clone());
         debug!("{}: added inventory reservation: {res}", self.client.name(),);
+        Ok(())
     }
 
     pub fn remove_reservation(&self, reservation: &InventoryReservation) {
@@ -200,8 +215,8 @@ pub struct InventoryReservation {
 
 #[derive(Debug, Error)]
 pub enum InventoryReservationError {
-    #[error("Insufficient item quantity in inventory")]
-    InsufficientQuantity,
+    #[error("Quantity not available: {0}")]
+    QuantityUnavailable(u32),
 }
 
 impl InventoryReservation {

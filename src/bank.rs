@@ -143,67 +143,66 @@ impl BankController {
         owner: &str,
     ) -> Result<(), BankReservationError> {
         let Some(res) = self.get_reservation(item, owner) else {
-            return self.increase_reservation(item, quantity, owner);
+            return self.add_reservation(item, quantity, owner);
         };
         let quantity_to_reserv = quantity.saturating_sub(res.quantity());
         if quantity_to_reserv == 0 {
             return Ok(());
-        } else if quantity_to_reserv > self.quantity_reservable(item) {
-            return Err(BankReservationError::QuantityUnavailable(quantity));
         };
-        res.inc_quantity(quantity_to_reserv);
-        debug!("bank: increased '{item}' reservation by '{quantity_to_reserv}'",);
-        Ok(())
+        self.increase_reservation(item, quantity_to_reserv, owner)
     }
 
-    /// Request the `quantity` of the given `item` to be added to exising reservation for the the given `owner`.
-    /// Create the reservation if it does not exist.
     pub fn increase_reservation(
         &self,
         item: &str,
         quantity: u32,
         owner: &str,
     ) -> Result<(), BankReservationError> {
-        let Some(res) = self.get_reservation(item, owner) else {
-            if quantity > self.has_available(item, Some(owner)) {
+        if let Some(res) = self.get_reservation(item, owner) {
+            if quantity > self.quantity_reservable(item) {
                 return Err(BankReservationError::QuantityUnavailable(quantity));
             }
-            self.add_reservation(item, quantity, owner);
-            return Ok(());
-        };
-        if quantity > self.quantity_reservable(item) {
-            return Err(BankReservationError::QuantityUnavailable(quantity));
+            res.inc_quantity(quantity);
+        } else {
+            self.add_reservation(item, quantity, owner)?;
         }
-        res.inc_quantity(quantity);
+        debug!("bank: increased '{item}' reservation by '{quantity}' for '{owner}'",);
         Ok(())
     }
 
-    pub fn unreserv_items(&self, items: &[SimpleItemSchema], owner: &str) {
+    pub fn decrease_reservations(&self, items: &[SimpleItemSchema], owner: &str) {
         for item in items.iter() {
-            self.unreserv_item(&item.code, item.quantity, owner);
+            self.decrease_reservation(&item.code, item.quantity, owner);
         }
     }
 
-    pub fn unreserv_item(&self, item: &str, quantity: u32, owner: &str) {
+    pub fn decrease_reservation(&self, item: &str, quantity: u32, owner: &str) {
         let Some(res) = self.get_reservation(item, owner) else {
             return;
         };
-        if quantity >= res.quantity() {
+        res.dec_quantity(quantity);
+        debug!("bank: decreased '{item}' reservation by '{quantity}' for '{owner}'",);
+        if res.quantity() < 1 {
             self.remove_reservation(&res)
-        } else {
-            res.dec_quantity(quantity);
-            debug!("bank: decreased reservation by '{quantity}': {res}",);
         }
     }
 
-    fn add_reservation(&self, item: &str, quantity: u32, owner: &str) {
+    fn add_reservation(
+        &self,
+        item: &str,
+        quantity: u32,
+        owner: &str,
+    ) -> Result<(), BankReservationError> {
+        if quantity > self.has_available(item, Some(owner)) {
+            return Err(BankReservationError::QuantityUnavailable(quantity));
+        }
         let res = Arc::new(BankReservation {
             item: item.to_owned(),
             quantity: AtomicU32::new(quantity),
             owner: owner.to_owned(),
         });
         self.reservations.write().unwrap().push(res.clone());
-        debug!("bank: added reservation: {res}");
+        Ok(())
     }
 
     fn remove_reservation(&self, reservation: &BankReservation) {
@@ -212,6 +211,12 @@ impl BankController {
             .unwrap()
             .retain(|r| **r != *reservation);
         debug!("bank: removed reservation: {reservation}");
+    }
+
+    fn get_reservation(&self, item: &str, owner: &str) -> Option<Arc<BankReservation>> {
+        self.reservations()
+            .into_iter()
+            .find(|r| r.item == item && r.owner == owner)
     }
 
     /// Returns the quantity the given `owner` can withdraw from the bank.
@@ -234,12 +239,6 @@ impl BankController {
             .map(|r| r.quantity())
             .sum()
     }
-
-    fn get_reservation(&self, item: &str, owner: &str) -> Option<Arc<BankReservation>> {
-        self.reservations()
-            .into_iter()
-            .find(|r| r.item == item && r.owner == owner)
-    }
 }
 
 impl SlotLimited for BankController {}
@@ -254,8 +253,6 @@ impl ItemContainer for BankController {
 
 #[derive(Debug, Error, PartialEq)]
 pub enum BankReservationError {
-    #[error("Item unvailable")]
-    ItemUnavailable,
     #[error("Quantity unavailable: {0}")]
     QuantityUnavailable(u32),
 }

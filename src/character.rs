@@ -499,7 +499,7 @@ impl CharacterController {
         self.lock_in_inventory(&self.task(), quantity)?;
         self.move_to_closest_taskmaster(self.task_type())?;
         let res = self.client.task_trade(&self.task(), quantity);
-        self.inventory.unreserv_item(&self.task(), quantity);
+        self.inventory.decrease_reservation(&self.task(), quantity);
         Ok(res?)
     }
 
@@ -574,7 +574,7 @@ impl CharacterController {
         self.move_to_closest_taskmaster(self.task_type())?;
         let result = self.client.exchange_tasks_coin().map_err(|e| e.into());
         self.inventory
-            .unreserv_item(TASKS_COIN, TASK_EXCHANGE_PRICE);
+            .decrease_reservation(TASKS_COIN, TASK_EXCHANGE_PRICE);
         result
     }
 
@@ -587,7 +587,7 @@ impl CharacterController {
         self.lock_in_inventory(TASKS_COIN, TASK_CANCEL_PRICE)?;
         self.move_to_closest_taskmaster(self.task_type())?;
         let result = self.client.cancel_task().map_err(|e| e.into());
-        self.inventory.unreserv_item(TASKS_COIN, TASK_CANCEL_PRICE);
+        self.inventory.decrease_reservation(TASKS_COIN, TASK_CANCEL_PRICE);
         result
     }
 
@@ -863,7 +863,7 @@ impl CharacterController {
         self.withdraw_items(&self.inventory.missing_mats_for(&item.code, quantity))?;
         self.move_to_closest_map_with_content_code(skill.as_ref())?;
         let craft = self.client.craft(&item.code, quantity)?;
-        self.inventory.unreserv_items(&mats);
+        self.inventory.decrease_reservations(&mats);
         Ok(craft)
     }
 
@@ -913,7 +913,7 @@ impl CharacterController {
         self.lock_in_inventory(item, quantity)?;
         self.move_to_closest_map_with_content_code(skill.as_ref())?;
         let result = self.client.recycle(item, quantity);
-        self.inventory.unreserv_item(&self.task(), quantity);
+        self.inventory.decrease_reservation(&self.task(), quantity);
         Ok(result?)
     }
 
@@ -961,7 +961,7 @@ impl CharacterController {
         info!("{}: going to delete '{}'x{}.", self.name(), item, quantity);
         self.lock_in_inventory(item, quantity)?;
         let result = self.client.delete(item, quantity);
-        self.inventory.unreserv_item(&self.task(), quantity);
+        self.inventory.decrease_reservation(&self.task(), quantity);
         Ok(result?)
     }
 
@@ -1094,7 +1094,7 @@ impl CharacterController {
             Ok(_) => {
                 self.order_board.register_deposited_items(items);
                 items.iter().for_each(|i| {
-                    self.inventory.unreserv_item(&i.code, i.quantity);
+                    self.inventory.decrease_reservation(&i.code, i.quantity);
                 });
             }
             Err(ref e) => error!("{}: error depositing: {e}", self.name()),
@@ -1161,7 +1161,7 @@ impl CharacterController {
         self.move_to_closest_map_of_type(MapContentType::Bank)?;
         let result = self.client.withdraw_item(items);
         if result.is_ok() {
-            self.bank.unreserv_items(items, &self.name());
+            self.bank.decrease_reservations(items, &self.name());
             if let Err(e) = self.inventory.reserv_items(items) {
                 error!("{}: failed reserving withdrawed item: {e}", self.name());
             }
@@ -1260,7 +1260,7 @@ impl CharacterController {
             self.deposit_all_but(&item.code)?;
         }
         self.client.equip(&item.code, slot, quantity)?;
-        self.inventory.unreserv_item(&item.code, quantity);
+        self.inventory.decrease_reservation(&item.code, quantity);
         Ok(())
     }
 
@@ -1385,7 +1385,7 @@ impl CharacterController {
 
     fn use_item(&self, item_code: &str, quantity: u32) -> Result<(), UseItemCommandError> {
         self.client.r#use(item_code, quantity)?;
-        self.inventory.unreserv_item(item_code, quantity);
+        self.inventory.decrease_reservation(item_code, quantity);
         Ok(())
     }
 
@@ -1402,7 +1402,7 @@ impl CharacterController {
         self.move_to_closest_map_with_content_code(&npc_item.npc)?;
         self.client.npc_buy(item_code, quantity)?;
         self.inventory
-            .unreserv_item(&npc_item.currency, total_price);
+            .decrease_reservation(&npc_item.currency, total_price);
         Ok(())
     }
 
@@ -1445,7 +1445,7 @@ impl CharacterController {
         //TODO: add check for inventory space
         self.move_to_closest_map_with_content_code(&npc_item.npc)?;
         self.client.npc_sell(item, quantity)?;
-        self.inventory.unreserv_item(item, quantity);
+        self.inventory.decrease_reservation(item, quantity);
         Ok(())
     }
 
