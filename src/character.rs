@@ -1525,17 +1525,16 @@ impl CharacterController {
     }
 
     fn process_item(&self, item: &SimpleItemSchema) -> bool {
-        if item.code == GOLDEN_SHRIMP
-            || item.code == GOLDEN_EGG
-                && self
-                    .sell_item(
-                        &item.code,
-                        min(
-                            self.bank.has_available(&item.code, Some(&self.name())),
-                            self.inventory.max_items(),
-                        ),
-                    )
-                    .is_ok()
+        if (item.code == GOLDEN_SHRIMP || item.code == GOLDEN_EGG)
+            && self
+                .sell_item(
+                    &item.code,
+                    min(
+                        self.bank.has_available(&item.code, Some(&self.name())),
+                        self.inventory.max_items(),
+                    ),
+                )
+                .is_ok()
         {
             return true;
         }
@@ -1545,7 +1544,9 @@ impl CharacterController {
     fn recycle_or_sell_if_necessary(&self, item: &SimpleItemSchema) -> bool {
         let upgrades = self.items.upgrades_of(&item.code);
         if upgrades.iter().any(|upgrade| {
-            if self.account.meets_conditions(upgrade) >= 5
+            if upgrade.is_gear()
+                && !upgrade.r#type().is_utility()
+                && self.account.meets_conditions(upgrade) >= 5
                 && self.account.total_of(&upgrade.code)
                     >= if upgrade.r#type().is_ring() { 10 } else { 5 }
             {

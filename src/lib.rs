@@ -27,4 +27,4 @@ pub const FOOD_BLACK_LIST: [&str; 9] = [
 ];
 
 pub const MIN_COIN_THRESHOLD: u32 = 4;
-pub const MIN_FOOD_THRESHOLD: u32 = 3000;
+pub const MIN_FOOD_THRESHOLD: u32 = 6000;

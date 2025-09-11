@@ -97,11 +97,11 @@ impl CharConfig {
     }
 
     pub fn disable_skill(&self, skill: Skill) {
-        self.skills.write().unwrap().insert(skill);
+        self.skills.write().unwrap().remove(&skill);
     }
 
     pub fn enable_skill(&self, skill: Skill) {
-        self.skills.write().unwrap().remove(&skill);
+        self.skills.write().unwrap().insert(skill);
     }
 
     pub fn skills(&self) -> HashSet<Skill> {
