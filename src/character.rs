@@ -1850,7 +1850,7 @@ impl CharacterController {
 
 impl HasCharacterData for CharacterController {
     fn data(&self) -> Arc<CharacterSchema> {
-        self.client.data().clone()
+        self.client.data()
     }
 
     fn server(&self) -> Arc<Server> {
