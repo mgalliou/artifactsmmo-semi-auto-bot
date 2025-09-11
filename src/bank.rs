@@ -1,5 +1,5 @@
 use artifactsmmo_sdk::{
-    ItemContainer, Items, SlotLimited,
+    ContainerSlot, HasQuantity, ItemContainer, Items, SlotLimited,
     bank::Bank as BankClient,
     items::ItemSchemaExt,
     models::{BankSchema, ItemSchema, SimpleItemSchema},
@@ -16,13 +16,13 @@ use std::{
 };
 use thiserror::Error;
 
-use crate::FOOD_BLACK_LIST;
+use crate::{FOOD_BLACK_LIST, HasReservation, Reservation};
 
 #[derive(Default)]
 pub struct BankController {
     client: Arc<BankClient>,
     items: Arc<Items>,
-    pub reservations: RwLock<Vec<Arc<Reservation>>>,
+    reservations: RwLock<Vec<Arc<BankReservation>>>,
     pub browsed: RwLock<()>,
     pub being_expanded: RwLock<()>,
 }
@@ -122,7 +122,11 @@ impl BankController {
         }
     }
 
-    pub fn reserv_items(&self, items: &[SimpleItemSchema], owner: &str) -> Result<(), BankError> {
+    pub fn reserv_items(
+        &self,
+        items: &[SimpleItemSchema],
+        owner: &str,
+    ) -> Result<(), BankReservationError> {
         for m in items.iter() {
             self.reserv_item(&m.code, m.quantity, owner)?
         }
@@ -132,7 +136,12 @@ impl BankController {
     /// Make sure that the `quantity` of `item` is reserved to the `owner`.
     /// Create the reservation if possible. Increase the reservation quantity if
     /// necessary and possible.
-    pub fn reserv_item(&self, item: &str, quantity: u32, owner: &str) -> Result<(), BankError> {
+    pub fn reserv_item(
+        &self,
+        item: &str,
+        quantity: u32,
+        owner: &str,
+    ) -> Result<(), BankReservationError> {
         let Some(res) = self.get_reservation(item, owner) else {
             return self.increase_reservation(item, quantity, owner);
         };
@@ -140,7 +149,7 @@ impl BankController {
         if quantity_to_reserv == 0 {
             return Ok(());
         } else if quantity_to_reserv > self.quantity_reservable(item) {
-            return Err(BankError::QuantityUnavailable(quantity));
+            return Err(BankReservationError::QuantityUnavailable(quantity));
         };
         res.inc_quantity(quantity_to_reserv);
         debug!("bank: increased '{item}' reservation by '{quantity_to_reserv}'",);
@@ -154,16 +163,16 @@ impl BankController {
         item: &str,
         quantity: u32,
         owner: &str,
-    ) -> Result<(), BankError> {
+    ) -> Result<(), BankReservationError> {
         let Some(res) = self.get_reservation(item, owner) else {
             if quantity > self.has_available(item, Some(owner)) {
-                return Err(BankError::QuantityUnavailable(quantity));
+                return Err(BankReservationError::QuantityUnavailable(quantity));
             }
             self.add_reservation(item, quantity, owner);
             return Ok(());
         };
         if quantity > self.quantity_reservable(item) {
-            return Err(BankError::QuantityUnavailable(quantity));
+            return Err(BankReservationError::QuantityUnavailable(quantity));
         }
         res.inc_quantity(quantity);
         Ok(())
@@ -188,7 +197,7 @@ impl BankController {
     }
 
     fn add_reservation(&self, item: &str, quantity: u32, owner: &str) {
-        let res = Arc::new(Reservation {
+        let res = Arc::new(BankReservation {
             item: item.to_owned(),
             quantity: AtomicU32::new(quantity),
             owner: owner.to_owned(),
@@ -197,21 +206,12 @@ impl BankController {
         debug!("bank: added reservation: {res}");
     }
 
-    fn remove_reservation(&self, reservation: &Reservation) {
+    fn remove_reservation(&self, reservation: &BankReservation) {
         self.reservations
             .write()
             .unwrap()
             .retain(|r| **r != *reservation);
         debug!("bank: removed reservation: {reservation}");
-    }
-
-    pub fn reservations(&self) -> Vec<Arc<Reservation>> {
-        self.reservations
-            .read()
-            .unwrap()
-            .iter()
-            .cloned()
-            .collect_vec()
     }
 
     /// Returns the quantity the given `owner` can withdraw from the bank.
@@ -235,26 +235,7 @@ impl BankController {
             .sum()
     }
 
-    /// Returns the total quantity of the given `item` that is reserved by any character.
-    fn quantity_reserved(&self, item: &str) -> u32 {
-        self.reservations()
-            .iter()
-            .filter_map(|r| {
-                if r.item == item {
-                    Some(r.quantity())
-                } else {
-                    None
-                }
-            })
-            .sum()
-    }
-
-    fn quantity_reservable(&self, item: &str) -> u32 {
-        self.total_of(item)
-            .saturating_sub(self.quantity_reserved(item))
-    }
-
-    fn get_reservation(&self, item: &str, owner: &str) -> Option<Arc<Reservation>> {
+    fn get_reservation(&self, item: &str, owner: &str) -> Option<Arc<BankReservation>> {
         self.reservations()
             .into_iter()
             .find(|r| r.item == item && r.owner == owner)
@@ -269,57 +250,61 @@ impl ItemContainer for BankController {
     fn content(&self) -> Arc<Vec<SimpleItemSchema>> {
         self.client.content()
     }
-
-    fn total_items(&self) -> u32 {
-        self.client.total_items()
-    }
-
-    fn total_of(&self, item: &str) -> u32 {
-        self.client.total_of(item)
-    }
-
-    fn contains_multiple(&self, items: &[SimpleItemSchema]) -> bool {
-        self.client.contains_multiple(items)
-    }
 }
 
 #[derive(Debug, Error, PartialEq)]
-pub enum BankError {
+pub enum BankReservationError {
     #[error("Item unvailable")]
     ItemUnavailable,
     #[error("Quantity unavailable: {0}")]
     QuantityUnavailable(u32),
 }
 
-#[derive(Debug)]
-pub struct Reservation {
-    owner: String,
-    item: String,
-    quantity: AtomicU32,
+impl HasReservation for BankController {
+    type Reservation = BankReservation;
+
+    fn reservations(&self) -> Vec<Arc<Self::Reservation>> {
+        self.reservations
+            .read()
+            .unwrap()
+            .iter()
+            .cloned()
+            .collect_vec()
+    }
 }
 
-impl Reservation {
-    pub fn inc_quantity(&self, n: u32) {
-        self.quantity.fetch_add(n, SeqCst);
-    }
+#[derive(Debug)]
+pub struct BankReservation {
+    item: String,
+    quantity: AtomicU32,
+    owner: String,
+}
 
-    pub fn dec_quantity(&self, n: u32) {
-        let new = self.quantity().saturating_sub(n);
-        self.quantity.store(new, SeqCst);
+impl Reservation for BankReservation {
+    fn quantity_atomic(&self) -> &AtomicU32 {
+        &self.quantity
     }
+}
 
-    pub fn quantity(&self) -> u32 {
+impl ContainerSlot for BankReservation {
+    fn code(&self) -> &str {
+        &self.item
+    }
+}
+
+impl HasQuantity for BankReservation {
+    fn quantity(&self) -> u32 {
         self.quantity.load(SeqCst)
     }
 }
 
-impl Display for Reservation {
+impl Display for BankReservation {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}: '{}'x{}", self.owner, self.item, self.quantity(),)
+        write!(f, "{}: '{}'x{}", self.owner, self.item, self.quantity())
     }
 }
 
-impl Clone for Reservation {
+impl Clone for BankReservation {
     fn clone(&self) -> Self {
         Self {
             item: self.item.clone(),
@@ -329,7 +314,7 @@ impl Clone for Reservation {
     }
 }
 
-impl PartialEq for Reservation {
+impl PartialEq for BankReservation {
     fn eq(&self, other: &Self) -> bool {
         self.item == other.item && self.quantity() == other.quantity() && self.owner == other.owner
     }
@@ -343,7 +328,7 @@ mod tests {
     fn reserv_with_not_item() {
         let bank = BankController::default();
         let result = bank.increase_reservation("iron_ore", 50, "char1");
-        assert_eq!(Err(BankError::QuantityUnavailable(50)), result);
+        assert_eq!(Err(BankReservationError::QuantityUnavailable(50)), result);
     }
 
     #[test]

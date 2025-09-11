@@ -85,7 +85,7 @@ checksum = "b0674a1ddeecb70197781e945de4b3b8ffb61fa939a5597bcf48503737663100"
 [[package]]
 name = "artifactsmmo-api-wrapper"
 version = "0.1.0"
-source = "git+https://github.com/mgalliou/artifactsmmo-sdk#a92178994cdf5a175eb00b7023c07a5bd5f9e48f"
+source = "git+https://github.com/mgalliou/artifactsmmo-sdk#471d1a9dd34a055f6f9f6a9f160658debb205b6e"
 dependencies = [
  "artifactsmmo-openapi",
 ]
@@ -106,7 +106,7 @@ dependencies = [
 [[package]]
 name = "artifactsmmo-sdk"
 version = "0.0.0"
-source = "git+https://github.com/mgalliou/artifactsmmo-sdk#a92178994cdf5a175eb00b7023c07a5bd5f9e48f"
+source = "git+https://github.com/mgalliou/artifactsmmo-sdk#471d1a9dd34a055f6f9f6a9f160658debb205b6e"
 dependencies = [
  "artifactsmmo-api-wrapper",
  "artifactsmmo-openapi",

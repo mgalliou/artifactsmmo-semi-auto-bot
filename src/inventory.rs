@@ -1,5 +1,5 @@
 use artifactsmmo_sdk::{
-    HasQuantity, ItemContainer, Items, LimitedContainer, SlotLimited, SpaceLimited,
+    ContainerSlot, HasQuantity, ItemContainer, Items, LimitedContainer, SlotLimited, SpaceLimited,
     char::{Character as CharacterClient, HasCharacterData},
     items::ItemSchemaExt,
     models::{InventorySlot, ItemSchema, SimpleItemSchema},
@@ -16,7 +16,7 @@ use std::{
 };
 use thiserror::Error;
 
-use crate::FOOD_BLACK_LIST;
+use crate::{FOOD_BLACK_LIST, HasReservation, Reservation};
 
 #[derive(Default)]
 pub struct Inventory {
@@ -152,24 +152,6 @@ impl Inventory {
         );
     }
 
-    fn quantity_reserved(&self, item: &str) -> u32 {
-        self.reservations
-            .read()
-            .unwrap()
-            .iter()
-            .filter_map(|r| (r.item == item).then_some(r.quantity()))
-            .sum()
-    }
-
-    pub fn is_reserved(&self, item: &str) -> bool {
-        self.quantity_reserved(item) > 0
-    }
-
-    fn quantity_reservable(&self, item: &str) -> u32 {
-        self.total_of(item)
-            .saturating_sub(self.quantity_reserved(item))
-    }
-
     fn get_reservation(&self, item: &str) -> Option<Arc<InventoryReservation>> {
         self.reservations
             .read()
@@ -197,6 +179,19 @@ impl SpaceLimited for Inventory {
 impl LimitedContainer for Inventory {}
 impl SlotLimited for Inventory {}
 
+impl HasReservation for Inventory {
+    type Reservation = InventoryReservation;
+
+    fn reservations(&self) -> Vec<Arc<Self::Reservation>> {
+        self.reservations
+            .read()
+            .unwrap()
+            .iter()
+            .cloned()
+            .collect_vec()
+    }
+}
+
 #[derive(Debug)]
 pub struct InventoryReservation {
     item: String,
@@ -218,10 +213,6 @@ impl InventoryReservation {
         let new = self.quantity().saturating_sub(n);
         self.quantity.store(new, SeqCst);
     }
-
-    pub fn quantity(&self) -> u32 {
-        self.quantity.load(SeqCst)
-    }
 }
 
 impl Display for InventoryReservation {
@@ -233,5 +224,23 @@ impl Display for InventoryReservation {
 impl PartialEq for InventoryReservation {
     fn eq(&self, other: &Self) -> bool {
         self.item == other.item && self.quantity() == other.quantity()
+    }
+}
+
+impl Reservation for InventoryReservation {
+    fn quantity_atomic(&self) -> &AtomicU32 {
+        &self.quantity
+    }
+}
+
+impl HasQuantity for InventoryReservation {
+    fn quantity(&self) -> u32 {
+        self.quantity.load(SeqCst)
+    }
+}
+
+impl ContainerSlot for InventoryReservation {
+    fn code(&self) -> &str {
+        &self.item
     }
 }

@@ -13,7 +13,7 @@ use artifactsmmo_sdk::{
 };
 use thiserror::Error;
 
-use crate::{bank::BankError, orderboard::OrderError};
+use crate::{bank::BankReservationError, orderboard::OrderError};
 
 #[derive(Debug, Error)]
 pub enum KillMonsterCommandError {
@@ -68,7 +68,7 @@ pub enum CraftCommandError {
     #[error("Insufficient materials quantity available: {0:?}")]
     InsufficientMaterials(Vec<SimpleItemSchema>),
     #[error("Failed to reserv mats before crafting: {0}")]
-    ReservationError(#[from] BankError),
+    ReservationError(#[from] BankReservationError),
     #[error("Failed to deposit items: {0}")]
     DepositItemCommandError(#[from] DepositItemCommandError),
     #[error("Failed to withdraw mats: {0}")]
@@ -229,7 +229,7 @@ pub enum WithdrawItemCommandError {
     #[error("Insufficient inventory space")]
     InsufficientInventorySpace,
     #[error("Failed to reserving item before withdrawing: {0}")]
-    ReservationError(#[from] BankError),
+    ReservationError(#[from] BankReservationError),
     #[error("Failed to deposit item before withdrawing: {0}")]
     DepositItemCommandError(#[from] DepositItemCommandError),
     #[error("Failed to move to bank: {0}")]

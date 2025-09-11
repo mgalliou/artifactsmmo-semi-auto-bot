@@ -1,5 +1,5 @@
 use crate::{
-    FOOD_BLACK_LIST, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
+    FOOD_BLACK_LIST, HasReservation, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
     account::AccountController,
     bank::BankController,
     bot_config::{BotConfig, CharConfig, Goal},
