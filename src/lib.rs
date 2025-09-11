@@ -23,7 +23,7 @@ pub const FOOD_BLACK_LIST: [&str; 9] = [
     FISH_SOUP,
     COOKED_HELLHOUND_MEAT,
     MAPLE_SYRUP,
-    "corrupted_fruit"
+    "corrupted_fruit",
 ];
 
 pub const MIN_COIN_THRESHOLD: u32 = 4;

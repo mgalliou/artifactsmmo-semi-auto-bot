@@ -3,7 +3,11 @@ use crate::{
     gear_finder::GearFinder, leveling_helper::LevelingHelper, orderboard::OrderBoard,
 };
 use artifactsmmo_sdk::{
-    account::Account as AccountClient, char::{HasCharacterData, Skill}, items::ItemSource, models::{ItemSchema, SimpleItemSchema}, Client, Items
+    Client, ItemContainer, Items, SpaceLimited,
+    account::Account as AccountClient,
+    char::{HasCharacterData, Skill},
+    items::ItemSource,
+    models::{ItemSchema, SimpleItemSchema},
 };
 use itertools::Itertools;
 use std::sync::{Arc, RwLock};

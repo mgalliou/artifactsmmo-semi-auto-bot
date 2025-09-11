@@ -1,6 +1,6 @@
 use anyhow::{Result, bail};
 use artifactsmmo_sdk::{
-    Simulator,
+    ItemContainer, Simulator,
     char::{HasCharacterData, Skill},
     events::EventSchemaExt,
 };

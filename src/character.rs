@@ -22,8 +22,8 @@ use crate::{
 };
 use anyhow::Result;
 use artifactsmmo_sdk::{
-    Client, GOLDEN_EGG, GOLDEN_SHRIMP, HasDrops, HasLevel, Items, Maps, Monsters, Server,
-    SimpleItemSchemas, Simulator, Tasks,
+    Client, GOLDEN_EGG, GOLDEN_SHRIMP, HasDrops, HasLevel, ItemContainer, Items, LimitedContainer,
+    Maps, Monsters, Server, SimpleItemSchemas, Simulator, SlotLimited, SpaceLimited, Tasks,
     char::{Character as CharacterClient, HasCharacterData, Skill, error::RestError},
     consts::{
         BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, MAX_LEVEL, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE,
@@ -542,7 +542,7 @@ impl CharacterController {
             return Err(TaskCompletionCommandError::TaskNotFinished);
         }
         if self.inventory.free_space() < task.rewards_quantity()
-            || self.inventory.free_slot() < task.rewards_slots()
+            || self.inventory.free_slots() < task.rewards_slots()
         {
             self.deposit_all()?;
         }

@@ -1,5 +1,5 @@
 use artifactsmmo_sdk::{
-    Items,
+    ItemContainer, Items, SlotLimited,
     bank::Bank as BankClient,
     items::ItemSchemaExt,
     models::{BankSchema, ItemSchema, SimpleItemSchema},
@@ -42,17 +42,8 @@ impl BankController {
         self.client.details()
     }
 
-    pub fn content(&self) -> Arc<Vec<SimpleItemSchema>> {
-        //TODO: check if the clone is costly
-        self.client.content().clone()
-    }
-
     pub fn is_full(&self) -> bool {
         self.free_slots() == 0
-    }
-
-    pub fn free_slots(&self) -> u32 {
-        self.client.free_slots()
     }
 
     pub fn gold(&self) -> u32 {
@@ -61,23 +52,6 @@ impl BankController {
 
     pub fn next_expansion_cost(&self) -> u32 {
         self.client.details.read().unwrap().next_expansion_cost
-    }
-
-    /// Returns the total quantity of the given `item` code currently in the bank.
-    pub fn total_of(&self, item: &str) -> u32 {
-        self.client
-            .content
-            .read()
-            .unwrap()
-            .iter()
-            .find_map(|i| {
-                if i.code == item {
-                    Some(i.quantity)
-                } else {
-                    None
-                }
-            })
-            .unwrap_or(0)
     }
 
     /// Returns the quantity of the given item `code` that can be crafted with the mats available in bank
@@ -284,6 +258,28 @@ impl BankController {
         self.reservations()
             .into_iter()
             .find(|r| r.item == item && r.owner == owner)
+    }
+}
+
+impl SlotLimited for BankController {}
+
+impl ItemContainer for BankController {
+    type Slot = SimpleItemSchema;
+
+    fn content(&self) -> Arc<Vec<SimpleItemSchema>> {
+        self.client.content()
+    }
+
+    fn total_items(&self) -> u32 {
+        self.client.total_items()
+    }
+
+    fn total_of(&self, item: &str) -> u32 {
+        self.client.total_of(item)
+    }
+
+    fn contains_multiple(&self, items: &[SimpleItemSchema]) -> bool {
+        self.client.contains_multiple(items)
     }
 }
 

@@ -1,5 +1,5 @@
 use artifactsmmo_sdk::{
-    HasDropTable, HasQuantity, Items,
+    HasQuantity, ItemContainer, Items, LimitedContainer, SlotLimited, SpaceLimited,
     char::{Character as CharacterClient, HasCharacterData},
     items::ItemSchemaExt,
     models::{InventorySlot, ItemSchema, SimpleItemSchema},
@@ -34,12 +34,6 @@ impl Inventory {
         }
     }
 
-    /// Returns a copy of the inventory to be used while depositing or
-    /// withdrawing items.
-    pub fn content(&self) -> Vec<InventorySlot> {
-        self.client.inventory.content()
-    }
-
     pub fn simple_content(&self) -> Vec<SimpleItemSchema> {
         self.content()
             .iter()
@@ -49,53 +43,6 @@ impl Inventory {
                 quantity: s.quantity(),
             })
             .collect_vec()
-    }
-
-    /// Returns the amount of item in the `Character` inventory.
-    pub fn total_items(&self) -> u32 {
-        self.client.inventory.total_items()
-    }
-
-    /// Returns the maximum number of item the inventory can contain.
-    pub fn max_items(&self) -> u32 {
-        self.client.inventory.max_items()
-    }
-
-    /// Returns the free spaces in the `Character` inventory.
-    pub fn free_space(&self) -> u32 {
-        self.client.inventory.free_space()
-    }
-
-    /// Returns the free spaces in the `Character` inventory.
-    pub fn free_slot(&self) -> u32 {
-        self.client.inventory.free_slots() as u32
-    }
-
-    pub fn has_space_for_drops_from<H: HasDropTable>(&self, entity: &H) -> bool {
-        self.client.inventory.has_space_for_drops_from(entity)
-    }
-
-    pub fn has_space_for_multiple(&self, items: &[SimpleItemSchema]) -> bool {
-        self.client.inventory.has_space_for_multiple(items)
-    }
-
-    pub fn has_space_for(&self, item: &str, quantity: u32) -> bool {
-        self.client.inventory.has_space_for(item, quantity)
-    }
-
-    /// Checks if the `Character` inventory is full (all slots are occupied or
-    /// `inventory_max_items` is reached).
-    pub fn is_full(&self) -> bool {
-        self.total_items() >= self.max_items() || self.content().iter().all(|s| s.quantity > 0)
-    }
-
-    /// Returns the amount of the given item `code` in the `Character` inventory.
-    pub fn total_of(&self, item: &str) -> u32 {
-        self.client.inventory.total_of(item)
-    }
-
-    pub fn contains_mats_for(&self, item: &str, quantity: u32) -> bool {
-        self.client.inventory.contains_mats_for(item, quantity)
     }
 
     pub fn missing_mats_for(&self, item: &str, quantity: u32) -> Vec<SimpleItemSchema> {
@@ -232,6 +179,23 @@ impl Inventory {
             .cloned()
     }
 }
+
+impl ItemContainer for Inventory {
+    type Slot = InventorySlot;
+
+    fn content(&self) -> Arc<Vec<InventorySlot>> {
+        self.client.inventory().content()
+    }
+}
+
+impl SpaceLimited for Inventory {
+    fn max_items(&self) -> u32 {
+        self.client.inventory().max_items()
+    }
+}
+
+impl LimitedContainer for Inventory {}
+impl SlotLimited for Inventory {}
 
 #[derive(Debug)]
 pub struct InventoryReservation {
