@@ -16,7 +16,7 @@ use std::{
 };
 use thiserror::Error;
 
-use crate::{FOOD_BLACK_LIST, HasReservation, Reservation};
+use crate::{FOOD_BLACK_LIST, HasReservation, InventoryDiscriminant, Reservation};
 
 #[derive(Default)]
 pub struct Inventory {
@@ -90,7 +90,7 @@ impl Inventory {
 
     /// Make sure the `quantity` of `item` is reserved
     pub fn reserv_item(&self, item: &str, quantity: u32) -> Result<(), InventoryReservationError> {
-        let Some(res) = self.get_reservation(item) else {
+        let Some(res) = self.get_reservation(item.into()) else {
             return self.add_reservation(item, quantity);
         };
         let quantity_to_reserv = quantity.saturating_sub(res.quantity());
@@ -105,7 +105,7 @@ impl Inventory {
         item: &str,
         quantity: u32,
     ) -> Result<(), InventoryReservationError> {
-        if let Some(res) = self.get_reservation(item) {
+        if let Some(res) = self.get_reservation(item.into()) {
             if quantity > self.quantity_reservable(item) {
                 return Err(InventoryReservationError::QuantityUnavailable(quantity));
             }
@@ -129,7 +129,7 @@ impl Inventory {
 
     /// Decrease the reserved quantity of `item`
     pub fn decrease_reservation(&self, item: &str, quantity: u32) {
-        let Some(res) = self.get_reservation(item) else {
+        let Some(res) = self.get_reservation(item.into()) else {
             return;
         };
         res.dec_quantity(quantity);
@@ -165,15 +165,6 @@ impl Inventory {
             self.client.name(),
         );
     }
-
-    fn get_reservation(&self, item: &str) -> Option<Arc<InventoryReservation>> {
-        self.reservations
-            .read()
-            .unwrap()
-            .iter()
-            .find(|r| r.item == item)
-            .cloned()
-    }
 }
 
 impl ItemContainer for Inventory {
@@ -195,6 +186,7 @@ impl SlotLimited for Inventory {}
 
 impl HasReservation for Inventory {
     type Reservation = InventoryReservation;
+    type Discriminant = InventoryDiscriminant;
 
     fn reservations(&self) -> Vec<Arc<Self::Reservation>> {
         self.reservations
@@ -203,6 +195,10 @@ impl HasReservation for Inventory {
             .iter()
             .cloned()
             .collect_vec()
+    }
+
+    fn discriminate(reservation: &InventoryReservation) -> InventoryDiscriminant {
+        reservation.item.as_str().into()
     }
 }
 

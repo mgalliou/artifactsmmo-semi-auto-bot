@@ -38,7 +38,8 @@ pub const MIN_COIN_THRESHOLD: u32 = 4;
 pub const MIN_FOOD_THRESHOLD: u32 = 6000;
 
 trait HasReservation: ItemContainer {
-    type Reservation: ContainerSlot + HasQuantity;
+    type Reservation: Reservation;
+    type Discriminant: Discriminant;
 
     fn reservations(&self) -> Vec<Arc<Self::Reservation>>;
 
@@ -57,9 +58,18 @@ trait HasReservation: ItemContainer {
     fn is_reserved(&self, item: &str) -> bool {
         self.quantity_reserved(item) > 0
     }
+
+    fn get_reservation(&self, discriminant: Self::Discriminant) -> Option<Arc<Self::Reservation>> {
+        self.reservations()
+            .iter()
+            .find(|r| Self::discriminate(r) == discriminant)
+            .cloned()
+    }
+
+    fn discriminate(reservation: &Self::Reservation) -> Self::Discriminant;
 }
 
-pub trait Reservation: HasQuantity {
+pub trait Reservation: ContainerSlot + HasQuantity {
     fn inc_quantity(&self, n: u32) {
         self.quantity_atomic().fetch_add(n, SeqCst);
     }
@@ -70,4 +80,37 @@ pub trait Reservation: HasQuantity {
     }
 
     fn quantity_atomic(&self) -> &AtomicU32;
+}
+
+#[derive(PartialEq)]
+pub struct InventoryDiscriminant {
+    item: String,
+}
+
+#[derive(PartialEq)]
+pub struct BankDiscriminant {
+    item: String,
+    owner: String,
+}
+
+trait Discriminant: PartialEq {}
+
+impl Discriminant for InventoryDiscriminant {}
+impl Discriminant for BankDiscriminant {}
+
+impl From<&str> for InventoryDiscriminant {
+    fn from(value: &str) -> Self {
+        Self {
+            item: value.to_string(),
+        }
+    }
+}
+
+impl From<(&str, &str)> for BankDiscriminant {
+    fn from(value: (&str, &str)) -> Self {
+        Self {
+            item: value.0.to_string(),
+            owner: value.0.to_string(),
+        }
+    }
 }

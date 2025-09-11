@@ -567,7 +567,7 @@ impl CharacterController {
         self.can_exchange_task()?;
         let mut quantity = min(
             self.inventory.max_items() / 2,
-            self.bank.has_available(TASKS_COIN, Some(&self.name())),
+            self.bank.has_available(TASKS_COIN, &self.name()),
         );
         quantity = quantity.saturating_sub(quantity % TASK_EXCHANGE_PRICE);
         self.lock_in_inventory(TASKS_COIN, quantity)?;
@@ -579,7 +579,7 @@ impl CharacterController {
     }
 
     fn cancel_task(&self) -> Result<(), TaskCancellationCommandError> {
-        if self.bank.has_available(TASKS_COIN, Some(&self.name()))
+        if self.bank.has_available(TASKS_COIN, &self.name())
             < TASK_CANCEL_PRICE + MIN_COIN_THRESHOLD
         {
             return Err(TaskCancellationCommandError::MissingCoins);
@@ -1116,7 +1116,7 @@ impl CharacterController {
             .bank
             .consumable_food(self.level())
             .into_iter()
-            .filter(|f| self.bank.has_available(&f.code, Some(&self.name())) > 0)
+            .filter(|f| self.bank.has_available(&f.code, &self.name()) > 0)
             .max_by_key(|f| f.heal())
         else {
             return Ok(());
@@ -1124,7 +1124,7 @@ impl CharacterController {
         // TODO: defined quantity withdrowned depending on the monster drop rate and damages
         let quantity = min(
             ((self.inventory.max_items() as f32) * 0.75) as u32,
-            self.bank.has_available(&food.code, Some(&self.name())),
+            self.bank.has_available(&food.code, &self.name()),
         );
         self.lock_in_inventory(&food.code, quantity)
     }
@@ -1503,7 +1503,7 @@ impl CharacterController {
                     .map(|t| i.heal() / t as i32)
                     .unwrap_or(0)
             })
-            && self.bank.has_available(&best_food.code, None) < MIN_FOOD_THRESHOLD
+            && self.bank.total_of(&best_food.code) < MIN_FOOD_THRESHOLD
             && let Err(e) = self.order_board.add_or_reset(
                 &best_food.code,
                 self.account.fisher_max_items(),
@@ -1531,7 +1531,7 @@ impl CharacterController {
                 .sell_item(
                     &item.code,
                     min(
-                        self.bank.has_available(&item.code, Some(&self.name())),
+                        self.bank.has_available(&item.code, &self.name()),
                         self.inventory.max_items(),
                     ),
                 )
@@ -1719,9 +1719,10 @@ impl CharacterController {
 
     /// Calculates the maximum number of items that can be crafted in one go based on available
     /// inventory max items and bank materials.
+    #[deprecated]
     pub fn max_craftable_items_from_bank(&self, item: &str) -> u32 {
         min(
-            self.bank.has_mats_for(item, Some(&self.name())),
+            self.bank.has_mats_for(item, &self.name()),
             self.inventory.max_items() / self.items.mats_quantity_for(item),
         )
     }
@@ -1738,7 +1739,7 @@ impl CharacterController {
     /// Returns the amount of the given item `code` available in bank and inventory.
     //TODO: maybe use `inventory.has_available`
     fn has_in_bank_or_inv(&self, item: &str) -> u32 {
-        self.inventory.total_of(item) + self.bank.has_available(item, Some(&self.name()))
+        self.inventory.total_of(item) + self.bank.has_available(item, &self.name())
     }
 
     fn missing_mats_for(&self, item_code: &str, quantity: u32) -> Vec<SimpleItemSchema> {
