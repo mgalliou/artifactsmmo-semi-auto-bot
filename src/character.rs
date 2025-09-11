@@ -587,7 +587,8 @@ impl CharacterController {
         self.lock_in_inventory(TASKS_COIN, TASK_CANCEL_PRICE)?;
         self.move_to_closest_taskmaster(self.task_type())?;
         let result = self.client.cancel_task().map_err(|e| e.into());
-        self.inventory.decrease_reservation(TASKS_COIN, TASK_CANCEL_PRICE);
+        self.inventory
+            .decrease_reservation(TASKS_COIN, TASK_CANCEL_PRICE);
         result
     }
 
@@ -854,13 +855,13 @@ impl CharacterController {
             item.code,
         );
         let mats = self.items.mats_for(&item.code, quantity);
-        let missing_mats = self.inventory.missing_mats_for(&item.code, quantity);
+        let missing_mats = self.inventory.missing_among(&mats);
         self.bank.reserv_items(&missing_mats, &self.name())?;
         self.equip_crafting_gear(&item);
         if !self.inventory.has_space_for_multiple(&missing_mats) {
             self.deposit_all_but_multiple(&mats)?;
         }
-        self.withdraw_items(&self.inventory.missing_mats_for(&item.code, quantity))?;
+        self.withdraw_items(&missing_mats)?;
         self.move_to_closest_map_with_content_code(skill.as_ref())?;
         let craft = self.client.craft(&item.code, quantity)?;
         self.inventory.decrease_reservations(&mats);
@@ -1037,17 +1038,17 @@ impl CharacterController {
             .inventory
             .simple_content()
             .iter_mut()
-            .filter_map(|inv| {
+            .filter_map(|slot| {
                 for item in items.iter() {
-                    if inv.code == item.code {
-                        if inv.quantity > item.quantity {
-                            inv.quantity -= item.quantity;
+                    if slot.code == item.code {
+                        if slot.quantity > item.quantity {
+                            slot.quantity -= item.quantity;
                         } else {
                             return None;
                         }
                     }
                 }
-                Some(inv.clone())
+                Some(slot.clone())
             })
             .collect_vec();
         self.deposit_items(&inv_items)

@@ -69,30 +69,23 @@ impl BankController {
 
     /// Returns the quantity of each of the missing materials required to craft the `quantity` of the  item `code`
     /// for the given `owner`.
-    pub fn missing_mats_for(
+    pub fn missing_among(
         &self,
-        item: &str,
-        quantity: u32,
+        items: &[SimpleItemSchema],
         owner: Option<&str>,
     ) -> Vec<SimpleItemSchema> {
-        self.items
-            .mats_of(item)
-            .into_iter()
-            .filter(|m| self.has_available(&m.code, owner) < m.quantity * quantity)
-            .update(|m| {
-                m.quantity =
-                    (m.quantity * quantity).saturating_sub(self.has_available(&m.code, owner))
+        items
+            .iter()
+            .filter_map(|m| {
+                let missing = m
+                    .quantity
+                    .saturating_sub(self.has_available(&m.code, owner));
+                (missing > 0).then_some(SimpleItemSchema {
+                    code: m.code.clone(),
+                    quantity: missing,
+                })
             })
             .collect_vec()
-    }
-
-    /// Returns the total quantity of the missing materials required to craft the `quantity` of the
-    /// item `code` for the given `owner`
-    pub fn missing_mats_quantity(&self, item: &str, quantity: u32, owner: Option<&str>) -> u32 {
-        self.missing_mats_for(item, quantity, owner)
-            .iter()
-            .map(|m| m.quantity)
-            .sum()
     }
 
     pub fn consumable_food(&self, level: u32) -> Vec<Arc<ItemSchema>> {

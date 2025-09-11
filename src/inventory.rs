@@ -45,9 +45,8 @@ impl Inventory {
             .collect_vec()
     }
 
-    pub fn missing_mats_for(&self, item: &str, quantity: u32) -> Vec<SimpleItemSchema> {
-        self.items
-            .mats_for(item, quantity)
+    pub fn missing_among(&self, items: &[SimpleItemSchema]) -> Vec<SimpleItemSchema> {
+        items
             .iter()
             .filter_map(|m| {
                 let missing = m.quantity.saturating_sub(self.has_available(&m.code));
