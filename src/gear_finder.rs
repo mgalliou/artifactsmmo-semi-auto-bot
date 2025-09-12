@@ -496,7 +496,16 @@ impl GearFinder {
         if filter.available {
             return char.has_available(&item.code) > 0;
         }
-        if ["steel_gloves", "leather_gloves", "conjurer_cloak"].contains(&item.code.as_str()) {
+        if [
+            "steel_gloves",
+            "leather_gloves",
+            "conjurer_cloak",
+            "stormforged_armor",
+            "stormforged_pants",
+            "lizard_skin_leg_armor",
+        ]
+        .contains(&item.code.as_str())
+        {
             return false;
         }
         if filter.craftable && item.is_craftable() && !self.account.can_craft(&item.code) {
