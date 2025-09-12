@@ -1,6 +1,6 @@
 use artifactsmmo_sdk::{
     ContainerSlot, HasQuantity, ItemContainer, Items, LimitedContainer, SlotLimited, SpaceLimited,
-    char::{Character as CharacterClient, HasCharacterData},
+    char::{Character as CharacterClient, HasCharacterData, inventory::Inventory},
     items::ItemSchemaExt,
     models::{InventorySlot, ItemSchema, SimpleItemSchema},
 };
@@ -19,15 +19,15 @@ use thiserror::Error;
 use crate::{FOOD_BLACK_LIST, HasReservation, InventoryDiscriminant, Reservation};
 
 #[derive(Default)]
-pub struct Inventory {
+pub struct InventoryController {
     client: Arc<CharacterClient>,
     reservations: RwLock<Vec<Arc<InventoryReservation>>>,
     items: Arc<Items>,
 }
 
-impl Inventory {
+impl InventoryController {
     pub fn new(client: Arc<CharacterClient>, items: Arc<Items>) -> Self {
-        Inventory {
+        InventoryController {
             client,
             reservations: RwLock::new(vec![]),
             items,
@@ -166,7 +166,9 @@ impl Inventory {
     }
 }
 
-impl ItemContainer for Inventory {
+impl Inventory for InventoryController {}
+
+impl ItemContainer for InventoryController {
     type Slot = InventorySlot;
 
     fn content(&self) -> Arc<Vec<InventorySlot>> {
@@ -174,16 +176,33 @@ impl ItemContainer for Inventory {
     }
 }
 
-impl SpaceLimited for Inventory {
+impl LimitedContainer for InventoryController {
+    fn is_full(&self) -> bool {
+        self.client.inventory().is_full()
+    }
+
+    fn has_space_for_multiple(&self, items: &[SimpleItemSchema]) -> bool {
+        self.client.inventory().has_space_for_multiple(items)
+    }
+
+    fn has_space_for_drops_from<H: artifactsmmo_sdk::HasDropTable>(&self, entity: &H) -> bool {
+        self.client.inventory().has_space_for_drops_from(entity)
+    }
+}
+
+impl SpaceLimited for InventoryController {
     fn max_items(&self) -> u32 {
         self.client.inventory().max_items()
     }
 }
 
-impl LimitedContainer for Inventory {}
-impl SlotLimited for Inventory {}
+impl SlotLimited for InventoryController {
+    fn free_slots(&self) -> u32 {
+        self.client.inventory().free_slots()
+    }
+}
 
-impl HasReservation for Inventory {
+impl HasReservation for InventoryController {
     type Reservation = InventoryReservation;
     type Discriminant = InventoryDiscriminant;
 

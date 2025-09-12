@@ -16,7 +16,7 @@ use crate::{
         WithdrawItemCommandError,
     },
     gear_finder::{Filter, GearFinder},
-    inventory::Inventory,
+    inventory::InventoryController,
     leveling_helper::LevelingHelper,
     orderboard::{Order, OrderBoard, Purpose},
 };
@@ -24,6 +24,7 @@ use anyhow::Result;
 use artifactsmmo_sdk::{
     Client, GOLDEN_EGG, GOLDEN_SHRIMP, HasDrops, HasLevel, ItemContainer, Items, LimitedContainer,
     Maps, Monsters, Server, SimpleItemSchemas, Simulator, SlotLimited, SpaceLimited, Tasks,
+    bank::Bank,
     char::{Character as CharacterClient, HasCharacterData, Skill, error::RestError},
     consts::{
         BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, MAX_LEVEL, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE,
@@ -51,7 +52,7 @@ use strum::IntoEnumIterator;
 pub struct CharacterController {
     client: Arc<CharacterClient>,
     bot_config: Arc<BotConfig>,
-    pub inventory: Arc<Inventory>,
+    pub inventory: Arc<InventoryController>,
     bank: Arc<BankController>,
     account: Arc<AccountController>,
     maps: Arc<Maps>,
@@ -77,7 +78,7 @@ impl CharacterController {
         Self {
             client: char_client.clone(),
             bot_config: bot_cfg,
-            inventory: Arc::new(Inventory::new(char_client, client.items.clone())),
+            inventory: Arc::new(InventoryController::new(char_client, client.items.clone())),
             bank: account.bank.clone(),
             account,
             maps: client.maps.clone(),

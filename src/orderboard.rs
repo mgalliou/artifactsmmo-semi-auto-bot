@@ -139,10 +139,7 @@ impl OrderBoard {
                     let quantity = min(o.quantity(), remaining);
                     o.inc_deposited(quantity);
                     if let Some(ref owner) = o.owner
-                        && let Err(e) = self
-                            .account
-                            .bank
-                            .inc_reservation(&o.item, quantity, owner)
+                        && let Err(e) = self.account.bank.inc_reservation(&o.item, quantity, owner)
                     {
                         error!("orderboard: failed reserving deposited item: {e}")
                     }

@@ -1,7 +1,7 @@
 use crate::{BankDiscriminant, FOOD_BLACK_LIST, HasReservation, Reservation};
 use artifactsmmo_sdk::{
-    ContainerSlot, HasQuantity, ItemContainer, Items, SlotLimited,
-    bank::Bank as BankClient,
+    BankClient, ContainerSlot, HasQuantity, ItemContainer, Items, LimitedContainer, SlotLimited,
+    bank::Bank,
     items::ItemSchemaExt,
     models::{BankSchema, ItemSchema, SimpleItemSchema},
 };
@@ -34,22 +34,6 @@ impl BankController {
             browsed: RwLock::new(()),
             being_expanded: RwLock::new(()),
         }
-    }
-
-    pub fn details(&self) -> Arc<BankSchema> {
-        self.client.details()
-    }
-
-    pub fn is_full(&self) -> bool {
-        self.free_slots() == 0
-    }
-
-    pub fn gold(&self) -> u32 {
-        self.client.gold()
-    }
-
-    pub fn next_expansion_cost(&self) -> u32 {
-        self.client.details.read().unwrap().next_expansion_cost
     }
 
     /// Returns the quantity of the given item `code` that can be crafted with the mats available in bank
@@ -214,13 +198,37 @@ impl BankController {
     }
 }
 
-impl SlotLimited for BankController {}
+impl Bank for BankController {
+    fn details(&self) -> Arc<BankSchema> {
+        self.client.details()
+    }
+}
 
 impl ItemContainer for BankController {
     type Slot = SimpleItemSchema;
 
     fn content(&self) -> Arc<Vec<SimpleItemSchema>> {
         self.client.content()
+    }
+}
+
+impl LimitedContainer for BankController {
+    fn is_full(&self) -> bool {
+        self.client.is_full()
+    }
+
+    fn has_space_for_multiple(&self, items: &[SimpleItemSchema]) -> bool {
+        self.client.has_space_for_multiple(items)
+    }
+
+    fn has_space_for_drops_from<H: artifactsmmo_sdk::HasDropTable>(&self, entity: &H) -> bool {
+        self.client.has_space_for_drops_from(entity)
+    }
+}
+
+impl SlotLimited for BankController {
+    fn free_slots(&self) -> u32 {
+        todo!()
     }
 }
 
