@@ -133,10 +133,10 @@ impl BankController {
         if quantity_to_reserv == 0 {
             return Ok(());
         };
-        self.increase_reservation(item, quantity_to_reserv, owner)
+        self.inc_reservation(item, quantity_to_reserv, owner)
     }
 
-    pub fn increase_reservation(
+    pub fn inc_reservation(
         &self,
         item: &str,
         quantity: u32,
@@ -154,13 +154,13 @@ impl BankController {
         Ok(())
     }
 
-    pub fn decrease_reservations(&self, items: &[SimpleItemSchema], owner: &str) {
+    pub fn dec_reservations(&self, items: &[SimpleItemSchema], owner: &str) {
         for item in items.iter() {
-            self.decrease_reservation(&item.code, item.quantity, owner);
+            self.dec_reservation(&item.code, item.quantity, owner);
         }
     }
 
-    pub fn decrease_reservation(&self, item: &str, quantity: u32, owner: &str) {
+    pub fn dec_reservation(&self, item: &str, quantity: u32, owner: &str) {
         let Some(res) = self.get_reservation((item, owner).into()) else {
             return;
         };
@@ -302,7 +302,7 @@ mod tests {
     #[test]
     fn reserv_with_not_item() {
         let bank = BankController::default();
-        let result = bank.increase_reservation("iron_ore", 50, "char1");
+        let result = bank.inc_reservation("iron_ore", 50, "char1");
         assert_eq!(Err(BankReservationError::QuantityUnavailable(50)), result);
     }
 
@@ -313,8 +313,8 @@ mod tests {
             code: "copper_ore".to_owned(),
             quantity: 100,
         }]);
-        let _ = bank.increase_reservation("copper_ore", 50, "char1");
-        let _ = bank.increase_reservation("copper_ore", 50, "char1");
+        let _ = bank.inc_reservation("copper_ore", 50, "char1");
+        let _ = bank.inc_reservation("copper_ore", 50, "char1");
         assert_eq!(100, bank.has_available("copper_ore", "char1"))
     }
 

@@ -77,7 +77,6 @@ impl Inventory {
             .saturating_sub(self.quantity_reserved(item))
     }
 
-    /// Make sure the `quantity` of `item` is reserved
     pub fn reserv_items(
         &self,
         items: &[SimpleItemSchema],
@@ -97,10 +96,10 @@ impl Inventory {
         if quantity_to_reserv == 0 {
             return Ok(());
         };
-        self.increase_reservation(item, quantity_to_reserv)
+        self.inc_reservation(item, quantity_to_reserv)
     }
 
-    pub fn increase_reservation(
+    pub fn inc_reservation(
         &self,
         item: &str,
         quantity: u32,

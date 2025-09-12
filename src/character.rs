@@ -257,7 +257,7 @@ impl CharacterController {
     fn handle_orderboard(&self) -> bool {
         let orders = self.order_board.orders_by_priority();
         let mut progressable = orders.into_iter().filter(|o| self.can_progress(o));
-        if progressable.any(|r| self.handle_order(r).is_ok()) {
+        if progressable.any(|r| self.handle_order(&r).is_ok()) {
             return true;
         }
         false
@@ -265,8 +265,8 @@ impl CharacterController {
 
     /// Deposit items requiered by the given `order` if needed.
     /// Returns true if items has be deposited.
-    fn turn_in_order(&self, order: Arc<Order>) -> bool {
-        if self.order_board.should_be_turned_in(&order)
+    fn turn_in_order(&self, order: &Order) -> bool {
+        if self.order_board.should_be_turned_in(order)
             && self.inventory.has_available(&order.item) > 0
         {
             return self.deposit_all_but_reserved().is_ok();
@@ -274,8 +274,8 @@ impl CharacterController {
         false
     }
 
-    fn handle_order(&self, order: Arc<Order>) -> Result<u32, OrderProgressionError> {
-        match self.progress_order(&order) {
+    fn handle_order(&self, order: &Order) -> Result<u32, OrderProgressionError> {
+        match self.progress_order(order) {
             Ok(progress) => {
                 if progress > 0 {
                     info!(
@@ -1162,7 +1162,7 @@ impl CharacterController {
         self.move_to_closest_map_of_type(MapContentType::Bank)?;
         let result = self.client.withdraw_item(items);
         if result.is_ok() {
-            self.bank.decrease_reservations(items, &self.name());
+            self.bank.dec_reservations(items, &self.name());
             if let Err(e) = self.inventory.reserv_items(items) {
                 error!("{}: failed reserving withdrawed item: {e}", self.name());
             }

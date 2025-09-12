@@ -142,7 +142,7 @@ impl OrderBoard {
                         && let Err(e) = self
                             .account
                             .bank
-                            .increase_reservation(&o.item, quantity, owner)
+                            .inc_reservation(&o.item, quantity, owner)
                     {
                         error!("orderboard: failed reserving deposited item: {e}")
                     }
