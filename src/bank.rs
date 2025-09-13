@@ -228,7 +228,7 @@ impl LimitedContainer for BankController {
 
 impl SlotLimited for BankController {
     fn free_slots(&self) -> u32 {
-        todo!()
+        self.client.free_slots()
     }
 }
 
