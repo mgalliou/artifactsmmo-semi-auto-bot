@@ -133,13 +133,7 @@ impl CharacterController {
                         continue;
                     }
                 }
-                Err(_) => (),
-            }
-            let skills = self.config().skills();
-            for s in skills {
-                if self.level_skill_up(s).is_ok() {
-                    continue;
-                }
+                Err(e) => error!("{}: failed to progress task as fallback: {e}", self.name()),
             }
         }
     }
