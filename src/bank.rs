@@ -1,6 +1,7 @@
 use crate::{BankDiscriminant, FOOD_BLACK_LIST, HasReservation, Reservation};
 use artifactsmmo_sdk::{
-    BankClient, ContainerSlot, HasQuantity, ItemContainer, Items, LimitedContainer, SlotLimited,
+    BankClient, Collection, ContainerSlot, HasQuantity, ItemContainer, Items, LimitedContainer,
+    SlotLimited,
     bank::Bank,
     items::ItemSchemaExt,
     models::{BankSchema, ItemSchema, SimpleItemSchema},

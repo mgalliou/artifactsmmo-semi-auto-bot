@@ -1,5 +1,5 @@
 use artifactsmmo_sdk::{
-    CanProvideXp, HasLevel, Items, Maps, Monsters, Resources,
+    CanProvideXp, Collection, HasLevel, Items, Maps, Monsters, Resources,
     char::{HasCharacterData, Skill},
     items::ItemSchemaExt,
     models::{ItemSchema, MonsterSchema, ResourceSchema},

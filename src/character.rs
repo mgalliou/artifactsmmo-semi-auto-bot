@@ -22,8 +22,9 @@ use crate::{
 };
 use anyhow::Result;
 use artifactsmmo_sdk::{
-    Client, GOLDEN_EGG, GOLDEN_SHRIMP, HasDrops, HasLevel, ItemContainer, Items, LimitedContainer,
-    Maps, Monsters, SimpleItemSchemas, Simulator, SlotLimited, SpaceLimited, Tasks,
+    Client, Collection, GOLDEN_EGG, GOLDEN_SHRIMP, HasDrops, HasLevel, ItemContainer, Items,
+    LimitedContainer, Maps, Monsters, SimpleItemSchemas, Simulator, SlotLimited, SpaceLimited,
+    Tasks,
     bank::Bank,
     char::{Character as CharacterClient, HasCharacterData, Skill, error::RestError},
     consts::{
@@ -1607,16 +1608,6 @@ impl CharacterController {
                 .reserv_item(item, missing_quantity, &self.name())?
         }
         Ok(())
-    }
-
-    #[allow(dead_code)]
-    fn time_to_get_gear(&self, gear: &Gear) -> Option<u32> {
-        Slot::iter()
-            .map(|slot| {
-                gear.item_in(slot)
-                    .and_then(|i| self.items.time_to_get(&i.code))
-            })
-            .sum()
     }
 
     #[allow(dead_code)]

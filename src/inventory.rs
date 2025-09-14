@@ -1,5 +1,6 @@
 use artifactsmmo_sdk::{
-    ContainerSlot, HasQuantity, ItemContainer, Items, LimitedContainer, SlotLimited, SpaceLimited,
+    Collection, ContainerSlot, HasQuantity, ItemContainer, Items, LimitedContainer, SlotLimited,
+    SpaceLimited,
     char::{Character as CharacterClient, HasCharacterData, inventory::Inventory},
     items::ItemSchemaExt,
     models::{InventorySlot, ItemSchema, SimpleItemSchema},

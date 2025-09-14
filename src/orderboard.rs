@@ -1,4 +1,4 @@
-use artifactsmmo_sdk::{Items, char::Skill, models::SimpleItemSchema};
+use artifactsmmo_sdk::{Collection, Items, char::Skill, models::SimpleItemSchema};
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use log::{debug, error, info};

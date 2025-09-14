@@ -1,6 +1,6 @@
 use crate::{account::AccountController, character::CharacterController};
 use artifactsmmo_sdk::{
-    Items, Simulator,
+    Collection, Items, Simulator,
     char::{HasCharacterData, Skill},
     check_lvl_diff,
     gear::{Gear, Slot},
