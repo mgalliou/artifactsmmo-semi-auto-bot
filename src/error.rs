@@ -21,10 +21,10 @@ pub enum KillMonsterCommandError {
     SkillDisabled(Skill),
     #[error("No map with monster found")]
     MapNotFound,
-    #[error("Unable to check bank for available gear")]
-    BankUnavailable,
     #[error("No gear powerfull enough available to kill '{monster_code}'")]
     GearTooWeak { monster_code: String },
+    #[error("Failed to equip gear")]
+    EquipGearCommandError(#[from] EquipGearCommandError),
     #[error("Failed to deposit before gathering: {0}")]
     DepositItemCommandError(#[from] DepositItemCommandError),
     #[error("Failed to move: {0}")]
@@ -43,6 +43,8 @@ pub enum GatherCommandError {
     InsufficientSkillLevel(Skill),
     #[error("Insufficient inventory space")]
     MapNotFound,
+    #[error("Failed to equip gear: {0}")]
+    EquipGearCommandError(#[from] EquipGearCommandError),
     #[error("Failed to deposit before gathering: {0}")]
     DepositItemCommandError(#[from] DepositItemCommandError),
     #[error("Failed to move: {0}")]
@@ -69,6 +71,8 @@ pub enum CraftCommandError {
     InsufficientMaterials(Vec<SimpleItemSchema>),
     #[error("Failed to reserv mats before crafting: {0}")]
     ReservationError(#[from] BankReservationError),
+    #[error("Failed to equip gear: {0}")]
+    EquipGearCommandError(#[from] EquipGearCommandError),
     #[error("Failed to deposit items: {0}")]
     DepositItemCommandError(#[from] DepositItemCommandError),
     #[error("Failed to withdraw mats: {0}")]
@@ -248,6 +252,14 @@ pub enum DepositItemCommandError {
     InsufficientBankSpace,
     #[error("Failed to request item deposit: {0}")]
     ClientError(#[from] DepositError),
+}
+
+#[derive(Debug, Error)]
+pub enum EquipGearCommandError {
+    #[error("Failed to reserv item from bank: {0}")]
+    BankReservationError(#[from] BankReservationError),
+    #[error("Failed to equip an item: {0}")]
+    EquipCommandError(#[from] EquipCommandError),
 }
 
 #[derive(Debug, Error)]

@@ -1,19 +1,19 @@
 use crate::{
     FOOD_BLACK_LIST, HasReservation, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
     account::AccountController,
-    bank::BankController,
+    bank::{BankController, BankReservationError},
     bot_config::{BotConfig, CharConfig, Goal},
     error::{
         BankCleanupError, BankExpansionCommandError, BuyNpcCommandError,
         BuyNpcOrderProgressionError, CombatLevelingError, CraftCommandError,
         CraftOrderProgressionError, CraftSkillLevelingError, DeleteCommandError,
-        DepositItemCommandError, EquipCommandError, GatherCommandError, GoldDepositCommandError,
-        GoldWithdrawCommandError, KillMonsterCommandError, MoveCommandError, OrderProgressionError,
-        RecycleCommandError, SellNpcCommandError, SkillLevelingError, TaskAcceptationCommandError,
-        TaskCancellationCommandError, TaskCompletionCommandError, TaskProgressionError,
-        TaskTradeCommandError, TasksCoinExchangeCommandError,
-        TasksCoinExchangeOrderProgressionError, UnequipCommandError, UseItemCommandError,
-        WithdrawItemCommandError,
+        DepositItemCommandError, EquipCommandError, EquipGearCommandError, GatherCommandError,
+        GoldDepositCommandError, GoldWithdrawCommandError, KillMonsterCommandError,
+        MoveCommandError, OrderProgressionError, RecycleCommandError, SellNpcCommandError,
+        SkillLevelingError, TaskAcceptationCommandError, TaskCancellationCommandError,
+        TaskCompletionCommandError, TaskProgressionError, TaskTradeCommandError,
+        TasksCoinExchangeCommandError, TasksCoinExchangeOrderProgressionError, UnequipCommandError,
+        UseItemCommandError, WithdrawItemCommandError,
     },
     gear_finder::{Filter, GearFinder},
     inventory::InventoryController,
@@ -598,7 +598,8 @@ impl CharacterController {
         if self.order_best_combat_gear(monster) {
             return Ok(Default::default());
         }
-        self.equip_combat_gear(monster)?;
+        let mut gear = self.can_kill(monster)?;
+        self.equip_gear(&mut gear)?;
         if let Ok(_) | Err(TaskCompletionCommandError::NoTask) = self.complete_task()
             && let Err(e) = self.accept_task(TaskType::Monsters)
         {
@@ -644,7 +645,7 @@ impl CharacterController {
         if self.order_best_gathering_gear(resource) {
             return Ok(Default::default());
         }
-        self.equip_gathering_gear(resource);
+        self.equip_gathering_gear(resource)?;
         if !self.inventory.has_space_for_drops_from(resource)
             || !self.current_map().content_code_is(&resource.code)
         {
@@ -674,21 +675,7 @@ impl CharacterController {
         Ok(())
     }
 
-    fn equip_combat_gear(&self, monster: &MonsterSchema) -> Result<(), KillMonsterCommandError> {
-        let Ok(_browsed) = self.bank.browsed.write() else {
-            return Err(KillMonsterCommandError::BankUnavailable);
-        };
-        let mut gear = self.can_kill(monster)?;
-        self.reserv_gear(&mut gear);
-        drop(_browsed);
-        self.equip_gear(&mut gear);
-        Ok(())
-    }
-
-    fn equip_crafting_gear(&self, item: &ItemSchema) {
-        let Ok(_browsed) = self.bank.browsed.write() else {
-            return;
-        };
+    fn equip_crafting_gear(&self, item: &ItemSchema) -> Result<(), EquipGearCommandError> {
         let mut available = self.gear_finder.best_for_crafting(
             self,
             item.skill_to_craft().unwrap(),
@@ -698,15 +685,10 @@ impl CharacterController {
                 ..Default::default()
             },
         );
-        self.reserv_gear(&mut available);
-        drop(_browsed);
-        self.equip_gear(&mut available);
+        self.equip_gear(&mut available)
     }
 
-    fn equip_gathering_gear(&self, resource: &ResourceSchema) {
-        let Ok(_browsed) = self.bank.browsed.write() else {
-            return;
-        };
+    fn equip_gathering_gear(&self, resource: &ResourceSchema) -> Result<(), EquipGearCommandError> {
         let mut available = self.gear_finder.best_for_gathering(
             self,
             resource.skill.into(),
@@ -716,9 +698,7 @@ impl CharacterController {
                 ..Default::default()
             },
         );
-        self.reserv_gear(&mut available);
-        drop(_browsed);
-        self.equip_gear(&mut available);
+        Ok(self.equip_gear(&mut available)?)
     }
 
     fn order_best_combat_gear(&self, monster: &MonsterSchema) -> bool {
@@ -852,7 +832,7 @@ impl CharacterController {
         let mats = self.items.mats_for(&item.code, quantity);
         let missing_mats = self.inventory.missing_among(&mats);
         self.bank.reserv_items(&missing_mats, &self.name())?;
-        self.equip_crafting_gear(&item);
+        self.equip_crafting_gear(&item)?;
         if !self.inventory.has_space_for_multiple(&missing_mats) {
             self.deposit_all_but_multiple(&mats)?;
         }
@@ -1222,19 +1202,15 @@ impl CharacterController {
             .collect_vec()
     }
 
-    fn equip_gear(&self, gear: &mut Gear) {
+    fn equip_gear(&self, gear: &mut Gear) -> Result<(), EquipGearCommandError> {
+        self.reserv_gear(gear)?;
         gear.align_to(&self.gear());
-        Slot::iter().for_each(|slot| {
-            if let Some(item) = gear.item_in(slot)
-                && let Err(e) = self.equip_item(&item.code, slot)
-            {
-                error!(
-                    "{}: failed equiping {} during gear equiping: {e}",
-                    self.name(),
-                    &item.code
-                )
+        for slot in Slot::iter() {
+            if let Some(item) = gear.item_in(slot) {
+                self.equip_item(&item.code, slot)?;
             }
-        });
+        }
+        Ok(())
     }
 
     fn equip_item(&self, item: &str, slot: Slot) -> Result<(), EquipCommandError> {
@@ -1613,38 +1589,44 @@ impl CharacterController {
         }
     }
 
-    fn reserv_gear(&self, gear: &mut Gear) {
+    fn reserv_gear(&self, gear: &mut Gear) -> Result<(), BankReservationError> {
+        //TODO: unreserv already reserved items on failure
         gear.align_to(&self.gear());
-        Slot::iter().for_each(|slot| {
+        for slot in Slot::iter() {
             if let Some(item) = gear.item_in(slot)
                 && !slot.is_ring()
             {
-                self.reserv_if_needed_and_available(&item.code, slot.max_quantity(), slot);
+                self.reserv_if_needed_and_available(&item.code, slot.max_quantity(), slot)?;
             }
-        });
+        }
         if let Some(ref ring1) = gear.ring1
             && gear.ring1 == gear.ring2
         {
-            self.reserv_if_needed_and_available(&ring1.code, 2, Slot::Ring1);
+            self.reserv_if_needed_and_available(&ring1.code, 2, Slot::Ring1)?;
         } else {
             if let Some(ref ring1) = gear.ring1 {
-                self.reserv_if_needed_and_available(&ring1.code, 1, Slot::Ring1);
+                self.reserv_if_needed_and_available(&ring1.code, 1, Slot::Ring1)?;
             }
             if let Some(ref ring2) = gear.ring2 {
-                self.reserv_if_needed_and_available(&ring2.code, 1, Slot::Ring2);
+                self.reserv_if_needed_and_available(&ring2.code, 1, Slot::Ring2)?;
             }
         }
+        Ok(())
     }
 
     /// Reserves the given `quantity` of the `item` if needed and available.
-    fn reserv_if_needed_and_available(&self, item: &str, quantity: u32, s: Slot) {
+    fn reserv_if_needed_and_available(
+        &self,
+        item: &str,
+        quantity: u32,
+        s: Slot,
+    ) -> Result<(), BankReservationError> {
         let missing_quantity = quantity.saturating_sub(self.inventory.total_of(item));
-        if missing_quantity > 0
-            && self.equiped_in(s) != item
-            && let Err(e) = self.bank.reserv_item(item, missing_quantity, &self.name())
-        {
-            error!("{}: failed reserving '{item}'x{quantity}: {e}", self.name())
+        if missing_quantity > 0 && self.equiped_in(s) != item {
+            self.bank
+                .reserv_item(item, missing_quantity, &self.name())?
         }
+        Ok(())
     }
 
     #[allow(dead_code)]
