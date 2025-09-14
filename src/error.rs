@@ -23,7 +23,7 @@ pub enum KillMonsterCommandError {
     MapNotFound,
     #[error("No gear powerfull enough available to kill '{monster_code}'")]
     GearTooWeak { monster_code: String },
-    #[error("Failed to equip gear")]
+    #[error("Failed to equip gear: {0}")]
     EquipGearCommandError(#[from] EquipGearCommandError),
     #[error("Failed to deposit before gathering: {0}")]
     DepositItemCommandError(#[from] DepositItemCommandError),

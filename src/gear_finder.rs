@@ -10,7 +10,7 @@ use artifactsmmo_sdk::{
 };
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
-use std::sync::Arc;
+use std::{cmp::Ordering, sync::Arc};
 
 #[derive(Default)]
 pub struct GearFinder {
@@ -90,11 +90,8 @@ impl GearFinder {
         equipables
             .into_iter()
             .filter(|i| {
-                if let Some(best) = &best {
-                    i.average_damage(monster) >= best.average_damage(monster) * 0.90
-                } else {
-                    false
-                }
+                best.as_ref()
+                    .is_some_and(|b| i.average_damage(monster) >= b.average_damage(monster) * 0.90)
             })
             .collect_vec()
     }
@@ -158,7 +155,7 @@ impl GearFinder {
         let single_rings = rings
             .iter()
             .flatten()
-            .filter(|i| filter.available_only && char.has_available(i) <= 1)
+            .filter(|i| filter.available_only && char.has_available(&i.code) <= 1)
             .cloned()
             .collect_vec();
         let rings2 =
@@ -198,15 +195,15 @@ impl GearFinder {
         weapon: &ItemSchema,
         r#type: Type,
         filter: Filter,
-        unique_items: &[String],
-    ) -> Vec<Option<String>> {
+        unique_items: &[Arc<ItemSchema>],
+    ) -> Vec<Option<Arc<ItemSchema>>> {
         let mut bests: Vec<Arc<ItemSchema>> = vec![];
-        let equipables = self.items.filtered(|i| {
-            !unique_items.contains(&i.code) && self.is_eligible(i, r#type, filter, char)
-        });
+        let equipables = self
+            .items
+            .filtered(|i| !unique_items.contains(i) && self.is_eligible(i, r#type, filter, char));
         let best_for_damage = equipables
             .iter()
-            .filter(|i| weapon.average_damage_with(i, monster) > 0.0)
+            .filter(|i| weapon.damage_boot_with(i, monster) > 0.0)
             .max_by_key(|i| OrderedFloat(weapon.damage_boot_with(i, monster)));
         let best_reduction = equipables
             .iter()
@@ -245,8 +242,8 @@ impl GearFinder {
         // }
         bests
             .into_iter()
-            .map(|i| Some(i.code.to_owned()))
-            .sorted()
+            .map(Some)
+            .sorted_by(item_cmp)
             .dedup()
             .collect_vec()
     }
@@ -257,7 +254,7 @@ impl GearFinder {
         monster: &MonsterSchema,
         weapon: &ItemSchema,
         filter: Filter,
-    ) -> Vec<Option<String>> {
+    ) -> Vec<Option<Arc<ItemSchema>>> {
         let mut upgrades: Vec<Arc<ItemSchema>> = vec![];
         let equipables = self
             .items
@@ -292,8 +289,8 @@ impl GearFinder {
         }
         upgrades
             .into_iter()
-            .map(|i| Some(i.code.to_owned()))
-            .sorted()
+            .map(Some)
+            .sorted_by(item_cmp)
             .dedup()
             .collect_vec()
     }
@@ -303,8 +300,8 @@ impl GearFinder {
             .filtered(|i| self.is_eligible(i, Type::Rune, filter, char))
             .iter()
             .max_set_by_key(|i| i.burn())
-            .iter()
-            .map(|i| ItemWrapper::Armor(Some(i.code.to_owned())))
+            .into_iter()
+            .map(|i| ItemWrapper::Armor(Some(i.clone())))
             .collect_vec()
     }
 
@@ -388,11 +385,11 @@ impl GearFinder {
         skill_level: u32,
         r#type: Type,
         filter: Filter,
-        unique_items: Vec<String>,
-    ) -> Vec<Option<String>> {
+        unique_items: Vec<Arc<ItemSchema>>,
+    ) -> Vec<Option<Arc<ItemSchema>>> {
         let mut bests: Vec<Arc<ItemSchema>> = vec![];
         let equipables = self.items.filtered(|i| {
-            !unique_items.contains(&i.code)
+            !unique_items.contains(i)
                 && self.is_eligible(i, r#type, filter, char)
                 && ((i.wisdom() > 0 && check_lvl_diff(char.skill_level(skill), skill_level))
                     || i.prospecting() > 0)
@@ -413,8 +410,8 @@ impl GearFinder {
         }
         bests
             .iter()
-            .map(|i| Some(i.code.to_owned()))
-            .sorted()
+            .map(|i| Some(i.clone()))
+            .sorted_by(item_cmp)
             .dedup()
             .collect_vec()
     }
@@ -438,15 +435,18 @@ impl GearFinder {
         skill_level: u32,
         filter: Filter,
     ) -> Vec<ItemWrapper> {
-        let rings = self.best_skill_armors(char, skill, skill_level, Type::Ring, filter, vec![]);
+        let mut rings =
+            self.best_skill_armors(char, skill, skill_level, Type::Ring, filter, vec![]);
         let single_rings = rings
             .iter()
             .flatten()
-            .filter(|i| filter.available_only && char.has_available(i) <= 1)
+            .filter(|i| filter.available_only && char.has_available(&i.code) <= 1)
             .cloned()
             .collect_vec();
-        let rings2 =
+        let mut rings2 =
             self.best_skill_armors(char, skill, skill_level, Type::Ring, filter, single_rings);
+        rings.push(None);
+        rings2.push(None);
         gen_ring_sets(rings, rings2)
     }
 
@@ -555,40 +555,59 @@ impl GearFinder {
                 ItemWrapper::Utility(set) => set.slot(slot),
             }
             .as_ref()
-            .and_then(|u| {
-                self.items
-                    .get(u)
-                    .and_then(|i| i.type_is(slot.into()).then_some(i))
-            })
+            .and_then(|i| i.type_is(slot.into()).then_some(i.clone()))
         })
     }
 }
 
-fn gen_ring_sets(rings1: Vec<Option<String>>, rings2: Vec<Option<String>>) -> Vec<ItemWrapper> {
+fn gen_ring_sets(
+    rings1: Vec<Option<Arc<ItemSchema>>>,
+    rings2: Vec<Option<Arc<ItemSchema>>>,
+) -> Vec<ItemWrapper> {
     [rings1, rings2]
         .iter()
         .multi_cartesian_product()
         .map(|rings| [rings[0].clone(), rings[1].clone()])
-        .sorted()
         .filter_map(RingSet::new)
-        .map(ItemWrapper::Rings)
+        .sorted_by(|a, b| {
+            if a == b {
+                Ordering::Equal
+            } else {
+                match item_cmp(a.ring1(), b.ring1()) {
+                    Ordering::Less => Ordering::Less,
+                    Ordering::Equal => item_cmp(a.ring2(), b.ring2()),
+                    Ordering::Greater => Ordering::Greater,
+                }
+            }
+        })
         .dedup()
+        .map(ItemWrapper::Rings)
         .collect_vec()
 }
 
-fn gen_utility_sets(utilities: Vec<Option<String>>) -> Vec<ItemWrapper> {
+fn gen_utility_sets(utilities: Vec<Option<Arc<ItemSchema>>>) -> Vec<ItemWrapper> {
     [utilities.clone(), utilities]
         .iter()
         .multi_cartesian_product()
         .map(|utilities| [utilities[0].clone(), utilities[1].clone()])
-        .sorted()
         .filter_map(UtilitySet::new)
-        .map(ItemWrapper::Utility)
+        .sorted_by(|a, b| {
+            if a == b {
+                Ordering::Equal
+            } else {
+                match item_cmp(a.utility1(), b.utility1()) {
+                    Ordering::Less => Ordering::Less,
+                    Ordering::Equal => item_cmp(a.utility2(), b.utility2()),
+                    Ordering::Greater => Ordering::Greater,
+                }
+            }
+        })
         .dedup()
+        .map(ItemWrapper::Utility)
         .collect_vec()
 }
 
-fn gen_artifacts_sets(artifacts: Vec<Option<String>>) -> Vec<ItemWrapper> {
+fn gen_artifacts_sets(artifacts: Vec<Option<Arc<ItemSchema>>>) -> Vec<ItemWrapper> {
     [artifacts.clone(), artifacts.clone(), artifacts]
         .iter()
         .multi_cartesian_product()
@@ -599,10 +618,24 @@ fn gen_artifacts_sets(artifacts: Vec<Option<String>>) -> Vec<ItemWrapper> {
                 artifacts[2].clone(),
             ]
         })
-        .sorted()
         .filter_map(ArtifactSet::new)
-        .map(ItemWrapper::Artifacts)
+        .sorted_by(|a, b| {
+            if a == b {
+                Ordering::Equal
+            } else {
+                match item_cmp(a.artifact1(), b.artifact1()) {
+                    Ordering::Less => Ordering::Less,
+                    Ordering::Equal => match item_cmp(a.artifact2(), b.artifact2()) {
+                        Ordering::Less => Ordering::Less,
+                        Ordering::Equal => item_cmp(a.artifact3(), b.artifact3()),
+                        Ordering::Greater => Ordering::Greater,
+                    },
+                    Ordering::Greater => Ordering::Greater,
+                }
+            }
+        })
         .dedup()
+        .map(ItemWrapper::Artifacts)
         .collect_vec()
 }
 
@@ -653,30 +686,30 @@ impl Filter {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, PartialEq)]
 enum ItemWrapper {
-    Armor(Option<String>),
+    Armor(Option<Arc<ItemSchema>>),
     Rings(RingSet),
     Artifacts(ArtifactSet),
     Utility(UtilitySet),
 }
 
-#[derive(Debug, Hash, Eq, PartialEq)]
+#[derive(Debug, PartialEq)]
 struct RingSet {
-    rings: [Option<String>; 2],
+    rings: [Option<Arc<ItemSchema>>; 2],
 }
 
 impl RingSet {
-    fn new(mut rings: [Option<String>; 2]) -> Option<Self> {
+    fn new(mut rings: [Option<Arc<ItemSchema>>; 2]) -> Option<Self> {
         if rings[0].is_none() && rings[1].is_none() {
             None
         } else {
-            rings.sort();
+            rings.sort_by(item_cmp);
             Some(RingSet { rings })
         }
     }
 
-    fn slot(&self, slot: Slot) -> &Option<String> {
+    fn slot(&self, slot: Slot) -> &Option<Arc<ItemSchema>> {
         match slot {
             Slot::Ring1 => self.ring1(),
             Slot::Ring2 => self.ring2(),
@@ -684,22 +717,22 @@ impl RingSet {
         }
     }
 
-    fn ring1(&self) -> &Option<String> {
+    fn ring1(&self) -> &Option<Arc<ItemSchema>> {
         &self.rings[0]
     }
 
-    fn ring2(&self) -> &Option<String> {
+    fn ring2(&self) -> &Option<Arc<ItemSchema>> {
         &self.rings[1]
     }
 }
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+#[derive(Debug, PartialEq)]
 struct ArtifactSet {
-    artifacts: [Option<String>; 3],
+    artifacts: [Option<Arc<ItemSchema>>; 3],
 }
 
 impl ArtifactSet {
-    fn new(mut artifacts: [Option<String>; 3]) -> Option<Self> {
+    fn new(mut artifacts: [Option<Arc<ItemSchema>>; 3]) -> Option<Self> {
         if artifacts[0].is_some() && artifacts[0] == artifacts[1]
             || artifacts[1].is_some() && artifacts[1] == artifacts[2]
             || artifacts[0].is_some() && artifacts[0] == artifacts[2]
@@ -707,12 +740,12 @@ impl ArtifactSet {
         {
             None
         } else {
-            artifacts.sort();
+            artifacts.sort_by(item_cmp);
             Some(ArtifactSet { artifacts })
         }
     }
 
-    fn slot(&self, slot: Slot) -> &Option<String> {
+    fn slot(&self, slot: Slot) -> &Option<Arc<ItemSchema>> {
         match slot {
             Slot::Artifact1 => self.artifact1(),
             Slot::Artifact2 => self.artifact2(),
@@ -721,37 +754,37 @@ impl ArtifactSet {
         }
     }
 
-    fn artifact1(&self) -> &Option<String> {
+    fn artifact1(&self) -> &Option<Arc<ItemSchema>> {
         &self.artifacts[0]
     }
 
-    fn artifact2(&self) -> &Option<String> {
+    fn artifact2(&self) -> &Option<Arc<ItemSchema>> {
         &self.artifacts[1]
     }
 
-    fn artifact3(&self) -> &Option<String> {
+    fn artifact3(&self) -> &Option<Arc<ItemSchema>> {
         &self.artifacts[2]
     }
 }
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 struct UtilitySet {
-    utilities: [Option<String>; 2],
+    utilities: [Option<Arc<ItemSchema>>; 2],
 }
 
 impl UtilitySet {
-    fn new(mut utilities: [Option<String>; 2]) -> Option<Self> {
+    fn new(mut utilities: [Option<Arc<ItemSchema>>; 2]) -> Option<Self> {
         if utilities[0].is_some() && utilities[0] == utilities[1]
             || utilities[0].is_none() && utilities[1].is_none()
         {
             None
         } else {
-            utilities.sort();
+            utilities.sort_by(item_cmp);
             Some(UtilitySet { utilities })
         }
     }
 
-    fn slot(&self, slot: Slot) -> &Option<String> {
+    fn slot(&self, slot: Slot) -> &Option<Arc<ItemSchema>> {
         match slot {
             Slot::Utility1 => self.utility1(),
             Slot::Utility2 => self.utility2(),
@@ -759,13 +792,22 @@ impl UtilitySet {
         }
     }
 
-    fn utility1(&self) -> &Option<String> {
+    fn utility1(&self) -> &Option<Arc<ItemSchema>> {
         &self.utilities[0]
     }
 
-    fn utility2(&self) -> &Option<String> {
+    fn utility2(&self) -> &Option<Arc<ItemSchema>> {
         &self.utilities[1]
     }
+}
+
+fn item_cmp(a: &Option<Arc<ItemSchema>>, b: &Option<Arc<ItemSchema>>) -> Ordering {
+    if a == b {
+        return Ordering::Equal;
+    }
+    let Some(a) = a else { return Ordering::Greater };
+    let Some(b) = b else { return Ordering::Less };
+    a.code.cmp(&b.code)
 }
 
 #[cfg(test)]
