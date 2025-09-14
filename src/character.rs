@@ -23,7 +23,7 @@ use crate::{
 use anyhow::Result;
 use artifactsmmo_sdk::{
     Client, GOLDEN_EGG, GOLDEN_SHRIMP, HasDrops, HasLevel, ItemContainer, Items, LimitedContainer,
-    Maps, Monsters, Server, SimpleItemSchemas, Simulator, SlotLimited, SpaceLimited, Tasks,
+    Maps, Monsters, SimpleItemSchemas, Simulator, SlotLimited, SpaceLimited, Tasks,
     bank::Bank,
     char::{Character as CharacterClient, HasCharacterData, Skill, error::RestError},
     consts::{
@@ -680,10 +680,7 @@ impl CharacterController {
             self,
             item.skill_to_craft().unwrap(),
             item.level,
-            Filter {
-                available: true,
-                ..Default::default()
-            },
+            Filter::available_only(),
         );
         self.equip_gear(&mut available)
     }
@@ -693,26 +690,19 @@ impl CharacterController {
             self,
             resource.skill.into(),
             resource.level(),
-            Filter {
-                available: true,
-                ..Default::default()
-            },
+            Filter::available_only(),
         );
-        Ok(self.equip_gear(&mut available)?)
+        self.equip_gear(&mut available)
     }
 
     fn order_best_combat_gear(&self, monster: &MonsterSchema) -> bool {
         if !self.bot_config.order_gear() {
             return false;
         }
-        let filter = Filter {
-            craftable: true,
-            from_task: true,
-            from_monster: false,
-            from_npc: true,
-            ..Default::default()
-        };
-        let Some(mut gear) = self.gear_finder.best_winning_against(self, monster, filter) else {
+        let Some(mut gear) =
+            self.gear_finder
+                .best_winning_against(self, monster, Filter::default())
+        else {
             return false;
         };
         self.can_kill_with(monster, &gear) && self.order_gear(&mut gear)
@@ -726,13 +716,7 @@ impl CharacterController {
             self,
             resource.skill.into(),
             resource.level(),
-            Filter {
-                craftable: true,
-                from_task: true,
-                from_monster: false,
-                from_npc: true,
-                ..Default::default()
-            },
+            Filter::default(),
         );
         self.order_gear(&mut gear)
     }
@@ -745,13 +729,7 @@ impl CharacterController {
             self,
             item.skill_to_craft().unwrap(),
             item.level,
-            Filter {
-                craftable: true,
-                from_task: true,
-                from_monster: false,
-                from_npc: true,
-                ..Default::default()
-            },
+            Filter::default(),
         );
         self.order_gear(&mut gear)
     }
@@ -770,16 +748,12 @@ impl CharacterController {
     /// the best available gear to do so.
     pub fn can_kill(&self, monster: &MonsterSchema) -> Result<Gear, KillMonsterCommandError> {
         self.can_fight(monster)?;
-        if let Some(available) = self.gear_finder.best_winning_against(
-            self,
-            monster,
-            Filter {
-                available: true,
-                ..Default::default()
-            },
-        ) && self.can_kill_with(monster, &available)
+        if let Some(gear) =
+            self.gear_finder
+                .best_winning_against(self, monster, Filter::available_only())
+            && self.can_kill_with(monster, &gear)
         {
-            Ok(available)
+            Ok(gear)
         } else {
             Err(KillMonsterCommandError::GearTooWeak {
                 monster_code: monster.code.to_owned(),
@@ -791,7 +765,7 @@ impl CharacterController {
     /// `gear`
     fn can_kill_with(&self, monster: &MonsterSchema, gear: &Gear) -> bool {
         (1..=1000)
-            .filter(|_| Simulator::random_fight(self.level(), 0, gear, monster, false).is_winning())
+            .filter(|_| Simulator::fight(self.level(), 0, gear, monster, false, false).is_winning())
             .count()
             >= 950
     }
@@ -799,11 +773,12 @@ impl CharacterController {
     fn can_kill_now(&self, monster: &MonsterSchema) -> bool {
         (1..=1000)
             .filter(|_| {
-                Simulator::random_fight(
+                Simulator::fight(
                     self.level(),
                     self.missing_hp(),
                     &self.gear(),
                     monster,
+                    false,
                     false,
                 )
                 .is_winning()
@@ -1514,8 +1489,7 @@ impl CharacterController {
     }
 
     fn recycle_or_sell_if_necessary(&self, item: &SimpleItemSchema) -> bool {
-        let upgrades = self.items.upgrades_of(&item.code);
-        if upgrades.iter().any(|upgrade| {
+        if self.items.upgrades_of(&item.code).iter().any(|upgrade| {
             if upgrade.is_gear()
                 && !upgrade.r#type().is_utility()
                 && self.account.meets_conditions(upgrade) >= 5
@@ -1569,8 +1543,13 @@ impl CharacterController {
     }
 
     fn order_if_needed(&self, item: &str, quantity: u32) -> bool {
-        //TODO: prevent ordering item if the maximum quantity equipable by the whole account is
-        //available(no more than 5 weapons, 10 rings, etc... utilities are exempt)
+        if self.items.get(item).is_some_and(|i| {
+            let total = self.account.total_of(item);
+            let max = if i.r#type().is_ring() { 10 } else { 5 };
+            i.is_gear() && !i.r#type().is_utility() && total >= max
+        }) {
+            return false;
+        }
         let missing_quantity = quantity.saturating_sub(self.has_available(item));
         if missing_quantity > 0 {
             self.order_board
@@ -1667,20 +1646,15 @@ impl CharacterController {
 
     pub fn time_to_kill(&self, monster: &MonsterSchema) -> Option<u32> {
         let gear = self.can_kill(monster).ok()?;
-        let fight = Simulator::average_fight(self.level(), 0, &gear, monster, false);
+        let fight = Simulator::fight(self.level(), 0, &gear, monster, false, true);
         Some(fight.cd + (fight.hp_lost / 5 + if fight.hp_lost % 5 > 0 { 1 } else { 0 }) as u32)
     }
 
     pub fn time_to_gather(&self, resource: &ResourceSchema) -> Option<u32> {
         self.can_gather(resource).ok()?;
-        let tool = self.gear_finder.best_tool(
-            self,
-            resource.skill.into(),
-            Filter {
-                available: true,
-                ..Default::default()
-            },
-        );
+        let tool =
+            self.gear_finder
+                .best_tool(self, resource.skill.into(), Filter::available_only());
         let time = Simulator::gather_cd(
             resource.level(),
             tool.map_or(0, |t| t.skill_cooldown_reduction(resource.skill.into())),
@@ -1829,10 +1803,6 @@ impl CharacterController {
 impl HasCharacterData for CharacterController {
     fn data(&self) -> Arc<CharacterSchema> {
         self.client.data()
-    }
-
-    fn server(&self) -> Arc<Server> {
-        self.client.server()
     }
 
     fn refresh_data(&self) {

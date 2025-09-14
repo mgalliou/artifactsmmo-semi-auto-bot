@@ -7,7 +7,7 @@ use artifactsmmo_sdk::{
     account::Account as AccountClient,
     char::{HasCharacterData, Skill},
     items::ItemSource,
-    models::{ItemSchema, SimpleItemSchema},
+    models::ItemSchema,
 };
 use itertools::Itertools;
 use std::sync::{Arc, RwLock};
@@ -76,24 +76,16 @@ impl AccountController {
     }
 
     pub fn get_character(&self, index: usize) -> Option<Arc<CharacterController>> {
-        self.characters.read().unwrap().get(index).cloned()
+        self.characters().get(index).cloned()
     }
 
     pub fn get_character_by_name(&self, name: &str) -> Option<Arc<CharacterController>> {
-        self.characters
-            .read()
-            .unwrap()
-            .iter()
-            .find(|c| c.name() == name)
-            .cloned()
+        self.characters().iter().find(|c| c.name() == name).cloned()
     }
 
     pub fn available_in_inventories(&self, item: &str) -> u32 {
-        self.characters
-            .read()
-            .unwrap()
+        self.characters()
             .iter()
-            .cloned()
             .map(|c| c.inventory.has_available(item))
             .sum()
     }
@@ -115,34 +107,23 @@ impl AccountController {
     }
 
     pub fn can_craft(&self, item: &str) -> bool {
-        self.characters
-            .read()
-            .unwrap()
-            .iter()
-            .any(|c| c.can_craft(item).is_ok())
+        self.characters().iter().any(|c| c.can_craft(item).is_ok())
     }
 
     pub fn max_skill_level(&self, skill: Skill) -> u32 {
-        self.characters
-            .read()
-            .unwrap()
+        self.characters()
             .iter()
             .map(|c| c.skill_level(skill))
             .max()
-            .unwrap_or(1)
+            .unwrap_or(0)
     }
 
     pub fn fisher_max_items(&self) -> u32 {
-        self.characters
-            .read()
-            .unwrap()
+        self.characters()
             .iter()
             .filter_map(|c| {
-                if c.skill_enabled(Skill::Fishing) {
-                    Some(c.inventory.max_items())
-                } else {
-                    None
-                }
+                c.skill_enabled(Skill::Fishing)
+                    .then_some(c.inventory.max_items())
             })
             .min()
             .unwrap_or(0)
@@ -154,16 +135,12 @@ impl AccountController {
             .iter()
             .filter_map(|s| match s {
                 ItemSource::Resource(r) => self
-                    .characters
-                    .read()
-                    .unwrap()
+                    .characters()
                     .iter()
                     .filter_map(|c| c.time_to_gather(r))
                     .min(),
                 ItemSource::Monster(m) => self
-                    .characters
-                    .read()
-                    .unwrap()
+                    .characters()
                     .iter()
                     .filter_map(|c| c.time_to_kill(m))
                     .map(|time| time * self.items.drop_rate(item))
@@ -174,20 +151,16 @@ impl AccountController {
                         .mats_of(item)
                         .into_iter()
                         .map(|m| (m.clone(), self.time_to_get(&m.code)))
-                        .collect::<Vec<(SimpleItemSchema, Option<u32>)>>();
-                    if mats_wit_ttg.iter().all(|(_, ttg)| ttg.is_some()) {
-                        Some(
-                            mats_wit_ttg
-                                .iter()
-                                .filter_map(|(m, ttg)| {
-                                    ttg.as_ref()
-                                        .map(|ttg| (ttg * m.quantity) + (5 * m.quantity))
-                                })
-                                .sum::<u32>(),
-                        )
-                    } else {
-                        None
-                    }
+                        .collect_vec();
+                    mats_wit_ttg.iter().all(|(_, ttg)| ttg.is_some()).then_some(
+                        mats_wit_ttg
+                            .iter()
+                            .filter_map(|(m, ttg)| {
+                                ttg.as_ref()
+                                    .map(|ttg| (ttg * m.quantity) + (5 * m.quantity))
+                            })
+                            .sum::<u32>(),
+                    )
                 }
                 ItemSource::TaskReward => Some(20000),
                 ItemSource::Task => Some(20000),

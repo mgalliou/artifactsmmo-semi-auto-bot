@@ -32,7 +32,7 @@ impl GearFinder {
         self.generate_combat_gears(char, monster, filter)
             .into_iter()
             .filter_map(|g| {
-                let fight = Simulator::average_fight(char.level(), 0, &g, monster, false);
+                let fight = Simulator::fight(char.level(), 0, &g, monster, false, true);
                 fight.is_winning().then_some((fight, g))
             })
             .min_set_by_key(|(f, _g)| f.cd + Simulator::time_to_rest(f.hp_lost as u32))
@@ -51,7 +51,7 @@ impl GearFinder {
             .into_iter()
             .map(|g| {
                 (
-                    Simulator::average_fight(char.level(), 0, &g, monster, true),
+                    Simulator::fight(char.level(), 0, &g, monster, true, true),
                     g,
                 )
             })
@@ -82,10 +82,7 @@ impl GearFinder {
     ) -> Vec<Arc<ItemSchema>> {
         let equipables = self
             .items
-            .all()
-            .into_iter()
-            .filter(|i| i.r#type().is_weapon() && !i.is_tool() && self.is_eligible(i, filter, char))
-            .collect_vec();
+            .filtered(|i| !i.is_tool() && self.is_eligible(i, Type::Weapon, filter, char));
         let best = equipables
             .iter()
             .max_by_key(|i| OrderedFloat(i.average_damage(monster)))
@@ -109,28 +106,25 @@ impl GearFinder {
         filter: Filter,
         weapon: &Arc<ItemSchema>,
     ) -> Vec<Gear> {
-        let armor_types = [
+        let mut items = [
             Type::Helmet,
             Type::Shield,
             Type::BodyArmor,
             Type::LegArmor,
             Type::Boots,
             Type::Amulet,
-        ];
-
-        let mut items = armor_types
-            .iter()
-            .filter_map(|&item_type| {
-                let armors =
-                    self.best_combat_armors(char, monster, weapon, item_type, filter, vec![]);
-                (!armors.is_empty()).then_some(
-                    armors
-                        .iter()
-                        .map(|i| ItemWrapper::Armor(i.clone()))
-                        .collect_vec(),
-                )
-            })
-            .collect_vec();
+        ]
+        .iter()
+        .filter_map(|&item_type| {
+            let armors = self.best_combat_armors(char, monster, weapon, item_type, filter, &[]);
+            (!armors.is_empty()).then_some(
+                armors
+                    .iter()
+                    .map(|i| ItemWrapper::Armor(i.clone()))
+                    .collect_vec(),
+            )
+        })
+        .collect_vec();
 
         let ring_sets = self.gen_combat_ring_sets(char, monster, weapon, filter);
         if !ring_sets.is_empty() {
@@ -146,7 +140,7 @@ impl GearFinder {
         if !artifact_sets.is_empty() {
             items.push(artifact_sets);
         }
-        let runes = self.best_cobat_runes(char, filter);
+        let runes = self.best_combat_runes(char, filter);
         if !runes.is_empty() {
             items.push(runes)
         }
@@ -160,15 +154,15 @@ impl GearFinder {
         weapon: &ItemSchema,
         filter: Filter,
     ) -> Vec<ItemWrapper> {
-        let rings = self.best_combat_armors(char, monster, weapon, Type::Ring, filter, vec![]);
-        let ring2_black_list = rings
+        let rings = self.best_combat_armors(char, monster, weapon, Type::Ring, filter, &[]);
+        let single_rings = rings
             .iter()
             .flatten()
-            .filter(|i| filter.available && char.has_available(i) <= 1)
+            .filter(|i| filter.available_only && char.has_available(i) <= 1)
             .cloned()
             .collect_vec();
         let rings2 =
-            self.best_combat_armors(char, monster, weapon, Type::Ring, filter, ring2_black_list);
+            self.best_combat_armors(char, monster, weapon, Type::Ring, filter, &single_rings);
         gen_ring_sets(rings, rings2)
     }
 
@@ -179,7 +173,7 @@ impl GearFinder {
         weapon: &ItemSchema,
         filter: Filter,
     ) -> Vec<ItemWrapper> {
-        let mut utilities = self.best_combat_utilities(char, monster, weapon, filter, vec![]);
+        let mut utilities = self.best_combat_utilities(char, monster, weapon, filter);
         utilities.push(None);
         gen_utility_sets(utilities)
     }
@@ -192,7 +186,7 @@ impl GearFinder {
         filter: Filter,
     ) -> Vec<ItemWrapper> {
         let mut artifacts =
-            self.best_combat_armors(char, monster, weapon, Type::Artifact, filter, vec![]);
+            self.best_combat_armors(char, monster, weapon, Type::Artifact, filter, &[]);
         artifacts.push(None);
         gen_artifacts_sets(artifacts)
     }
@@ -204,19 +198,12 @@ impl GearFinder {
         weapon: &ItemSchema,
         r#type: Type,
         filter: Filter,
-        black_list: Vec<String>,
+        unique_items: &[String],
     ) -> Vec<Option<String>> {
         let mut bests: Vec<Arc<ItemSchema>> = vec![];
-        let equipables = self
-            .items
-            .all()
-            .into_iter()
-            .filter(|i| {
-                !black_list.contains(&i.code)
-                    && i.type_is(r#type)
-                    && self.is_eligible(i, filter, char)
-            })
-            .collect_vec();
+        let equipables = self.items.filtered(|i| {
+            !unique_items.contains(&i.code) && self.is_eligible(i, r#type, filter, char)
+        });
         let best_for_damage = equipables
             .iter()
             .filter(|i| weapon.average_damage_with(i, monster) > 0.0)
@@ -270,50 +257,38 @@ impl GearFinder {
         monster: &MonsterSchema,
         weapon: &ItemSchema,
         filter: Filter,
-        black_list: Vec<&str>,
     ) -> Vec<Option<String>> {
         let mut upgrades: Vec<Arc<ItemSchema>> = vec![];
         let equipables = self
             .items
-            .all()
-            .into_iter()
-            .filter(|i| {
-                !black_list.contains(&i.code.as_str())
-                    && i.r#type().is_utility()
-                    && self.is_eligible(i, filter, char)
-            })
-            .collect_vec();
+            .filtered(|i| self.is_eligible(i, Type::Utility, filter, char));
         let best_for_damage = equipables
             .iter()
             .filter(|i| weapon.average_damage_with(i, monster) > 0.0)
-            .cloned()
             .max_by_key(|i| OrderedFloat(weapon.average_damage_with(i, monster)));
         let best_reduction = equipables
             .iter()
             .filter(|i| i.damage_reduction_against(monster) > 0.0)
-            .cloned()
             .max_by_key(|i| OrderedFloat(i.damage_reduction_against(monster)));
         let best_health_increase = equipables
             .iter()
             .filter(|i| i.health() > 0)
-            .cloned()
             .max_by_key(|i| i.health());
         let best_restore = equipables
             .iter()
             .filter(|i| i.restore() > 0)
-            .cloned()
             .max_by_key(|i| i.restore());
         if let Some(best_for_damage) = best_for_damage {
-            upgrades.push(best_for_damage);
+            upgrades.push(best_for_damage.clone());
         }
         if let Some(best_reduction) = best_reduction {
-            upgrades.push(best_reduction);
+            upgrades.push(best_reduction.clone());
         }
         if let Some(best_health_increase) = best_health_increase {
-            upgrades.push(best_health_increase);
+            upgrades.push(best_health_increase.clone());
         }
         if let Some(best_restore) = best_restore {
-            upgrades.push(best_restore);
+            upgrades.push(best_restore.clone());
         }
         upgrades
             .into_iter()
@@ -323,11 +298,10 @@ impl GearFinder {
             .collect_vec()
     }
 
-    fn best_cobat_runes(&self, char: &CharacterController, filter: Filter) -> Vec<ItemWrapper> {
+    fn best_combat_runes(&self, char: &CharacterController, filter: Filter) -> Vec<ItemWrapper> {
         self.items
-            .all()
-            .into_iter()
-            .filter(|i| i.r#type().is_rune() && self.is_eligible(i, filter, char))
+            .filtered(|i| self.is_eligible(i, Type::Rune, filter, char))
+            .iter()
             .max_set_by_key(|i| i.burn())
             .iter()
             .map(|i| ItemWrapper::Armor(Some(i.code.to_owned())))
@@ -414,21 +388,15 @@ impl GearFinder {
         skill_level: u32,
         r#type: Type,
         filter: Filter,
-        black_list: Vec<String>,
+        unique_items: Vec<String>,
     ) -> Vec<Option<String>> {
         let mut bests: Vec<Arc<ItemSchema>> = vec![];
-        let equipables = self
-            .items
-            .all()
-            .into_iter()
-            .filter(|i| {
-                !black_list.contains(&i.code)
-                    && i.type_is(r#type)
-                    && self.is_eligible(i, filter, char)
-                    && ((i.wisdom() > 0 && check_lvl_diff(char.skill_level(skill), skill_level))
-                        || i.prospecting() > 0)
-            })
-            .collect_vec();
+        let equipables = self.items.filtered(|i| {
+            !unique_items.contains(&i.code)
+                && self.is_eligible(i, r#type, filter, char)
+                && ((i.wisdom() > 0 && check_lvl_diff(char.skill_level(skill), skill_level))
+                    || i.prospecting() > 0)
+        });
         let best_for_wisdom = equipables
             .iter()
             .filter(|i| i.wisdom() > 0)
@@ -458,9 +426,8 @@ impl GearFinder {
         filter: Filter,
     ) -> Option<Arc<ItemSchema>> {
         self.items
-            .all()
+            .filtered(|i| i.is_tool() && self.is_eligible(i, Type::Weapon, filter, char))
             .into_iter()
-            .filter(|i| i.r#type().is_weapon() && i.is_tool() && self.is_eligible(i, filter, char))
             .min_by_key(|i| i.skill_cooldown_reduction(skill))
     }
 
@@ -472,29 +439,36 @@ impl GearFinder {
         filter: Filter,
     ) -> Vec<ItemWrapper> {
         let rings = self.best_skill_armors(char, skill, skill_level, Type::Ring, filter, vec![]);
-        let ring2_black_list = rings
+        let single_rings = rings
             .iter()
             .flatten()
-            .filter(|i| filter.available && char.has_available(i) <= 1)
+            .filter(|i| filter.available_only && char.has_available(i) <= 1)
             .cloned()
             .collect_vec();
-        let rings2 = self.best_skill_armors(
-            char,
-            skill,
-            skill_level,
-            Type::Ring,
-            filter,
-            ring2_black_list,
-        );
+        let rings2 =
+            self.best_skill_armors(char, skill, skill_level, Type::Ring, filter, single_rings);
         gen_ring_sets(rings, rings2)
     }
 
-    fn is_eligible(&self, item: &ItemSchema, filter: Filter, char: &CharacterController) -> bool {
+    fn is_eligible(
+        &self,
+        item: &ItemSchema,
+        r#type: Type,
+        filter: Filter,
+        char: &CharacterController,
+    ) -> bool {
+        if !item.type_is(r#type) {
+            return false;
+        }
         if !char.meets_conditions_for(item) {
             return false;
         }
-        if filter.available {
-            return char.has_available(&item.code) > 0;
+        let total_available = char.has_available(&item.code);
+        if filter.available_only && total_available < 1 {
+            return false;
+        }
+        if total_available > 0 {
+            return true;
         }
         if [
             "steel_gloves",
@@ -634,7 +608,7 @@ fn gen_artifacts_sets(artifacts: Vec<Option<String>>) -> Vec<ItemWrapper> {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Filter {
-    pub available: bool,
+    pub available_only: bool,
     pub craftable: bool,
     pub from_task: bool,
     pub from_npc: bool,
@@ -645,12 +619,36 @@ pub struct Filter {
 impl Default for Filter {
     fn default() -> Self {
         Self {
-            available: false,
+            available_only: false,
+            craftable: true,
+            from_task: true,
+            from_npc: true,
+            from_monster: false,
+            utilities: false,
+        }
+    }
+}
+
+impl Filter {
+    pub const fn available_only() -> Self {
+        Self {
+            available_only: true,
+            craftable: false,
+            from_task: false,
+            from_npc: false,
+            from_monster: false,
+            utilities: false,
+        }
+    }
+
+    pub const fn everything() -> Self {
+        Self {
+            available_only: false,
             craftable: true,
             from_task: true,
             from_npc: true,
             from_monster: true,
-            utilities: false,
+            utilities: true,
         }
     }
 }

@@ -177,7 +177,7 @@ fn respond(
             char.delete_item(&item, quantity)?;
         }
         Commands::Gear {
-            available,
+            available_only,
             craftable,
             from_task,
             from_monster,
@@ -193,7 +193,7 @@ fn respond(
                 bail!("no character selected");
             };
             let filter = Filter {
-                available,
+                available_only,
                 craftable,
                 from_task,
                 from_monster,
@@ -212,7 +212,7 @@ fn respond(
             }
         }
         Commands::Simulate {
-            available,
+            available_only,
             craftable,
             from_task,
             from_npc,
@@ -228,7 +228,7 @@ fn respond(
                 bail!("no character selected");
             };
             let filter = Filter {
-                available,
+                available_only,
                 craftable,
                 from_task,
                 from_monster,
@@ -242,7 +242,7 @@ fn respond(
             };
             if let Some(gear) = gear {
                 println!("{}", gear);
-                let fight = Simulator::average_fight(char.level(), 0, &gear, &monster, true);
+                let fight = Simulator::fight(char.level(), 0, &gear, &monster, true, false);
                 println!("{:?}", fight)
             } else {
                 println!("no winning gear found")
@@ -381,7 +381,7 @@ enum Commands {
     },
     Gear {
         #[arg(short = 'a', long)]
-        available: bool,
+        available_only: bool,
         #[arg(short = 'c', long)]
         craftable: bool,
         #[arg(short = 't', long)]
@@ -399,7 +399,7 @@ enum Commands {
     #[command(alias = "sim")]
     Simulate {
         #[arg(short = 'a', long)]
-        available: bool,
+        available_only: bool,
         #[arg(short = 'c', long)]
         craftable: bool,
         #[arg(short = 't', long)]

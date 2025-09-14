@@ -46,9 +46,9 @@ impl LevelingHelper {
         level: u32,
         skill: Skill,
     ) -> impl Iterator<Item = Arc<ItemSchema>> {
-        self.items.all().into_iter().filter(move |i| {
-            i.skill_to_craft().is_some_and(|s| s == skill) && i.provides_xp_at(level)
-        })
+        self.items
+            .filtered(|i| i.skill_to_craft_is(skill) && i.provides_xp_at(level))
+            .into_iter()
     }
 
     /// Takes a `level` and a `skill` and returns the items of the lowest level
