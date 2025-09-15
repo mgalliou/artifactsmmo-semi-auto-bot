@@ -1,13 +1,12 @@
-use std::sync::{
-    Arc,
-    atomic::{AtomicU32, Ordering::SeqCst},
-};
-
 use artifactsmmo_sdk::{
-    ContainerSlot, HasQuantity, ItemContainer,
+    Code, ItemContainer, Quantity,
     consts::{
         APPLE, APPLE_PIE, CARROT, COOKED_HELLHOUND_MEAT, EGG, FISH_SOUP, MAPLE_SYRUP, MUSHROOM_SOUP,
     },
+};
+use std::sync::{
+    Arc,
+    atomic::{AtomicU32, Ordering::SeqCst},
 };
 
 pub mod account;
@@ -69,7 +68,7 @@ trait HasReservation: ItemContainer {
     fn discriminate(reservation: &Self::Reservation) -> Self::Discriminant;
 }
 
-pub trait Reservation: ContainerSlot + HasQuantity {
+pub trait Reservation: Code + Quantity {
     fn inc_quantity(&self, n: u32) {
         self.quantity_atomic().fetch_add(n, SeqCst);
     }

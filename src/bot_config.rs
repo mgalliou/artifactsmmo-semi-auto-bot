@@ -1,4 +1,4 @@
-use artifactsmmo_sdk::{char::Skill, models::TaskType};
+use artifactsmmo_sdk::{models::TaskType, skill::Skill};
 use figment::{
     Figment,
     providers::{Format, Toml},

@@ -1,8 +1,7 @@
 use anyhow::{Result, bail};
 use artifactsmmo_sdk::{
-    Collection, ItemContainer, Simulator,
-    char::{HasCharacterData, Skill},
-    events::EventSchemaExt,
+    CollectionClient, ItemContainer, Simulator, character::HasCharacterData,
+    events::EventSchemaExt, skill::Skill,
 };
 use clap::{Parser, Subcommand, value_parser};
 use rustyline::{DefaultEditor, error::ReadlineError};

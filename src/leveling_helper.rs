@@ -1,8 +1,10 @@
 use artifactsmmo_sdk::{
-    CanProvideXp, Collection, HasLevel, Items, Maps, Monsters, Resources,
-    char::{HasCharacterData, Skill},
+    CanProvideXp, CollectionClient, ItemsClient, Level, MapsClient, MonstersClient,
+    ResourcesClient,
+    character::HasCharacterData,
     items::ItemSchemaExt,
     models::{ItemSchema, MonsterSchema, ResourceSchema},
+    skill::Skill,
 };
 use itertools::Itertools;
 use rayon::iter::{ParallelBridge, ParallelIterator};
@@ -14,18 +16,18 @@ use crate::{account::AccountController, bank::BankController, character::Charact
 pub struct LevelingHelper {
     account: Arc<AccountController>,
     bank: Arc<BankController>,
-    items: Arc<Items>,
-    monsters: Arc<Monsters>,
-    resources: Arc<Resources>,
-    maps: Arc<Maps>,
+    items: Arc<ItemsClient>,
+    monsters: Arc<MonstersClient>,
+    resources: Arc<ResourcesClient>,
+    maps: Arc<MapsClient>,
 }
 
 impl LevelingHelper {
     pub fn new(
-        items: Arc<Items>,
-        monsters: Arc<Monsters>,
-        resources: Arc<Resources>,
-        maps: Arc<Maps>,
+        items: Arc<ItemsClient>,
+        monsters: Arc<MonstersClient>,
+        resources: Arc<ResourcesClient>,
+        maps: Arc<MapsClient>,
         account: Arc<AccountController>,
         bank: Arc<BankController>,
     ) -> Self {

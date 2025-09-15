@@ -1,15 +1,12 @@
 use artifactsmmo_sdk::{
-    char::{
-        Skill,
-        error::{
-            BankExpansionError, BuyNpcError, CraftError, DeleteError, DepositError, EquipError,
-            FightError, GatherError, GoldDepositError, GoldWithdrawError, MoveError, RecycleError,
-            RestError, SellNpcError, TaskAcceptationError, TaskCancellationError,
-            TaskCompletionError, TaskTradeError, TasksCoinExchangeError, UnequipError, UseError,
-            WithdrawError,
-        },
+    client::character::error::{
+        BankExpansionError, BuyNpcError, CraftError, DeleteError, DepositError, EquipError,
+        FightError, GatherError, GoldDepositError, GoldWithdrawError, MoveError, RecycleError,
+        RestError, SellNpcError, TaskAcceptationError, TaskCancellationError, TaskCompletionError,
+        TaskTradeError, TasksCoinExchangeError, UnequipError, UseError, WithdrawError,
     },
     models::SimpleItemSchema,
+    skill::Skill,
 };
 use thiserror::Error;
 

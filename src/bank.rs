@@ -1,7 +1,7 @@
 use crate::{BankDiscriminant, FOOD_BLACK_LIST, HasReservation, Reservation};
 use artifactsmmo_sdk::{
-    BankClient, Collection, ContainerSlot, HasQuantity, ItemContainer, Items, LimitedContainer,
-    SlotLimited,
+    BankClient, Code, CollectionClient, DropsItems, ItemContainer, ItemsClient, LimitedContainer,
+    Quantity, SlotLimited,
     bank::Bank,
     items::ItemSchemaExt,
     models::{BankSchema, ItemSchema, SimpleItemSchema},
@@ -20,14 +20,14 @@ use thiserror::Error;
 #[derive(Default)]
 pub struct BankController {
     client: Arc<BankClient>,
-    items: Arc<Items>,
+    items: Arc<ItemsClient>,
     reservations: RwLock<Vec<Arc<BankReservation>>>,
     pub browsed: RwLock<()>,
     pub being_expanded: RwLock<()>,
 }
 
 impl BankController {
-    pub fn new(client: Arc<BankClient>, items: Arc<Items>) -> Self {
+    pub fn new(client: Arc<BankClient>, items: Arc<ItemsClient>) -> Self {
         Self {
             client,
             items,
@@ -222,7 +222,7 @@ impl LimitedContainer for BankController {
         self.client.has_space_for_multiple(items)
     }
 
-    fn has_space_for_drops_from<H: artifactsmmo_sdk::HasDropTable>(&self, entity: &H) -> bool {
+    fn has_space_for_drops_from<H: DropsItems>(&self, entity: &H) -> bool {
         self.client.has_space_for_drops_from(entity)
     }
 }
@@ -270,13 +270,13 @@ impl Reservation for BankReservation {
     }
 }
 
-impl ContainerSlot for BankReservation {
+impl Code for BankReservation {
     fn code(&self) -> &str {
         &self.item
     }
 }
 
-impl HasQuantity for BankReservation {
+impl Quantity for BankReservation {
     fn quantity(&self) -> u32 {
         self.quantity.load(SeqCst)
     }

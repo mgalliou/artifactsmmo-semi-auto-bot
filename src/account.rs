@@ -3,11 +3,8 @@ use crate::{
     gear_finder::GearFinder, leveling_helper::LevelingHelper, orderboard::OrderBoard,
 };
 use artifactsmmo_sdk::{
-    Client, ItemContainer, Items, SpaceLimited,
-    account::Account as AccountClient,
-    char::{HasCharacterData, Skill},
-    items::ItemSource,
-    models::ItemSchema,
+    AccountClient, Client, ItemContainer, ItemsClient, SpaceLimited, character::HasCharacterData,
+    items::ItemSource, models::ItemSchema, skill::Skill,
 };
 use itertools::Itertools;
 use std::sync::{Arc, RwLock};
@@ -16,7 +13,7 @@ use std::sync::{Arc, RwLock};
 pub struct AccountController {
     config: Arc<BotConfig>,
     client: Arc<AccountClient>,
-    items: Arc<Items>,
+    items: Arc<ItemsClient>,
     pub bank: Arc<BankController>,
     pub characters: RwLock<Vec<Arc<CharacterController>>>,
 }
@@ -25,7 +22,7 @@ impl AccountController {
     pub fn new(
         config: Arc<BotConfig>,
         client: Arc<AccountClient>,
-        items: Arc<Items>,
+        items: Arc<ItemsClient>,
         bank: Arc<BankController>,
     ) -> Self {
         Self {

@@ -22,14 +22,14 @@ use crate::{
 };
 use anyhow::Result;
 use artifactsmmo_sdk::{
-    Client, Collection, GOLDEN_EGG, GOLDEN_SHRIMP, HasDrops, HasLevel, ItemContainer, Items,
-    LimitedContainer, Maps, Monsters, SimpleItemSchemas, Simulator, SlotLimited, SpaceLimited,
-    Tasks,
+    Client, CollectionClient, HasDrops, ItemContainer, ItemsClient, Level, LimitedContainer,
+    MapsClient, MonstersClient, NpcsClient, SimpleItemSchemas, Simulator, SlotLimited,
+    SpaceLimited, TasksClient,
     bank::Bank,
-    char::{Character as CharacterClient, HasCharacterData, Skill, error::RestError},
+    character::{CharacterClient, HasCharacterData, error::RestError},
     consts::{
-        BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, MAX_LEVEL, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE,
-        TASKS_COIN,
+        BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, GOLDEN_EGG, GOLDEN_SHRIMP, MAX_LEVEL,
+        TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE, TASKS_COIN,
     },
     gear::{Gear, Slot},
     items::{ItemSchemaExt, ItemSource},
@@ -39,9 +39,9 @@ use artifactsmmo_sdk::{
         MonsterSchema, NpcItem, RecyclingItemsSchema, ResourceSchema, RewardsSchema,
         SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
     },
-    npcs::Npcs,
     npcs_items::NpcItemExt,
     simulator::HasEffects,
+    skill::Skill,
     tasks::TaskFullSchemaExt,
 };
 use itertools::Itertools;
@@ -56,11 +56,11 @@ pub struct CharacterController {
     pub inventory: Arc<InventoryController>,
     bank: Arc<BankController>,
     account: Arc<AccountController>,
-    maps: Arc<Maps>,
-    items: Arc<Items>,
-    monsters: Arc<Monsters>,
-    tasks: Arc<Tasks>,
-    npcs: Arc<Npcs>,
+    maps: Arc<MapsClient>,
+    items: Arc<ItemsClient>,
+    monsters: Arc<MonstersClient>,
+    tasks: Arc<TasksClient>,
+    npcs: Arc<NpcsClient>,
     order_board: Arc<OrderBoard>,
     gear_finder: Arc<GearFinder>,
     leveling_helper: Arc<LevelingHelper>,
@@ -1033,7 +1033,7 @@ impl CharacterController {
         info!(
             "{}: going to deposit items: {}",
             self.name(),
-            SimpleItemSchemas(&items.to_vec())
+            SimpleItemSchemas(items)
         );
         self.move_to_closest_map_of_type(MapContentType::Bank)?;
         if self.bank.free_slots() <= BANK_MIN_FREE_SLOT
@@ -1108,7 +1108,7 @@ impl CharacterController {
         info!(
             "{}: going to withdraw items: {}",
             self.name(),
-            SimpleItemSchemas(&items.to_vec())
+            SimpleItemSchemas(items)
         );
         self.move_to_closest_map_of_type(MapContentType::Bank)?;
         let result = self.client.withdraw_item(items);

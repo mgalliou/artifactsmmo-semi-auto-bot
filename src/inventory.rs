@@ -1,7 +1,7 @@
 use artifactsmmo_sdk::{
-    Collection, ContainerSlot, HasQuantity, ItemContainer, Items, LimitedContainer, SlotLimited,
-    SpaceLimited,
-    char::{Character as CharacterClient, HasCharacterData, inventory::Inventory},
+    CharacterClient, Code, CollectionClient, DropsItems, ItemContainer, ItemsClient,
+    LimitedContainer, Quantity, SlotLimited, SpaceLimited,
+    character::{HasCharacterData, inventory::Inventory},
     items::ItemSchemaExt,
     models::{InventorySlot, ItemSchema, SimpleItemSchema},
 };
@@ -23,11 +23,11 @@ use crate::{FOOD_BLACK_LIST, HasReservation, InventoryDiscriminant, Reservation}
 pub struct InventoryController {
     client: Arc<CharacterClient>,
     reservations: RwLock<Vec<Arc<InventoryReservation>>>,
-    items: Arc<Items>,
+    items: Arc<ItemsClient>,
 }
 
 impl InventoryController {
-    pub fn new(client: Arc<CharacterClient>, items: Arc<Items>) -> Self {
+    pub fn new(client: Arc<CharacterClient>, items: Arc<ItemsClient>) -> Self {
         InventoryController {
             client,
             reservations: RwLock::new(vec![]),
@@ -186,7 +186,7 @@ impl LimitedContainer for InventoryController {
         self.client.inventory().has_space_for_multiple(items)
     }
 
-    fn has_space_for_drops_from<H: artifactsmmo_sdk::HasDropTable>(&self, entity: &H) -> bool {
+    fn has_space_for_drops_from<H: DropsItems>(&self, entity: &H) -> bool {
         self.client.inventory().has_space_for_drops_from(entity)
     }
 }
@@ -262,13 +262,13 @@ impl Reservation for InventoryReservation {
     }
 }
 
-impl HasQuantity for InventoryReservation {
+impl Quantity for InventoryReservation {
     fn quantity(&self) -> u32 {
         self.quantity.load(SeqCst)
     }
 }
 
-impl ContainerSlot for InventoryReservation {
+impl Code for InventoryReservation {
     fn code(&self) -> &str {
         &self.item
     }

@@ -1,12 +1,13 @@
 use crate::{account::AccountController, character::CharacterController};
 use artifactsmmo_sdk::{
-    Collection, Items, Simulator,
-    char::{HasCharacterData, Skill},
+    CollectionClient, ItemsClient, Simulator,
+    character::HasCharacterData,
     check_lvl_diff,
     gear::{Gear, Slot},
     items::{ItemSchemaExt, Type},
     models::{ItemSchema, MonsterSchema},
     simulator::HasEffects,
+    skill::Skill,
 };
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
@@ -14,12 +15,12 @@ use std::{cmp::Ordering, sync::Arc};
 
 #[derive(Default)]
 pub struct GearFinder {
-    items: Arc<Items>,
+    items: Arc<ItemsClient>,
     account: Arc<AccountController>,
 }
 
 impl GearFinder {
-    pub fn new(items: Arc<Items>, account: Arc<AccountController>) -> Self {
+    pub fn new(items: Arc<ItemsClient>, account: Arc<AccountController>) -> Self {
         Self { items, account }
     }
 
@@ -812,7 +813,7 @@ fn item_cmp(a: &Option<Arc<ItemSchema>>, b: &Option<Arc<ItemSchema>>) -> Orderin
 
 #[cfg(test)]
 mod tests {
-    use artifactsmmo_sdk::{Monsters, models::CharacterSchema};
+    use artifactsmmo_sdk::{MonstersClient, models::CharacterSchema};
 
     use super::*;
 
@@ -828,12 +829,12 @@ mod tests {
 
         let weapons = gear_finder.best_weapons(
             &char,
-            &Monsters::default().get("vampire").unwrap(),
+            &MonstersClient::default().get("vampire").unwrap(),
             Default::default(),
         );
         assert_eq!(
             weapons,
-            vec![Items::default().get("death_knight_sword").unwrap()]
+            vec![ItemsClient::default().get("death_knight_sword").unwrap()]
         );
     }
 }
