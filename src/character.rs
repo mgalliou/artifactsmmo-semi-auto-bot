@@ -1436,14 +1436,13 @@ impl CharacterController {
         });
         if let Some(best_food) = self
             .items
-            .all()
-            .iter()
-            .filter(|i| {
+            .filtered(|i| {
                 i.is_food()
                     && i.level > self.level() - 10
                     && i.level <= self.level()
                     && !FOOD_BLACK_LIST.contains(&i.code.as_ref())
             })
+            .iter()
             .max_by_key(|i| {
                 self.account
                     .time_to_get(&i.code)

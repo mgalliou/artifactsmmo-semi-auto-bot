@@ -2,7 +2,7 @@ use artifactsmmo_sdk::{
     CanProvideXp, CollectionClient, ItemsClient, Level, MapsClient, MonstersClient,
     ResourcesClient,
     character::HasCharacterData,
-    items::ItemSchemaExt,
+    items::{ItemSchemaExt, SubType},
     models::{ItemSchema, MonsterSchema, ResourceSchema},
     skill::Skill,
 };
@@ -58,8 +58,6 @@ impl LevelingHelper {
     pub fn lowest_crafts_providing_exp(&self, level: u32, skill: Skill) -> Vec<Arc<ItemSchema>> {
         self.crafts_providing_exp(level, skill)
             .min_set_by_key(|i| i.level)
-            .into_iter()
-            .collect_vec()
     }
 
     /// Takes a `level` and a `skill` and returns the items of the highest level
@@ -67,8 +65,6 @@ impl LevelingHelper {
     pub fn highest_crafts_providing_exp(&self, level: u32, skill: Skill) -> Vec<Arc<ItemSchema>> {
         self.crafts_providing_exp(level, skill)
             .max_set_by_key(|i| i.level)
-            .into_iter()
-            .collect_vec()
     }
 
     pub fn best_craft(
@@ -90,17 +86,16 @@ impl LevelingHelper {
                     .par_bridge()
                     .map(|m| (m.clone(), self.account.time_to_get(&m.code)))
                     .collect::<Vec<_>>();
-                if mats_with_ttg.iter().all(|(_, ttg)| ttg.is_some()) {
-                    Some((
+                mats_with_ttg
+                    .iter()
+                    .all(|(_, ttg)| ttg.is_some())
+                    .then_some((
                         i,
                         mats_with_ttg
                             .iter()
                             .filter_map(|(m, ttg)| ttg.as_ref().map(|ttg| (ttg * m.quantity)))
                             .sum::<u32>(),
                     ))
-                } else {
-                    None
-                }
             })
             .min_by_key(|(_, ttg)| *ttg)
             .map(|(i, _)| i)
@@ -161,17 +156,8 @@ impl LevelingHelper {
     pub fn best_crafts(&self, level: u32, skill: Skill) -> Vec<Arc<ItemSchema>> {
         self.crafts_providing_exp(level, skill)
             .filter(|i| {
-                ![
-                    "wooden_staff",
-                    "life_amulet",
-                    "feather_coat",
-                    "ruby",
-                    "diamond",
-                    "emerald",
-                    "sapphire",
-                    "topaz",
-                ]
-                .contains(&i.code.as_str())
+                !["wooden_staff", "life_amulet", "feather_coat"].contains(&i.code.as_str())
+                    && !i.subtype_is(SubType::PreciousStone)
                     && !self.items.require_task_reward(&i.code)
                     && !i.is_crafted_with("obsidian")
                     && !i.is_crafted_with("diamond")
@@ -185,21 +171,23 @@ impl LevelingHelper {
 
     pub fn best_resource(&self, level: u32, skill: Skill) -> Option<Arc<ResourceSchema>> {
         self.resources
-            .all()
-            .into_iter()
-            .filter(|r| {
+            .filtered(|r| {
                 skill == r.skill.into()
                     && r.provides_xp_at(level)
                     && !self.maps.with_content_code(&r.code).is_empty()
             })
+            .into_iter()
             .max_by_key(|r| r.level)
     }
 
     pub fn best_monster(&self, char: &CharacterController) -> Option<Arc<MonsterSchema>> {
         self.monsters
-            .all()
+            .filtered(|m| {
+                m.level() <= char.level()
+                    && !["imp", "death_knight"].contains(&m.code.as_str())
+                    && char.can_kill(m).is_ok()
+            })
             .into_iter()
-            .filter(|m| char.level() >= m.level() && m.code != "imp" && m.code != "death_knight")
-            .max_by_key(|m| if char.can_kill(m).is_ok() { m.level } else { 0 })
+            .max_by_key(|m| m.level)
     }
 }
