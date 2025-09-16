@@ -37,10 +37,10 @@ impl GearFinder {
                     Simulator::fight(char.level(), &g, monster, FightParams::default().average());
                 fight.is_winning().then_some((fight, g))
             })
-            .min_set_by_key(|(f, _g)| f.cd + Simulator::time_to_rest(f.hp_lost as u32))
+            .min_set_by_key(|(f, _)| f.cd + Simulator::time_to_rest(f.hp_lost as u32))
             .into_iter()
-            .max_by_key(|(f, _g)| f.hp)
-            .map(|(_f, g)| g)
+            .min_by_key(|(f, _)| f.monster_hp)
+            .map(|(_, g)| g)
     }
 
     pub fn best_against(
@@ -57,10 +57,10 @@ impl GearFinder {
                     g,
                 )
             })
-            .min_set_by_key(|(f, _g)| f.cd + Simulator::time_to_rest(f.hp_lost as u32))
+            .min_set_by_key(|(f, _)| f.cd + Simulator::time_to_rest(f.hp_lost as u32))
             .into_iter()
-            .max_by_key(|(f, _g)| f.hp)
-            .map(|(_f, g)| g)
+            .min_by_key(|(f, _)| f.monster_hp)
+            .map(|(_, g)| g)
             .unwrap_or_default()
     }
 
@@ -82,19 +82,12 @@ impl GearFinder {
         monster: &MonsterSchema,
         filter: Filter,
     ) -> Vec<Arc<ItemSchema>> {
-        let equipables = self
-            .items
-            .filtered(|i| !i.is_tool() && self.is_eligible(i, Type::Weapon, filter, char));
-        let best = equipables
-            .iter()
-            .max_by_key(|i| OrderedFloat(i.average_damage(monster)))
-            .cloned();
-        equipables
+        self.items
+            .filtered(|i| !i.is_tool() && self.is_eligible(i, Type::Weapon, filter, char))
             .into_iter()
-            .filter(|i| {
-                best.as_ref()
-                    .is_some_and(|b| i.average_damage(monster) >= b.average_damage(monster) * 0.90)
-            })
+            .sorted_by_key(|i| OrderedFloat(i.average_dmg_against(monster)))
+            .rev()
+            .take(3)
             .collect_vec()
     }
 
@@ -205,12 +198,14 @@ impl GearFinder {
             .filtered(|i| !unique_items.contains(i) && self.is_eligible(i, r#type, filter, char));
         let best_for_damage = equipables
             .iter()
-            .filter(|i| weapon.damage_boot_with(i, monster) > 0.0)
-            .max_by_key(|i| OrderedFloat(weapon.damage_boot_with(i, monster)));
+            .filter(|i| weapon.average_dmg_boost_against_with(i.as_ref(), monster) > 0.0)
+            .max_by_key(|i| {
+                OrderedFloat(weapon.average_dmg_boost_against_with(i.as_ref(), monster))
+            });
         let best_reduction = equipables
             .iter()
-            .filter(|i| i.damage_reduction_against(monster) > 0.0)
-            .max_by_key(|i| OrderedFloat(i.damage_reduction_against(monster)));
+            .filter(|i| i.average_dmg_reduction_against(monster) > 0.0)
+            .max_by_key(|i| OrderedFloat(i.average_dmg_reduction_against(monster)));
         let best_health_increase = equipables
             .iter()
             .filter(|i| i.health() > 0)
@@ -263,12 +258,12 @@ impl GearFinder {
             .filtered(|i| self.is_eligible(i, Type::Utility, filter, char));
         let best_for_damage = equipables
             .iter()
-            .filter(|i| weapon.average_damage_with(i, monster) > 0.0)
-            .max_by_key(|i| OrderedFloat(weapon.average_damage_with(i, monster)));
+            .filter(|i| weapon.average_dmg_against_with(i.as_ref(), monster) > 0.0)
+            .max_by_key(|i| OrderedFloat(weapon.average_dmg_against_with(i.as_ref(), monster)));
         let best_reduction = equipables
             .iter()
-            .filter(|i| i.damage_reduction_against(monster) > 0.0)
-            .max_by_key(|i| OrderedFloat(i.damage_reduction_against(monster)));
+            .filter(|i| i.average_dmg_reduction_against(monster) > 0.0)
+            .max_by_key(|i| OrderedFloat(i.average_dmg_reduction_against(monster)));
         let best_health_increase = equipables
             .iter()
             .filter(|i| i.health() > 0)
