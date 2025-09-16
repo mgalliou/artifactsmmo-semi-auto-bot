@@ -241,7 +241,7 @@ fn respond(
             };
             if let Some(gear) = gear {
                 println!("{}", gear);
-                let fight = Simulator::fight(char.level(), 0, &gear, &monster, winning, false);
+                let fight = Simulator::fight(char.level(), &gear, &monster, Default::default());
                 println!("{:?}", fight)
             } else {
                 println!("no winning gear found")

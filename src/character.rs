@@ -766,7 +766,9 @@ impl CharacterController {
     /// `gear`
     fn can_kill_with(&self, monster: &MonsterSchema, gear: &Gear) -> bool {
         (1..=1000)
-            .filter(|_| Simulator::fight(self.level(), 0, gear, monster, false, false).is_winning())
+            .filter(|_| {
+                Simulator::fight(self.level(), gear, monster, Default::default()).is_winning()
+            })
             .count()
             >= 950
     }
@@ -776,11 +778,9 @@ impl CharacterController {
             .filter(|_| {
                 Simulator::fight(
                     self.level(),
-                    self.missing_hp(),
                     &self.gear(),
                     monster,
-                    false,
-                    false,
+                    self.client.as_ref().into(),
                 )
                 .is_winning()
             })
@@ -1637,7 +1637,7 @@ impl CharacterController {
 
     pub fn time_to_kill(&self, monster: &MonsterSchema) -> Option<u32> {
         let gear = self.can_kill(monster).ok()?;
-        let fight = Simulator::fight(self.level(), 0, &gear, monster, false, true);
+        let fight = Simulator::fight(self.level(), &gear, monster, Default::default());
         Some(fight.cd + (fight.hp_lost / 5 + if fight.hp_lost % 5 > 0 { 1 } else { 0 }) as u32)
     }
 

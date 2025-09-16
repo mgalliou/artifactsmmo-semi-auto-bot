@@ -1,6 +1,6 @@
 use crate::{account::AccountController, character::CharacterController};
 use artifactsmmo_sdk::{
-    CollectionClient, ItemsClient, Simulator,
+    CollectionClient, FightParams, ItemsClient, Simulator,
     character::HasCharacterData,
     check_lvl_diff,
     gear::{Gear, Slot},
@@ -33,7 +33,8 @@ impl GearFinder {
         self.generate_combat_gears(char, monster, filter)
             .into_iter()
             .filter_map(|g| {
-                let fight = Simulator::fight(char.level(), 0, &g, monster, false, true);
+                let fight =
+                    Simulator::fight(char.level(), &g, monster, FightParams::default().average());
                 fight.is_winning().then_some((fight, g))
             })
             .min_set_by_key(|(f, _g)| f.cd + Simulator::time_to_rest(f.hp_lost as u32))
@@ -52,7 +53,7 @@ impl GearFinder {
             .into_iter()
             .map(|g| {
                 (
-                    Simulator::fight(char.level(), 0, &g, monster, true, true),
+                    Simulator::fight(char.level(), &g, monster, FightParams::default().average()),
                     g,
                 )
             })
