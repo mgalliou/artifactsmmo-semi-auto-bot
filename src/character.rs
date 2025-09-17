@@ -15,7 +15,7 @@ use crate::{
         TasksCoinExchangeCommandError, TasksCoinExchangeOrderProgressionError, UnequipCommandError,
         UseItemCommandError, WithdrawItemCommandError,
     },
-    gear_finder::{Filter, GearFinder},
+    gear_finder::{Filter, GearFinder, GearPurpose},
     inventory::InventoryController,
     leveling_helper::LevelingHelper,
     orderboard::{Order, OrderBoard, Purpose},
@@ -596,19 +596,15 @@ impl CharacterController {
         monster: &MonsterSchema,
     ) -> Result<FightSchema, KillMonsterCommandError> {
         self.can_fight(monster)?;
-        if self.order_best_combat_gear(monster) {
+        if let Ok(_) | Err(TaskCompletionCommandError::NoTask) = self.complete_task() {
+            self.accept_task(TaskType::Monsters)?;
+            return Ok(Default::default());
+        }
+        if self.order_best_gear_for(GearPurpose::Combat(monster)) {
             return Ok(Default::default());
         }
         let mut gear = self.can_kill(monster)?;
         self.equip_gear(&mut gear)?;
-        if let Ok(_) | Err(TaskCompletionCommandError::NoTask) = self.complete_task()
-            && let Err(e) = self.accept_task(TaskType::Monsters)
-        {
-            error!(
-                "{}: failed accepting new task before killing monster: {e}",
-                self.name()
-            )
-        }
         if !self.inventory.has_space_for_drops_from(monster)
             || !self.current_map().content_code_is(&monster.code)
         {
@@ -643,10 +639,10 @@ impl CharacterController {
         resource: &ResourceSchema,
     ) -> Result<SkillDataSchema, GatherCommandError> {
         self.can_gather_now(resource)?;
-        if self.order_best_gathering_gear(resource) {
+        if self.order_best_gear_for(GearPurpose::Gathering(resource)) {
             return Ok(Default::default());
         }
-        self.equip_gathering_gear(resource)?;
+        self.equip_gear_for(GearPurpose::Gathering(resource))?;
         if !self.inventory.has_space_for_drops_from(resource)
             || !self.current_map().content_code_is(&resource.code)
         {
@@ -676,62 +672,26 @@ impl CharacterController {
         Ok(())
     }
 
-    fn equip_crafting_gear(&self, item: &ItemSchema) -> Result<(), EquipGearCommandError> {
-        let mut available = self.gear_finder.best_for_crafting(
-            self,
-            item.skill_to_craft().unwrap(),
-            item.level,
-            Filter::available_only(),
-        );
+    fn equip_gear_for(&self, purpose: GearPurpose) -> Result<(), EquipGearCommandError> {
+        let mut available = self
+            .gear_finder
+            .best_for(purpose, self, Filter::available_only())
+            .unwrap_or_default();
         self.equip_gear(&mut available)
     }
 
-    fn equip_gathering_gear(&self, resource: &ResourceSchema) -> Result<(), EquipGearCommandError> {
-        let mut available = self.gear_finder.best_for_gathering(
-            self,
-            resource.skill.into(),
-            resource.level(),
-            Filter::available_only(),
-        );
-        self.equip_gear(&mut available)
-    }
-
-    fn order_best_combat_gear(&self, monster: &MonsterSchema) -> bool {
+    fn order_best_gear_for(&self, purpose: GearPurpose) -> bool {
         if !self.bot_config.order_gear() {
             return false;
         }
-        let Some(mut gear) = self
-            .gear_finder
-            .best_against(self, monster, Filter::default())
-        else {
+        let Some(mut gear) = self.gear_finder.best_for(purpose, self, Filter::default()) else {
             return false;
         };
-        self.can_kill_with(monster, &gear) && self.order_gear(&mut gear)
-    }
-
-    fn order_best_gathering_gear(&self, resource: &ResourceSchema) -> bool {
-        if !self.bot_config.order_gear() {
+        if let GearPurpose::Combat(monster) = purpose
+            && !self.can_kill_with(monster, &gear)
+        {
             return false;
         }
-        let mut gear = self.gear_finder.best_for_gathering(
-            self,
-            resource.skill.into(),
-            resource.level(),
-            Filter::default(),
-        );
-        self.order_gear(&mut gear)
-    }
-
-    fn order_best_crafting_gear(&self, item: &ItemSchema) -> bool {
-        if !self.bot_config.order_gear() {
-            return false;
-        }
-        let mut gear = self.gear_finder.best_for_crafting(
-            self,
-            item.skill_to_craft().unwrap(),
-            item.level,
-            Filter::default(),
-        );
         self.order_gear(&mut gear)
     }
 
@@ -749,9 +709,9 @@ impl CharacterController {
     /// the best available gear to do so.
     pub fn can_kill(&self, monster: &MonsterSchema) -> Result<Gear, KillMonsterCommandError> {
         self.can_fight(monster)?;
-        if let Some(gear) = self
-            .gear_finder
-            .best_against(self, monster, Filter::available_only())
+        if let Some(gear) =
+            self.gear_finder
+                .best_for(GearPurpose::Combat(monster), self, Filter::available_only())
             && self.can_kill_with(monster, &gear)
         {
             Ok(gear)
@@ -797,7 +757,7 @@ impl CharacterController {
         quantity: u32,
     ) -> Result<SkillInfoSchema, CraftCommandError> {
         let (item, skill) = self.can_craft_now(item, quantity)?;
-        if self.order_best_crafting_gear(&item) {
+        if self.order_best_gear_for(GearPurpose::Crafting(&item)) {
             return Ok(Default::default());
         }
         info!(
@@ -808,7 +768,7 @@ impl CharacterController {
         let mats = self.items.mats_for(&item.code, quantity);
         let missing_mats = self.inventory.missing_among(&mats);
         self.bank.reserv_items(&missing_mats, &self.name())?;
-        self.equip_crafting_gear(&item)?;
+        self.equip_gear_for(GearPurpose::Crafting(&item))?;
         if !self.inventory.has_space_for_multiple(&missing_mats) {
             self.deposit_all_but_multiple(&mats)?;
         }
@@ -1600,11 +1560,11 @@ impl CharacterController {
         &self,
         item: &str,
         quantity: u32,
-        s: Slot,
+        slot: Slot,
     ) -> Result<(), BankReservationError> {
         let missing_quantity =
             quantity.saturating_sub(self.inventory.total_of(item) + self.has_equiped(item));
-        if missing_quantity > 0 && self.equiped_in(s) != item {
+        if missing_quantity > 0 && self.equiped_in(slot) != item {
             self.bank
                 .reserv_item(item, missing_quantity, &self.name())?
         }
@@ -1645,13 +1605,19 @@ impl CharacterController {
 
     pub fn time_to_gather(&self, resource: &ResourceSchema) -> Option<u32> {
         self.can_gather(resource).ok()?;
-        let tool =
-            self.gear_finder
-                .best_tool(self, resource.skill.into(), Filter::available_only());
-        let time = Simulator::gather_cd(
-            resource.level(),
-            tool.map_or(0, |t| t.skill_cooldown_reduction(resource.skill.into())),
-        );
+        let reduction = self
+            .gear_finder
+            .best_for(
+                GearPurpose::Gathering(resource),
+                self,
+                Filter::available_only(),
+            )
+            .and_then(|gear| {
+                gear.weapon
+                    .map(|w| w.skill_cooldown_reduction(resource.skill.into()))
+            })
+            .unwrap_or(0);
+        let time = Simulator::gather_cd(resource.level(), reduction);
         Some(time)
     }
 

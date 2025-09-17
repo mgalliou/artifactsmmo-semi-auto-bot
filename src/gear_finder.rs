@@ -1,6 +1,6 @@
 use crate::{account::AccountController, character::CharacterController};
 use artifactsmmo_sdk::{
-    CollectionClient, FightParams, ItemsClient, Simulator,
+    CollectionClient, FightParams, ItemsClient, Level, Simulator,
     character::HasCharacterData,
     check_lvl_diff,
     gear::{Gear, Slot},
@@ -24,10 +24,23 @@ impl GearFinder {
         Self { items, account }
     }
 
-    pub fn best_against(
+    pub fn best_for(
         &self,
+        purpose: GearPurpose,
         char: &CharacterController,
+        filter: Filter,
+    ) -> Option<Gear> {
+        match purpose {
+            GearPurpose::Combat(monster) => self.best_to_kill(monster, char, filter),
+            GearPurpose::Crafting(item) => self.best_to_craft(item, char, filter),
+            GearPurpose::Gathering(resource) => self.best_to_gather(resource, char, filter),
+        }
+    }
+
+    fn best_to_kill(
+        &self,
         monster: &MonsterSchema,
+        char: &CharacterController,
         filter: Filter,
     ) -> Option<Gear> {
         self.generate_combat_gears(char, monster, filter)
@@ -293,35 +306,35 @@ impl GearFinder {
             .collect_vec()
     }
 
-    pub fn best_for_crafting(
+    fn best_to_craft(
         &self,
+        item: &ItemSchema,
         char: &CharacterController,
-        skill: Skill,
-        craft_level: u32,
         filter: Filter,
-    ) -> Gear {
-        self.gen_skill_gears(char, skill, craft_level, filter, false)
-            .into_iter()
-            .max_set_by_key(|g| g.wisdom())
-            .into_iter()
-            .max_by_key(|g| g.prospecting())
-            .unwrap_or_default()
-    }
-
-    pub fn best_for_gathering(
-        &self,
-        char: &CharacterController,
-        skill: Skill,
-        resource_level: u32,
-        filter: Filter,
-    ) -> Gear {
-        self.gen_skill_gears(char, skill, resource_level, filter, true)
+    ) -> Option<Gear> {
+        let skill = item.skill_to_craft()?;
+        if !check_lvl_diff(char.skill_level(skill), item.level()) {
+            return None;
+        }
+        self.gen_skill_gears(char, skill, item.level(), filter, false)
             .into_iter()
             .max_by_key(|g| g.wisdom())
-            .unwrap_or_default()
     }
 
-    pub fn gen_skill_gears(
+    fn best_to_gather(
+        &self,
+        resource: &ResourceSchema,
+        char: &CharacterController,
+        filter: Filter,
+    ) -> Option<Gear> {
+        let skill = resource.skill;
+        let level = resource.level();
+        self.gen_skill_gears(char, skill.into(), level, filter, true)
+            .into_iter()
+            .max_by_key(|g| g.wisdom())
+    }
+
+    fn gen_skill_gears(
         &self,
         char: &CharacterController,
         skill: Skill,
@@ -402,7 +415,7 @@ impl GearFinder {
             .collect_vec()
     }
 
-    pub fn best_tool(
+    fn best_tool(
         &self,
         char: &CharacterController,
         skill: Skill,
@@ -796,7 +809,8 @@ fn item_cmp(a: &Option<Arc<ItemSchema>>, b: &Option<Arc<ItemSchema>>) -> Orderin
     a.code.cmp(&b.code)
 }
 
-pub(crate) enum GearPurpose<'a> {
+#[derive(Clone, Copy)]
+pub enum GearPurpose<'a> {
     Combat(&'a MonsterSchema),
     Crafting(&'a ItemSchema),
     Gathering(&'a ResourceSchema),

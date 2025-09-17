@@ -8,7 +8,10 @@ use rustyline::{DefaultEditor, error::ReadlineError};
 use std::{process::exit, sync::Arc};
 
 use crate::{
-    HasReservation, bot::Bot, character::CharacterController, gear_finder::Filter,
+    HasReservation,
+    bot::Bot,
+    character::CharacterController,
+    gear_finder::{Filter, GearPurpose},
     orderboard::Purpose,
 };
 
@@ -199,7 +202,9 @@ fn respond(
                 from_npc,
                 utilities,
             };
-            let gear = bot.gear_finder.best_against(char, &monster, filter);
+            let gear = bot
+                .gear_finder
+                .best_for(GearPurpose::Combat(&monster), char, filter);
             if let Some(gear) = gear {
                 println!("{gear}")
             } else {
@@ -230,8 +235,9 @@ fn respond(
                 from_npc,
                 utilities,
             };
-            let gear = 
-                bot.gear_finder.best_against(char, &monster, filter);
+            let gear = bot
+                .gear_finder
+                .best_for(GearPurpose::Combat(&monster), char, filter);
             if let Some(gear) = gear {
                 println!("{}", gear);
                 let fight = Simulator::fight(char.level(), &gear, &monster, Default::default());

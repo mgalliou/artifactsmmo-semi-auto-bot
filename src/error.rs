@@ -18,6 +18,8 @@ pub enum KillMonsterCommandError {
     SkillDisabled(Skill),
     #[error("No map with monster found")]
     MapNotFound,
+    #[error("Failed to accept task: {0}")]
+    TaskAcceptationCommandError(#[from] TaskAcceptationCommandError),
     #[error("No gear powerfull enough available to kill '{monster_code}'")]
     GearTooWeak { monster_code: String },
     #[error("Failed to equip gear: {0}")]
