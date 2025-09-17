@@ -257,6 +257,8 @@ pub enum EquipGearCommandError {
     BankReservationError(#[from] BankReservationError),
     #[error("Failed to equip an item: {0}")]
     EquipCommandError(#[from] EquipCommandError),
+    #[error("Failed to equip an item: {0}")]
+    UnequipCommandError(#[from] UnequipCommandError),
 }
 
 #[derive(Debug, Error)]

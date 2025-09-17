@@ -1182,8 +1182,10 @@ impl CharacterController {
         self.reserv_gear(gear)?;
         gear.align_to(&self.gear());
         for slot in Slot::iter() {
-            if let Some(item) = gear.item_in(slot) {
-                self.equip_item(&item.code, slot)?;
+            match gear.item_in(slot) {
+                Some(item) => self.equip_item(&item.code, slot)?,
+                //TODO: unequip only if the item is not available to all characters that can equip it
+                None => self.unequip_slot(slot, self.quantity_in_slot(slot))?,
             }
         }
         Ok(())
