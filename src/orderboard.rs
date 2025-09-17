@@ -38,9 +38,7 @@ impl OrderBoard {
             .read()
             .unwrap()
             .iter()
-            .find(|o| {
-                o.owner == owner.map(str::to_string) && o.item == item && o.purpose == *purpose
-            })
+            .find(|o| o.owner.as_deref() == owner && o.item == item && o.purpose == *purpose)
             .cloned()
     }
 
@@ -62,10 +60,11 @@ impl OrderBoard {
     pub fn orders_by_priority(&self) -> Vec<Arc<Order>> {
         let mut orders: Vec<Arc<Order>> = vec![];
         Purpose::iter().for_each(|p| {
-            let mut filtered =
-                self.orders_filtered(|o| discriminant(&o.purpose) == discriminant(&p));
-            filtered.sort_by_key(|o| o.creation);
-            filtered.reverse();
+            let filtered = self
+                .orders_filtered(|o| discriminant(&o.purpose) == discriminant(&p))
+                .into_iter()
+                .sorted_by_key(|o| o.creation)
+                .rev();
             orders.extend(filtered);
         });
         orders
@@ -73,7 +72,7 @@ impl OrderBoard {
 
     pub fn add_multiple(
         &self,
-        items: Vec<SimpleItemSchema>,
+        items: &[SimpleItemSchema],
         owner: Option<&str>,
         purpose: &Purpose,
     ) -> Result<(), OrderError> {
@@ -102,13 +101,16 @@ impl OrderBoard {
         if self.items.get(item).is_none() {
             return Err(OrderError::UnknownItem);
         }
+        if quantity < 1 {
+            return Err(OrderError::InvalidQuantity);
+        }
         if self.get(item, owner, &purpose).is_some() {
             return Err(OrderError::AlreadyExists);
         }
         let order = Order::new(owner, item, quantity, purpose)?;
         let arc = Arc::new(order);
         self.orders.write().unwrap().push(arc.clone());
-        info!("orderboard: added: {}.", arc);
+        info!("orderboard: added: {arc}");
         Ok(())
     }
 
@@ -119,9 +121,9 @@ impl OrderBoard {
         owner: Option<&str>,
         purpose: Purpose,
     ) -> Result<(), OrderError> {
-        if let Some(o) = self.get(item, owner, &purpose) {
-            o.reset();
-            debug!("orderboard: order reseted: {o}");
+        if let Some(order) = self.get(item, owner, &purpose) {
+            order.reset();
+            debug!("orderboard: order reseted: {order}");
             Ok(())
         } else {
             self.add(item, quantity, owner, purpose)
@@ -251,12 +253,8 @@ impl Display for Order {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{}: '{}'({}/{}), purpose: {} ({})",
-            if let Some(owner) = &self.owner {
-                owner
-            } else {
-                "all"
-            },
+            "{}: '{}'({}/{}) [{}] ({})",
+            self.owner.as_ref().map_or("all", |v| v),
             self.item,
             self.deposited(),
             self.quantity(),
@@ -293,11 +291,11 @@ impl Display for Purpose {
             f,
             "{}",
             match self {
-                Purpose::Cli => "command line".to_owned(),
-                Purpose::Leveling { char, skill } => format!("leveling {char}'s {skill}"),
-                Purpose::Food { char } => format!("{char}'s food"),
-                Purpose::Gear { char, item_code } => format!("{char}'s '{item_code}'"),
-                Purpose::Task { char } => format!("{char}'s  task"),
+                Purpose::Cli => "CLI".to_owned(),
+                Purpose::Leveling { char, skill } => format!("{skill} ({char})"),
+                Purpose::Food { char } => format!("food ({char})"),
+                Purpose::Gear { char, item_code } => format!("'{item_code}': ({char})"),
+                Purpose::Task { char } => format!("task ({char})"),
             }
         )
     }

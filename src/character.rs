@@ -223,7 +223,7 @@ impl CharacterController {
                             .is_none() =>
             {
                 Ok(self.order_board.add_multiple(
-                    missing_mats,
+                    &missing_mats,
                     None,
                     &Purpose::Leveling {
                         char: self.name().to_owned(),
@@ -380,7 +380,7 @@ impl CharacterController {
             Err(CraftCommandError::InsufficientMaterials(_missing_mats)) => Ok(self
                 .order_board
                 .add_multiple(
-                    self.missing_mats_for(&order.item, total_missing),
+                    &self.missing_mats_for(&order.item, total_missing),
                     None,
                     &order.purpose,
                 )
@@ -1513,21 +1513,17 @@ impl CharacterController {
             return false;
         }
         let missing_quantity = quantity.saturating_sub(self.has_available(item));
-        if missing_quantity > 0 {
-            self.order_board
-                .add(
-                    item,
-                    missing_quantity,
-                    None,
-                    Purpose::Gear {
-                        char: self.name().to_owned(),
-                        item_code: item.to_owned(),
-                    },
-                )
-                .is_ok()
-        } else {
-            false
-        }
+        self.order_board
+            .add(
+                item,
+                missing_quantity,
+                None,
+                Purpose::Gear {
+                    char: self.name().to_owned(),
+                    item_code: item.to_owned(),
+                },
+            )
+            .is_ok()
     }
 
     fn reserv_gear(&self, gear: &mut Gear) -> Result<(), BankReservationError> {
