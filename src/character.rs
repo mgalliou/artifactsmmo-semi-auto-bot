@@ -700,9 +700,9 @@ impl CharacterController {
         if !self.bot_config.order_gear() {
             return false;
         }
-        let Some(mut gear) =
-            self.gear_finder
-                .best_winning_against(self, monster, Filter::default())
+        let Some(mut gear) = self
+            .gear_finder
+            .best_against(self, monster, Filter::default())
         else {
             return false;
         };
@@ -749,9 +749,9 @@ impl CharacterController {
     /// the best available gear to do so.
     pub fn can_kill(&self, monster: &MonsterSchema) -> Result<Gear, KillMonsterCommandError> {
         self.can_fight(monster)?;
-        if let Some(gear) =
-            self.gear_finder
-                .best_winning_against(self, monster, Filter::available_only())
+        if let Some(gear) = self
+            .gear_finder
+            .best_against(self, monster, Filter::available_only())
             && self.can_kill_with(monster, &gear)
         {
             Ok(gear)

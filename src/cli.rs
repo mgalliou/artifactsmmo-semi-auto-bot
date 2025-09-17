@@ -199,11 +199,7 @@ fn respond(
                 from_npc,
                 utilities,
             };
-            let gear = if winning {
-                bot.gear_finder.best_winning_against(char, &monster, filter)
-            } else {
-                Some(bot.gear_finder.best_against(char, &monster, filter))
-            };
+            let gear = bot.gear_finder.best_against(char, &monster, filter);
             if let Some(gear) = gear {
                 println!("{gear}")
             } else {
@@ -234,11 +230,8 @@ fn respond(
                 from_npc,
                 utilities,
             };
-            let gear = if winning {
-                bot.gear_finder.best_winning_against(char, &monster, filter)
-            } else {
-                Some(bot.gear_finder.best_against(char, &monster, filter))
-            };
+            let gear = 
+                bot.gear_finder.best_against(char, &monster, filter);
             if let Some(gear) = gear {
                 println!("{}", gear);
                 let fight = Simulator::fight(char.level(), &gear, &monster, Default::default());

@@ -5,7 +5,7 @@ use artifactsmmo_sdk::{
     check_lvl_diff,
     gear::{Gear, Slot},
     items::{ItemSchemaExt, Type},
-    models::{ItemSchema, MonsterSchema},
+    models::{ItemSchema, MonsterSchema, ResourceSchema},
     simulator::HasEffects,
     skill::Skill,
 };
@@ -24,7 +24,7 @@ impl GearFinder {
         Self { items, account }
     }
 
-    pub fn best_winning_against(
+    pub fn best_against(
         &self,
         char: &CharacterController,
         monster: &MonsterSchema,
@@ -39,29 +39,12 @@ impl GearFinder {
             })
             .min_set_by_key(|(f, _)| f.cd + Simulator::time_to_rest(f.hp_lost as u32))
             .into_iter()
-            .min_by_key(|(f, _)| f.monster_hp)
-            .map(|(_, g)| g)
-    }
-
-    pub fn best_against(
-        &self,
-        char: &CharacterController,
-        monster: &MonsterSchema,
-        filter: Filter,
-    ) -> Gear {
-        self.generate_combat_gears(char, monster, filter)
+            .min_set_by_key(|(f, _)| f.monster_hp)
             .into_iter()
-            .map(|g| {
-                (
-                    Simulator::fight(char.level(), &g, monster, FightParams::default().average()),
-                    g,
-                )
-            })
-            .min_set_by_key(|(f, _)| f.cd + Simulator::time_to_rest(f.hp_lost as u32))
+            .max_set_by_key(|(_, g)| g.prospecting())
             .into_iter()
-            .min_by_key(|(f, _)| f.monster_hp)
+            .max_by_key(|(_, g)| g.wisdom())
             .map(|(_, g)| g)
-            .unwrap_or_default()
     }
 
     fn generate_combat_gears(
@@ -210,19 +193,33 @@ impl GearFinder {
             .iter()
             .filter(|i| i.health() > 0)
             .max_by_key(|i| i.health());
-        // let best_wisdom = equipables
-        //     .iter()
-        //     .filter(|i| i.wisdom() > 0)
-        //     .max_by_key(|i| i.wisdom());
-        // let best_prospecting = equipables
-        //     .iter()
-        //     .filter(|i| i.prospecting() > 0)
-        //     .max_by_key(|i| i.wisdom());
         if let Some(best_for_damage) = best_for_damage {
             bests.push(best_for_damage.clone());
         }
         if let Some(best_reduction) = best_reduction {
             bests.push(best_reduction.clone());
+        }
+        if r#type.is_artifact() {
+            let best_wisdom = equipables
+                .iter()
+                .filter(|i| i.wisdom() > 0)
+                .max_by_key(|i| i.wisdom());
+            let best_prospecting = equipables
+                .iter()
+                .filter(|i| i.prospecting() > 0)
+                .max_by_key(|i| i.prospecting());
+            if let Some(best_wisdom) = best_wisdom
+                && bests.iter().all(|u| u.wisdom() < best_wisdom.wisdom())
+            {
+                bests.push(best_wisdom.clone());
+            }
+            if let Some(best_prospecting) = best_prospecting
+                && bests
+                    .iter()
+                    .all(|u| u.prospecting() < best_prospecting.prospecting())
+            {
+                bests.push(best_prospecting.clone());
+            }
         }
         if let Some(best_health_increase) = best_health_increase
             && bests
@@ -231,12 +228,6 @@ impl GearFinder {
         {
             bests.push(best_health_increase.clone());
         }
-        // if let Some(best_wisdom) = best_wisdom {
-        //     bests.push(best_wisdom.clone());
-        // }
-        // if let Some(best_prospecting) = best_prospecting {
-        //     bests.push(best_prospecting.clone());
-        // }
         bests
             .into_iter()
             .map(Some)
@@ -326,8 +317,6 @@ impl GearFinder {
     ) -> Gear {
         self.gen_skill_gears(char, skill, resource_level, filter, true)
             .into_iter()
-            .max_set_by_key(|g| g.prospecting())
-            .into_iter()
             .max_by_key(|g| g.wisdom())
             .unwrap_or_default()
     }
@@ -389,7 +378,7 @@ impl GearFinder {
             !unique_items.contains(i)
                 && self.is_eligible(i, r#type, filter, char)
                 && ((i.wisdom() > 0 && check_lvl_diff(char.skill_level(skill), skill_level))
-                    || i.prospecting() > 0)
+                    || (skill.is_gathering() && i.prospecting() > 0))
         });
         let best_for_wisdom = equipables
             .iter()
@@ -805,6 +794,12 @@ fn item_cmp(a: &Option<Arc<ItemSchema>>, b: &Option<Arc<ItemSchema>>) -> Orderin
     let Some(a) = a else { return Ordering::Greater };
     let Some(b) = b else { return Ordering::Less };
     a.code.cmp(&b.code)
+}
+
+pub(crate) enum GearPurpose<'a> {
+    Combat(&'a MonsterSchema),
+    Crafting(&'a ItemSchema),
+    Gathering(&'a ResourceSchema),
 }
 
 #[cfg(test)]
