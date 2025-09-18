@@ -1,6 +1,6 @@
 use crate::{account::AccountController, character::CharacterController};
 use artifactsmmo_sdk::{
-    CollectionClient, FightParams, ItemsClient, Level, Simulator,
+    CharacterClient, CollectionClient, FightParams, ItemsClient, Level, Simulator,
     character::HasCharacterData,
     check_lvl_diff,
     gear::{Gear, Slot},
@@ -188,20 +188,14 @@ impl GearFinder {
         let armors = self
             .items
             .filtered(|i| !unique_items.contains(i) && self.is_eligible(i, r#type, filter, char));
-        let best_for_damage = armors
-            .iter()
-            .filter(|i| weapon.average_dmg_boost_against_with(i.as_ref(), monster) > 0.0)
-            .max_by_key(|i| {
-                OrderedFloat(weapon.average_dmg_boost_against_with(i.as_ref(), monster))
-            });
-        let best_reduction = armors
-            .iter()
-            .filter(|i| i.average_dmg_reduction_against(monster) > 0.0)
-            .max_by_key(|i| OrderedFloat(i.average_dmg_reduction_against(monster)));
-        let best_health_increase = armors
-            .iter()
-            .filter(|i| i.health() > 0)
-            .max_by_key(|i| i.health());
+        let best_for_damage = best_armor_by(
+            ArmorCriteria::DamageBoost { weapon, monster },
+            &armors,
+            char,
+        );
+        let best_reduction =
+            best_armor_by(ArmorCriteria::DamageReduction { monster }, &armors, char);
+        let best_health_increase = best_armor_by(ArmorCriteria::Health, &armors, char);
         if let Some(best_for_damage) = best_for_damage {
             bests.push(best_for_damage.clone());
         }
@@ -209,14 +203,8 @@ impl GearFinder {
             bests.push(best_reduction.clone());
         }
         if r#type.is_artifact() {
-            let best_wisdom = armors
-                .iter()
-                .filter(|i| i.wisdom() > 0)
-                .max_by_key(|i| i.wisdom());
-            let best_prospecting = armors
-                .iter()
-                .filter(|i| i.prospecting() > 0)
-                .max_by_key(|i| i.prospecting());
+            let best_wisdom = best_armor_by(ArmorCriteria::Wisdom, &armors, char);
+            let best_prospecting = best_armor_by(ArmorCriteria::Prospecting, &armors, char);
             if let Some(best_wisdom) = best_wisdom
                 && bests.iter().all(|u| u.wisdom() < best_wisdom.wisdom())
             {
@@ -256,23 +244,16 @@ impl GearFinder {
         let utilities = self
             .items
             .filtered(|i| self.is_eligible(i, Type::Utility, filter, char));
-        let best_for_damage = utilities
-            .iter()
-            .filter(|i| weapon.average_dmg_against_with(i.as_ref(), monster) > 0.0)
-            .max_by_key(|i| OrderedFloat(weapon.average_dmg_against_with(i.as_ref(), monster)));
-        let best_reduction = utilities
-            .iter()
-            .filter(|i| i.average_dmg_reduction_against(monster) > 0.0)
-            .max_by_key(|i| OrderedFloat(i.average_dmg_reduction_against(monster)));
-        let best_health_increase = utilities
-            .iter()
-            .filter(|i| i.health() > 0)
-            .max_by_key(|i| i.health());
-        let best_restore = utilities
-            .iter()
-            .filter(|i| i.restore() > 0)
-            .max_by_key(|i| i.restore());
-        if let Some(best_for_damage) = best_for_damage {
+        let best_damage_boost = best_armor_by(
+            ArmorCriteria::DamageBoost { weapon, monster },
+            &utilities,
+            char,
+        );
+        let best_reduction =
+            best_armor_by(ArmorCriteria::DamageReduction { monster }, &utilities, char);
+        let best_health_increase = best_armor_by(ArmorCriteria::Health, &utilities, char);
+        let best_restore = best_armor_by(ArmorCriteria::Restore, &utilities, char);
+        if let Some(best_for_damage) = best_damage_boost {
             bests.push(best_for_damage.clone());
         }
         if let Some(best_reduction) = best_reduction {
@@ -393,14 +374,9 @@ impl GearFinder {
                 && ((i.wisdom() > 0 && check_lvl_diff(char.skill_level(skill), skill_level))
                     || (i.prospecting() > 0 && skill.is_gathering()))
         });
-        let best_for_wisdom = armors
-            .iter()
-            .filter(|i| i.wisdom() > 0)
-            .max_by_key(|i| i.wisdom());
-        let best_for_prospecting = armors
-            .iter()
-            .filter(|i| i.prospecting() > 0)
-            .max_by_key(|i| i.prospecting());
+        let best_for_wisdom = best_armor_by(ArmorCriteria::Wisdom, &armors, char);
+
+        let best_for_prospecting = best_armor_by(ArmorCriteria::Prospecting, &armors, char);
         if let Some(best_for_wisdom) = best_for_wisdom {
             bests.push(best_for_wisdom.clone());
         }
@@ -553,6 +529,54 @@ impl GearFinder {
             .and_then(|i| i.type_is(slot.into()).then_some(i.clone()))
         })
     }
+}
+
+fn best_armor_by<'a>(
+    criteria: ArmorCriteria,
+    armors: &'a [Arc<ItemSchema>],
+    char: &CharacterController,
+) -> Option<&'a Arc<ItemSchema>> {
+    let armors = armors.iter().filter(|i| match criteria {
+        ArmorCriteria::DamageBoost { weapon, monster } => {
+            weapon.average_dmg_boost_against_with(i.as_ref(), monster) > 0.0
+        }
+        ArmorCriteria::DamageReduction { monster } => {
+            i.average_dmg_reduction_against(monster) > 0.0
+        }
+        ArmorCriteria::Prospecting => i.prospecting() > 0,
+        ArmorCriteria::Wisdom => i.wisdom() > 0,
+        ArmorCriteria::Health => i.health() > 0,
+        ArmorCriteria::Restore => i.restore() > 0,
+    });
+    let armors = match criteria {
+        ArmorCriteria::DamageBoost { weapon, monster } => armors.max_set_by_key(|i| {
+            OrderedFloat(weapon.average_dmg_boost_against_with(i.as_ref(), monster))
+        }),
+        ArmorCriteria::DamageReduction { monster } => {
+            armors.max_set_by_key(|i| OrderedFloat(i.average_dmg_reduction_against(monster)))
+        }
+        ArmorCriteria::Prospecting => armors.max_set_by_key(|i| i.prospecting()),
+        ArmorCriteria::Wisdom => armors.max_set_by_key(|i| i.wisdom()),
+        ArmorCriteria::Health => armors.max_set_by_key(|i| i.health()),
+        ArmorCriteria::Restore => armors.max_set_by_key(|i| i.restore()),
+    };
+    armors
+        .into_iter()
+        .max_by_key(|i| char.has_available(&i.code))
+}
+
+enum ArmorCriteria<'a> {
+    DamageBoost {
+        weapon: &'a ItemSchema,
+        monster: &'a MonsterSchema,
+    },
+    DamageReduction {
+        monster: &'a MonsterSchema,
+    },
+    Health,
+    Restore,
+    Prospecting,
+    Wisdom,
 }
 
 fn gen_ring_sets(
