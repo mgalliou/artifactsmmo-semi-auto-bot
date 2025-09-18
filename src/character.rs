@@ -46,7 +46,8 @@ use artifactsmmo_sdk::{
 };
 use itertools::Itertools;
 use log::{debug, error, info, warn};
-use std::{cmp::min, option::Option, sync::Arc};
+use std::time::Duration;
+use std::{cmp::min, option::Option, sync::Arc, thread::sleep};
 use strum::IntoEnumIterator;
 
 #[derive(Default)]
@@ -99,6 +100,11 @@ impl CharacterController {
             if self.config().is_idle() {
                 continue;
             }
+            sleep(
+                self.client
+                    .remaining_cooldown()
+                    .saturating_sub(Duration::from_secs(5)),
+            );
             if self.inventory.is_full() {
                 if let Err(e) = self.deposit_all() {
                     error!("{}: failed depositing in main loop: {e}", self.name())
