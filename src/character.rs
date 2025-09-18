@@ -1144,8 +1144,17 @@ impl CharacterController {
         for slot in Slot::iter() {
             match gear.item_in(slot) {
                 Some(item) => self.equip_item(&item.code, slot)?,
-                //TODO: unequip only if the item is not available to all characters that can equip it
-                None => self.unequip_slot(slot, self.quantity_in_slot(slot))?,
+                // TODO: improve unequip condition: check number of character that can use the
+                // item
+                None => {
+                    if let Some(item) = self.items.get(&self.equiped_in(slot))
+                        && !item.r#type().is_utility()
+                        && self.account.total_of(&item.code)
+                            < if item.r#type().is_ring() { 10 } else { 5 }
+                    {
+                        self.unequip_slot(slot, self.quantity_in_slot(slot))?
+                    }
+                }
             }
         }
         Ok(())
@@ -1508,7 +1517,9 @@ impl CharacterController {
         if self.items.get(item).is_some_and(|i| {
             let total = self.account.total_of(item);
             let max = if i.r#type().is_ring() { 10 } else { 5 };
-            i.is_gear() && !i.r#type().is_utility() && total >= max
+            i.is_gear()
+                && !i.r#type().is_utility()
+                && (total + self.order_board.quantity_ordered(item) + quantity) > max
         }) {
             return false;
         }

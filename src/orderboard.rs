@@ -57,6 +57,14 @@ impl OrderBoard {
         self.orders().iter().any(|o| o.item == item)
     }
 
+    pub fn quantity_ordered(&self, item: &str) -> u32 {
+        self.orders()
+            .iter()
+            .filter(|o| o.item == item)
+            .map(|o| o.quantity())
+            .sum()
+    }
+
     pub fn orders_by_priority(&self) -> Vec<Arc<Order>> {
         let mut orders: Vec<Arc<Order>> = vec![];
         Purpose::iter().for_each(|p| {
