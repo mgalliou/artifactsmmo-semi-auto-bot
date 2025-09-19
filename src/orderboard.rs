@@ -288,7 +288,7 @@ pub enum OrderError {
 pub enum Purpose {
     Food { char: String },
     Cli,
-    Gear { char: String },
+    Gear { char: String, item_code: String },
     Task { char: String },
     Leveling { char: String, skill: Skill },
 }
@@ -302,7 +302,7 @@ impl Display for Purpose {
                 Purpose::Cli => "CLI".to_owned(),
                 Purpose::Leveling { char, skill } => format!("{skill} ({char})"),
                 Purpose::Food { char } => format!("food ({char})"),
-                Purpose::Gear { char } => format!("gear: ({char})"),
+                Purpose::Gear { char, item_code } => format!("'{item_code}': ({char})"),
                 Purpose::Task { char } => format!("task ({char})"),
             }
         )

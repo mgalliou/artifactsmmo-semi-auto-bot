@@ -1537,6 +1537,7 @@ impl CharacterController {
                 None,
                 Purpose::Gear {
                     char: self.name().to_owned(),
+                    item_code: item.to_owned(),
                 },
             )
             .is_ok()
