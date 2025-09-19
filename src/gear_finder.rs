@@ -130,7 +130,9 @@ impl GearFinder {
         if !runes.is_empty() {
             items.push(runes)
         }
-
+        if let Some(bag) = self.best_bag(char, filter) {
+            items.push(vec![ItemWrapper::Armor(Some(bag))]);
+        }
         self.gen_all_gears(Some(weapon.clone()), &items)
     }
 
@@ -355,7 +357,22 @@ impl GearFinder {
         let tool = with_tool
             .then_some(self.best_tool(char, skill, filter))
             .flatten();
+        if let Some(bag) = self.best_bag(char, filter) {
+            items.push(vec![ItemWrapper::Armor(Some(bag))]);
+        }
         self.gen_all_gears(tool, &items)
+    }
+
+    fn best_tool(
+        &self,
+        char: &CharacterController,
+        skill: Skill,
+        filter: Filter,
+    ) -> Option<Arc<ItemSchema>> {
+        self.items
+            .filtered(|i| i.is_tool() && self.is_eligible(i, Type::Weapon, filter, char))
+            .into_iter()
+            .min_by_key(|i| i.skill_cooldown_reduction(skill))
     }
 
     fn best_skill_armors(
@@ -391,18 +408,6 @@ impl GearFinder {
             .collect_vec()
     }
 
-    fn best_tool(
-        &self,
-        char: &CharacterController,
-        skill: Skill,
-        filter: Filter,
-    ) -> Option<Arc<ItemSchema>> {
-        self.items
-            .filtered(|i| i.is_tool() && self.is_eligible(i, Type::Weapon, filter, char))
-            .into_iter()
-            .min_by_key(|i| i.skill_cooldown_reduction(skill))
-    }
-
     fn gen_skill_rings_sets(
         &self,
         char: &CharacterController,
@@ -420,70 +425,6 @@ impl GearFinder {
         let rings2 =
             self.best_skill_armors(char, skill, skill_level, Type::Ring, filter, single_rings);
         gen_ring_sets(rings, rings2)
-    }
-
-    fn is_eligible(
-        &self,
-        item: &ItemSchema,
-        r#type: Type,
-        filter: Filter,
-        char: &CharacterController,
-    ) -> bool {
-        if !item.type_is(r#type) {
-            return false;
-        }
-        if !char.meets_conditions_for(item) {
-            return false;
-        }
-        let total_available = char.has_available(&item.code);
-        if filter.available_only && total_available < 1 {
-            return false;
-        }
-        if total_available > 0 {
-            return true;
-        }
-        if [
-            "steel_gloves",
-            "leather_gloves",
-            "conjurer_cloak",
-            "stormforged_armor",
-            "stormforged_pants",
-            "lizard_skin_legs_armor",
-            "life_crystal",
-            "cursed_sceptre",
-            "cursed_hat",
-            "sanguine_edge_of_rosen",
-            "dreadful_battleaxe",
-            "diamond_sword",
-            "corrupted_skull",
-            "malefic_crystal",
-            "sapphire_book",
-            "ruby_book",
-            "emerald_book",
-            "topaz_book",
-        ]
-        .contains(&item.code.as_str())
-        {
-            return false;
-        }
-        if filter.craftable && item.is_craftable() && !self.account.can_craft(&item.code) {
-            return false;
-        }
-        if !filter.from_npc && self.items.is_buyable(&item.code) {
-            return false;
-        }
-        if !filter.from_task && item.is_crafted_from_task() {
-            return false;
-        }
-        if !filter.from_monster
-            && self
-                .items
-                .best_source_of(&item.code)
-                .is_some_and(|s| s.is_monster())
-        {
-            return false;
-        }
-        true
     }
 
     fn gen_skill_artifacts_set(
@@ -529,6 +470,13 @@ impl GearFinder {
             .collect_vec()
     }
 
+    fn best_bag(&self, char: &CharacterController, filter: Filter) -> Option<Arc<ItemSchema>> {
+        let bags = self
+            .items
+            .filtered(|i| self.is_eligible(i, Type::Bag, filter, char));
+        bags.into_iter().max_by_key(|i| i.inventory_space())
+    }
+
     fn item_from_wrappers(&self, wrappers: &[&ItemWrapper], slot: Slot) -> Option<Arc<ItemSchema>> {
         wrappers.iter().find_map(|w| {
             match w {
@@ -540,6 +488,71 @@ impl GearFinder {
             .as_ref()
             .and_then(|i| i.type_is(slot.into()).then_some(i.clone()))
         })
+    }
+
+    fn is_eligible(
+        &self,
+        item: &ItemSchema,
+        r#type: Type,
+        filter: Filter,
+        char: &CharacterController,
+    ) -> bool {
+        if !item.type_is(r#type) {
+            return false;
+        }
+        if !char.meets_conditions_for(item) {
+            return false;
+        }
+        let total_available = char.has_available(&item.code);
+        if filter.available_only && total_available < 1 {
+            return false;
+        }
+        if total_available > 0 {
+            return true;
+        }
+        if [
+            "steel_gloves",
+            "leather_gloves",
+            "conjurer_cloak",
+            "stormforged_armor",
+            "stormforged_pants",
+            "lizard_skin_legs_armor",
+            "life_crystal",
+            "cursed_sceptre",
+            "cursed_hat",
+            "sanguine_edge_of_rosen",
+            "dreadful_battleaxe",
+            "diamond_sword",
+            "corrupted_skull",
+            "malefic_crystal",
+            "sapphire_book",
+            "ruby_book",
+            "emerald_book",
+            "topaz_book",
+            "backpack"
+        ]
+        .contains(&item.code.as_str())
+        {
+            return false;
+        }
+        if filter.craftable && item.is_craftable() && !self.account.can_craft(&item.code) {
+            return false;
+        }
+        if !filter.from_npc && self.items.is_buyable(&item.code) {
+            return false;
+        }
+        if !filter.from_task && item.is_crafted_from_task() {
+            return false;
+        }
+        if !filter.from_monster
+            && self
+                .items
+                .best_source_of(&item.code)
+                .is_some_and(|s| s.is_monster())
+        {
+            return false;
+        }
+        true
     }
 }
 
