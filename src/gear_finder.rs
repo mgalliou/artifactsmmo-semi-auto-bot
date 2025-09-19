@@ -1,6 +1,6 @@
 use crate::{account::AccountController, character::CharacterController};
 use artifactsmmo_sdk::{
-    CharacterClient, CollectionClient, FightParams, ItemsClient, Level, Simulator,
+    CollectionClient, FightParams, ItemsClient, Level, Simulator,
     character::HasCharacterData,
     check_lvl_diff,
     gear::{Gear, Slot},
@@ -450,7 +450,13 @@ impl GearFinder {
             "stormforged_pants",
             "lizard_skin_legs_armor",
             "life_crystal",
+            "cursed_sceptre",
+            "cursed_hat",
+            "sanguine_edge_of_rosen",
+            "dreadful_battleaxe",
+            "diamond_sword",
             "corrupted_skull",
+            "malefic_crystal",
             "sapphire_book",
             "ruby_book",
             "emerald_book",
