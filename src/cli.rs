@@ -78,6 +78,7 @@ fn respond(
                     )
                 });
             }
+            OrderboardAction::Clear => bot.order_board.clear(),
         },
         Commands::Bank { action } => match action {
             BankAction::Reservations => {
@@ -443,6 +444,8 @@ enum OrderboardAction {
     Remove { item: String },
     #[command(alias = "l")]
     List,
+    #[command(alias = "c")]
+    Clear,
 }
 
 #[derive(Subcommand)]

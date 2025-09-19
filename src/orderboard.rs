@@ -139,27 +139,35 @@ impl OrderBoard {
     }
 
     pub fn register_deposited_items(&self, items: &[SimpleItemSchema]) {
-        items.iter().for_each(|i| {
-            let mut remaining = i.quantity;
-            for o in self.orders_by_priority().iter() {
-                if remaining == 0 {
+        items.iter().for_each(|item| {
+            let mut remaining = item.quantity;
+            for order in self.orders_by_priority().iter() {
+                if remaining < 1 {
                     break;
                 }
-                if i.code == o.item {
-                    let quantity = min(o.quantity(), remaining);
-                    o.inc_deposited(quantity);
-                    if let Some(ref owner) = o.owner
-                        && let Err(e) = self.account.bank.inc_reservation(&o.item, quantity, owner)
-                    {
-                        error!("orderboard: failed reserving deposited item: {e}")
-                    }
-                    if o.turned_in() {
-                        self.remove(o);
-                    }
-                    remaining = remaining.saturating_sub(quantity);
+                if item.code != order.item {
+                    continue;
                 }
+                let quantity = min(order.quantity(), remaining);
+                order.inc_deposited(quantity);
+                if let Some(ref owner) = order.owner
+                    && let Err(e) = self
+                        .account
+                        .bank
+                        .inc_reservation(&order.item, quantity, owner)
+                {
+                    error!("orderboard: failed reserving deposited item: {e}")
+                }
+                if order.turned_in() {
+                    self.remove(order);
+                }
+                remaining = remaining.saturating_sub(quantity);
             }
         });
+    }
+
+    pub fn clear(&self) {
+        self.orders.write().unwrap().clear();
     }
 
     pub fn remove(&self, order: &Order) {
