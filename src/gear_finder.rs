@@ -448,7 +448,13 @@ impl GearFinder {
             "conjurer_cloak",
             "stormforged_armor",
             "stormforged_pants",
-            "lizard_skin_leg_armor",
+            "lizard_skin_legs_armor",
+            "life_crystal",
+            "corrupted_skull",
+            "sapphire_book",
+            "ruby_book",
+            "emerald_book",
+            "topaz_book",
         ]
         .contains(&item.code.as_str())
         {
