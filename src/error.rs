@@ -281,6 +281,8 @@ pub enum EquipCommandError {
 
 #[derive(Debug, Error)]
 pub enum UnequipCommandError {
+    #[error("Invalid quantity: {0}")]
+    InvalidQuantity(u32),
     #[error("Failed to deposit all before equiping item: {0}")]
     DepositItemCommandError(#[from] DepositItemCommandError),
     #[error("Failed to rest: {0}")]
@@ -291,6 +293,8 @@ pub enum UnequipCommandError {
 
 #[derive(Debug, Error)]
 pub enum UseItemCommandError {
+    #[error("Insufficient item quantity in inventory")]
+    InsufficientQuantity,
     #[error("Failed to request item use: {0}")]
     ClientError(#[from] UseError),
 }
@@ -305,6 +309,8 @@ pub enum BuyNpcCommandError {
     NpcNotFound,
     #[error("Insufficient currency: '{currency}'x{quantity}")]
     InsufficientCurrency { currency: String, quantity: u32 },
+    #[error("Insufficient inventory space")]
+    InsufficientInventorySpace,
     #[error("Failed to deposit all before withdrawing currency: {0}")]
     DepositItemCommandError(#[from] DepositItemCommandError),
     #[error("Failed to withdraw gold from bank: {0}")]
@@ -329,6 +335,8 @@ pub enum SellNpcCommandError {
     NpcNotFound,
     #[error("Insufficient item quantity available")]
     InsufficientQuantity { quantity: u32 },
+    #[error("Insufficient inventory space")]
+    InsufficientInventorySpace,
     #[error("Failed to deposit all before selling item: {0}")]
     DepositItemCommandError(#[from] DepositItemCommandError),
     #[error("Failed to withdraw item to sell: {0}")]

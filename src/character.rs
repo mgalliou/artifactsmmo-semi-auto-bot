@@ -611,7 +611,7 @@ impl CharacterController {
         }
         let mut gear = self.can_kill(monster)?;
         self.equip_gear(&mut gear)?;
-        if !self.inventory.has_space_for_drops_from(monster)
+        if !self.inventory.has_room_for_drops_from(monster)
             || !self.current_map().content_code_is(&monster.code)
         {
             self.deposit_all_but_reserved()?;
@@ -649,7 +649,7 @@ impl CharacterController {
             return Ok(Default::default());
         }
         self.equip_gear_for(GearPurpose::Gathering(resource))?;
-        if !self.inventory.has_space_for_drops_from(resource)
+        if !self.inventory.has_room_for_drops_from(resource)
             || !self.current_map().content_code_is(&resource.code)
         {
             self.deposit_all()?;
@@ -775,7 +775,7 @@ impl CharacterController {
         let missing_mats = self.inventory.missing_among(&mats);
         self.bank.reserv_items(&missing_mats, &self.name())?;
         self.equip_gear_for(GearPurpose::Crafting(&item))?;
-        if !self.inventory.has_space_for_multiple(&missing_mats) {
+        if !self.inventory.has_room_for_multiple(&missing_mats) {
             self.deposit_all_but_multiple(&mats)?;
         }
         self.withdraw_items(&missing_mats)?;
@@ -905,7 +905,7 @@ impl CharacterController {
         let missing = quantity.saturating_sub(in_inventory);
         if missing > 0 {
             self.bank.reserv_item(item, missing, &self.name())?;
-            if !self.inventory.has_space_for(item, missing) {
+            if !self.inventory.has_room_for(item, missing) {
                 self.deposit_all_but(item)?;
             }
             self.withdraw_item(item, missing)?;
@@ -978,7 +978,6 @@ impl CharacterController {
         }])
     }
 
-    /// TODO: finish implementing, a check for bank space and expansion
     pub fn deposit_items(&self, items: &[SimpleItemSchema]) -> Result<(), DepositItemCommandError> {
         if items.is_empty() {
             return Ok(());
@@ -989,11 +988,7 @@ impl CharacterController {
         {
             return Err(DepositItemCommandError::InsufficientQuantity);
         }
-        let items_not_in_bank = items
-            .iter()
-            .filter(|i| self.bank.total_of(&i.code) == 0)
-            .count() as u32;
-        if self.bank.details().slots < items_not_in_bank {
+        if !self.bank.has_room_for_multiple(items) {
             return Err(DepositItemCommandError::InsufficientBankSpace);
         };
         info!(
@@ -1057,7 +1052,6 @@ impl CharacterController {
     /// Does not `deposit_all` before withdrawing because the caller might want to keep
     /// items reserved
     // TODO: maybe add optionnal parameter to deposit_all
-    ///TODO: maybe reserve item before withdrawing
     pub fn withdraw_items(
         &self,
         items: &[SimpleItemSchema],
@@ -1068,7 +1062,7 @@ impl CharacterController {
         if !self.bank.has_multiple_available(items, &self.name()) {
             return Err(WithdrawItemCommandError::InsufficientQuantity);
         }
-        if !self.inventory.has_space_for_multiple(items) {
+        if !self.inventory.has_room_for_multiple(items) {
             return Err(WithdrawItemCommandError::InsufficientInventorySpace);
         }
         info!(
@@ -1215,7 +1209,10 @@ impl CharacterController {
         let Some(equiped) = self.items.get(&self.equiped_in(slot)) else {
             return Ok(());
         };
-        if !self.inventory.has_space_for(&equiped.code, quantity) {
+        if quantity == 0 || quantity > self.quantity_in_slot(slot) {
+            return Err(UnequipCommandError::InvalidQuantity(quantity));
+        }
+        if !self.inventory.has_room_for(&equiped.code, quantity) {
             self.deposit_all()?;
         }
         if self.health() <= equiped.health() {
@@ -1309,6 +1306,9 @@ impl CharacterController {
     }
 
     fn use_item(&self, item_code: &str, quantity: u32) -> Result<(), UseItemCommandError> {
+        if self.inventory.total_of(item_code) < quantity {
+            return Err(UseItemCommandError::InsufficientQuantity);
+        }
         self.client.r#use(item_code, quantity)?;
         self.inventory.decrease_reservation(item_code, quantity);
         Ok(())
@@ -1358,6 +1358,9 @@ impl CharacterController {
                 quantity: missing_currency,
             });
         }
+        if self.inventory.max_items() < quantity {
+            return Err(BuyNpcCommandError::InsufficientInventorySpace);
+        }
         if self.maps.with_content_code(&npc_item.npc).is_empty() {
             return Err(BuyNpcCommandError::NpcNotFound);
         }
@@ -1367,7 +1370,6 @@ impl CharacterController {
     fn sell_item(&self, item: &str, quantity: u32) -> Result<(), SellNpcCommandError> {
         let npc_item = self.can_sell_item(item, quantity)?;
         self.lock_in_inventory(item, quantity)?;
-        //TODO: add check for inventory space
         self.move_to_closest_map_with_content_code(&npc_item.npc)?;
         self.client.npc_sell(item, quantity)?;
         self.inventory.decrease_reservation(item, quantity);
@@ -1392,7 +1394,9 @@ impl CharacterController {
         if missing > 0 {
             return Err(SellNpcCommandError::InsufficientQuantity { quantity: missing });
         }
-        //TODO: add InsufficientInventorySpace variant if quantity is too high
+        if self.inventory.max_items() < quantity {
+            return Err(SellNpcCommandError::InsufficientInventorySpace);
+        }
         if self.maps.with_content_code(&npc_item.npc).is_empty() {
             return Err(SellNpcCommandError::NpcNotFound);
         }

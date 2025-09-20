@@ -218,12 +218,12 @@ impl LimitedContainer for BankController {
         self.client.is_full()
     }
 
-    fn has_space_for_multiple(&self, items: &[SimpleItemSchema]) -> bool {
-        self.client.has_space_for_multiple(items)
+    fn has_room_for_multiple(&self, items: &[SimpleItemSchema]) -> bool {
+        self.client.has_room_for_multiple(items)
     }
 
-    fn has_space_for_drops_from<H: DropsItems>(&self, entity: &H) -> bool {
-        self.client.has_space_for_drops_from(entity)
+    fn has_room_for_drops_from<H: DropsItems>(&self, entity: &H) -> bool {
+        self.client.has_room_for_drops_from(entity)
     }
 }
 

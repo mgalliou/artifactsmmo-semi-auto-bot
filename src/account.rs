@@ -47,7 +47,7 @@ impl AccountController {
         };
         *chars = self
             .client
-            .characters
+            .characters()
             .iter()
             .map(|char_client| {
                 Arc::new(CharacterController::new(
