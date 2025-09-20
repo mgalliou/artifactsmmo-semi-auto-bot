@@ -888,7 +888,7 @@ impl CharacterController {
         item: &str,
         quantity: u32,
     ) -> Result<(), WithdrawItemCommandError> {
-        let in_inventory = self.inventory.has_available(item);
+        let in_inventory = self.inventory.total_of(item);
         if in_inventory > 0
             && let Err(e) = self
                 .inventory
@@ -1038,7 +1038,7 @@ impl CharacterController {
         else {
             return Ok(());
         };
-        // TODO: defined quantity withdrowned depending on the monster drop rate and damages
+        // TODO: defined food quantity depending on the monster drop rate and damages
         let quantity = min(
             ((self.inventory.max_items() as f32) * 0.75) as u32,
             self.bank.has_available(&food.code, &self.name()),
