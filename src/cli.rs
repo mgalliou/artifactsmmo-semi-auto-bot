@@ -8,7 +8,7 @@ use rustyline::{DefaultEditor, error::ReadlineError};
 use std::{process::exit, sync::Arc};
 
 use crate::{
-    HasReservation,
+    CharacterCommand, HasReservation,
     bot::Bot,
     character::CharacterController,
     gear_finder::{Filter, GearPurpose},
@@ -165,19 +165,28 @@ fn respond(
             let Some(char) = character else {
                 bail!("no character selected");
             };
-            char.craft_from_bank(&item, quantity)?;
+            char.queue.add(CharacterCommand::Craft {
+                code: item,
+                quantity,
+            });
         }
         Commands::Recycle { item, quantity } => {
             let Some(char) = character else {
                 bail!("no character selected");
             };
-            char.recycle_item(&item, quantity)?;
+            char.queue.add(CharacterCommand::Recycle {
+                code: item.to_owned(),
+                quantity,
+            });
         }
         Commands::Delete { item, quantity } => {
             let Some(char) = character else {
                 bail!("no character selected");
             };
-            char.delete_item(&item, quantity)?;
+            char.queue.add(CharacterCommand::Delete {
+                code: item,
+                quantity,
+            });
         }
         Commands::Gear {
             available_only,

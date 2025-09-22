@@ -1,5 +1,6 @@
 use crate::{
-    FOOD_BLACK_LIST, HasReservation, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
+    CharacterCommand, CommandQueue, FOOD_BLACK_LIST, HasReservation, MIN_COIN_THRESHOLD,
+    MIN_FOOD_THRESHOLD,
     account::AccountController,
     bank::{BankController, BankReservationError},
     bot_config::{BotConfig, CharConfig, Goal},
@@ -65,6 +66,7 @@ pub struct CharacterController {
     order_board: Arc<OrderBoard>,
     gear_finder: Arc<GearFinder>,
     leveling_helper: Arc<LevelingHelper>,
+    pub queue: CommandQueue,
 }
 
 impl CharacterController {
@@ -91,6 +93,7 @@ impl CharacterController {
             order_board,
             gear_finder,
             leveling_helper,
+            queue: CommandQueue::new(),
         }
     }
 
@@ -113,6 +116,27 @@ impl CharacterController {
             }
             self.maps.refresh_from_events();
             self.order_food();
+            if self.queue.commands().iter().any(|c| match c {
+                CharacterCommand::Craft { code, quantity } => {
+                    self.craft_from_bank(code, *quantity).is_ok()
+                }
+                CharacterCommand::Kill { monster } => self.kill_monster(monster).is_ok(),
+                CharacterCommand::Gather { resource } => self.gather_resource(resource).is_ok(),
+                CharacterCommand::Recycle { code, quantity } => {
+                    self.recycle_item(code, *quantity).is_ok()
+                }
+                CharacterCommand::Delete { code, quantity } => {
+                    self.delete_item(code, *quantity).is_ok()
+                }
+                CharacterCommand::BuyItem { code, quantity } => {
+                    self.buy_item(code, *quantity).is_ok()
+                }
+                CharacterCommand::SellItem { code, quantity } => {
+                    self.sell_item(code, *quantity).is_ok()
+                }
+            }) {
+                continue;
+            }
             if self.cleanup_bank().is_ok() {
                 continue;
             }

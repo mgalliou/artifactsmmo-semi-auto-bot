@@ -526,6 +526,7 @@ impl GearFinder {
             "diamond_sword",
             "corrupted_skull",
             "malefic_crystal",
+            "malefic_ring",
             "sapphire_book",
             "ruby_book",
             "emerald_book",

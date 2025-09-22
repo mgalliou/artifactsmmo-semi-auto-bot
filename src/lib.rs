@@ -3,9 +3,10 @@ use artifactsmmo_sdk::{
     consts::{
         APPLE, APPLE_PIE, CARROT, COOKED_HELLHOUND_MEAT, EGG, FISH_SOUP, MAPLE_SYRUP, MUSHROOM_SOUP,
     },
+    models::{MonsterSchema, ResourceSchema},
 };
 use std::sync::{
-    Arc,
+    Arc, RwLock,
     atomic::{AtomicU32, Ordering::SeqCst},
 };
 
@@ -111,5 +112,37 @@ impl From<(&str, &str)> for BankDiscriminant {
             item: value.0.to_string(),
             owner: value.0.to_string(),
         }
+    }
+}
+
+#[derive(Clone)]
+pub enum CharacterCommand {
+    Craft { code: String, quantity: u32 },
+    Kill { monster: Arc<MonsterSchema> },
+    Gather { resource: Arc<ResourceSchema> },
+    Recycle { code: String, quantity: u32 },
+    Delete { code: String, quantity: u32 },
+    BuyItem { code: String, quantity: u32 },
+    SellItem { code: String, quantity: u32 },
+}
+
+#[derive(Default)]
+pub struct CommandQueue {
+    commands: RwLock<Vec<CharacterCommand>>,
+}
+
+impl CommandQueue {
+    pub fn new() -> Self {
+        Self {
+            commands: RwLock::new(vec![]),
+        }
+    }
+
+    pub fn add(&self, command: CharacterCommand) {
+        self.commands.write().unwrap().push(command);
+    }
+
+    pub fn commands(&self) -> Vec<CharacterCommand> {
+        self.commands.read().unwrap().iter().cloned().collect()
     }
 }
