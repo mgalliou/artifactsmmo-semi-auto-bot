@@ -85,7 +85,7 @@ checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 [[package]]
 name = "artifactsmmo-api-wrapper"
 version = "0.1.0"
-source = "git+https://github.com/mgalliou/artifactsmmo-sdk#a32b2bcdeec0ab67b4cd344a7ca0d80c417b92f3"
+source = "git+https://github.com/mgalliou/artifactsmmo-sdk#5b4d031de6268adaa24d1f22b7fec5c6881d1096"
 dependencies = [
  "artifactsmmo-openapi",
 ]
@@ -106,7 +106,7 @@ dependencies = [
 [[package]]
 name = "artifactsmmo-sdk"
 version = "0.0.0"
-source = "git+https://github.com/mgalliou/artifactsmmo-sdk#a32b2bcdeec0ab67b4cd344a7ca0d80c417b92f3"
+source = "git+https://github.com/mgalliou/artifactsmmo-sdk#5b4d031de6268adaa24d1f22b7fec5c6881d1096"
 dependencies = [
  "artifactsmmo-api-wrapper",
  "artifactsmmo-openapi",
@@ -478,7 +478,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -1511,7 +1511,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.61.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -1617,7 +1617,7 @@ dependencies = [
 [[package]]
 name = "sdk_derive"
 version = "0.1.0"
-source = "git+https://github.com/mgalliou/artifactsmmo-sdk#a32b2bcdeec0ab67b4cd344a7ca0d80c417b92f3"
+source = "git+https://github.com/mgalliou/artifactsmmo-sdk#5b4d031de6268adaa24d1f22b7fec5c6881d1096"
 dependencies = [
  "quote",
  "syn",
@@ -1896,7 +1896,7 @@ dependencies = [
  "getrandom 0.3.3",
  "once_cell",
  "rustix",
- "windows-sys 0.61.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]

@@ -3,8 +3,8 @@ use crate::{
     gear_finder::GearFinder, leveling_helper::LevelingHelper, orderboard::OrderBoard,
 };
 use artifactsmmo_sdk::{
-    AccountClient, Client, ItemContainer, ItemsClient, SpaceLimited, character::HasCharacterData,
-    items::ItemSource, models::ItemSchema, skill::Skill,
+    AccountClient, Client, CollectionClient, ItemContainer, ItemsClient, SpaceLimited,
+    character::HasCharacterData, items::ItemSchemaExt, models::ItemSchema, skill::Skill,
 };
 use itertools::Itertools;
 use std::sync::{Arc, RwLock};
@@ -127,42 +127,16 @@ impl AccountController {
     }
 
     pub fn time_to_get(&self, item: &str) -> Option<u32> {
-        self.items
-            .best_source_of(item)
+        let item = self.items.get(item)?;
+        let mut time = self
+            .characters()
             .iter()
-            .filter_map(|s| match s {
-                ItemSource::Resource(r) => self
-                    .characters()
-                    .iter()
-                    .filter_map(|c| c.time_to_gather(r))
-                    .min(),
-                ItemSource::Monster(m) => self
-                    .characters()
-                    .iter()
-                    .filter_map(|c| c.time_to_kill(m))
-                    .map(|time| time * self.items.drop_rate(item))
-                    .min(),
-                ItemSource::Craft => {
-                    let mats_wit_ttg = self
-                        .items
-                        .mats_of(item)
-                        .into_iter()
-                        .map(|m| (m.clone(), self.time_to_get(&m.code)))
-                        .collect_vec();
-                    mats_wit_ttg.iter().all(|(_, ttg)| ttg.is_some()).then_some(
-                        mats_wit_ttg
-                            .iter()
-                            .filter_map(|(m, ttg)| {
-                                ttg.as_ref()
-                                    .map(|ttg| (ttg * m.quantity) + (5 * m.quantity))
-                            })
-                            .sum::<u32>(),
-                    )
-                }
-                ItemSource::TaskReward => Some(20000),
-                ItemSource::Task => Some(20000),
-                ItemSource::Npc(_) => Some(60),
-            })
-            .min()
+            .filter_map(|c| c.time_to_get(&item.code))
+            .min()?;
+
+        for mat in item.mats().iter() {
+            time += self.time_to_get(&mat.code)? * mat.quantity;
+        }
+        Some(time)
     }
 }

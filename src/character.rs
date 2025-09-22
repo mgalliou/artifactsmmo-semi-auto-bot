@@ -23,9 +23,9 @@ use crate::{
 };
 use anyhow::Result;
 use artifactsmmo_sdk::{
-    Client, CollectionClient, HasDrops, ItemContainer, ItemsClient, Level, LimitedContainer,
-    MapsClient, MonstersClient, NpcsClient, SimpleItemSchemas, Simulator, SlotLimited,
-    SpaceLimited, TasksClient,
+    Client, CollectionClient, DropsItems, HasDrops, ItemContainer, ItemsClient, Level,
+    LimitedContainer, MapsClient, MonstersClient, NpcsClient, SimpleItemSchemas, Simulator,
+    SlotLimited, SpaceLimited, TasksClient,
     bank::Bank,
     character::{CharacterClient, HasCharacterData, error::RestError},
     consts::{
@@ -321,18 +321,15 @@ impl CharacterController {
     }
 
     fn can_progress(&self, order: &Order) -> bool {
-        self.items
-            .best_source_of(&order.item)
-            .iter()
-            .any(|s| match s {
-                ItemSource::Resource(r) => self.can_gather(r).is_ok(),
-                ItemSource::Monster(m) => self.can_kill(m).is_ok(),
-                ItemSource::Craft => self.can_craft(&order.item).is_ok(),
+        self.best_source_of(&order.item).iter().any(|s| match s {
+            ItemSource::Resource(r) => self.can_gather(r).is_ok(),
+            ItemSource::Monster(m) => self.can_kill(m).is_ok(),
+            ItemSource::Craft => self.can_craft(&order.item).is_ok(),
 
-                ItemSource::TaskReward => order.in_progress() == 0,
-                ItemSource::Task => true,
-                ItemSource::Npc(_) => true,
-            })
+            ItemSource::TaskReward => order.in_progress() == 0,
+            ItemSource::Task => true,
+            ItemSource::Npc(_) => true,
+        })
     }
 
     // /// Checks if the character is able to get the missing items for the `order` in one command
@@ -362,7 +359,7 @@ impl CharacterController {
         if self.order_board.total_missing_for(order) == 0 {
             return Err(OrderProgressionError::NoItemMissing);
         }
-        let Some(source) = self.items.best_source_of(&order.item) else {
+        let Some(source) = self.best_source_of(&order.item) else {
             return Err(OrderProgressionError::NoSourceForItem);
         };
         Ok(match source {
@@ -1614,23 +1611,14 @@ impl CharacterController {
 
     #[allow(dead_code)]
     pub fn time_to_get(&self, item: &str) -> Option<u32> {
-        self.items
-            .best_source_of(item)
+        self.best_source_of(item)
             .iter()
             .filter_map(|s| match s {
                 ItemSource::Resource(r) => self.time_to_gather(r),
                 ItemSource::Monster(m) => self
                     .time_to_kill(m)
                     .map(|time| time * self.items.drop_rate(item)),
-                ItemSource::Craft => Some(
-                    CRAFT_TIME
-                        + self
-                            .items
-                            .mats_of(item)
-                            .iter()
-                            .map(|m| self.time_to_get(&m.code).unwrap_or(1000) * m.quantity)
-                            .sum::<u32>(),
-                ),
+                ItemSource::Craft => self.can_craft(item).is_ok().then_some(CRAFT_TIME),
                 ItemSource::TaskReward => Some(2000),
                 ItemSource::Task => Some(2000),
                 ItemSource::Npc(_) => Some(60),
@@ -1658,8 +1646,7 @@ impl CharacterController {
                     .map(|w| w.skill_cooldown_reduction(resource.skill.into()))
             })
             .unwrap_or(0);
-        let time = Simulator::gather_cd(resource.level(), reduction);
-        Some(time)
+        Some(Simulator::gather_cd(resource.level(), reduction))
     }
 
     /// Calculates the maximum number of items that can be crafted in one go based on
@@ -1705,6 +1692,37 @@ impl CharacterController {
                 }
             })
             .collect_vec()
+    }
+
+    pub fn best_source_of(&self, code: &str) -> Option<ItemSource> {
+        let sources = self
+            .items
+            .sources_of(code)
+            .into_iter()
+            .filter(|s| match s {
+                ItemSource::Resource(resource) => {
+                    !self.maps.with_content_code(&resource.code).is_empty()
+                        && self.can_gather(resource).is_ok()
+                }
+                ItemSource::Monster(monster) => {
+                    !self.maps.with_content_code(&monster.code).is_empty()
+                        && self.can_kill(monster).is_ok()
+                }
+                ItemSource::Npc(npc) => !self.maps.with_content_code(&npc.code).is_empty(),
+                _ => true,
+            })
+            .collect_vec();
+        if sources.iter().all(|s| s.is_resource() || s.is_monster()) {
+            return sources
+                .iter()
+                .min_by_key(|s| match s {
+                    ItemSource::Resource(resource_schema) => resource_schema.drop_rate(code),
+                    ItemSource::Monster(monster_schema) => monster_schema.drop_rate(code),
+                    _ => None,
+                })
+                .cloned();
+        }
+        sources.first().cloned()
     }
 
     pub fn gear(&self) -> Gear {

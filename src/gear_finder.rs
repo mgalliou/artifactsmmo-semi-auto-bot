@@ -553,7 +553,8 @@ impl GearFinder {
         if !filter.from_monster
             && self
                 .items
-                .best_source_of(&item.code)
+                .sources_of(&item.code)
+                .first()
                 .is_some_and(|s| s.is_monster())
         {
             return false;

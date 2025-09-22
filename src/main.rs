@@ -16,14 +16,16 @@ fn main() -> Result<()> {
         .add("lizard_skin", 1000, None, Purpose::Cli)?;
     bot.order_board
         .add("demon_horn", 1000, None, Purpose::Cli)?;
+    bot.order_board
+        .add("corrupted_gem", 1000, None, Purpose::Cli)?;
     // bot.order_board
     //     .add(None, "malefic_cloth", 200, Purpose::Cli)?;
     // bot.order_board
     //     .add(None, "rosenblood_elixir", 200, Purpose::Cli)?;
     bot.order_board
-        .add("strange_ore", 6000, None, Purpose::Cli)?;
-    bot.order_board
         .add("magic_wood", 6000, None, Purpose::Cli)?;
+    bot.order_board
+        .add("strange_ore", 6000, None, Purpose::Cli)?;
     bot.run_characters();
     cli::run(bot.clone())
 }

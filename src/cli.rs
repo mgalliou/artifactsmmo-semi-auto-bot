@@ -100,12 +100,22 @@ fn respond(
         },
         Commands::Items { action } => match action {
             ItemsAction::TimeToGet { item } => println!("{:?}", bot.account.time_to_get(&item)),
-            ItemsAction::Sources { item } => bot
-                .client
-                .items
-                .sources_of(&item)
-                .iter()
-                .for_each(|s| println!("{:?}", s)),
+            ItemsAction::Sources { item, best } => {
+                if best {
+                    let Some(char) = character else {
+                        bail!("no character selected");
+                    };
+                    char.best_source_of(&item)
+                        .iter()
+                        .for_each(|s| println!("{}", s))
+                } else {
+                    bot.client
+                        .items
+                        .sources_of(&item)
+                        .iter()
+                        .for_each(|s| println!("{}", s))
+                }
+            }
             ItemsAction::BestCraft { skill } => {
                 let Some(char) = character else {
                     bail!("no character selected");
@@ -481,6 +491,8 @@ enum ItemsAction {
     },
     Sources {
         item: String,
+        #[arg(short = 'b', long)]
+        best: bool,
     },
 }
 
