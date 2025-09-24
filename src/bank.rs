@@ -1,4 +1,4 @@
-use crate::{BankDiscriminant, FOOD_BLACK_LIST, HasReservation, Reservation};
+use crate::{BankDiscriminant, FOOD_CONSUMPTION_BLACKLIST, HasReservation, Reservation};
 use artifactsmmo_sdk::{
     BankClient, Code, CollectionClient, DropsItems, ItemContainer, ItemsClient, LimitedContainer,
     Quantity, SlotLimited,
@@ -73,7 +73,9 @@ impl BankController {
             .iter()
             .filter_map(|i| {
                 self.items.get(&i.code).filter(|i| {
-                    i.is_food() && i.level <= level && !FOOD_BLACK_LIST.contains(&i.code.as_str())
+                    i.is_food()
+                        && i.level <= level
+                        && !FOOD_CONSUMPTION_BLACKLIST.contains(&i.code.as_str())
                 })
             })
             .collect_vec()

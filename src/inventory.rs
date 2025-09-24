@@ -1,3 +1,4 @@
+use crate::{FOOD_CONSUMPTION_BLACKLIST, HasReservation, InventoryDiscriminant, Reservation};
 use artifactsmmo_sdk::{
     CharacterClient, Code, CollectionClient, DropsItems, ItemContainer, ItemsClient,
     LimitedContainer, Quantity, SlotLimited, SpaceLimited,
@@ -16,8 +17,6 @@ use std::{
     },
 };
 use thiserror::Error;
-
-use crate::{FOOD_BLACK_LIST, HasReservation, InventoryDiscriminant, Reservation};
 
 #[derive(Default)]
 pub struct InventoryController {
@@ -66,7 +65,7 @@ impl InventoryController {
                 self.items.get(&i.code).filter(|i| {
                     i.is_food()
                         && i.level <= self.client.level()
-                        && !FOOD_BLACK_LIST.contains(&i.code.as_ref())
+                        && !FOOD_CONSUMPTION_BLACKLIST.contains(&i.code.as_ref())
                 })
             })
             .collect_vec()

@@ -1,5 +1,5 @@
 use crate::{
-    CharacterCommand, CommandQueue, FOOD_BLACK_LIST, HasReservation, MIN_COIN_THRESHOLD,
+    CharacterCommand, CommandQueue, FOOD_ORDER_BLACKLIST, HasReservation, MIN_COIN_THRESHOLD,
     MIN_FOOD_THRESHOLD,
     account::AccountController,
     bank::{BankController, BankReservationError},
@@ -1052,14 +1052,13 @@ impl CharacterController {
             .bank
             .consumable_food(self.level())
             .into_iter()
-            .filter(|f| self.bank.has_available(&f.code, &self.name()) > 0)
             .max_by_key(|f| f.heal())
         else {
             return Ok(());
         };
         // TODO: defined food quantity depending on the monster drop rate and damages
         let quantity = min(
-            ((self.inventory.max_items() as f32) * 0.75) as u32,
+            ((self.inventory.max_items() as f32) * 0.90) as u32,
             self.bank.has_available(&food.code, &self.name()),
         );
         self.lock_in_inventory(&food.code, quantity)
@@ -1439,22 +1438,23 @@ impl CharacterController {
                 error!("{} failed reserving food in inventory: {e}", self.name(),)
             }
         });
-        if let Some(best_food) = self
+        let Some(best_food) = self
             .items
             .filtered(|i| {
-                i.is_food()
-                    && i.level > self.level() - 10
+                !FOOD_ORDER_BLACKLIST.contains(&i.code.as_str())
+                    && i.is_food()
                     && i.level <= self.level()
-                    && !FOOD_BLACK_LIST.contains(&i.code.as_ref())
+                    && i.level > self.level() - 10
             })
-            .iter()
-            .max_by_key(|i| {
-                self.account
-                    .time_to_get(&i.code)
-                    .map(|t| i.heal() / t as i32)
-                    .unwrap_or(0)
-            })
-            && self.bank.total_of(&best_food.code) < MIN_FOOD_THRESHOLD
+            .into_iter()
+            .filter_map(|i| self.account.time_to_get(&i.code).map(|t| (i, t)))
+            .filter(|(i, t)| *t < Simulator::time_to_rest(i.heal() as u32))
+            .max_by_key(|(i, t)| *t / i.heal() as u32)
+            .map(|(i, _)| i)
+        else {
+            return;
+        };
+        if self.bank.total_of(&best_food.code) < MIN_FOOD_THRESHOLD
             && let Err(e) = self.order_board.add_or_reset(
                 &best_food.code,
                 self.account.fisher_max_items(),

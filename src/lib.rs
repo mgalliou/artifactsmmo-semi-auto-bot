@@ -1,7 +1,7 @@
 use artifactsmmo_sdk::{
     Code, ItemContainer, Quantity,
     consts::{
-        APPLE, APPLE_PIE, CARROT, COOKED_HELLHOUND_MEAT, EGG, FISH_SOUP, MAPLE_SYRUP, MUSHROOM_SOUP,
+        APPLE, APPLE_PIE, CARROT, COOKED_HELLHOUND_MEAT, FISH_SOUP, MAPLE_SYRUP, MUSHROOM_SOUP,
     },
     models::{MonsterSchema, ResourceSchema},
 };
@@ -22,17 +22,18 @@ pub mod inventory;
 pub mod leveling_helper;
 pub mod orderboard;
 
-pub const FOOD_BLACK_LIST: [&str; 9] = [
-    APPLE,
+pub const FOOD_ORDER_BLACKLIST: [&str; 8] = [
     APPLE_PIE,
-    EGG,
-    CARROT,
     MUSHROOM_SOUP,
+    "fried_egg",
+    "cheese",
     FISH_SOUP,
     COOKED_HELLHOUND_MEAT,
     MAPLE_SYRUP,
     "corrupted_fruit",
 ];
+
+pub const FOOD_CONSUMPTION_BLACKLIST: [&str; 2] = [APPLE, CARROT];
 
 pub const MIN_COIN_THRESHOLD: u32 = 4;
 pub const MIN_FOOD_THRESHOLD: u32 = 6000;
