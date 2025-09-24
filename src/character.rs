@@ -47,6 +47,7 @@ use artifactsmmo_sdk::{
 };
 use itertools::Itertools;
 use log::{debug, error, info, warn};
+use ordered_float::OrderedFloat;
 use std::time::Duration;
 use std::{cmp::min, option::Option, sync::Arc, thread::sleep};
 use strum::IntoEnumIterator;
@@ -1609,21 +1610,23 @@ impl CharacterController {
         Ok(())
     }
 
-    #[allow(dead_code)]
-    pub fn time_to_get(&self, item: &str) -> Option<u32> {
+    pub fn time_to_get(&self, item: &str) -> Option<(ItemSource, u32)> {
         self.best_source_of(item)
             .iter()
-            .filter_map(|s| match s {
-                ItemSource::Resource(r) => self.time_to_gather(r),
-                ItemSource::Monster(m) => self
-                    .time_to_kill(m)
-                    .map(|time| time * self.items.drop_rate(item)),
-                ItemSource::Craft => self.can_craft(item).is_ok().then_some(CRAFT_TIME),
-                ItemSource::TaskReward => Some(2000),
-                ItemSource::Task => Some(2000),
-                ItemSource::Npc(_) => Some(60),
+            .filter_map(|s| {
+                (match s {
+                    ItemSource::Resource(r) => self.time_to_gather(r),
+                    ItemSource::Monster(m) => self
+                        .time_to_kill(m)
+                        .map(|time| time * (m.effective_drop_rate_of(item) * 100.0) as u32),
+                    ItemSource::Craft => self.can_craft(item).is_ok().then_some(CRAFT_TIME),
+                    ItemSource::TaskReward => Some(2000),
+                    ItemSource::Task => Some(2000),
+                    ItemSource::Npc(_) => Some(60),
+                })
+                .map(|t| (s.clone(), t))
             })
-            .min()
+            .min_by_key(|(_, t)| *t)
     }
 
     pub fn time_to_kill(&self, monster: &MonsterSchema) -> Option<u32> {
@@ -1715,10 +1718,12 @@ impl CharacterController {
         if sources.iter().all(|s| s.is_resource() || s.is_monster()) {
             return sources
                 .iter()
-                .min_by_key(|s| match s {
-                    ItemSource::Resource(resource_schema) => resource_schema.drop_rate(code),
-                    ItemSource::Monster(monster_schema) => monster_schema.drop_rate(code),
-                    _ => None,
+                .min_by_key(|s| {
+                    OrderedFloat(match s {
+                        ItemSource::Resource(resource) => resource.drop_rate_of(code),
+                        ItemSource::Monster(monster) => monster.drop_rate_of(code),
+                        _ => 0.0,
+                    })
                 })
                 .cloned();
         }

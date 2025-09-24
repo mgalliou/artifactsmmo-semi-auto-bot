@@ -3,8 +3,11 @@ use crate::{
     gear_finder::GearFinder, leveling_helper::LevelingHelper, orderboard::OrderBoard,
 };
 use artifactsmmo_sdk::{
-    AccountClient, Client, CollectionClient, ItemContainer, ItemsClient, SpaceLimited,
-    character::HasCharacterData, items::ItemSchemaExt, models::ItemSchema, skill::Skill,
+    AccountClient, Client, CollectionClient, ItemContainer, ItemsClient, NpcsClient, SpaceLimited,
+    character::HasCharacterData,
+    items::{ItemSchemaExt, ItemSource},
+    models::ItemSchema,
+    skill::Skill,
 };
 use itertools::Itertools;
 use std::sync::{Arc, RwLock};
@@ -14,6 +17,7 @@ pub struct AccountController {
     config: Arc<BotConfig>,
     client: Arc<AccountClient>,
     items: Arc<ItemsClient>,
+    npcs: Arc<NpcsClient>,
     pub bank: Arc<BankController>,
     pub characters: RwLock<Vec<Arc<CharacterController>>>,
 }
@@ -23,6 +27,7 @@ impl AccountController {
         config: Arc<BotConfig>,
         client: Arc<AccountClient>,
         items: Arc<ItemsClient>,
+        npcs: Arc<NpcsClient>,
         bank: Arc<BankController>,
     ) -> Self {
         Self {
@@ -30,6 +35,7 @@ impl AccountController {
             client,
             items,
             bank,
+            npcs,
             characters: RwLock::new(vec![]),
         }
     }
@@ -126,16 +132,28 @@ impl AccountController {
             .unwrap_or(0)
     }
 
-    pub fn time_to_get(&self, item: &str) -> Option<u32> {
-        let item = self.items.get(item)?;
-        let mut time = self
+    pub fn time_to_get(&self, code: &str) -> Option<u32> {
+        let item = self.items.get(code)?;
+        let (source, mut time) = self
             .characters()
             .iter()
             .filter_map(|c| c.time_to_get(&item.code))
-            .min()?;
+            .min_by_key(|(_, t)| *t)?;
 
-        for mat in item.mats().iter() {
-            time += self.time_to_get(&mat.code)? * mat.quantity;
+        match source {
+            ItemSource::Npc(npc) => {
+                if let Some(npc_item) = self.npcs.items.get(&item.code)
+                    && npc_item.npc == npc.code
+                {
+                    time += self.time_to_get(&npc_item.currency)? * npc_item.buy_price? as u32
+                }
+            }
+            ItemSource::Craft => {
+                for mat in item.mats().iter() {
+                    time += self.time_to_get(&mat.code)? * mat.quantity;
+                }
+            }
+            _ => (),
         }
         Some(time)
     }

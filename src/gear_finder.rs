@@ -524,6 +524,8 @@ impl GearFinder {
             "sanguine_edge_of_rosen",
             "dreadful_battleaxe",
             "diamond_sword",
+            "diamond_amulet",
+            "ancestral_talisman",
             "corrupted_skull",
             "malefic_crystal",
             "malefic_ring",

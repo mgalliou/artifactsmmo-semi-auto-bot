@@ -31,6 +31,7 @@ impl Bot {
             config.clone(),
             client.account.clone(),
             client.items.clone(),
+            client.npcs.clone(),
             bank.clone(),
         ));
         Self {
