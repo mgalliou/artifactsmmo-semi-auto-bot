@@ -167,6 +167,8 @@ impl CharacterController {
                 }
                 Err(e) => error!("{}: failed to progress task as fallback: {e}", self.name()),
             }
+            warn!("{}: nothing to do, sleeping...", self.name());
+            sleep(Duration::from_secs(60));
         }
     }
 
