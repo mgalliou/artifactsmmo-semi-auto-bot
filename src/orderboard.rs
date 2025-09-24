@@ -130,9 +130,12 @@ impl OrderBoard {
         purpose: Purpose,
     ) -> Result<(), OrderError> {
         if let Some(order) = self.get(item, owner, &purpose) {
-            order.reset();
-            debug!("orderboard: order reseted: {order}");
-            Ok(())
+            if order.quantity() == quantity {
+                order.reset();
+                debug!("orderboard: order reseted: {order}");
+                return Ok(());
+            }
+            Err(OrderError::AlreadyExists)
         } else {
             self.add(item, quantity, owner, purpose)
         }

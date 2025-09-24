@@ -104,6 +104,7 @@ impl CharacterController {
             if self.config().is_idle() {
                 continue;
             }
+            self.maps.refresh_from_events();
             sleep(
                 self.client
                     .remaining_cooldown()
@@ -115,8 +116,9 @@ impl CharacterController {
                 }
                 continue;
             }
-            self.maps.refresh_from_events();
-            self.order_food();
+            if self.order_food() {
+                continue;
+            }
             if self.queue.commands().iter().any(|c| match c {
                 CharacterCommand::Craft { code, quantity } => {
                     self.craft_from_bank(code, *quantity).is_ok()
@@ -173,27 +175,23 @@ impl CharacterController {
     }
 
     fn handle_goals(&self) -> bool {
-        let goals = self.config().goals.clone();
-
-        // TODO: improve the way ReachSkillLevel is handled
-        goals.iter().any(|g| match g {
+        self.config().goals.iter().any(|g| match g {
             Goal::Events => false,
             Goal::Orders => self.handle_orderboard(),
-            Goal::ReachSkillLevel { skill, level } if self.skill_level(*skill) < *level => {
-                self.level_skill_up(*skill).is_ok()
+            Goal::ReachSkillLevel { skill, level } => {
+                self.skill_level(*skill) < *level && self.level_skill_up(*skill).is_ok()
             }
             Goal::FollowMaxSkillLevel {
                 skill,
                 skill_to_follow,
-            } if self.skill_level(*skill)
-                < min(
-                    1 + self.account.max_skill_level(*skill_to_follow),
-                    MAX_LEVEL,
-                ) =>
-            {
-                self.level_skill_up(*skill).is_ok()
+            } => {
+                self.skill_level(*skill)
+                    < min(
+                        1 + self.account.max_skill_level(*skill_to_follow),
+                        MAX_LEVEL,
+                    )
+                    && self.level_skill_up(*skill).is_ok()
             }
-            _ => false,
         })
     }
 
@@ -1426,9 +1424,9 @@ impl CharacterController {
         Ok(npc_item)
     }
 
-    fn order_food(&self) {
+    fn order_food(&self) -> bool {
         if !self.skill_enabled(Skill::Combat) {
-            return;
+            return false;
         }
         self.inventory.consumable_food().iter().for_each(|f| {
             if let Err(e) = self
@@ -1452,20 +1450,20 @@ impl CharacterController {
             .max_by_key(|(i, t)| *t / i.heal() as u32)
             .map(|(i, _)| i)
         else {
-            return;
+            return false;
         };
-        if self.bank.total_of(&best_food.code) < MIN_FOOD_THRESHOLD
-            && let Err(e) = self.order_board.add_or_reset(
-                &best_food.code,
-                self.account.fisher_max_items(),
-                None,
-                Purpose::Food {
-                    char: self.name().to_owned(),
-                },
-            )
-        {
-            error!("{} failed to add or reset food order: {e}", self.name())
-        }
+        self.bank.total_of(&best_food.code) < MIN_FOOD_THRESHOLD
+            && self
+                .order_board
+                .add_or_reset(
+                    &best_food.code,
+                    self.account.fisher_max_items(),
+                    None,
+                    Purpose::Food {
+                        char: self.name().to_owned(),
+                    },
+                )
+                .is_ok()
     }
 
     fn cleanup_bank(&self) -> Result<(), BankCleanupError> {
