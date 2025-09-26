@@ -130,7 +130,7 @@ impl OrderBoard {
         purpose: Purpose,
     ) -> Result<(), OrderError> {
         if let Some(order) = self.get(item, owner, &purpose) {
-            if order.quantity() == quantity {
+            if order.quantity() < quantity {
                 order.reset();
                 debug!("orderboard: order reseted: {order}");
                 return Ok(());
