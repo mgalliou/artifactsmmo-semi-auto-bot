@@ -1,7 +1,7 @@
 use crate::{account::AccountController, character::CharacterController};
 use artifactsmmo_sdk::{
-    CollectionClient, FROZEN_AXE, FROZEN_FISHING_ROD, FROZEN_GLOVES, FROZEN_PICKAXE, FightParams,
-    ItemsClient, Level, Simulator,
+    CanProvideXp, CollectionClient, FROZEN_AXE, FROZEN_FISHING_ROD, FROZEN_GLOVES, FROZEN_PICKAXE,
+    FightParams, ItemsClient, Level, MAX_LEVEL, Simulator,
     character::HasCharacterData,
     check_lvl_diff,
     gear::{Gear, Slot},
@@ -191,42 +191,34 @@ impl GearFinder {
         let armors = self
             .items
             .filtered(|i| !unique_items.contains(i) && self.is_eligible(i, r#type, filter, char));
-        let best_for_damage = best_armor_by(
+        if let Some(best) = best_armor_by(
             ArmorCriteria::DamageBoost { weapon, monster },
             &armors,
             char,
-        );
-        let best_reduction =
-            best_armor_by(ArmorCriteria::DamageReduction { monster }, &armors, char);
-        let best_health_increase = best_armor_by(ArmorCriteria::Health, &armors, char);
-        if let Some(best_for_damage) = best_for_damage {
-            bests.push(best_for_damage.clone());
+        ) {
+            bests.push(best.clone());
         }
-        if let Some(best_reduction) = best_reduction {
-            bests.push(best_reduction.clone());
+        if let Some(best) = best_armor_by(ArmorCriteria::DamageReduction { monster }, &armors, char)
+        {
+            bests.push(best.clone());
         }
         if r#type.is_artifact() {
-            let best_wisdom = best_armor_by(ArmorCriteria::Wisdom, &armors, char);
-            let best_prospecting = best_armor_by(ArmorCriteria::Prospecting, &armors, char);
-            if let Some(best_wisdom) = best_wisdom
-                && bests.iter().all(|u| u.wisdom() < best_wisdom.wisdom())
+            if let Some(best) = best_armor_by(ArmorCriteria::Prospecting, &armors, char)
+                && bests.iter().all(|u| u.prospecting() < best.prospecting())
             {
-                bests.push(best_wisdom.clone());
+                bests.push(best.clone());
             }
-            if let Some(best_prospecting) = best_prospecting
-                && bests
-                    .iter()
-                    .all(|u| u.prospecting() < best_prospecting.prospecting())
+            if monster.provides_xp_at(char.level())
+                && let Some(best) = best_armor_by(ArmorCriteria::Wisdom, &armors, char)
+                && bests.iter().all(|u| u.wisdom() < best.wisdom())
             {
-                bests.push(best_prospecting.clone());
+                bests.push(best.clone());
             }
         }
-        if let Some(best_health_increase) = best_health_increase
-            && bests
-                .iter()
-                .all(|u| u.health() < best_health_increase.health())
+        if let Some(best) = best_armor_by(ArmorCriteria::Health, &armors, char)
+            && bests.iter().all(|u| u.health() < best.health())
         {
-            bests.push(best_health_increase.clone());
+            bests.push(best.clone());
         }
         bests
             .into_iter()
@@ -247,26 +239,23 @@ impl GearFinder {
         let utilities = self
             .items
             .filtered(|i| self.is_eligible(i, Type::Utility, filter, char));
-        let best_damage_boost = best_armor_by(
+        if let Some(best) = best_armor_by(
             ArmorCriteria::DamageBoost { weapon, monster },
             &utilities,
             char,
-        );
-        let best_reduction =
-            best_armor_by(ArmorCriteria::DamageReduction { monster }, &utilities, char);
-        let best_health_increase = best_armor_by(ArmorCriteria::Health, &utilities, char);
-        let best_restore = best_armor_by(ArmorCriteria::Restore, &utilities, char);
-        if let Some(best_for_damage) = best_damage_boost {
-            bests.push(best_for_damage.clone());
+        ) {
+            bests.push(best.clone());
         }
-        if let Some(best_reduction) = best_reduction {
-            bests.push(best_reduction.clone());
+        if let Some(best) =
+            best_armor_by(ArmorCriteria::DamageReduction { monster }, &utilities, char)
+        {
+            bests.push(best.clone());
         }
-        if let Some(best_health_increase) = best_health_increase {
-            bests.push(best_health_increase.clone());
+        if let Some(best) = best_armor_by(ArmorCriteria::Health, &utilities, char) {
+            bests.push(best.clone());
         }
-        if let Some(best_restore) = best_restore {
-            bests.push(best_restore.clone());
+        if let Some(best) = best_armor_by(ArmorCriteria::Restore, &utilities, char) {
+            bests.push(best.clone());
         }
         bests
             .into_iter()
@@ -389,17 +378,20 @@ impl GearFinder {
         let armors = self.items.filtered(|i| {
             !unique_items.contains(i)
                 && self.is_eligible(i, r#type, filter, char)
-                && ((i.wisdom() > 0 && check_lvl_diff(char.skill_level(skill), skill_level))
-                    || (i.prospecting() > 0 && skill.is_gathering()))
+                && ((i.prospecting() > 0 && skill.is_gathering())
+                    || (i.wisdom() > 0
+                        && char.skill_level(skill) < MAX_LEVEL
+                        && check_lvl_diff(char.skill_level(skill), skill_level)))
         });
-        let best_for_wisdom = best_armor_by(ArmorCriteria::Wisdom, &armors, char);
-
-        let best_for_prospecting = best_armor_by(ArmorCriteria::Prospecting, &armors, char);
-        if let Some(best_for_wisdom) = best_for_wisdom {
-            bests.push(best_for_wisdom.clone());
+        if let Some(best) = best_armor_by(ArmorCriteria::Prospecting, &armors, char)
+            && bests.iter().all(|u| u.prospecting() < best.prospecting())
+        {
+            bests.push(best.clone());
         }
-        if let Some(best_for_prospecting) = best_for_prospecting {
-            bests.push(best_for_prospecting.clone());
+        if let Some(best) = best_armor_by(ArmorCriteria::Wisdom, &armors, char)
+            && bests.iter().all(|u| u.wisdom() < best.wisdom())
+        {
+            bests.push(best.clone());
         }
         bests
             .iter()
