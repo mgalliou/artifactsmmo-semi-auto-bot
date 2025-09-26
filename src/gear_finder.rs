@@ -92,7 +92,7 @@ impl GearFinder {
         monster: &MonsterSchema,
         filter: Filter,
         weapon: Arc<ItemSchema>,
-    ) -> impl IntoIterator<Item = Gear> {
+    ) -> impl Iterator<Item = Gear> {
         let mut items = [
             Type::Helmet,
             Type::Shield,
@@ -134,7 +134,7 @@ impl GearFinder {
         if let Some(bag) = self.best_bag(char, filter) {
             items.push(vec![ItemWrapper::Armor(Some(bag))]);
         }
-        self.gen_all_gears(Some(weapon.clone()), &items)
+        self.gen_all_gears(Some(weapon.clone()), items)
     }
 
     fn gen_combat_ring_sets(
@@ -286,7 +286,6 @@ impl GearFinder {
             return None;
         }
         self.gen_skill_gears(char, skill, item.level(), filter, false)
-            .into_iter()
             .max_set_by_key(|g| g.wisdom())
             .into_iter()
             .max_by_key(|g| g.prospecting())
@@ -301,7 +300,6 @@ impl GearFinder {
         let skill = resource.skill;
         let level = resource.level();
         self.gen_skill_gears(char, skill.into(), level, filter, true)
-            .into_iter()
             .max_set_by_key(|g| g.prospecting())
             .into_iter()
             .max_by_key(|g| g.wisdom())
@@ -314,7 +312,7 @@ impl GearFinder {
         skill_level: u32,
         filter: Filter,
         with_tool: bool,
-    ) -> Vec<Gear> {
+    ) -> impl Iterator<Item = Gear> {
         let armor_types = [
             Type::Helmet,
             Type::Shield,
@@ -350,7 +348,7 @@ impl GearFinder {
         if let Some(bag) = self.best_bag(char, filter) {
             items.push(vec![ItemWrapper::Armor(Some(bag))]);
         }
-        self.gen_all_gears(tool, &items)
+        self.gen_all_gears(tool, items)
     }
 
     fn best_tool(
@@ -435,12 +433,12 @@ impl GearFinder {
     fn gen_all_gears(
         &self,
         weapon: Option<Arc<ItemSchema>>,
-        items: &[Vec<ItemWrapper>],
-    ) -> Vec<Gear> {
+        items: Vec<Vec<ItemWrapper>>,
+    ) -> impl Iterator<Item = Gear> {
         items
-            .iter()
+            .into_iter()
             .multi_cartesian_product()
-            .filter_map(|items| {
+            .filter_map(move |items| {
                 Gear::new(
                     weapon.clone(),
                     self.item_from_wrappers(&items, Slot::Helmet),
@@ -460,7 +458,6 @@ impl GearFinder {
                     self.item_from_wrappers(&items, Slot::Bag),
                 )
             })
-            .collect_vec()
     }
 
     fn best_bag(&self, char: &CharacterController, filter: Filter) -> Option<Arc<ItemSchema>> {
@@ -470,7 +467,7 @@ impl GearFinder {
         bags.into_iter().max_by_key(|i| i.inventory_space())
     }
 
-    fn item_from_wrappers(&self, wrappers: &[&ItemWrapper], slot: Slot) -> Option<Arc<ItemSchema>> {
+    fn item_from_wrappers(&self, wrappers: &[ItemWrapper], slot: Slot) -> Option<Arc<ItemSchema>> {
         wrappers.iter().find_map(|w| {
             match w {
                 ItemWrapper::Armor(armor) => armor,
