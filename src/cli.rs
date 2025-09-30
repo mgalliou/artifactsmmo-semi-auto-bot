@@ -175,7 +175,7 @@ fn respond(
             let Some(char) = character else {
                 bail!("no character selected");
             };
-            char.queue.add(CharacterCommand::Craft {
+            char.queue.push(CharacterCommand::Craft {
                 code: item,
                 quantity,
             });
@@ -184,7 +184,7 @@ fn respond(
             let Some(char) = character else {
                 bail!("no character selected");
             };
-            char.queue.add(CharacterCommand::Recycle {
+            char.queue.push(CharacterCommand::Recycle {
                 code: item.to_owned(),
                 quantity,
             });
@@ -193,7 +193,7 @@ fn respond(
             let Some(char) = character else {
                 bail!("no character selected");
             };
-            char.queue.add(CharacterCommand::Delete {
+            char.queue.push(CharacterCommand::Delete {
                 code: item,
                 quantity,
             });

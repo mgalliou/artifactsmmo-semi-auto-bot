@@ -119,24 +119,30 @@ impl CharacterController {
             if self.order_food() {
                 continue;
             }
-            if self.queue.commands().iter().any(|c| match c {
-                CharacterCommand::Craft { code, quantity } => {
-                    self.craft_from_bank(code, *quantity).is_ok()
-                }
-                CharacterCommand::Kill { monster } => self.kill_monster(monster).is_ok(),
-                CharacterCommand::Gather { resource } => self.gather_resource(resource).is_ok(),
-                CharacterCommand::Recycle { code, quantity } => {
-                    self.recycle_item(code, *quantity).is_ok()
-                }
-                CharacterCommand::Delete { code, quantity } => {
-                    self.delete_item(code, *quantity).is_ok()
-                }
-                CharacterCommand::BuyItem { code, quantity } => {
-                    self.buy_item(code, *quantity).is_ok()
-                }
-                CharacterCommand::SellItem { code, quantity } => {
-                    self.sell_item(code, *quantity).is_ok()
-                }
+            if self.queue.commands().iter().any(|c| {
+                let is_ok = match &c.command {
+                    CharacterCommand::Craft { code, quantity } => {
+                        self.craft_from_bank(code, *quantity).is_ok()
+                    }
+                    CharacterCommand::Kill { monster } => self.kill_monster(monster).is_ok(),
+                    CharacterCommand::Gather { resource } => self.gather_resource(resource).is_ok(),
+                    CharacterCommand::Recycle { code, quantity } => {
+                        self.recycle_item(code, *quantity).is_ok()
+                    }
+                    CharacterCommand::Delete { code, quantity } => {
+                        self.delete_item(code, *quantity).is_ok()
+                    }
+                    CharacterCommand::BuyItem { code, quantity } => {
+                        self.buy_item(code, *quantity).is_ok()
+                    }
+                    CharacterCommand::SellItem { code, quantity } => {
+                        self.sell_item(code, *quantity).is_ok()
+                    }
+                };
+                if is_ok {
+                    self.queue.remove(c)
+                };
+                is_ok
             }) {
                 continue;
             }
@@ -522,7 +528,7 @@ impl CharacterController {
         let quantity = min(self.task_missing(), self.inventory.max_items());
         self.lock_in_inventory(&self.task(), quantity)?;
         self.move_to_closest_taskmaster(self.task_type())?;
-        let res = self.client.task_trade(&self.task(), quantity);
+        let res = self.client.trade_task_item(&self.task(), quantity);
         self.inventory.decrease_reservation(&self.task(), quantity);
         Ok(res?)
     }
@@ -596,7 +602,7 @@ impl CharacterController {
         quantity = quantity.saturating_sub(quantity % TASK_EXCHANGE_PRICE);
         self.lock_in_inventory(TASKS_COIN, quantity)?;
         self.move_to_closest_taskmaster(self.task_type())?;
-        let result = self.client.exchange_tasks_coin().map_err(|e| e.into());
+        let result = self.client.exchange_tasks_coins().map_err(|e| e.into());
         self.inventory
             .decrease_reservation(TASKS_COIN, TASK_EXCHANGE_PRICE);
         result
@@ -1330,7 +1336,7 @@ impl CharacterController {
         if self.inventory.total_of(item_code) < quantity {
             return Err(UseItemCommandError::InsufficientQuantity);
         }
-        self.client.r#use(item_code, quantity)?;
+        self.client.use_item(item_code, quantity)?;
         self.inventory.decrease_reservation(item_code, quantity);
         Ok(())
     }

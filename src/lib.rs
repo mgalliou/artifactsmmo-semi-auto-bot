@@ -5,9 +5,13 @@ use artifactsmmo_sdk::{
     },
     models::{MonsterSchema, ResourceSchema},
 };
-use std::sync::{
-    Arc, RwLock,
-    atomic::{AtomicU32, Ordering::SeqCst},
+use chrono::{DateTime, Utc};
+use std::{
+    collections::VecDeque,
+    sync::{
+        Arc, RwLock,
+        atomic::{AtomicU32, Ordering::SeqCst},
+    },
 };
 
 pub mod account;
@@ -116,7 +120,7 @@ impl From<(&str, &str)> for BankDiscriminant {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum CharacterCommand {
     Craft { code: String, quantity: u32 },
     Kill { monster: Arc<MonsterSchema> },
@@ -127,23 +131,40 @@ pub enum CharacterCommand {
     SellItem { code: String, quantity: u32 },
 }
 
+#[derive(Clone)]
+pub struct CommandWrapper {
+    command: CharacterCommand,
+    creation: DateTime<Utc>,
+}
+
 #[derive(Default)]
 pub struct CommandQueue {
-    commands: RwLock<Vec<CharacterCommand>>,
+    commands: RwLock<VecDeque<CommandWrapper>>,
 }
 
 impl CommandQueue {
     pub fn new() -> Self {
         Self {
-            commands: RwLock::new(vec![]),
+            commands: Default::default(),
         }
     }
 
-    pub fn add(&self, command: CharacterCommand) {
-        self.commands.write().unwrap().push(command);
+    pub fn push(&self, command: CharacterCommand) {
+        let cmd = CommandWrapper {
+            command,
+            creation: Utc::now(),
+        };
+        self.commands.write().unwrap().push_back(cmd);
     }
 
-    pub fn commands(&self) -> Vec<CharacterCommand> {
+    pub fn remove(&self, other: &CommandWrapper) {
+        self.commands
+            .write()
+            .unwrap()
+            .retain(|c| c.creation != other.creation && c.command == other.command);
+    }
+
+    pub fn commands(&self) -> Vec<CommandWrapper> {
         self.commands.read().unwrap().iter().cloned().collect()
     }
 }
