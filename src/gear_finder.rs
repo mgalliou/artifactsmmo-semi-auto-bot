@@ -145,14 +145,14 @@ impl GearFinder {
         filter: Filter,
     ) -> Vec<ItemWrapper> {
         let rings = self.best_combat_armors(char, monster, weapon, Type::Ring, filter, &[]);
-        let single_rings = rings
+        let unique_rings = rings
             .iter()
             .flatten()
-            .filter(|i| filter.available_only && char.has_available(&i.code) <= 1)
+            .filter(|i| filter.available_only && char.has_available(&i.code) == 1)
             .cloned()
             .collect_vec();
         let rings2 =
-            self.best_combat_armors(char, monster, weapon, Type::Ring, filter, &single_rings);
+            self.best_combat_armors(char, monster, weapon, Type::Ring, filter, &unique_rings);
         gen_ring_sets(rings, rings2)
     }
 
