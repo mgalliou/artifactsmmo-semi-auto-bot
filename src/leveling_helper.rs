@@ -93,7 +93,7 @@ impl LevelingHelper {
                         i,
                         mats_with_ttg
                             .iter()
-                            .filter_map(|(m, ttg)| ttg.as_ref().map(|ttg| (ttg * m.quantity)))
+                            .filter_map(|(m, ttg)| ttg.as_ref().map(|ttg| ttg * m.quantity))
                             .sum::<u32>(),
                     ))
             })

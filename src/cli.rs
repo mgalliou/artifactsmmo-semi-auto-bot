@@ -314,8 +314,8 @@ fn respond(
             let Some(char) = character else {
                 bail!("no character selected");
             };
-            let (x, y) = char.position();
-            println!("{:?}", bot.client.maps.get(x, y).unwrap());
+            let (layer, x, y) = char.position();
+            println!("{:?}", bot.client.maps.get(layer, x, y).unwrap());
         }
         Commands::Task => {
             let Some(char) = character else {

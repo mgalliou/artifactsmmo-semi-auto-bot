@@ -23,8 +23,8 @@ use crate::{
 };
 use anyhow::Result;
 use artifactsmmo_sdk::{
-    Client, CollectionClient, DropsItems, HasDrops, ItemContainer, ItemsClient, Level,
-    LimitedContainer, MapsClient, MonstersClient, NpcsClient, SimpleItemSchemas, Simulator,
+    Client, CollectionClient, DropsItems, HasConditions, HasDrops, ItemContainer, ItemsClient,
+    Level, LimitedContainer, MapsClient, MonstersClient, NpcsClient, SimpleItemSchemas, Simulator,
     SlotLimited, SpaceLimited, TasksClient,
     bank::Bank,
     character::{CharacterClient, HasCharacterData, error::RestError},
@@ -36,7 +36,7 @@ use artifactsmmo_sdk::{
     items::{ItemSchemaExt, ItemSource},
     maps::MapSchemaExt,
     models::{
-        CharacterSchema, DropSchema, FightSchema, ItemSchema, MapContentType, MapSchema,
+        CharacterFightSchema, CharacterSchema, DropSchema, ItemSchema, MapContentType, MapSchema,
         MonsterSchema, NpcItem, RecyclingItemsSchema, ResourceSchema, RewardsSchema,
         SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
     },
@@ -510,7 +510,11 @@ impl CharacterController {
             })?);
         };
         match self.kill_monster(&monster) {
-            Ok(r) => Ok(r.drops),
+            Ok(fight) => Ok(fight
+                .characters
+                .iter()
+                .flat_map(|c| c.drops.clone())
+                .collect_vec()),
             Err(KillMonsterCommandError::GearTooWeak { monster_code }) => {
                 warn!(
                     "{}: no gear powerfull enough to kill {monster_code}",
@@ -628,7 +632,7 @@ impl CharacterController {
     fn kill_monster(
         &self,
         monster: &MonsterSchema,
-    ) -> Result<FightSchema, KillMonsterCommandError> {
+    ) -> Result<CharacterFightSchema, KillMonsterCommandError> {
         self.can_fight(monster)?;
         if let Ok(_) | Err(TaskCompletionCommandError::NoTask) = self.complete_task() {
             self.accept_task(TaskType::Monsters)?;
@@ -654,7 +658,7 @@ impl CharacterController {
             self.rest()?;
         }
         self.move_to_closest_map_with_content_code(&monster.code)?;
-        Ok(self.client.fight()?)
+        Ok(self.client.fight(None)?)
     }
 
     fn rest(&self) -> Result<u32, RestError> {
@@ -1304,7 +1308,7 @@ impl CharacterController {
     }
 
     fn r#move(&self, x: i32, y: i32) -> Result<Arc<MapSchema>, MoveCommandError> {
-        if self.position() == (x, y) {
+        if self.position() == (self.position().0, x, y) {
             return Ok(self.current_map());
         }
         Ok(self.client.r#move(x, y)?)
@@ -1499,7 +1503,7 @@ impl CharacterController {
 
     fn recycle_or_sell_if_necessary(&self, item: &SimpleItemSchema) -> bool {
         if self.items.upgrades_of(&item.code).iter().any(|upgrade| {
-            if upgrade.is_gear()
+            if upgrade.is_equipable()
                 && !upgrade.r#type().is_utility()
                 && self.account.meets_conditions(upgrade) >= 5
                 && self.account.total_of(&upgrade.code)
@@ -1519,7 +1523,7 @@ impl CharacterController {
         let total = self.account.total_of(&item.code);
         let max_quantity: u32 = if item.r#type().is_ring() { 10 } else { 5 };
         let surplus = total.saturating_sub(max_quantity);
-        item.is_gear()
+        item.is_equipable()
             && !item.r#type().is_utility()
             && surplus > 0
             && (self.recycle_item(&item.code, surplus).is_ok()
@@ -1555,7 +1559,7 @@ impl CharacterController {
         if self.items.get(item).is_some_and(|i| {
             let total = self.account.total_of(item);
             let max = if i.r#type().is_ring() { 10 } else { 5 };
-            i.is_gear()
+            i.is_equipable()
                 && !i.r#type().is_utility()
                 && (total + self.order_board.quantity_ordered(item) + quantity) > max
         }) {
@@ -1742,6 +1746,10 @@ impl CharacterController {
 
     pub fn current_map(&self) -> Arc<MapSchema> {
         self.client.current_map()
+    }
+
+    pub fn meets_conditions_for(&self, entity: &impl HasConditions) -> bool {
+        self.client.meets_conditions_for(entity)
     }
 
     pub fn skill_enabled(&self, s: Skill) -> bool {
