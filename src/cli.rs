@@ -175,28 +175,28 @@ fn respond(
             let Some(char) = character else {
                 bail!("no character selected");
             };
-            char.queue.push(CharacterCommand::Craft {
+            char.send_cmd(CharacterCommand::Craft {
                 code: item,
                 quantity,
-            });
+            })?;
         }
         Commands::Recycle { item, quantity } => {
             let Some(char) = character else {
                 bail!("no character selected");
             };
-            char.queue.push(CharacterCommand::Recycle {
+            char.send_cmd(CharacterCommand::Recycle {
                 code: item.to_owned(),
                 quantity,
-            });
+            })?;
         }
         Commands::Delete { item, quantity } => {
             let Some(char) = character else {
                 bail!("no character selected");
             };
-            char.queue.push(CharacterCommand::Delete {
+            char.send_cmd(CharacterCommand::Delete {
                 code: item,
                 quantity,
-            });
+            })?;
         }
         Commands::Gear {
             available_only,
