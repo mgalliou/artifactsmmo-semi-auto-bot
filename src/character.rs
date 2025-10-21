@@ -1,5 +1,5 @@
 use crate::{
-    CharacterCommand, CommandQueue, FOOD_ORDER_BLACKLIST, HasReservation, MIN_COIN_THRESHOLD,
+    CharacterCommand, FOOD_ORDER_BLACKLIST, HasReservation, MIN_COIN_THRESHOLD,
     MIN_FOOD_THRESHOLD,
     account::AccountController,
     bank::{BankController, BankReservationError},
@@ -23,36 +23,26 @@ use crate::{
 };
 use anyhow::Result;
 use artifactsmmo_sdk::{
-    Client, CollectionClient, DropsItems, HasConditions, HasDrops, ItemContainer, ItemsClient,
-    Level, LimitedContainer, MapsClient, MonstersClient, NpcsClient, SimpleItemSchemas, Simulator,
-    SlotLimited, SpaceLimited, TasksClient,
-    bank::Bank,
-    character::{CharacterClient, HasCharacterData, error::RestError},
-    consts::{
-        BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, GOLDEN_EGG, GOLDEN_SHRIMP, MAX_LEVEL,
-        TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE, TASKS_COIN,
-    },
-    gear::{Gear, Slot},
-    items::{ItemSchemaExt, ItemSource},
-    maps::MapSchemaExt,
-    models::{
+    bank::Bank, character::{error::RestError, CharacterClient, HasCharacterData}, consts::{
+        BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, GOLDEN_EGG, GOLDEN_SHRIMP, MAX_LEVEL, TASKS_COIN, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE
+    }, gather_cd, gear::{Gear, Slot}, items::{ItemSchemaExt, ItemSource}, maps::MapSchemaExt, models::{
         CharacterFightSchema, CharacterSchema, DropSchema, ItemSchema, MapContentType, MapSchema,
         MonsterSchema, NpcItem, RecyclingItemsSchema, ResourceSchema, RewardsSchema,
         SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
-    },
-    npcs_items::NpcItemExt,
-    simulator::HasEffects,
-    skill::Skill,
-    tasks::TaskFullSchemaExt,
+    }, npcs_items::NpcItemExt, simulator::HasEffects, skill::Skill, tasks::TaskFullSchemaExt, time_to_rest, Client, CollectionClient, DropsItems, HasConditions, HasDrops, ItemContainer, ItemsClient, Level, LimitedContainer, MapsClient, MonstersClient, NpcsClient, SimpleItemSchemas, Simulator, SlotLimited, SpaceLimited, TasksClient
 };
 use itertools::Itertools;
 use log::{debug, error, info, warn};
 use ordered_float::OrderedFloat;
-use std::time::Duration;
-use std::{cmp::min, option::Option, sync::Arc, thread::sleep};
+use std::{
+    cmp::min, option::Option, sync::{mpsc::{channel, SendError}, Arc, Mutex}, thread::sleep
+};
+use std::{
+    sync::mpsc::{Receiver, Sender},
+    time::Duration,
+};
 use strum::IntoEnumIterator;
 
-#[derive(Default)]
 pub struct CharacterController {
     client: Arc<CharacterClient>,
     bot_config: Arc<BotConfig>,
@@ -67,7 +57,8 @@ pub struct CharacterController {
     order_board: Arc<OrderBoard>,
     gear_finder: Arc<GearFinder>,
     leveling_helper: Arc<LevelingHelper>,
-    pub queue: CommandQueue,
+    commands_sendr: Arc<Sender<CharacterCommand>>,
+    commands_recvr: Arc<Mutex<Receiver<CharacterCommand>>>,
 }
 
 impl CharacterController {
@@ -80,6 +71,7 @@ impl CharacterController {
         gear_finder: Arc<GearFinder>,
         leveling_helper: Arc<LevelingHelper>,
     ) -> Self {
+        let (tx, rx) = channel();
         Self {
             client: char_client.clone(),
             bot_config: bot_cfg,
@@ -94,7 +86,8 @@ impl CharacterController {
             order_board,
             gear_finder,
             leveling_helper,
-            queue: CommandQueue::new(),
+            commands_sendr: Arc::new(tx),
+            commands_recvr: Arc::new(Mutex::new(rx)),
         }
     }
 
@@ -119,31 +112,31 @@ impl CharacterController {
             if self.order_food() {
                 continue;
             }
-            if self.queue.commands().iter().any(|c| {
-                let is_ok = match &c.command {
-                    CharacterCommand::Craft { code, quantity } => {
-                        self.craft_from_bank(code, *quantity).is_ok()
+            if let Ok(c) = self.commands_recvr.lock().unwrap().try_recv()
+                && {
+                    match &c {
+                        CharacterCommand::Craft { code, quantity } => {
+                            self.craft_from_bank(code, *quantity).is_ok()
+                        }
+                        CharacterCommand::Kill { monster } => self.kill_monster(monster).is_ok(),
+                        CharacterCommand::Gather { resource } => {
+                            self.gather_resource(resource).is_ok()
+                        }
+                        CharacterCommand::Recycle { code, quantity } => {
+                            self.recycle_item(code, *quantity).is_ok()
+                        }
+                        CharacterCommand::Delete { code, quantity } => {
+                            self.delete_item(code, *quantity).is_ok()
+                        }
+                        CharacterCommand::BuyItem { code, quantity } => {
+                            self.buy_item(code, *quantity).is_ok()
+                        }
+                        CharacterCommand::SellItem { code, quantity } => {
+                            self.sell_item(code, *quantity).is_ok()
+                        }
                     }
-                    CharacterCommand::Kill { monster } => self.kill_monster(monster).is_ok(),
-                    CharacterCommand::Gather { resource } => self.gather_resource(resource).is_ok(),
-                    CharacterCommand::Recycle { code, quantity } => {
-                        self.recycle_item(code, *quantity).is_ok()
-                    }
-                    CharacterCommand::Delete { code, quantity } => {
-                        self.delete_item(code, *quantity).is_ok()
-                    }
-                    CharacterCommand::BuyItem { code, quantity } => {
-                        self.buy_item(code, *quantity).is_ok()
-                    }
-                    CharacterCommand::SellItem { code, quantity } => {
-                        self.sell_item(code, *quantity).is_ok()
-                    }
-                };
-                if is_ok {
-                    self.queue.remove(c)
-                };
-                is_ok
-            }) {
+                }
+            {
                 continue;
             }
             if self.cleanup_bank().is_ok() {
@@ -178,6 +171,10 @@ impl CharacterController {
             warn!("{}: nothing to do, sleeping...", self.name());
             sleep(Duration::from_secs(60));
         }
+    }
+
+    pub fn send_cmd(&self, cmd: CharacterCommand) -> Result<(), SendError<CharacterCommand>> {
+        self.commands_sendr.send(cmd)
     }
 
     fn handle_goals(&self) -> bool {
@@ -1323,7 +1320,7 @@ impl CharacterController {
                 // TODO: improve logic to eat different foods to restore more hp
                 let mut quantity = (self.missing_hp() / f.heal()) as u32;
                 if self.account.time_to_get(&f.code).is_some_and(|t| {
-                    t * quantity < Simulator::time_to_rest(self.missing_hp() as u32)
+                    t * quantity < time_to_rest(self.missing_hp() as u32)
                 }) {
                     quantity += 1;
                 };
@@ -1456,7 +1453,7 @@ impl CharacterController {
             })
             .into_iter()
             .filter_map(|i| self.account.time_to_get(&i.code).map(|t| (i, t)))
-            .filter(|(i, t)| *t < Simulator::time_to_rest(i.heal() as u32))
+            .filter(|(i, t)| *t < time_to_rest(i.heal() as u32))
             .max_by_key(|(i, t)| *t / i.heal() as u32)
             .map(|(i, _)| i)
         else {
@@ -1659,7 +1656,7 @@ impl CharacterController {
                     .map(|w| w.skill_cooldown_reduction(resource.skill.into()))
             })
             .unwrap_or(0);
-        Some(Simulator::gather_cd(resource.level(), reduction))
+        Some(gather_cd(resource.level(), reduction))
     }
 
     /// Calculates the maximum number of items that can be crafted in one go based on
