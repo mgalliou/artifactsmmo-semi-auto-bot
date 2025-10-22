@@ -1,6 +1,5 @@
 use crate::{
-    CharacterCommand, FOOD_ORDER_BLACKLIST, HasReservation, MIN_COIN_THRESHOLD,
-    MIN_FOOD_THRESHOLD,
+    CharacterCommand, FOOD_ORDER_BLACKLIST, HasReservation, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
     account::AccountController,
     bank::{BankController, BankReservationError},
     bot_config::{BotConfig, CharConfig, Goal},
@@ -23,19 +22,41 @@ use crate::{
 };
 use anyhow::Result;
 use artifactsmmo_sdk::{
-    bank::Bank, character::{error::RestError, CharacterClient, HasCharacterData}, consts::{
-        BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, GOLDEN_EGG, GOLDEN_SHRIMP, MAX_LEVEL, TASKS_COIN, TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE
-    }, gather_cd, gear::{Gear, Slot}, items::{ItemSchemaExt, ItemSource}, maps::MapSchemaExt, models::{
+    Client, CollectionClient, DropsItems, HasConditions, HasDrops, ItemContainer, ItemsClient,
+    Level, LimitedContainer, MapsClient, MonstersClient, NpcsClient, SimpleItemSchemas, Simulator,
+    SlotLimited, SpaceLimited, TasksClient,
+    bank::Bank,
+    character::{CharacterClient, HasCharacterData, error::RestError},
+    consts::{
+        BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, GOLDEN_EGG, GOLDEN_SHRIMP, MAX_LEVEL,
+        TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE, TASKS_COIN,
+    },
+    gather_cd,
+    gear::{Gear, Slot},
+    items::{ItemSchemaExt, ItemSource},
+    maps::MapSchemaExt,
+    models::{
         CharacterFightSchema, CharacterSchema, DropSchema, ItemSchema, MapContentType, MapSchema,
         MonsterSchema, NpcItem, RecyclingItemsSchema, ResourceSchema, RewardsSchema,
         SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
-    }, npcs_items::NpcItemExt, simulator::HasEffects, skill::Skill, tasks::TaskFullSchemaExt, time_to_rest, Client, CollectionClient, DropsItems, HasConditions, HasDrops, ItemContainer, ItemsClient, Level, LimitedContainer, MapsClient, MonstersClient, NpcsClient, SimpleItemSchemas, Simulator, SlotLimited, SpaceLimited, TasksClient
+    },
+    npcs_items::NpcItemExt,
+    simulator::HasEffects,
+    skill::Skill,
+    tasks::TaskFullSchemaExt,
+    time_to_rest,
 };
 use itertools::Itertools;
 use log::{debug, error, info, warn};
 use ordered_float::OrderedFloat;
 use std::{
-    cmp::min, option::Option, sync::{mpsc::{channel, SendError}, Arc, Mutex}, thread::sleep
+    cmp::min,
+    option::Option,
+    sync::{
+        Arc, Mutex,
+        mpsc::{SendError, channel},
+    },
+    thread::sleep,
 };
 use std::{
     sync::mpsc::{Receiver, Sender},
@@ -424,10 +445,12 @@ impl CharacterController {
         &self,
         order: &Order,
     ) -> Result<u32, TasksCoinExchangeOrderProgressionError> {
-        match self.can_exchange_task() {
+        match self.can_exchange_tasks_coins() {
             Ok(()) => {
                 order.inc_in_progress(1);
-                let exchanged = self.exchange_task().map(|r| r.amount_of(&order.item));
+                let exchanged = self
+                    .exchange_tasks_coins()
+                    .map(|r| r.amount_of(&order.item));
                 order.dec_in_progress(1);
                 Ok(exchanged?)
             }
@@ -581,7 +604,7 @@ impl CharacterController {
         Ok(self.client.complete_task()?)
     }
 
-    fn can_exchange_task(&self) -> Result<(), TasksCoinExchangeCommandError> {
+    fn can_exchange_tasks_coins(&self) -> Result<(), TasksCoinExchangeCommandError> {
         let available = self.has_in_bank_or_inv(TASKS_COIN);
         let min = TASK_EXCHANGE_PRICE + MIN_COIN_THRESHOLD;
         let mut missing = min.saturating_sub(available);
@@ -594,14 +617,16 @@ impl CharacterController {
         Ok(())
     }
 
-    fn exchange_task(&self) -> Result<RewardsSchema, TasksCoinExchangeCommandError> {
-        self.can_exchange_task()?;
+    fn exchange_tasks_coins(&self) -> Result<RewardsSchema, TasksCoinExchangeCommandError> {
+        self.can_exchange_tasks_coins()?;
         let mut quantity = min(
             self.inventory.max_items() / 2,
             self.bank.has_available(TASKS_COIN, &self.name()),
         );
         quantity = quantity.saturating_sub(quantity % TASK_EXCHANGE_PRICE);
-        self.lock_in_inventory(TASKS_COIN, quantity)?;
+        if self.inventory().total_of(TASKS_COIN) < TASK_EXCHANGE_PRICE {
+            self.lock_in_inventory(TASKS_COIN, quantity)?;
+        }
         self.move_to_closest_taskmaster(self.task_type())?;
         let result = self.client.exchange_tasks_coins().map_err(|e| e.into());
         self.inventory
@@ -1319,9 +1344,11 @@ impl CharacterController {
             .for_each(|f| {
                 // TODO: improve logic to eat different foods to restore more hp
                 let mut quantity = (self.missing_hp() / f.heal()) as u32;
-                if self.account.time_to_get(&f.code).is_some_and(|t| {
-                    t * quantity < time_to_rest(self.missing_hp() as u32)
-                }) {
+                if self
+                    .account
+                    .time_to_get(&f.code)
+                    .is_some_and(|t| t * quantity < time_to_rest(self.missing_hp() as u32))
+                {
                     quantity += 1;
                 };
                 if quantity > 0 {
