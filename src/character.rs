@@ -134,27 +134,23 @@ impl CharacterController {
                 continue;
             }
             if let Ok(c) = self.commands_recvr.lock().unwrap().try_recv()
-                && {
-                    match &c {
-                        CharacterCommand::Craft { code, quantity } => {
-                            self.craft_from_bank(code, *quantity).is_ok()
-                        }
-                        CharacterCommand::Kill { monster } => self.kill_monster(monster).is_ok(),
-                        CharacterCommand::Gather { resource } => {
-                            self.gather_resource(resource).is_ok()
-                        }
-                        CharacterCommand::Recycle { code, quantity } => {
-                            self.recycle_item(code, *quantity).is_ok()
-                        }
-                        CharacterCommand::Delete { code, quantity } => {
-                            self.delete_item(code, *quantity).is_ok()
-                        }
-                        CharacterCommand::BuyItem { code, quantity } => {
-                            self.buy_item(code, *quantity).is_ok()
-                        }
-                        CharacterCommand::SellItem { code, quantity } => {
-                            self.sell_item(code, *quantity).is_ok()
-                        }
+                && match &c {
+                    CharacterCommand::Craft { code, quantity } => {
+                        self.craft(code, *quantity).is_ok()
+                    }
+                    CharacterCommand::Kill { monster } => self.kill_monster(monster).is_ok(),
+                    CharacterCommand::Gather { resource } => self.gather_resource(resource).is_ok(),
+                    CharacterCommand::Recycle { code, quantity } => {
+                        self.recycle_item(code, *quantity).is_ok()
+                    }
+                    CharacterCommand::Delete { code, quantity } => {
+                        self.delete_item(code, *quantity).is_ok()
+                    }
+                    CharacterCommand::BuyItem { code, quantity } => {
+                        self.buy_item(code, *quantity).is_ok()
+                    }
+                    CharacterCommand::SellItem { code, quantity } => {
+                        self.sell_item(code, *quantity).is_ok()
                     }
                 }
             {
