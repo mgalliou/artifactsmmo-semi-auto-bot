@@ -257,18 +257,7 @@ impl CharacterController {
         };
         let quantity = self.max_craftable_items(&item.code);
         match self.craft(&item.code, quantity) {
-            Ok(_) => {
-                if !skill.is_gathering()
-                    && !skill.is_cooking()
-                    && let Err(e) = self.recycle_item(&item.code, quantity)
-                {
-                    error!(
-                        "{}: failed recycling crafted items for leveling: {e}",
-                        self.name()
-                    )
-                };
-                Ok(())
-            }
+            Ok(_) => Ok(()),
             Err(CraftCommandError::InsufficientMaterials(missing_mats))
                 if !skill.is_gathering()
                     || skill.is_alchemy()
