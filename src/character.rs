@@ -256,7 +256,7 @@ impl CharacterController {
             return Err(CraftSkillLevelingError::ItemNotFound);
         };
         let quantity = self.max_craftable_items(&item.code);
-        match self.craft_from_bank(&item.code, quantity) {
+        match self.craft(&item.code, quantity) {
             Ok(_) => {
                 if !skill.is_gathering()
                     && !skill.is_cooking()
@@ -425,7 +425,7 @@ impl CharacterController {
         match self.can_craft_now(&order.item, quantity) {
             Ok(_) => {
                 order.inc_in_progress(quantity);
-                let result = self.craft_from_bank(&order.item, quantity);
+                let result = self.craft(&order.item, quantity);
                 order.dec_in_progress(quantity);
                 Ok(result.map(|craft| craft.amount_of(&order.item))?)
             }
@@ -811,7 +811,7 @@ impl CharacterController {
     /// Crafts the given `quantity` of the given item `code` if the required
     /// materials to craft them in one go are available in bank and deposit the crafted
     /// items into the bank.
-    pub fn craft_from_bank(
+    pub fn craft(
         &self,
         item: &str,
         quantity: u32,
@@ -1732,7 +1732,7 @@ impl CharacterController {
     }
 
     pub fn best_source_of(&self, code: &str) -> Option<ItemSource> {
-        let sources = self
+        let mut sources = self
             .items
             .sources_of(code)
             .into_iter()
@@ -1749,6 +1749,12 @@ impl CharacterController {
                 _ => true,
             })
             .collect_vec();
+        if sources
+            .iter()
+            .all(|s| s.is_npc() && (s.is_resource() || s.is_monster()))
+        {
+            sources.retain(|s| !s.is_npc());
+        }
         if sources.iter().all(|s| s.is_resource() || s.is_monster()) {
             return sources
                 .iter()
