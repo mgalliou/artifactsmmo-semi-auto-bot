@@ -105,12 +105,8 @@ impl LevelingHelper {
     pub fn best_crafts_hardcoded(&self, level: u32, skill: Skill) -> Vec<Arc<ItemSchema>> {
         match skill {
             Skill::Gearcrafting => {
-                if level >= 20 {
+                if level >= 5 {
                     return self.best_crafts(level, skill);
-                } else if level >= 10 {
-                    vec![self.items.get("iron_helm")]
-                //} else if level >= 5 {
-                //    vec![self.get("copper_legs_armor")]
                 } else {
                     vec![self.items.get("wooden_shield")]
                 }
@@ -119,7 +115,9 @@ impl LevelingHelper {
                 return self.best_crafts(level, skill);
             }
             Skill::Jewelrycrafting => {
-                if level >= 30 {
+                if level >= 40 {
+                    return self.best_crafts(level, skill);
+                } else if level >= 30 {
                     vec![self.items.get("gold_ring")]
                 } else if level >= 20 {
                     vec![self.items.get("steel_ring")]
@@ -132,7 +130,9 @@ impl LevelingHelper {
                 }
             }
             Skill::Cooking => {
-                if level >= 30 {
+                if level >= 40 {
+                    return self.best_crafts(level, skill);
+                } else if level >= 30 {
                     vec![self.items.get("cooked_bass")]
                 } else if level >= 20 {
                     vec![self.items.get("cooked_trout")]
@@ -156,17 +156,15 @@ impl LevelingHelper {
     pub fn best_crafts(&self, level: u32, skill: Skill) -> Vec<Arc<ItemSchema>> {
         self.crafts_providing_exp(level, skill)
             .filter(|i| {
-                !["wooden_staff", "life_amulet", "feather_coat"].contains(&i.code.as_str())
-                    && !i.subtype_is(SubType::PreciousStone)
-                    && !self.items.require_task_reward(&i.code)
-                    && !i.is_crafted_with("obsidian")
-                    && !i.is_crafted_with("diamond")
-                    && !i.is_crafted_with("strange_ore")
-                    && !i.is_crafted_with("magic_wood")
+                !(["wooden_staff"].contains(&i.code.as_str())
+                    || i.subtype_is(SubType::PreciousStone)
+                    || self.items.require_task_reward(&i.code)
+                    || i.is_crafted_with("obsidian")
+                    || i.is_crafted_with("diamond")
+                    || i.is_crafted_with("strange_ore")
+                    || i.is_crafted_with("magic_wood"))
             })
             .max_set_by_key(|i| i.level)
-            .into_iter()
-            .collect_vec()
     }
 
     pub fn best_resource(&self, level: u32, skill: Skill) -> Option<Arc<ResourceSchema>> {
