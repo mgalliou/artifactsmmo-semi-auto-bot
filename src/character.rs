@@ -1737,9 +1737,10 @@ impl CharacterController {
                 _ => true,
             })
             .collect_vec();
-        if sources
-            .iter()
-            .all(|s| s.is_npc() && (s.is_resource() || s.is_monster()))
+        if sources.iter().any(|s| s.is_npc())
+            && sources
+                .iter()
+                .any(|s| s.is_resource() || s.is_monster() || s.is_craft())
         {
             sources.retain(|s| !s.is_npc());
         }
