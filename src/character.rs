@@ -653,7 +653,10 @@ impl CharacterController {
         if !self.inventory.has_room_for_drops_from(monster)
             || !self.current_map().content_code_is(&monster.code)
         {
-            self.deposit_all_but_reserved()?;
+            //TODO: don't deposit food
+            //NOTE: deposit_all_but_reserved is not used here because if for some reason all items
+            // in inventory are reserved, the command fail in a loop
+            self.deposit_all()?;
         };
         if let Err(e) = self.withdraw_food() {
             error!("{}: failed to withdraw food: {e}", self.name())
