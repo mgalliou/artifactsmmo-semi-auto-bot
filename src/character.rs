@@ -799,11 +799,7 @@ impl CharacterController {
     /// Crafts the given `quantity` of the given item `code` if the required
     /// materials to craft them in one go are available in bank and deposit the crafted
     /// items into the bank.
-    pub fn craft(
-        &self,
-        item: &str,
-        quantity: u32,
-    ) -> Result<SkillInfoSchema, CraftCommandError> {
+    pub fn craft(&self, item: &str, quantity: u32) -> Result<SkillInfoSchema, CraftCommandError> {
         let (item, skill) = self.can_craft_now(item, quantity)?;
         if self.order_best_gear_for(GearPurpose::Crafting(&item)) {
             return Ok(Default::default());
