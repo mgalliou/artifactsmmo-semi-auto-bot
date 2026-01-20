@@ -1,10 +1,6 @@
 use crate::{FOOD_CONSUMPTION_BLACKLIST, HasReservation, InventoryDiscriminant, Reservation};
 use artifactsmmo_sdk::{
-    CharacterClient, Code, CollectionClient, DropsItems, ItemContainer, ItemsClient,
-    LimitedContainer, Quantity, SlotLimited, SpaceLimited,
-    character::{HasCharacterData, inventory::Inventory},
-    items::ItemSchemaExt,
-    models::{InventorySlot, ItemSchema, SimpleItemSchema},
+    CharacterClient, Code, CollectionClient, DropsItems, ItemContainer, ItemsClient, Level, LimitedContainer, Quantity, SlotLimited, SpaceLimited, character::{HasCharacterData, inventory::Inventory}, entities::Item, models::{InventorySlot, SimpleItemSchema}
 };
 use core::fmt;
 use itertools::Itertools;
@@ -58,14 +54,14 @@ impl InventoryController {
             .collect_vec()
     }
 
-    pub fn consumable_food(&self) -> Vec<Arc<ItemSchema>> {
+    pub fn consumable_food(&self) -> Vec<Item> {
         self.content()
             .iter()
             .filter_map(|i| {
                 self.items.get(&i.code).filter(|i| {
                     i.is_food()
-                        && i.level <= self.client.level()
-                        && !FOOD_CONSUMPTION_BLACKLIST.contains(&i.code.as_ref())
+                        && i.level() <= self.client.level()
+                        && !FOOD_CONSUMPTION_BLACKLIST.contains(&i.code())
                 })
             })
             .collect_vec()

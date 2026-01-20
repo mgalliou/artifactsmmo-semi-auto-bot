@@ -3,11 +3,7 @@ use crate::{
     gear_finder::GearFinder, leveling_helper::LevelingHelper, orderboard::OrderBoard,
 };
 use artifactsmmo_sdk::{
-    AccountClient, Client, CollectionClient, ItemContainer, ItemsClient, NpcsClient, SpaceLimited,
-    character::HasCharacterData,
-    items::{ItemSchemaExt, ItemSource},
-    models::ItemSchema,
-    skill::Skill,
+    AccountClient, Client, Code, CollectionClient, ItemContainer, ItemsClient, NpcsClient, Skill, SpaceLimited, character::HasCharacterData, entities::Item, items::ItemSource
 };
 use itertools::Itertools;
 use std::sync::{Arc, RwLock};
@@ -102,7 +98,7 @@ impl AccountController {
                 .sum::<u32>()
     }
 
-    pub fn meets_conditions(&self, item: &ItemSchema) -> u32 {
+    pub fn meets_conditions(&self, item: &Item) -> u32 {
         self.characters()
             .iter()
             .filter(|c| c.meets_conditions_for(item))
@@ -137,15 +133,15 @@ impl AccountController {
         let (source, mut time) = self
             .characters()
             .iter()
-            .filter_map(|c| c.time_to_get(&item.code))
+            .filter_map(|c| c.time_to_get(&item.code()))
             .min_by_key(|(_, t)| *t)?;
 
         match source {
             ItemSource::Npc(npc) => {
-                if let Some(npc_item) = self.npcs.items.get(&item.code)
-                    && npc_item.npc == npc.code
+                if let Some(npc_item) = self.npcs.items.get(&item.code())
+                    && npc_item.npc_code() == npc.code()
                 {
-                    time += self.time_to_get(&npc_item.currency)? * npc_item.buy_price? as u32
+                    time += self.time_to_get(&npc_item.currency())? * npc_item.buy_price()? as u32
                 }
             }
             ItemSource::Craft => {

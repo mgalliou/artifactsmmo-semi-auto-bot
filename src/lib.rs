@@ -3,7 +3,7 @@ use artifactsmmo_sdk::{
     consts::{
         APPLE, APPLE_PIE, CARROT, COOKED_HELLHOUND_MEAT, FISH_SOUP, MAPLE_SYRUP, MUSHROOM_SOUP,
     },
-    models::{MonsterSchema, ResourceSchema},
+    entities::{Monster, Resource},
 };
 use chrono::{DateTime, Utc};
 use std::{
@@ -123,8 +123,8 @@ impl From<(&str, &str)> for BankDiscriminant {
 #[derive(Clone, PartialEq)]
 pub enum CharacterCommand {
     Craft { code: String, quantity: u32 },
-    Kill { monster: Arc<MonsterSchema> },
-    Gather { resource: Arc<ResourceSchema> },
+    Kill { monster: Monster },
+    Gather { resource: Resource },
     Recycle { code: String, quantity: u32 },
     Delete { code: String, quantity: u32 },
     BuyItem { code: String, quantity: u32 },

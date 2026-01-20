@@ -1,12 +1,3 @@
-use anyhow::{Result, bail};
-use artifactsmmo_sdk::{
-    CollectionClient, ItemContainer, Simulator, character::HasCharacterData,
-    events::EventSchemaExt, skill::Skill,
-};
-use clap::{Parser, Subcommand, value_parser};
-use rustyline::{DefaultEditor, error::ReadlineError};
-use std::{process::exit, sync::Arc};
-
 use crate::{
     CharacterCommand, HasReservation,
     bot::Bot,
@@ -14,6 +5,17 @@ use crate::{
     gear_finder::{Filter, GearPurpose},
     orderboard::Purpose,
 };
+use anyhow::{Result, bail};
+use artifactsmmo_sdk::{
+    CollectionClient, ItemContainer,
+    character::HasCharacterData,
+    entities::EventSchemaExt,
+    simulator::{Participant, Simulator},
+    skill::Skill,
+};
+use clap::{Parser, Subcommand, value_parser};
+use rustyline::{DefaultEditor, error::ReadlineError};
+use std::{process::exit, sync::Arc};
 
 pub fn run(bot: Arc<Bot>) -> Result<()> {
     let mut rl = DefaultEditor::new()?;
@@ -121,12 +123,11 @@ fn respond(
                     bail!("no character selected");
                 };
                 println!(
-                    "best {} craft: {:?}",
+                    "best {} craft: {}",
                     skill,
                     bot.leveling_helper
                         .best_craft(char.skill_level(skill), skill, char)
-                        .map(|i| i.name.clone())
-                        .unwrap_or("none".to_string())
+                        .map_or("none".to_string(), |i| i.name().to_string().clone())
                 );
             }
             ItemsAction::BestCrafts { skill } => {
@@ -137,7 +138,7 @@ fn respond(
                 bot.leveling_helper
                     .best_crafts(char.skill_level(skill), skill)
                     .iter()
-                    .for_each(|i| println!("{}", i.name))
+                    .for_each(|i| println!("{}", i.name()))
             }
         },
         Commands::Events { action } => match action {
@@ -153,7 +154,7 @@ fn respond(
                     .events
                     .active()
                     .iter()
-                    .for_each(|e| println!("{}", e.to_string()));
+                    .for_each(|e| println!("{:?}", e));
             }
         },
         Commands::Char { i } => {
@@ -260,7 +261,12 @@ fn respond(
                 .best_for(GearPurpose::Combat(&monster), char, filter);
             if let Some(gear) = gear {
                 println!("{}", gear);
-                let fight = Simulator::fight(char.level(), &gear, &monster, Default::default());
+                let fight = Simulator::fight(
+                    Participant::new(char.name(), char.level(), gear, 100, 100, 0),
+                    None,
+                    monster,
+                    Default::default(),
+                );
                 println!("{:?}", fight)
             } else {
                 println!("no winning gear found")

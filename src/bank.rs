@@ -1,10 +1,10 @@
 use crate::{BankDiscriminant, FOOD_CONSUMPTION_BLACKLIST, HasReservation, Reservation};
 use artifactsmmo_sdk::{
-    BankClient, Code, CollectionClient, DropsItems, ItemContainer, ItemsClient, LimitedContainer,
-    Quantity, SlotLimited,
+    BankClient, Code, CollectionClient, DropsItems, ItemContainer, ItemsClient, Level,
+    LimitedContainer, Quantity, SlotLimited,
     bank::Bank,
-    items::ItemSchemaExt,
-    models::{BankSchema, ItemSchema, SimpleItemSchema},
+    entities::Item,
+    models::{BankSchema, SimpleItemSchema},
 };
 use itertools::Itertools;
 use log::debug;
@@ -68,14 +68,14 @@ impl BankController {
             .collect_vec()
     }
 
-    pub fn consumable_food(&self, level: u32) -> Vec<Arc<ItemSchema>> {
+    pub fn consumable_food(&self, level: u32) -> Vec<Item> {
         self.content()
             .iter()
             .filter_map(|i| {
                 self.items.get(&i.code).filter(|i| {
                     i.is_food()
-                        && i.level <= level
-                        && !FOOD_CONSUMPTION_BLACKLIST.contains(&i.code.as_str())
+                        && i.level() <= level
+                        && !FOOD_CONSUMPTION_BLACKLIST.contains(&i.code())
                 })
             })
             .collect_vec()

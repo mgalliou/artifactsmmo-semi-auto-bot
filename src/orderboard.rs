@@ -71,7 +71,8 @@ impl OrderBoard {
             let filtered = self
                 .orders_filtered(|o| discriminant(&o.purpose) == discriminant(&p))
                 .into_iter()
-                .sorted_by_key(|o| o.creation);
+                .sorted_by_key(|o| o.creation)
+                .rev();
             orders.extend(filtered);
         });
         orders

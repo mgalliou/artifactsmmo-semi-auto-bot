@@ -1,15 +1,14 @@
 use crate::{account::AccountController, character::CharacterController};
 use artifactsmmo_sdk::{
-    CanProvideXp, CollectionClient, FROZEN_AXE, FROZEN_FISHING_ROD, FROZEN_GLOVES, FROZEN_PICKAXE,
-    FightParams, ItemsClient, Level, MAX_LEVEL, Simulator,
+    CanProvideXp, Code, CollectionClient, FROZEN_AXE, FROZEN_FISHING_ROD, FROZEN_GLOVES,
+    FROZEN_PICKAXE, ItemsClient, Level, MAX_LEVEL,
     character::HasCharacterData,
     check_lvl_diff,
+    entities::{Item, Monster, Resource},
     gear::{Gear, Slot},
-    items::{ItemSchemaExt, Type},
-    models::{ItemSchema, MonsterSchema, ResourceSchema},
-    simulator::HasEffects,
+    items::Type,
+    simulator::{FightParams, HasEffects, Participant, Simulator, time_to_rest},
     skill::Skill,
-    time_to_rest,
 };
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
@@ -41,14 +40,18 @@ impl GearFinder {
 
     fn best_to_kill(
         &self,
-        monster: &MonsterSchema,
+        monster: &Monster,
         char: &CharacterController,
         filter: Filter,
     ) -> Option<Gear> {
         self.gen_combat_gears(char, monster, filter)
             .filter_map(|g| {
-                let fight =
-                    Simulator::fight(char.level(), &g, monster, FightParams::default().averaged());
+                let fight = Simulator::fight(
+                    Participant::new(char.name(), char.level(), g.clone(), 100, 100, 0),
+                    None,
+                    monster.clone(),
+                    FightParams::default().averaged(),
+                );
                 fight.is_winning().then_some((fight, g))
             })
             .min_set_by_key(|(f, _)| f.cd + time_to_rest(f.hp_lost as u32))
@@ -66,7 +69,7 @@ impl GearFinder {
     fn gen_combat_gears(
         &self,
         char: &CharacterController,
-        monster: &MonsterSchema,
+        monster: &Monster,
         filter: Filter,
     ) -> impl Iterator<Item = Gear> {
         self.best_weapons(char, monster, filter)
@@ -76,9 +79,9 @@ impl GearFinder {
     pub fn best_weapons(
         &self,
         char: &CharacterController,
-        monster: &MonsterSchema,
+        monster: &Monster,
         filter: Filter,
-    ) -> impl Iterator<Item = Arc<ItemSchema>> {
+    ) -> impl Iterator<Item = Item> {
         self.items
             .filtered(|i| !i.is_tool() && self.is_eligible(i, Type::Weapon, filter, char))
             .into_iter()
@@ -90,9 +93,9 @@ impl GearFinder {
     fn gen_combat_gears_with_weapon(
         &self,
         char: &CharacterController,
-        monster: &MonsterSchema,
+        monster: &Monster,
         filter: Filter,
-        weapon: Arc<ItemSchema>,
+        weapon: Item,
     ) -> impl Iterator<Item = Gear> {
         let mut items = [
             Type::Helmet,
@@ -141,15 +144,15 @@ impl GearFinder {
     fn gen_combat_ring_sets(
         &self,
         char: &CharacterController,
-        monster: &MonsterSchema,
-        weapon: &ItemSchema,
+        monster: &Monster,
+        weapon: &Item,
         filter: Filter,
     ) -> Vec<ItemWrapper> {
         let rings = self.best_combat_armors(char, monster, weapon, Type::Ring, filter, &[]);
         let unique_rings = rings
             .iter()
             .flatten()
-            .filter(|i| filter.available_only && char.has_available(&i.code) == 1)
+            .filter(|i| filter.available_only && char.has_available(&i.code()) == 1)
             .cloned()
             .collect_vec();
         let rings2 =
@@ -160,8 +163,8 @@ impl GearFinder {
     fn gen_combat_utility_sets(
         &self,
         char: &CharacterController,
-        monster: &MonsterSchema,
-        weapon: &ItemSchema,
+        monster: &Monster,
+        weapon: &Item,
         filter: Filter,
     ) -> Vec<ItemWrapper> {
         let utilities = self.best_combat_utilities(char, monster, weapon, filter);
@@ -171,8 +174,8 @@ impl GearFinder {
     fn gen_combat_artifact_sets(
         &self,
         char: &CharacterController,
-        monster: &MonsterSchema,
-        weapon: &ItemSchema,
+        monster: &Monster,
+        weapon: &Item,
         filter: Filter,
     ) -> Vec<ItemWrapper> {
         let artifacts = self.best_combat_armors(char, monster, weapon, Type::Artifact, filter, &[]);
@@ -182,13 +185,13 @@ impl GearFinder {
     fn best_combat_armors(
         &self,
         char: &CharacterController,
-        monster: &MonsterSchema,
-        weapon: &ItemSchema,
+        monster: &Monster,
+        weapon: &Item,
         r#type: Type,
         filter: Filter,
-        unique_items: &[Arc<ItemSchema>],
-    ) -> Vec<Option<Arc<ItemSchema>>> {
-        let mut bests: Vec<Arc<ItemSchema>> = vec![];
+        unique_items: &[Item],
+    ) -> Vec<Option<Item>> {
+        let mut bests: Vec<Item> = vec![];
         let armors = self
             .items
             .filtered(|i| !unique_items.contains(i) && self.is_eligible(i, r#type, filter, char));
@@ -232,11 +235,11 @@ impl GearFinder {
     fn best_combat_utilities(
         &self,
         char: &CharacterController,
-        monster: &MonsterSchema,
-        weapon: &ItemSchema,
+        monster: &Monster,
+        weapon: &Item,
         filter: Filter,
-    ) -> Vec<Option<Arc<ItemSchema>>> {
-        let mut bests: Vec<Arc<ItemSchema>> = vec![];
+    ) -> Vec<Option<Item>> {
+        let mut bests: Vec<Item> = vec![];
         let utilities = self
             .items
             .filtered(|i| self.is_eligible(i, Type::Utility, filter, char));
@@ -278,7 +281,7 @@ impl GearFinder {
 
     fn best_to_craft(
         &self,
-        item: &ItemSchema,
+        item: &Item,
         char: &CharacterController,
         filter: Filter,
     ) -> Option<Gear> {
@@ -294,11 +297,11 @@ impl GearFinder {
 
     fn best_to_gather(
         &self,
-        resource: &ResourceSchema,
+        resource: &Resource,
         char: &CharacterController,
         filter: Filter,
     ) -> Option<Gear> {
-        let skill = resource.skill;
+        let skill = resource.skill();
         let level = resource.level();
         self.gen_skill_gears(char, skill.into(), level, filter, true)
             .max_set_by_key(|g| g.prospecting())
@@ -352,12 +355,7 @@ impl GearFinder {
         self.gen_all_gears(tool, items)
     }
 
-    fn best_tool(
-        &self,
-        char: &CharacterController,
-        skill: Skill,
-        filter: Filter,
-    ) -> Option<Arc<ItemSchema>> {
+    fn best_tool(&self, char: &CharacterController, skill: Skill, filter: Filter) -> Option<Item> {
         self.items
             .filtered(|i| i.is_tool() && self.is_eligible(i, Type::Weapon, filter, char))
             .into_iter()
@@ -371,9 +369,9 @@ impl GearFinder {
         skill_level: u32,
         r#type: Type,
         filter: Filter,
-        unique_items: Vec<Arc<ItemSchema>>,
-    ) -> Vec<Option<Arc<ItemSchema>>> {
-        let mut bests: Vec<Arc<ItemSchema>> = vec![];
+        unique_items: Vec<Item>,
+    ) -> Vec<Option<Item>> {
+        let mut bests: Vec<Item> = vec![];
         let armors = self.items.filtered(|i| {
             !unique_items.contains(i)
                 && self.is_eligible(i, r#type, filter, char)
@@ -411,7 +409,7 @@ impl GearFinder {
         let single_rings = rings
             .iter()
             .flatten()
-            .filter(|i| filter.available_only && char.has_available(&i.code) <= 1)
+            .filter(|i| filter.available_only && char.has_available(i.code()) <= 1)
             .cloned()
             .collect_vec();
         let rings2 =
@@ -433,7 +431,7 @@ impl GearFinder {
 
     fn gen_all_gears(
         &self,
-        weapon: Option<Arc<ItemSchema>>,
+        weapon: Option<Item>,
         items: Vec<Vec<ItemWrapper>>,
     ) -> impl Iterator<Item = Gear> {
         items
@@ -461,14 +459,14 @@ impl GearFinder {
             })
     }
 
-    fn best_bag(&self, char: &CharacterController, filter: Filter) -> Option<Arc<ItemSchema>> {
+    fn best_bag(&self, char: &CharacterController, filter: Filter) -> Option<Item> {
         let bags = self
             .items
             .filtered(|i| self.is_eligible(i, Type::Bag, filter, char));
         bags.into_iter().max_by_key(|i| i.inventory_space())
     }
 
-    fn item_from_wrappers(&self, wrappers: &[ItemWrapper], slot: Slot) -> Option<Arc<ItemSchema>> {
+    fn item_from_wrappers(&self, wrappers: &[ItemWrapper], slot: Slot) -> Option<Item> {
         wrappers.iter().find_map(|w| {
             match w {
                 ItemWrapper::Armor(armor) => armor,
@@ -483,7 +481,7 @@ impl GearFinder {
 
     fn is_eligible(
         &self,
-        item: &ItemSchema,
+        item: &Item,
         r#type: Type,
         filter: Filter,
         char: &CharacterController,
@@ -494,7 +492,7 @@ impl GearFinder {
         if !char.meets_conditions_for(item) {
             return false;
         }
-        let total_available = char.has_available(&item.code);
+        let total_available = char.has_available(item.code());
         if filter.available_only && total_available < 1 {
             return false;
         }
@@ -534,14 +532,14 @@ impl GearFinder {
             FROZEN_GLOVES,
             FROZEN_PICKAXE,
         ]
-        .contains(&item.code.as_str())
+        .contains(&item.code())
         {
             return false;
         }
-        if filter.craftable && item.is_craftable() && !self.account.can_craft(&item.code) {
+        if filter.craftable && item.is_craftable() && !self.account.can_craft(&item.code()) {
             return false;
         }
-        if !filter.from_npc && self.items.is_buyable(&item.code) {
+        if !filter.from_npc && self.items.is_buyable(&item.code()) {
             return false;
         }
         if !filter.from_task && item.is_crafted_from_task() {
@@ -550,7 +548,7 @@ impl GearFinder {
         if !filter.from_monster
             && self
                 .items
-                .sources_of(&item.code)
+                .sources_of(&item.code())
                 .first()
                 .is_some_and(|s| s.is_monster())
         {
@@ -562,12 +560,12 @@ impl GearFinder {
 
 fn best_armor_by<'a>(
     criteria: ArmorCriteria,
-    armors: &'a [Arc<ItemSchema>],
+    armors: &'a [Item],
     char: &CharacterController,
-) -> Option<&'a Arc<ItemSchema>> {
+) -> Option<&'a Item> {
     let armors = armors.iter().filter(|i| match criteria {
         ArmorCriteria::DamageBoost { weapon, monster } => {
-            weapon.average_dmg_boost_against_with(monster, i.as_ref()) > 0.0
+            weapon.average_dmg_boost_against_with(monster, *i) > 0.0
         }
         ArmorCriteria::DamageReduction { monster } => {
             i.average_dmg_reduction_against(monster) > 0.0
@@ -578,9 +576,8 @@ fn best_armor_by<'a>(
         ArmorCriteria::Restore => i.restore() > 0,
     });
     let armors = match criteria {
-        ArmorCriteria::DamageBoost { weapon, monster } => armors.max_set_by_key(|i| {
-            OrderedFloat(weapon.average_dmg_boost_against_with(monster, i.as_ref()))
-        }),
+        ArmorCriteria::DamageBoost { weapon, monster } => armors
+            .max_set_by_key(|i| OrderedFloat(weapon.average_dmg_boost_against_with(monster, *i))),
         ArmorCriteria::DamageReduction { monster } => {
             armors.max_set_by_key(|i| OrderedFloat(i.average_dmg_reduction_against(monster)))
         }
@@ -591,16 +588,16 @@ fn best_armor_by<'a>(
     };
     armors
         .into_iter()
-        .max_by_key(|i| char.has_available(&i.code))
+        .max_by_key(|i| char.has_available(&i.code()))
 }
 
 enum ArmorCriteria<'a> {
     DamageBoost {
-        weapon: &'a ItemSchema,
-        monster: &'a MonsterSchema,
+        weapon: &'a Item,
+        monster: &'a Monster,
     },
     DamageReduction {
-        monster: &'a MonsterSchema,
+        monster: &'a Monster,
     },
     Health,
     Restore,
@@ -608,10 +605,7 @@ enum ArmorCriteria<'a> {
     Wisdom,
 }
 
-fn gen_ring_sets(
-    mut rings1: Vec<Option<Arc<ItemSchema>>>,
-    mut rings2: Vec<Option<Arc<ItemSchema>>>,
-) -> Vec<ItemWrapper> {
+fn gen_ring_sets(mut rings1: Vec<Option<Item>>, mut rings2: Vec<Option<Item>>) -> Vec<ItemWrapper> {
     if !rings1.contains(&None) {
         rings1.push(None)
     }
@@ -639,7 +633,7 @@ fn gen_ring_sets(
         .collect_vec()
 }
 
-fn gen_utility_sets(mut utilities: Vec<Option<Arc<ItemSchema>>>) -> Vec<ItemWrapper> {
+fn gen_utility_sets(mut utilities: Vec<Option<Item>>) -> Vec<ItemWrapper> {
     if !utilities.contains(&None) {
         utilities.push(None)
     }
@@ -664,7 +658,7 @@ fn gen_utility_sets(mut utilities: Vec<Option<Arc<ItemSchema>>>) -> Vec<ItemWrap
         .collect_vec()
 }
 
-fn gen_artifacts_sets(mut artifacts: Vec<Option<Arc<ItemSchema>>>) -> Vec<ItemWrapper> {
+fn gen_artifacts_sets(mut artifacts: Vec<Option<Item>>) -> Vec<ItemWrapper> {
     if !artifacts.contains(&None) {
         artifacts.push(None);
     }
@@ -748,7 +742,7 @@ impl Filter {
 
 #[derive(Clone, Debug, PartialEq)]
 enum ItemWrapper {
-    Armor(Option<Arc<ItemSchema>>),
+    Armor(Option<Item>),
     Rings(RingSet),
     Artifacts(ArtifactSet),
     Utility(UtilitySet),
@@ -756,11 +750,11 @@ enum ItemWrapper {
 
 #[derive(Clone, Debug, PartialEq)]
 struct RingSet {
-    rings: [Option<Arc<ItemSchema>>; 2],
+    rings: [Option<Item>; 2],
 }
 
 impl RingSet {
-    fn new(mut rings: [Option<Arc<ItemSchema>>; 2]) -> Option<Self> {
+    fn new(mut rings: [Option<Item>; 2]) -> Option<Self> {
         if rings[0].is_none() && rings[1].is_none() {
             None
         } else {
@@ -769,7 +763,7 @@ impl RingSet {
         }
     }
 
-    fn slot(&self, slot: Slot) -> &Option<Arc<ItemSchema>> {
+    fn slot(&self, slot: Slot) -> &Option<Item> {
         match slot {
             Slot::Ring1 => self.ring1(),
             Slot::Ring2 => self.ring2(),
@@ -777,22 +771,22 @@ impl RingSet {
         }
     }
 
-    fn ring1(&self) -> &Option<Arc<ItemSchema>> {
+    fn ring1(&self) -> &Option<Item> {
         &self.rings[0]
     }
 
-    fn ring2(&self) -> &Option<Arc<ItemSchema>> {
+    fn ring2(&self) -> &Option<Item> {
         &self.rings[1]
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
 struct ArtifactSet {
-    artifacts: [Option<Arc<ItemSchema>>; 3],
+    artifacts: [Option<Item>; 3],
 }
 
 impl ArtifactSet {
-    fn new(mut artifacts: [Option<Arc<ItemSchema>>; 3]) -> Option<Self> {
+    fn new(mut artifacts: [Option<Item>; 3]) -> Option<Self> {
         if artifacts[0].is_some() && artifacts[0] == artifacts[1]
             || artifacts[1].is_some() && artifacts[1] == artifacts[2]
             || artifacts[0].is_some() && artifacts[0] == artifacts[2]
@@ -805,7 +799,7 @@ impl ArtifactSet {
         }
     }
 
-    fn slot(&self, slot: Slot) -> &Option<Arc<ItemSchema>> {
+    fn slot(&self, slot: Slot) -> &Option<Item> {
         match slot {
             Slot::Artifact1 => self.artifact1(),
             Slot::Artifact2 => self.artifact2(),
@@ -814,26 +808,26 @@ impl ArtifactSet {
         }
     }
 
-    fn artifact1(&self) -> &Option<Arc<ItemSchema>> {
+    fn artifact1(&self) -> &Option<Item> {
         &self.artifacts[0]
     }
 
-    fn artifact2(&self) -> &Option<Arc<ItemSchema>> {
+    fn artifact2(&self) -> &Option<Item> {
         &self.artifacts[1]
     }
 
-    fn artifact3(&self) -> &Option<Arc<ItemSchema>> {
+    fn artifact3(&self) -> &Option<Item> {
         &self.artifacts[2]
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 struct UtilitySet {
-    utilities: [Option<Arc<ItemSchema>>; 2],
+    utilities: [Option<Item>; 2],
 }
 
 impl UtilitySet {
-    fn new(mut utilities: [Option<Arc<ItemSchema>>; 2]) -> Option<Self> {
+    fn new(mut utilities: [Option<Item>; 2]) -> Option<Self> {
         if utilities[0].is_some() && utilities[0] == utilities[1]
             || utilities[0].is_none() && utilities[1].is_none()
         {
@@ -844,7 +838,7 @@ impl UtilitySet {
         }
     }
 
-    fn slot(&self, slot: Slot) -> &Option<Arc<ItemSchema>> {
+    fn slot(&self, slot: Slot) -> &Option<Item> {
         match slot {
             Slot::Utility1 => self.utility1(),
             Slot::Utility2 => self.utility2(),
@@ -852,29 +846,29 @@ impl UtilitySet {
         }
     }
 
-    fn utility1(&self) -> &Option<Arc<ItemSchema>> {
+    fn utility1(&self) -> &Option<Item> {
         &self.utilities[0]
     }
 
-    fn utility2(&self) -> &Option<Arc<ItemSchema>> {
+    fn utility2(&self) -> &Option<Item> {
         &self.utilities[1]
     }
 }
 
-fn item_cmp(a: &Option<Arc<ItemSchema>>, b: &Option<Arc<ItemSchema>>) -> Ordering {
+fn item_cmp(a: &Option<Item>, b: &Option<Item>) -> Ordering {
     if a == b {
         return Ordering::Equal;
     }
     let Some(a) = a else { return Ordering::Greater };
     let Some(b) = b else { return Ordering::Less };
-    a.code.cmp(&b.code)
+    a.code().cmp(&b.code())
 }
 
 #[derive(Clone, Copy)]
 pub enum GearPurpose<'a> {
-    Combat(&'a MonsterSchema),
-    Crafting(&'a ItemSchema),
-    Gathering(&'a ResourceSchema),
+    Combat(&'a Monster),
+    Crafting(&'a Item),
+    Gathering(&'a Resource),
 }
 
 #[cfg(test)]

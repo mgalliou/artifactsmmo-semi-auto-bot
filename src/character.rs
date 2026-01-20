@@ -22,29 +22,25 @@ use crate::{
 };
 use anyhow::Result;
 use artifactsmmo_sdk::{
-    Client, CollectionClient, DropsItems, HasConditions, HasDrops, ItemContainer, ItemsClient,
-    Level, LimitedContainer, MapsClient, MonstersClient, NpcsClient, SimpleItemSchemas, Simulator,
-    SlotLimited, SpaceLimited, TasksClient,
+    Client, Code, CollectionClient, DropsItems, HasConditions, HasDrops, ItemContainer,
+    ItemsClient, Level, LimitedContainer, MapsClient, MonstersClient, NpcsClient,
+    SimpleItemSchemas, SlotLimited, SpaceLimited, TasksClient,
     bank::Bank,
     character::{CharacterClient, HasCharacterData, error::RestError},
     consts::{
         BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, GOLDEN_EGG, GOLDEN_SHRIMP, MAX_LEVEL,
         TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE, TASKS_COIN,
     },
-    gather_cd,
+    entities::{Item, Map, Monster, NpcItem, Resource},
     gear::{Gear, Slot},
-    items::{ItemSchemaExt, ItemSource},
-    maps::MapSchemaExt,
+    items::ItemSource,
     models::{
-        CharacterFightSchema, CharacterSchema, DropSchema, ItemSchema, MapContentType, MapSchema,
-        MonsterSchema, NpcItem, RecyclingItemsSchema, ResourceSchema, RewardsSchema,
-        SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
+        CharacterFightSchema, CharacterSchema, DropSchema, MapContentType, RecyclingItemsSchema,
+        RewardsSchema, SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TaskSchema,
+        TaskTradeSchema, TaskType,
     },
-    npcs_items::NpcItemExt,
-    simulator::HasEffects,
+    simulator::{HasEffects, Participant, Simulator, gather_cd, time_to_rest},
     skill::Skill,
-    tasks::TaskFullSchemaExt,
-    time_to_rest,
 };
 use itertools::Itertools;
 use log::{debug, error, info, warn};
@@ -251,8 +247,8 @@ impl CharacterController {
         else {
             return Err(CraftSkillLevelingError::ItemNotFound);
         };
-        let quantity = self.max_craftable_items(&item.code);
-        match self.craft(&item.code, quantity) {
+        let quantity = self.max_craftable_items(&item.code());
+        match self.craft(&item.code(), quantity) {
             Ok(_) => Ok(()),
             Err(CraftCommandError::InsufficientMaterials(missing_mats))
                 if !skill.is_gathering()
@@ -385,7 +381,7 @@ impl CharacterController {
     fn progress_resource_order(
         &self,
         order: &Order,
-        r: &ResourceSchema,
+        r: &Resource,
     ) -> Result<u32, GatherCommandError> {
         order.inc_in_progress(1);
         let result = self
@@ -398,7 +394,7 @@ impl CharacterController {
     fn progress_monster_order(
         &self,
         order: &Order,
-        m: &MonsterSchema,
+        m: &Monster,
     ) -> Result<u32, KillMonsterCommandError> {
         self.kill_monster(m)
             .map(|fight| fight.amount_of(&order.item))
@@ -638,7 +634,7 @@ impl CharacterController {
     /// map or the closest containing the `monster` and fight it.
     fn kill_monster(
         &self,
-        monster: &MonsterSchema,
+        monster: &Monster,
     ) -> Result<CharacterFightSchema, KillMonsterCommandError> {
         self.can_fight(monster)?;
         if let Ok(_) | Err(TaskCompletionCommandError::NoTask) = self.complete_task() {
@@ -651,7 +647,7 @@ impl CharacterController {
         let mut gear = self.can_kill(monster)?;
         self.equip_gear(&mut gear)?;
         if !self.inventory.has_room_for_drops_from(monster)
-            || !self.current_map().content_code_is(&monster.code)
+            || !self.current_map().content_code_is(monster.code())
         {
             //TODO: don't deposit food
             //NOTE: deposit_all_but_reserved is not used here because if for some reason all items
@@ -667,7 +663,7 @@ impl CharacterController {
         if !self.can_kill_now(monster) || self.health() < 10 {
             self.rest()?;
         }
-        self.move_to_closest_map_with_content_code(&monster.code)?;
+        self.move_to_closest_map_with_content_code(monster.code())?;
         Ok(self.client.fight(None)?)
     }
 
@@ -682,35 +678,32 @@ impl CharacterController {
     /// Checks if the character is able to gather the given `resource`. If it
     /// can, equips the best available appropriate tool, then move the `Character`
     /// to the given map or the closest containing the `resource` and gather it.  
-    fn gather_resource(
-        &self,
-        resource: &ResourceSchema,
-    ) -> Result<SkillDataSchema, GatherCommandError> {
+    fn gather_resource(&self, resource: &Resource) -> Result<SkillDataSchema, GatherCommandError> {
         self.can_gather_now(resource)?;
         if self.order_best_gear_for(GearPurpose::Gathering(resource)) {
             return Ok(Default::default());
         }
         self.equip_gear_for(GearPurpose::Gathering(resource))?;
         if !self.inventory.has_room_for_drops_from(resource)
-            || !self.current_map().content_code_is(&resource.code)
+            || !self.current_map().content_code_is(&resource.code())
         {
             self.deposit_all()?;
         };
-        self.move_to_closest_map_with_content_code(&resource.code)?;
+        self.move_to_closest_map_with_content_code(&resource.code())?;
         Ok(self.client.gather()?)
     }
 
-    fn can_gather_now(&self, resource: &ResourceSchema) -> Result<(), GatherCommandError> {
+    fn can_gather_now(&self, resource: &Resource) -> Result<(), GatherCommandError> {
         self.can_gather(resource)?;
-        if self.maps.with_content_code(&resource.code).is_empty() {
+        if self.maps.with_content_code(&resource.code()).is_empty() {
             return Err(GatherCommandError::MapNotFound);
         };
         Ok(())
     }
 
     // Checks that the `Character` has the required skill level to gather the given `resource`
-    fn can_gather(&self, resource: &ResourceSchema) -> Result<(), GatherCommandError> {
-        let skill: Skill = resource.skill.into();
+    fn can_gather(&self, resource: &Resource) -> Result<(), GatherCommandError> {
+        let skill: Skill = resource.skill().into();
         if !self.skill_enabled(skill) {
             return Err(GatherCommandError::SkillDisabled(skill));
         }
@@ -743,11 +736,11 @@ impl CharacterController {
         self.order_gear(&mut gear)
     }
 
-    pub fn can_fight(&self, monster: &MonsterSchema) -> Result<(), KillMonsterCommandError> {
+    pub fn can_fight(&self, monster: &Monster) -> Result<(), KillMonsterCommandError> {
         if !self.skill_enabled(Skill::Combat) {
             return Err(KillMonsterCommandError::SkillDisabled(Skill::Combat));
         }
-        if self.maps.with_content_code(&monster.code).is_empty() {
+        if self.maps.with_content_code(monster.code()).is_empty() {
             return Err(KillMonsterCommandError::MapNotFound);
         }
         Ok(())
@@ -755,7 +748,7 @@ impl CharacterController {
 
     /// Checks if the `Character` is able to kill the given monster and returns
     /// the best available gear to do so.
-    pub fn can_kill(&self, monster: &MonsterSchema) -> Result<Gear, KillMonsterCommandError> {
+    pub fn can_kill(&self, monster: &Monster) -> Result<Gear, KillMonsterCommandError> {
         self.can_fight(monster)?;
         if let Some(gear) =
             self.gear_finder
@@ -765,30 +758,36 @@ impl CharacterController {
             Ok(gear)
         } else {
             Err(KillMonsterCommandError::GearTooWeak {
-                monster_code: monster.code.to_owned(),
+                monster_code: monster.code().to_owned(),
             })
         }
     }
 
     /// Checks if the `Character` could kill the given `monster` with the given
     /// `gear`
-    fn can_kill_with(&self, monster: &MonsterSchema, gear: &Gear) -> bool {
+    fn can_kill_with(&self, monster: &Monster, gear: &Gear) -> bool {
         (1..=1000)
             .filter(|_| {
-                Simulator::fight(self.level(), gear, monster, Default::default()).is_winning()
+                Simulator::fight(
+                    Participant::new(self.name().clone(), self.level(), gear.clone(), 100, 100, 0),
+                    None,
+                    monster.clone(),
+                    Default::default(),
+                )
+                .is_winning()
             })
             .count()
             >= 950
     }
 
-    fn can_kill_now(&self, monster: &MonsterSchema) -> bool {
+    fn can_kill_now(&self, monster: &Monster) -> bool {
         (1..=1000)
             .filter(|_| {
                 Simulator::fight(
-                    self.level(),
-                    &self.gear(),
-                    monster,
                     self.client.as_ref().into(),
+                    None,
+                    monster.clone(),
+                    Default::default(),
                 )
                 .is_winning()
             })
@@ -807,9 +806,9 @@ impl CharacterController {
         info!(
             "{}: going to craft '{}'x{quantity} from bank.",
             self.name(),
-            item.code,
+            item.code(),
         );
-        let mats = self.items.mats_for(&item.code, quantity);
+        let mats = self.items.mats_for(item.code(), quantity);
         let missing_mats = self.inventory.missing_among(&mats);
         self.bank.reserv_items(&missing_mats, &self.name())?;
         self.equip_gear_for(GearPurpose::Crafting(&item))?;
@@ -818,7 +817,7 @@ impl CharacterController {
         }
         self.withdraw_items(&missing_mats)?;
         self.move_to_closest_map_with_content_code(skill.as_ref())?;
-        let craft = self.client.craft(&item.code, quantity)?;
+        let craft = self.client.craft(&item.code(), quantity)?;
         self.inventory.decrease_reservations(&mats);
         Ok(craft)
     }
@@ -828,22 +827,22 @@ impl CharacterController {
         &self,
         item: &str,
         quantity: u32,
-    ) -> Result<(Arc<ItemSchema>, Skill), CraftCommandError> {
+    ) -> Result<(Item, Skill), CraftCommandError> {
         let (item, skill) = self.can_craft(item)?;
         if quantity < 1 {
             return Err(CraftCommandError::InvalidQuantity);
         };
-        let missing_mats = self.missing_mats_for(&item.code, quantity);
+        let missing_mats = self.missing_mats_for(item.code(), quantity);
         if !missing_mats.is_empty() {
             return Err(CraftCommandError::InsufficientMaterials(missing_mats));
         }
-        if self.max_craftable_items(&item.code) < quantity {
+        if self.max_craftable_items(item.code()) < quantity {
             return Err(CraftCommandError::InsufficientInventorySpace);
         }
         Ok((item, skill))
     }
 
-    pub fn can_craft(&self, item: &str) -> Result<(Arc<ItemSchema>, Skill), CraftCommandError> {
+    pub fn can_craft(&self, item: &str) -> Result<(Item, Skill), CraftCommandError> {
         let Some(item) = self.items.get(item) else {
             return Err(CraftCommandError::ItemNotFound);
         };
@@ -853,8 +852,11 @@ impl CharacterController {
         if !self.skill_enabled(skill) {
             return Err(CraftCommandError::SkillDisabled(skill));
         }
-        if self.client.skill_level(skill) < item.level {
-            return Err(CraftCommandError::InsufficientSkillLevel(skill, item.level));
+        if self.client.skill_level(skill) < item.level() {
+            return Err(CraftCommandError::InsufficientSkillLevel(
+                skill,
+                item.level(),
+            ));
         }
         Ok((item, skill))
     }
@@ -886,9 +888,10 @@ impl CharacterController {
         if !self.skill_enabled(skill) {
             return Err(RecycleCommandError::SkillDisabled(skill));
         };
-        if self.client.skill_level(skill) < item.level {
+        if self.client.skill_level(skill) < item.level() {
             return Err(RecycleCommandError::InsufficientSkillLevel(
-                skill, item.level,
+                skill,
+                item.level(),
             ));
         };
         if quantity < 1 {
@@ -897,7 +900,7 @@ impl CharacterController {
         if self.inventory.max_items() < item.recycled_quantity() * quantity {
             return Err(RecycleCommandError::InsufficientInventorySpace);
         }
-        if self.has_in_bank_or_inv(&item.code) < quantity {
+        if self.has_in_bank_or_inv(item.code()) < quantity {
             return Err(RecycleCommandError::InsufficientQuantity);
         }
         Ok(skill)
@@ -1073,9 +1076,9 @@ impl CharacterController {
         // TODO: defined food quantity depending on the monster drop rate and damages
         let quantity = min(
             ((self.inventory.max_items() as f32) * 0.90) as u32,
-            self.bank.has_available(&food.code, &self.name()),
+            self.bank.has_available(food.code(), &self.name()),
         );
-        self.lock_in_inventory(&food.code, quantity)
+        self.lock_in_inventory(food.code(), quantity)
     }
 
     pub fn withdraw_item(&self, item: &str, quantity: u32) -> Result<(), WithdrawItemCommandError> {
@@ -1180,13 +1183,13 @@ impl CharacterController {
         gear.align_to(&self.gear());
         for slot in Slot::iter() {
             match gear.item_in(slot) {
-                Some(item) => self.equip_item(&item.code, slot)?,
+                Some(item) => self.equip_item(item.code(), slot)?,
                 // TODO: improve unequip condition: check number of character that can use the
                 // item
                 None => {
                     if let Some(item) = self.items.get(&self.equiped_in(slot))
                         && !item.r#type().is_utility()
-                        && self.account.total_of(&item.code)
+                        && self.account.total_of(item.code())
                             < if item.r#type().is_ring() { 10 } else { 5 }
                     {
                         self.unequip_slot(slot, self.quantity_in_slot(slot))?
@@ -1204,8 +1207,8 @@ impl CharacterController {
         let Some(item) = self.items.get(item) else {
             return Err(EquipCommandError::ItemNotFound);
         };
-        let quantity = min(slot.max_quantity(), self.has_in_bank_or_inv(&item.code));
-        self.lock_in_inventory(&item.code, quantity)?;
+        let quantity = min(slot.max_quantity(), self.has_in_bank_or_inv(item.code()));
+        self.lock_in_inventory(item.code(), quantity)?;
         self.unequip_slot(slot, self.quantity_in_slot(slot))?;
         if self
             .inventory
@@ -1213,10 +1216,10 @@ impl CharacterController {
             .saturating_add_signed(item.inventory_space())
             == 0
         {
-            self.deposit_all_but(&item.code)?;
+            self.deposit_all_but(item.code())?;
         }
-        self.client.equip(&item.code, slot, quantity)?;
-        self.inventory.decrease_reservation(&item.code, quantity);
+        self.client.equip(item.code(), slot, quantity)?;
+        self.inventory.decrease_reservation(item.code(), quantity);
         Ok(())
     }
 
@@ -1229,13 +1232,13 @@ impl CharacterController {
                     error!(
                         "{}: failed to unequip '{}'x{quantity} during unequip_and_deposit_all: {e}",
                         self.name(),
-                        &item.code,
+                        item.code(),
                     )
-                } else if let Err(e) = self.deposit_item(&item.code, quantity) {
+                } else if let Err(e) = self.deposit_item(item.code(), quantity) {
                     error!(
                         "{}: failed depositing '{}'x{quantity} during `unequip_and_deposit_all`: {e}",
                         self.name(),
-                        &item.code,
+                        item.code(),
                     )
                 }
             }
@@ -1249,7 +1252,7 @@ impl CharacterController {
         if quantity == 0 || quantity > self.quantity_in_slot(slot) {
             return Err(UnequipCommandError::InvalidQuantity(quantity));
         }
-        if !self.inventory.has_room_for(&equiped.code, quantity) {
+        if !self.inventory.has_room_for(equiped.code(), quantity) {
             self.deposit_all()?;
         }
         if self.health() <= equiped.health() {
@@ -1259,7 +1262,7 @@ impl CharacterController {
             self.rest()?;
         }
         self.client.unequip(slot, quantity)?;
-        if let Err(e) = self.deposit_item(&equiped.code, quantity) {
+        if let Err(e) = self.deposit_item(equiped.code(), quantity) {
             error!("{}: failed depositing unequiped item: {e}", self.name());
         }
         Ok(())
@@ -1268,7 +1271,7 @@ impl CharacterController {
     fn move_to_closest_taskmaster(
         &self,
         task_type: Option<TaskType>,
-    ) -> Result<Arc<MapSchema>, MoveCommandError> {
+    ) -> Result<Map, MoveCommandError> {
         let current_map = self.current_map();
         if self.current_map().is_tasksmaster(task_type) {
             return Ok(current_map);
@@ -1279,13 +1282,10 @@ impl CharacterController {
         else {
             return Err(MoveCommandError::MapNotFound);
         };
-        self.r#move(map.x, map.y)
+        self.r#move(map.x(), map.y())
     }
 
-    fn move_to_closest_map_of_type(
-        &self,
-        r#type: MapContentType,
-    ) -> Result<Arc<MapSchema>, MoveCommandError> {
+    fn move_to_closest_map_of_type(&self, r#type: MapContentType) -> Result<Map, MoveCommandError> {
         let current_map = self.current_map();
         if current_map.content_type_is(r#type) {
             return Ok(current_map);
@@ -1293,13 +1293,10 @@ impl CharacterController {
         let Some(map) = self.maps.closest_of_type_from(self.current_map(), r#type) else {
             return Err(MoveCommandError::MapNotFound);
         };
-        self.r#move(map.x, map.y)
+        self.r#move(map.x(), map.y())
     }
 
-    fn move_to_closest_map_with_content_code(
-        &self,
-        code: &str,
-    ) -> Result<Arc<MapSchema>, MoveCommandError> {
+    fn move_to_closest_map_with_content_code(&self, code: &str) -> Result<Map, MoveCommandError> {
         let current_map = self.current_map();
         if current_map.content_code_is(code) {
             return Ok(current_map);
@@ -1310,10 +1307,10 @@ impl CharacterController {
         else {
             return Err(MoveCommandError::MapNotFound);
         };
-        self.r#move(map.x, map.y)
+        self.r#move(map.x(), map.y())
     }
 
-    fn r#move(&self, x: i32, y: i32) -> Result<Arc<MapSchema>, MoveCommandError> {
+    fn r#move(&self, x: i32, y: i32) -> Result<Map, MoveCommandError> {
         if self.position() == (self.position().0, x, y) {
             return Ok(self.current_map());
         }
@@ -1325,19 +1322,19 @@ impl CharacterController {
             .consumable_food()
             .iter()
             .sorted_by_key(|i| i.heal())
-            .for_each(|f| {
+            .for_each(|food| {
                 // TODO: improve logic to eat different foods to restore more hp
-                let mut quantity = (self.missing_hp() / f.heal()) as u32;
+                let mut quantity = (self.missing_hp() / food.heal()) as u32;
                 if self
                     .account
-                    .time_to_get(&f.code)
-                    .is_some_and(|t| t * quantity < time_to_rest(self.missing_hp() as u32))
+                    .time_to_get(food.code())
+                    .is_some_and(|time| time * quantity < time_to_rest(self.missing_hp() as u32))
                 {
                     quantity += 1;
                 };
                 if quantity > 0 {
-                    quantity = min(quantity, self.inventory.total_of(&f.code));
-                    if let Err(e) = self.use_item(&f.code, quantity) {
+                    quantity = min(quantity, self.inventory.total_of(&food.code()));
+                    if let Err(e) = self.use_item(&food.code(), quantity) {
                         error!("{} failed to use food: {:?}", self.name(), e)
                     }
                 }
@@ -1355,18 +1352,18 @@ impl CharacterController {
 
     fn buy_item(&self, item_code: &str, quantity: u32) -> Result<(), BuyNpcCommandError> {
         let (npc_item, total_price) = self.can_buy_item(item_code, quantity)?;
-        if npc_item.currency == GOLD {
+        if npc_item.currency() == GOLD {
             let missing_quantity = total_price.saturating_sub(self.gold());
             if missing_quantity > 0 {
                 self.withdraw_gold(missing_quantity)?;
             }
         } else {
-            self.lock_in_inventory(&npc_item.currency, total_price)?;
+            self.lock_in_inventory(&npc_item.currency(), total_price)?;
         }
-        self.move_to_closest_map_with_content_code(&npc_item.npc)?;
+        self.move_to_closest_map_with_content_code(&npc_item.npc_code())?;
         self.client.npc_buy(item_code, quantity)?;
         self.inventory
-            .decrease_reservation(&npc_item.currency, total_price);
+            .decrease_reservation(&npc_item.currency(), total_price);
         Ok(())
     }
 
@@ -1374,7 +1371,7 @@ impl CharacterController {
         &self,
         item_code: &str,
         quantity: u32,
-    ) -> Result<(Arc<NpcItem>, u32), BuyNpcCommandError> {
+    ) -> Result<(NpcItem, u32), BuyNpcCommandError> {
         let Some(npc_item) = self.npcs.items.get(item_code) else {
             return Err(BuyNpcCommandError::ItemNotFound(item_code.to_string()));
         };
@@ -1382,25 +1379,25 @@ impl CharacterController {
             return Err(BuyNpcCommandError::ItemNotPurchasable);
         };
         let total_price = buy_price * quantity;
-        let available_currency = if npc_item.currency == GOLD {
+        let available_currency = if npc_item.currency() == GOLD {
             self.gold() + self.bank.gold()
         } else {
-            self.has_in_bank_or_inv(&npc_item.currency)
+            self.has_in_bank_or_inv(&npc_item.currency())
         };
         let mut missing_currency = total_price.saturating_sub(available_currency);
-        if self.order_board.is_ordered(&npc_item.currency) {
+        if self.order_board.is_ordered(&npc_item.currency()) {
             missing_currency = total_price
         }
         if missing_currency > 0 {
             return Err(BuyNpcCommandError::InsufficientCurrency {
-                currency: npc_item.currency.to_string(),
+                currency: npc_item.currency().to_string(),
                 quantity: missing_currency,
             });
         }
         if self.inventory.max_items() < quantity {
             return Err(BuyNpcCommandError::InsufficientInventorySpace);
         }
-        if self.maps.with_content_code(&npc_item.npc).is_empty() {
+        if self.maps.with_content_code(&npc_item.npc_code()).is_empty() {
             return Err(BuyNpcCommandError::NpcNotFound);
         }
         Ok((npc_item, total_price))
@@ -1409,7 +1406,7 @@ impl CharacterController {
     fn sell_item(&self, item: &str, quantity: u32) -> Result<(), SellNpcCommandError> {
         let npc_item = self.can_sell_item(item, quantity)?;
         self.lock_in_inventory(item, quantity)?;
-        self.move_to_closest_map_with_content_code(&npc_item.npc)?;
+        self.move_to_closest_map_with_content_code(&npc_item.npc_code())?;
         self.client.npc_sell(item, quantity)?;
         self.inventory.decrease_reservation(item, quantity);
         Ok(())
@@ -1419,14 +1416,14 @@ impl CharacterController {
         &self,
         item_code: &str,
         quantity: u32,
-    ) -> Result<Arc<NpcItem>, SellNpcCommandError> {
+    ) -> Result<NpcItem, SellNpcCommandError> {
         if !self.config().is_trader() {
             return Err(SellNpcCommandError::NotAllowed);
         }
         let Some(npc_item) = self.npcs.items.get(item_code) else {
             return Err(SellNpcCommandError::ItemNotFound(item_code.to_string()));
         };
-        if npc_item.sell_price.is_none() {
+        if npc_item.sell_price().is_none() {
             return Err(SellNpcCommandError::ItemNotSellable);
         };
         let missing = quantity.saturating_sub(self.has_in_bank_or_inv(item_code));
@@ -1436,7 +1433,7 @@ impl CharacterController {
         if self.inventory.max_items() < quantity {
             return Err(SellNpcCommandError::InsufficientInventorySpace);
         }
-        if self.maps.with_content_code(&npc_item.npc).is_empty() {
+        if self.maps.with_content_code(&npc_item.npc_code()).is_empty() {
             return Err(SellNpcCommandError::NpcNotFound);
         }
         Ok(npc_item)
@@ -1449,7 +1446,7 @@ impl CharacterController {
         self.inventory.consumable_food().iter().for_each(|f| {
             if let Err(e) = self
                 .inventory
-                .reserv_item(&f.code, self.inventory.total_of(&f.code))
+                .reserv_item(&f.code(), self.inventory.total_of(f.code()))
             {
                 error!("{} failed reserving food in inventory: {e}", self.name(),)
             }
@@ -1457,24 +1454,24 @@ impl CharacterController {
         let Some(best_food) = self
             .items
             .filtered(|i| {
-                !FOOD_ORDER_BLACKLIST.contains(&i.code.as_str())
+                !FOOD_ORDER_BLACKLIST.contains(&i.code())
                     && i.is_food()
-                    && i.level <= self.level()
-                    && i.level > self.level() - 10
+                    && i.level() <= self.level()
+                    && i.level() > self.level() - 10
             })
             .into_iter()
-            .filter_map(|i| self.account.time_to_get(&i.code).map(|t| (i, t)))
+            .filter_map(|i| self.account.time_to_get(&i.code()).map(|t| (i, t)))
             .filter(|(i, t)| *t < time_to_rest(i.heal() as u32))
             .max_by_key(|(i, t)| *t / i.heal() as u32)
             .map(|(i, _)| i)
         else {
             return false;
         };
-        self.bank.total_of(&best_food.code) < MIN_FOOD_THRESHOLD
+        self.bank.total_of(&best_food.code()) < MIN_FOOD_THRESHOLD
             && self
                 .order_board
                 .add_or_reset(
-                    &best_food.code,
+                    best_food.code(),
                     self.account.fisher_max_items(),
                     None,
                     Purpose::Food {
@@ -1514,7 +1511,7 @@ impl CharacterController {
             if upgrade.is_equipable()
                 && !upgrade.r#type().is_utility()
                 && self.account.meets_conditions(upgrade) >= 5
-                && self.account.total_of(&upgrade.code)
+                && self.account.total_of(upgrade.code())
                     >= if upgrade.r#type().is_ring() { 10 } else { 5 }
             {
                 self.recycle_item(&item.code, item.quantity).is_ok()
@@ -1528,14 +1525,14 @@ impl CharacterController {
         let Some(item) = self.items.get(&item.code) else {
             return false;
         };
-        let total = self.account.total_of(&item.code);
+        let total = self.account.total_of(item.code());
         let max_quantity: u32 = if item.r#type().is_ring() { 10 } else { 5 };
         let surplus = total.saturating_sub(max_quantity);
         item.is_equipable()
             && !item.r#type().is_utility()
             && surplus > 0
-            && (self.recycle_item(&item.code, surplus).is_ok()
-                || self.sell_item(&item.code, surplus).is_ok())
+            && (self.recycle_item(item.code(), surplus).is_ok()
+                || self.sell_item(item.code(), surplus).is_ok())
     }
 
     fn order_gear(&self, gear: &mut Gear) -> bool {
@@ -1545,19 +1542,19 @@ impl CharacterController {
             if let Some(item) = gear.item_in(slot)
                 && !slot.is_ring()
             {
-                ordered = self.order_if_needed(&item.code, slot.max_quantity());
+                ordered = self.order_if_needed(item.code(), slot.max_quantity());
             }
         });
         if let Some(ref ring1) = gear.ring1
             && gear.ring1 == gear.ring2
         {
-            ordered = self.order_if_needed(&ring1.code, 2);
+            ordered = self.order_if_needed(ring1.code(), 2);
         } else {
             if let Some(ref ring1) = gear.ring1 {
-                ordered = self.order_if_needed(&ring1.code, 1);
+                ordered = self.order_if_needed(ring1.code(), 1);
             }
             if let Some(ref ring2) = gear.ring2 {
-                ordered = self.order_if_needed(&ring2.code, 1);
+                ordered = self.order_if_needed(ring2.code(), 1);
             }
         }
         ordered
@@ -1594,19 +1591,19 @@ impl CharacterController {
             if let Some(item) = gear.item_in(slot)
                 && !slot.is_ring()
             {
-                self.reserv_if_needed_and_available(&item.code, slot.max_quantity(), slot)?;
+                self.reserv_if_needed_and_available(item.code(), slot.max_quantity(), slot)?;
             }
         }
         if let Some(ref ring1) = gear.ring1
             && gear.ring1 == gear.ring2
         {
-            self.reserv_if_needed_and_available(&ring1.code, 2, Slot::Ring1)?;
+            self.reserv_if_needed_and_available(ring1.code(), 2, Slot::Ring1)?;
         } else {
             if let Some(ref ring1) = gear.ring1 {
-                self.reserv_if_needed_and_available(&ring1.code, 1, Slot::Ring1)?;
+                self.reserv_if_needed_and_available(ring1.code(), 1, Slot::Ring1)?;
             }
             if let Some(ref ring2) = gear.ring2 {
-                self.reserv_if_needed_and_available(&ring2.code, 1, Slot::Ring2)?;
+                self.reserv_if_needed_and_available(ring2.code(), 1, Slot::Ring2)?;
             }
         }
         Ok(())
@@ -1647,13 +1644,18 @@ impl CharacterController {
             .min_by_key(|(_, t)| *t)
     }
 
-    pub fn time_to_kill(&self, monster: &MonsterSchema) -> Option<u32> {
+    pub fn time_to_kill(&self, monster: &Monster) -> Option<u32> {
         let gear = self.can_kill(monster).ok()?;
-        let fight = Simulator::fight(self.level(), &gear, monster, Default::default());
+        let fight = Simulator::fight(
+            Participant::new(self.name().clone(), self.level(), gear, 100, 100, 0),
+            None,
+            monster.clone(),
+            Default::default(),
+        );
         Some(fight.cd + (fight.hp_lost / 5 + if fight.hp_lost % 5 > 0 { 1 } else { 0 }) as u32)
     }
 
-    pub fn time_to_gather(&self, resource: &ResourceSchema) -> Option<u32> {
+    pub fn time_to_gather(&self, resource: &Resource) -> Option<u32> {
         self.can_gather(resource).ok()?;
         let reduction = self
             .gear_finder
@@ -1664,7 +1666,7 @@ impl CharacterController {
             )
             .and_then(|gear| {
                 gear.weapon
-                    .map(|w| w.skill_cooldown_reduction(resource.skill.into()))
+                    .map(|w| w.skill_cooldown_reduction(resource.skill().into()))
             })
             .unwrap_or(0);
         Some(gather_cd(resource.level(), reduction))
@@ -1722,14 +1724,14 @@ impl CharacterController {
             .into_iter()
             .filter(|s| match s {
                 ItemSource::Resource(resource) => {
-                    !self.maps.with_content_code(&resource.code).is_empty()
+                    !self.maps.with_content_code(resource.code()).is_empty()
                         && self.can_gather(resource).is_ok()
                 }
                 ItemSource::Monster(monster) => {
-                    !self.maps.with_content_code(&monster.code).is_empty()
+                    !self.maps.with_content_code(monster.code()).is_empty()
                         && self.can_kill(monster).is_ok()
                 }
-                ItemSource::Npc(npc) => !self.maps.with_content_code(&npc.code).is_empty(),
+                ItemSource::Npc(npc) => !self.maps.with_content_code(npc.code()).is_empty(),
                 _ => true,
             })
             .collect_vec();
@@ -1759,7 +1761,7 @@ impl CharacterController {
         self.client.gear()
     }
 
-    pub fn current_map(&self) -> Arc<MapSchema> {
+    pub fn current_map(&self) -> Map {
         self.client.current_map()
     }
 

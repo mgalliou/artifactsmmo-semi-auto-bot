@@ -1,16 +1,15 @@
+use crate::{account::AccountController, bank::BankController, character::CharacterController};
 use artifactsmmo_sdk::{
-    CanProvideXp, CollectionClient, ItemsClient, Level, MapsClient, MonstersClient,
+    CanProvideXp, Code, CollectionClient, ItemsClient, Level, MapsClient, MonstersClient,
     ResourcesClient,
     character::HasCharacterData,
-    items::{ItemSchemaExt, SubType},
-    models::{ItemSchema, MonsterSchema, ResourceSchema},
+    entities::{Item, Monster, Resource},
+    items::SubType,
     skill::Skill,
 };
 use itertools::Itertools;
 use rayon::iter::{ParallelBridge, ParallelIterator};
 use std::sync::Arc;
-
-use crate::{account::AccountController, bank::BankController, character::CharacterController};
 
 #[derive(Default)]
 pub struct LevelingHelper {
@@ -43,11 +42,7 @@ impl LevelingHelper {
 
     /// Takes a `level` and a `skill` and returns the items providing experince
     /// when crafted.
-    pub fn crafts_providing_exp(
-        &self,
-        level: u32,
-        skill: Skill,
-    ) -> impl Iterator<Item = Arc<ItemSchema>> {
+    pub fn crafts_providing_exp(&self, level: u32, skill: Skill) -> impl Iterator<Item = Item> {
         self.items
             .filtered(|i| i.skill_to_craft_is(skill) && i.provides_xp_at(level))
             .into_iter()
@@ -55,30 +50,25 @@ impl LevelingHelper {
 
     /// Takes a `level` and a `skill` and returns the items of the lowest level
     /// providing experience when crafted.
-    pub fn lowest_crafts_providing_exp(&self, level: u32, skill: Skill) -> Vec<Arc<ItemSchema>> {
+    pub fn lowest_crafts_providing_exp(&self, level: u32, skill: Skill) -> Vec<Item> {
         self.crafts_providing_exp(level, skill)
-            .min_set_by_key(|i| i.level)
+            .min_set_by_key(|i| i.level())
     }
 
     /// Takes a `level` and a `skill` and returns the items of the highest level
     /// providing experience when crafted.
-    pub fn highest_crafts_providing_exp(&self, level: u32, skill: Skill) -> Vec<Arc<ItemSchema>> {
+    pub fn highest_crafts_providing_exp(&self, level: u32, skill: Skill) -> Vec<Item> {
         self.crafts_providing_exp(level, skill)
-            .max_set_by_key(|i| i.level)
+            .max_set_by_key(|i| i.level())
     }
 
-    pub fn best_craft(
-        &self,
-        level: u32,
-        skill: Skill,
-        char: &CharacterController,
-    ) -> Option<Arc<ItemSchema>> {
+    pub fn best_craft(&self, level: u32, skill: Skill, char: &CharacterController) -> Option<Item> {
         self.best_crafts_hardcoded(level, skill)
             .into_iter()
             .filter_map(|i| {
                 let mats = self
                     .items
-                    .mats_for(&i.code, char.max_craftable_items(&i.code));
+                    .mats_for(i.code(), char.max_craftable_items(i.code()));
                 let mats_with_ttg = self
                     .bank
                     .missing_among(&mats, &char.name())
@@ -102,7 +92,7 @@ impl LevelingHelper {
     }
 
     /// Returns the best items to level the given `skill` at the given `level.
-    pub fn best_crafts_hardcoded(&self, level: u32, skill: Skill) -> Vec<Arc<ItemSchema>> {
+    pub fn best_crafts_hardcoded(&self, level: u32, skill: Skill) -> Vec<Item> {
         match skill {
             Skill::Gearcrafting => {
                 if level >= 5 {
@@ -153,39 +143,39 @@ impl LevelingHelper {
         .collect_vec()
     }
 
-    pub fn best_crafts(&self, level: u32, skill: Skill) -> Vec<Arc<ItemSchema>> {
+    pub fn best_crafts(&self, level: u32, skill: Skill) -> Vec<Item> {
         self.crafts_providing_exp(level, skill)
             .filter(|i| {
-                !(["wooden_staff"].contains(&i.code.as_str())
+                !(["wooden_staff"].contains(&i.code())
                     || i.subtype_is(SubType::PreciousStone)
-                    || self.items.require_task_reward(&i.code)
+                    || self.items.require_task_reward(i.code())
                     || i.is_crafted_with("obsidian")
                     || i.is_crafted_with("diamond")
                     || i.is_crafted_with("strange_ore")
                     || i.is_crafted_with("magic_wood"))
             })
-            .max_set_by_key(|i| i.level)
+            .max_set_by_key(|i| i.level())
     }
 
-    pub fn best_resource(&self, level: u32, skill: Skill) -> Option<Arc<ResourceSchema>> {
+    pub fn best_resource(&self, level: u32, skill: Skill) -> Option<Resource> {
         self.resources
             .filtered(|r| {
-                skill == r.skill.into()
+                skill == r.skill().into()
                     && r.provides_xp_at(level)
-                    && !self.maps.with_content_code(&r.code).is_empty()
+                    && !self.maps.with_content_code(&r.code()).is_empty()
             })
             .into_iter()
-            .max_by_key(|r| r.level)
+            .max_by_key(|r| r.level())
     }
 
-    pub fn best_monster(&self, char: &CharacterController) -> Option<Arc<MonsterSchema>> {
+    pub fn best_monster(&self, char: &CharacterController) -> Option<Monster> {
         self.monsters
             .filtered(|m| {
                 m.level() <= char.level()
-                    && !["imp", "death_knight"].contains(&m.code.as_str())
+                    && !["imp", "death_knight"].contains(&m.code())
                     && char.can_kill(m).is_ok()
             })
             .into_iter()
-            .max_by_key(|m| m.level)
+            .max_by_key(|m| m.level())
     }
 }

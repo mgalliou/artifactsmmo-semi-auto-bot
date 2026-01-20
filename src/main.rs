@@ -1,6 +1,6 @@
 use anyhow::Result;
 use artifactsmmo_sdk::Client;
-use artifactsmmo_semi_auto_bot::{bot::Bot, cli};
+use artifactsmmo_semi_auto_bot::{bot::Bot, cli, orderboard::Purpose};
 use log::LevelFilter;
 use std::{env, sync::Arc};
 
@@ -12,12 +12,12 @@ fn main() -> Result<()> {
         env::var("ARTIFACTSMMO_TOKEN").unwrap_or("".to_string()),
     )?;
     let bot = Arc::new(Bot::new(Arc::new(client)));
-    // bot.order_board
-    //     .add("lizard_skin", 1000, None, Purpose::Cli)?;
-    // bot.order_board
-    //     .add("demon_horn", 1000, None, Purpose::Cli)?;
-    // bot.order_board
-    //     .add("corrupted_gem", 1000, None, Purpose::Cli)?;
+    bot.order_board
+        .add("lizard_skin", 1000, None, Purpose::Cli)?;
+    bot.order_board
+        .add("demon_horn", 1000, None, Purpose::Cli)?;
+    bot.order_board
+        .add("corrupted_gem", 1000, None, Purpose::Cli)?;
     // bot.order_board
     //     .add(None, "malefic_cloth", 200, Purpose::Cli)?;
     // bot.order_board
