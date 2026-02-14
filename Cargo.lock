@@ -70,7 +70,7 @@ checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 [[package]]
 name = "artifactsmmo-api-wrapper"
 version = "0.1.0"
-source = "git+https://github.com/mgalliou/artifactsmmo-sdk#6b2fb1277ef890ac4d8586a48272f7e7c269cf89"
+source = "git+https://github.com/mgalliou/artifactsmmo-sdk#a1d898d7fe84db181b1bb68b33b839a87d304ec0"
 dependencies = [
  "artifactsmmo-openapi",
 ]
@@ -90,7 +90,7 @@ dependencies = [
 [[package]]
 name = "artifactsmmo-sdk"
 version = "0.1.0"
-source = "git+https://github.com/mgalliou/artifactsmmo-sdk#6b2fb1277ef890ac4d8586a48272f7e7c269cf89"
+source = "git+https://github.com/mgalliou/artifactsmmo-sdk#a1d898d7fe84db181b1bb68b33b839a87d304ec0"
 dependencies = [
  "artifactsmmo-api-wrapper",
  "artifactsmmo-openapi",
@@ -1408,7 +1408,7 @@ dependencies = [
 [[package]]
 name = "sdk_derive"
 version = "0.1.0"
-source = "git+https://github.com/mgalliou/artifactsmmo-sdk#6b2fb1277ef890ac4d8586a48272f7e7c269cf89"
+source = "git+https://github.com/mgalliou/artifactsmmo-sdk#a1d898d7fe84db181b1bb68b33b839a87d304ec0"
 dependencies = [
  "quote",
  "syn",
