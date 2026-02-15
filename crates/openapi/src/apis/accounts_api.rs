@@ -193,7 +193,7 @@ pub fn get_account_achievements_accounts_account_achievements_get(configuration:
     let mut req_builder = configuration.client.request(reqwest::Method::GET, &uri_str);
 
     if let Some(ref param_value) = p_query_type {
-        req_builder = req_builder.query(&[("type", &serde_json::to_string(param_value)?)]);
+        req_builder = req_builder.query(&[("type", &param_value.to_string())]);
     }
     if let Some(ref param_value) = p_query_completed {
         req_builder = req_builder.query(&[("completed", &param_value.to_string())]);

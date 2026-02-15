@@ -58,7 +58,7 @@ Fetch NPCs details.
 Name | Type | Description  | Required | Notes
 ------------- | ------------- | ------------- | ------------- | -------------
 **name** | Option<**String**> | NPC name. |  |
-**r#type** | Option<[**models::NpcType**](.md)> | Type of NPCs. |  |
+**r#type** | Option<[**models::NpcType**](Models__NpcType.md)> | Type of NPCs. |  |
 **page** | Option<**u32**> | Page number |  |[default to 1]
 **size** | Option<**u32**> | Page size |  |[default to 50]
 

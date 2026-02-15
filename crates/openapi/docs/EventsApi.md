@@ -53,7 +53,7 @@ Fetch events details.
 
 Name | Type | Description  | Required | Notes
 ------------- | ------------- | ------------- | ------------- | -------------
-**r#type** | Option<[**models::MapContentType**](.md)> | Type of events. |  |
+**r#type** | Option<[**models::MapContentType**](Models__MapContentType.md)> | Type of events. |  |
 **page** | Option<**u32**> | Page number |  |[default to 1]
 **size** | Option<**u32**> | Page size |  |[default to 50]
 

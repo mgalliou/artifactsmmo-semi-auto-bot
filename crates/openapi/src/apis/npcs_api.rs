@@ -117,7 +117,7 @@ pub fn get_all_npcs_npcs_details_get(configuration: &configuration::Configuratio
         req_builder = req_builder.query(&[("name", &param_value.to_string())]);
     }
     if let Some(ref param_value) = p_query_type {
-        req_builder = req_builder.query(&[("type", &serde_json::to_string(param_value)?)]);
+        req_builder = req_builder.query(&[("type", &param_value.to_string())]);
     }
     if let Some(ref param_value) = p_query_page {
         req_builder = req_builder.query(&[("page", &param_value.to_string())]);

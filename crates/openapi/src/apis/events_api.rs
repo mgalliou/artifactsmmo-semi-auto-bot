@@ -96,7 +96,7 @@ pub fn get_all_events_events_get(configuration: &configuration::Configuration, r
     let mut req_builder = configuration.client.request(reqwest::Method::GET, &uri_str);
 
     if let Some(ref param_value) = p_query_type {
-        req_builder = req_builder.query(&[("type", &serde_json::to_string(param_value)?)]);
+        req_builder = req_builder.query(&[("type", &param_value.to_string())]);
     }
     if let Some(ref param_value) = p_query_page {
         req_builder = req_builder.query(&[("page", &param_value.to_string())]);

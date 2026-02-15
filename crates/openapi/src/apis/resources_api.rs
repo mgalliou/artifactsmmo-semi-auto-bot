@@ -51,7 +51,7 @@ pub fn get_all_resources_resources_get(configuration: &configuration::Configurat
         req_builder = req_builder.query(&[("max_level", &param_value.to_string())]);
     }
     if let Some(ref param_value) = p_query_skill {
-        req_builder = req_builder.query(&[("skill", &serde_json::to_string(param_value)?)]);
+        req_builder = req_builder.query(&[("skill", &param_value.to_string())]);
     }
     if let Some(ref param_value) = p_query_drop {
         req_builder = req_builder.query(&[("drop", &param_value.to_string())]);

@@ -23,8 +23,8 @@ Fetch maps details.
 
 Name | Type | Description  | Required | Notes
 ------------- | ------------- | ------------- | ------------- | -------------
-**layer** | Option<[**models::MapLayer**](.md)> | Filter maps by layer. |  |
-**content_type** | Option<[**models::MapContentType**](.md)> | Type of maps. |  |
+**layer** | Option<[**models::MapLayer**](Models__MapLayer.md)> | Filter maps by layer. |  |
+**content_type** | Option<[**models::MapContentType**](Models__MapContentType.md)> | Type of maps. |  |
 **content_code** | Option<**String**> | Content code on the map. |  |
 **hide_blocked_maps** | Option<**bool**> | When true, excludes maps with access_type 'blocked' from the results. |  |[default to false]
 **page** | Option<**u32**> | Page number |  |[default to 1]

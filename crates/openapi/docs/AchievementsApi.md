@@ -51,7 +51,7 @@ List of all achievements.
 
 Name | Type | Description  | Required | Notes
 ------------- | ------------- | ------------- | ------------- | -------------
-**r#type** | Option<[**models::AchievementType**](.md)> | Type of achievements. |  |
+**r#type** | Option<[**models::AchievementType**](Models__AchievementType.md)> | Type of achievements. |  |
 **page** | Option<**u32**> | Page number |  |[default to 1]
 **size** | Option<**u32**> | Page size |  |[default to 50]
 

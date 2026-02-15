@@ -56,8 +56,8 @@ Name | Type | Description  | Required | Notes
 ------------- | ------------- | ------------- | ------------- | -------------
 **min_level** | Option<**u32**> | Minimum level. |  |
 **max_level** | Option<**u32**> | Maximum level. |  |
-**skill** | Option<[**models::Skill**](.md)> | Skill of tasks. |  |
-**r#type** | Option<[**models::TaskType**](.md)> | Type of tasks. |  |
+**skill** | Option<[**models::Skill**](Models__Skill.md)> | Skill of tasks. |  |
+**r#type** | Option<[**models::TaskType**](Models__TaskType.md)> | Type of tasks. |  |
 **page** | Option<**u32**> | Page number |  |[default to 1]
 **size** | Option<**u32**> | Page size |  |[default to 50]
 

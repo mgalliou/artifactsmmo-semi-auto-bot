@@ -60,10 +60,10 @@ pub fn get_all_maps_maps_get(configuration: &configuration::Configuration, layer
     let mut req_builder = configuration.client.request(reqwest::Method::GET, &uri_str);
 
     if let Some(ref param_value) = p_query_layer {
-        req_builder = req_builder.query(&[("layer", &serde_json::to_string(param_value)?)]);
+        req_builder = req_builder.query(&[("layer", &param_value.to_string())]);
     }
     if let Some(ref param_value) = p_query_content_type {
-        req_builder = req_builder.query(&[("content_type", &serde_json::to_string(param_value)?)]);
+        req_builder = req_builder.query(&[("content_type", &param_value.to_string())]);
     }
     if let Some(ref param_value) = p_query_content_code {
         req_builder = req_builder.query(&[("content_code", &param_value.to_string())]);
@@ -120,7 +120,7 @@ pub fn get_layer_maps_maps_layer_get(configuration: &configuration::Configuratio
     let mut req_builder = configuration.client.request(reqwest::Method::GET, &uri_str);
 
     if let Some(ref param_value) = p_query_content_type {
-        req_builder = req_builder.query(&[("content_type", &serde_json::to_string(param_value)?)]);
+        req_builder = req_builder.query(&[("content_type", &param_value.to_string())]);
     }
     if let Some(ref param_value) = p_query_content_code {
         req_builder = req_builder.query(&[("content_code", &param_value.to_string())]);

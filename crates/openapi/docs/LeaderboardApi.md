@@ -21,7 +21,7 @@ Fetch leaderboard details.
 
 Name | Type | Description  | Required | Notes
 ------------- | ------------- | ------------- | ------------- | -------------
-**sort** | Option<[**models::AccountLeaderboardType**](.md)> | Sort of account leaderboards. |  |
+**sort** | Option<[**models::AccountLeaderboardType**](Models__AccountLeaderboardType.md)> | Sort of account leaderboards. |  |
 **name** | Option<**String**> | Account name. |  |
 **page** | Option<**u32**> | Page number |  |[default to 1]
 **size** | Option<**u32**> | Page size |  |[default to 50]
@@ -54,7 +54,7 @@ Fetch leaderboard details.
 
 Name | Type | Description  | Required | Notes
 ------------- | ------------- | ------------- | ------------- | -------------
-**sort** | Option<[**models::CharacterLeaderboardType**](.md)> | Sort of character leaderboards. |  |
+**sort** | Option<[**models::CharacterLeaderboardType**](Models__CharacterLeaderboardType.md)> | Sort of character leaderboards. |  |
 **name** | Option<**String**> | Character name. |  |
 **page** | Option<**u32**> | Page number |  |[default to 1]
 **size** | Option<**u32**> | Page size |  |[default to 50]

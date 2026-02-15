@@ -24,8 +24,8 @@ Name | Type | Description  | Required | Notes
 **name** | Option<**String**> | Name of the item. |  |
 **min_level** | Option<**u32**> | Minimum level. |  |
 **max_level** | Option<**u32**> | Maximum level. |  |
-**r#type** | Option<[**models::ItemType**](.md)> | Type of items. |  |
-**craft_skill** | Option<[**models::CraftSkill**](.md)> | Skill to craft items. |  |
+**r#type** | Option<[**models::ItemType**](Models__ItemType.md)> | Type of items. |  |
+**craft_skill** | Option<[**models::CraftSkill**](Models__CraftSkill.md)> | Skill to craft items. |  |
 **craft_material** | Option<**String**> | Item code of items used as material for crafting. |  |
 **page** | Option<**u32**> | Page number |  |[default to 1]
 **size** | Option<**u32**> | Page size |  |[default to 50]

@@ -56,10 +56,10 @@ pub fn get_all_items_items_get(configuration: &configuration::Configuration, nam
         req_builder = req_builder.query(&[("max_level", &param_value.to_string())]);
     }
     if let Some(ref param_value) = p_query_type {
-        req_builder = req_builder.query(&[("type", &serde_json::to_string(param_value)?)]);
+        req_builder = req_builder.query(&[("type", &param_value.to_string())]);
     }
     if let Some(ref param_value) = p_query_craft_skill {
-        req_builder = req_builder.query(&[("craft_skill", &serde_json::to_string(param_value)?)]);
+        req_builder = req_builder.query(&[("craft_skill", &param_value.to_string())]);
     }
     if let Some(ref param_value) = p_query_craft_material {
         req_builder = req_builder.query(&[("craft_material", &param_value.to_string())]);

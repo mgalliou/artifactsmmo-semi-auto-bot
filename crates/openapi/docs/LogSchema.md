@@ -8,7 +8,7 @@ Name | Type | Description | Notes
 **account** | **String** | Account character. | 
 **r#type** | [**models::LogType**](LogType.md) | Type of action. | 
 **description** | **String** | Description of action. | 
-**content** | Option<[**serde_json::Value**](.md)> |  | 
+**content** | Option<**serde_json::Value**> |  | 
 **cooldown** | **i32** | Cooldown in seconds. | 
 **cooldown_expiration** | Option<**String**> | Datetime of cooldown expiration. | [optional]
 **created_at** | **String** | Datetime of creation. | 
