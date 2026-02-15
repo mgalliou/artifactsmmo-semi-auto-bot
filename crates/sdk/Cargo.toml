@@ -1,0 +1,25 @@
+[package]
+name = "sdk"
+version = "0.1.0"
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+sdk_derive.workspace = true
+api.workspace = true
+reqwest.workspace = true
+openapi.workspace = true
+chrono.workspace = true
+derive_more.workspace = true
+downcast-rs.workspace = true
+fs_extra.workspace = true
+itertools.workspace = true
+log.workspace = true
+ordered-float.workspace = true
+rand.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
+thiserror.workspace = true
+dyn-clone.workspace = true

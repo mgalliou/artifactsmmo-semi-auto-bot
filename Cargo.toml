@@ -1,35 +1,55 @@
 [workspace]
 resolver = "2"
+members = [
+  #
+  "crates/api",
+  "crates/bot",
+  "crates/openapi",
+  "crates/sdk",
+  "crates/sdk_derive",
+]
+default-members = ["crates/bot"]
 
-[package]
-name = "artifactsmmo-semi-auto-bot"
-version = "0.1.0"
+[workspace.package]
+publish = false
 edition = "2024"
 
-[dependencies]
-anyhow = "1.0.99"
-artifactsmmo-sdk = { git = "https://github.com/mgalliou/artifactsmmo-sdk" }
+[workspace.dependencies]
+
+# member 
+sdk = { path = "crates/sdk" }
+openapi = { path = "crates/openapi" }
+api = { path = "crates/api" }
+bot = { path = "crates/bot" }
+sdk_derive = { path = "crates/sdk_derive" }
+
+# external
+anyhow = "1.0"
 chrono = "0.4"
 clap = { version = "4.5", features = ["derive"] }
+derive_more = { version = "2.0", features = ["try_from"] }
+downcast-rs = "2.0"
+dyn-clone = "1.0"
 figment = { version = "0.10", features = ["toml"] }
+fs_extra = "1.3"
 itertools = "0.14"
 log = "0.4"
 ordered-float = "5.0"
+quote = "1.0.40"
+rand = "0.10"
 rayon = "1.11"
+reqwest = { version = "^0.12", default-features = false, features = [
+  "json",
+  "blocking",
+  "multipart",
+] }
 rustyline = "17.0"
-serde = "1.0"
+serde = { version = "1.0", features = ["derive", "rc"] }
+serde_json = "1.0"
+serde_repr = "0.1"
 simple-logging = "2.0"
 strum = "0.27"
 strum_macros = "0.27"
+syn = "2.0.100"
 thiserror = "2.0"
-
-[target.x86_64-pc-windows-msvc]
-rustflags = ["-C", "link-arg=-fuse-ld=lld"]
-[target.x86_64-pc-windows-gnu]
-rustflags = ["-C", "link-arg=-fuse-ld=lld"]
-[target.x86_64-unknown-linux-gnu]
-rustflags = ["-C", "linker=clang", "-C", "link-arg=-fuse-ld=lld"]
-[target.x86_64-apple-darwin]
-rustflags = ["-C", "link-arg=-fuse-ld=lld"]
-[target.aarch64-apple-darwin]
-rustflags = ["-C", "link-arg=-fuse-ld=/opt/homebrew/opt/llvm/bin/ld64.lld"]
+url = "2.5"
