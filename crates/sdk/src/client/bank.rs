@@ -1,7 +1,6 @@
+use crate::{ItemContainer, LimitedContainer, SlotLimited};
 use openapi::models::{BankSchema, SimpleItemSchema};
 use std::sync::{Arc, RwLock};
-
-use crate::{ItemContainer, LimitedContainer, SlotLimited};
 
 #[derive(Default, Debug)]
 pub struct BankClient {

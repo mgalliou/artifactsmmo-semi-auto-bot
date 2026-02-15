@@ -1,3 +1,4 @@
+use crate::account::AccountController;
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use log::{debug, error, info};
@@ -14,8 +15,6 @@ use std::{
 use strum::IntoEnumIterator;
 use strum_macros::{EnumIs, EnumIter};
 use thiserror::Error;
-
-use crate::account::AccountController;
 
 #[derive(Default)]
 pub struct OrderBoard {

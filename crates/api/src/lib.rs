@@ -5,6 +5,7 @@ pub use account::AccountApi;
 pub use bank::BankApi;
 pub use characters::CharactersApi;
 pub use events::EventsApi;
+pub use grand_exchange::GrandExchangeApi;
 pub use items::ItemsApi;
 pub use maps::MapsApi;
 pub use monsters::MonstersApi;
@@ -13,8 +14,6 @@ pub use npcs::NpcsApi;
 pub use resources::ResourcesApi;
 pub use server::ServerApi;
 pub use tasks::TasksApi;
-
-use crate::grand_exchange::GrandExchangeApi;
 
 pub mod account;
 pub mod bank;
@@ -36,6 +35,7 @@ pub struct ArtifactApi {
     pub bank: BankApi,
     pub character: CharactersApi,
     pub events: EventsApi,
+    pub grand_exchange: GrandExchangeApi,
     pub items: ItemsApi,
     pub maps: MapsApi,
     pub monsters: MonstersApi,
@@ -44,7 +44,6 @@ pub struct ArtifactApi {
     pub resources: ResourcesApi,
     pub server: ServerApi,
     pub tasks: TasksApi,
-    pub grand_exchange: GrandExchangeApi,
 }
 
 impl ArtifactApi {
@@ -64,15 +63,15 @@ impl ArtifactApi {
             bank: BankApi::new(auth_conf.clone()),
             character: CharactersApi::new(conf.clone()),
             events: EventsApi::new(conf.clone()),
+            grand_exchange: GrandExchangeApi::new(conf.clone()),
             items: ItemsApi::new(conf.clone()),
             maps: MapsApi::new(conf.clone()),
             monsters: MonstersApi::new(conf.clone()),
             my_character: MyCharacterApi::new(auth_conf.clone()),
-            resources: ResourcesApi::new(conf.clone()),
-            tasks: TasksApi::new(conf.clone()),
-            server: ServerApi::new(conf.clone()),
             npcs: NpcsApi::new(conf.clone()),
-            grand_exchange: GrandExchangeApi::new(conf.clone()),
+            resources: ResourcesApi::new(conf.clone()),
+            server: ServerApi::new(conf.clone()),
+            tasks: TasksApi::new(conf.clone()),
         }
     }
 }

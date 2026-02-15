@@ -1,13 +1,12 @@
-use api::ArtifactApi;
-use std::{sync::Arc, thread};
-
 pub use crate::client::{
     account::AccountClient, bank::BankClient, character::CharacterClient, error::ClientError,
-    events::EventsClient, items::ItemsClient, maps::MapsClient, monsters::MonstersClient,
-    npcs::NpcsClient, npcs_items::NpcsItemsClient, resources::ResourcesClient,
-    server::ServerClient, tasks::TasksClient, tasks_rewards::TasksRewardsClient,
+    events::EventsClient, grand_exchange::GrandExchangeClient, items::ItemsClient,
+    maps::MapsClient, monsters::MonstersClient, npcs::NpcsClient, npcs_items::NpcsItemsClient,
+    resources::ResourcesClient, server::ServerClient, tasks::TasksClient,
+    tasks_rewards::TasksRewardsClient,
 };
-use crate::grand_exchange::GrandExchangeClient;
+use api::ArtifactApi;
+use std::{sync::Arc, thread};
 
 pub mod account;
 pub mod bank;

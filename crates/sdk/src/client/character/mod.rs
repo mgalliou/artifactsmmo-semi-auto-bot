@@ -37,7 +37,7 @@ use api::ArtifactApi;
 use chrono::{DateTime, Utc};
 use openapi::models::{
     CharacterFightSchema, CharacterSchema, ConditionOperator, GeTransactionSchema, MapContentType,
-    MapLayer, MapSchema, NpcItemTransactionSchema, RecyclingItemsSchema, RewardsSchema,
+    MapLayer, NpcItemTransactionSchema, RecyclingItemsSchema, RewardsSchema,
     SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
 };
 use std::{
@@ -121,7 +121,7 @@ impl CharacterClient {
         Ok(())
     }
 
-    pub fn transition(&self) -> Result<Arc<MapSchema>, TransitionError> {
+    pub fn transition(&self) -> Result<Map, TransitionError> {
         self.can_transition()?;
         Ok(self.inner.request_transition()?)
     }

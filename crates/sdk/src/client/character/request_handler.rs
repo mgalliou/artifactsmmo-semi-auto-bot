@@ -22,11 +22,11 @@ use openapi::models::{
     CharacterSchema, CharacterTransitionResponseSchema, DeleteItemResponseSchema,
     EquipmentResponseSchema, FightResult, GeCreateOrderTransactionResponseSchema,
     GeTransactionResponseSchema, GeTransactionSchema, GiveGoldResponseSchema,
-    GiveItemResponseSchema, MapSchema, NpcItemTransactionSchema,
-    NpcMerchantTransactionResponseSchema, RecyclingItemsSchema, RecyclingResponseSchema,
-    RewardDataResponseSchema, RewardsSchema, SimpleItemSchema, SkillDataSchema, SkillInfoSchema,
-    SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema, TaskSchema,
-    TaskTradeResponseSchema, TaskTradeSchema, UseItemResponseSchema,
+    GiveItemResponseSchema, NpcItemTransactionSchema, NpcMerchantTransactionResponseSchema,
+    RecyclingItemsSchema, RecyclingResponseSchema, RewardDataResponseSchema, RewardsSchema,
+    SimpleItemSchema, SkillDataSchema, SkillInfoSchema, SkillResponseSchema,
+    TaskCancelledResponseSchema, TaskResponseSchema, TaskSchema, TaskTradeResponseSchema,
+    TaskTradeSchema, UseItemResponseSchema,
 };
 use std::{
     cmp::Ordering,
@@ -223,13 +223,13 @@ impl CharacterRequestHandler {
             .map(|s| Map::new(*s.data.destination))
     }
 
-    pub fn request_transition(&self) -> Result<Arc<MapSchema>, RequestError> {
+    pub fn request_transition(&self) -> Result<Map, RequestError> {
         self.request_action(Action::Transition)
             .and_then(|r| {
                 r.downcast::<CharacterTransitionResponseSchema>()
                     .map_err(|_| RequestError::DowncastError)
             })
-            .map(|s| Arc::new(*s.data.destination))
+            .map(|s| Map::new(*s.data.destination))
     }
 
     pub fn request_fight(
