@@ -1,7 +1,7 @@
-use sdk::{CollectionClient, ItemsClient, models::SimpleItemSchema, skill::Skill};
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use log::{debug, error, info};
+use sdk::{CollectionClient, ItemsClient, models::SimpleItemSchema, skill::Skill};
 use std::{
     cmp::min,
     fmt::{self, Display, Formatter},

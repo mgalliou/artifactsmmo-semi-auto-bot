@@ -1,10 +1,14 @@
 use crate::{FOOD_CONSUMPTION_BLACKLIST, HasReservation, InventoryDiscriminant, Reservation};
-use sdk::{
-    CharacterClient, Code, CollectionClient, DropsItems, ItemContainer, ItemsClient, Level, LimitedContainer, Quantity, SlotLimited, SpaceLimited, character::{HasCharacterData, inventory::Inventory}, entities::Item, models::{InventorySlot, SimpleItemSchema}
-};
 use core::fmt;
 use itertools::Itertools;
 use log::debug;
+use sdk::{
+    CharacterClient, Code, CollectionClient, DropsItems, ItemContainer, ItemsClient, Level,
+    LimitedContainer, Quantity, SlotLimited, SpaceLimited,
+    character::{HasCharacterData, inventory::Inventory},
+    entities::Item,
+    models::{InventorySlot, SimpleItemSchema},
+};
 use std::{
     fmt::{Display, Formatter},
     sync::{

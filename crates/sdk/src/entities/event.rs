@@ -1,5 +1,5 @@
-use openapi::models::{ActiveEventSchema, EventContentSchema, EventSchema};
 use chrono::{DateTime, Utc};
+use openapi::models::{ActiveEventSchema, EventContentSchema, EventSchema};
 use serde::{Deserialize, Serialize};
 use std::{ops::Deref, sync::Arc};
 

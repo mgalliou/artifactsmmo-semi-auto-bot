@@ -2,8 +2,8 @@ use crate::{
     account::AccountController, bank::BankController, bot_config::BotConfig,
     gear_finder::GearFinder, leveling_helper::LevelingHelper, orderboard::OrderBoard,
 };
-use sdk::{Client, character::HasCharacterData};
 use log::error;
+use sdk::{Client, character::HasCharacterData};
 use std::{
     sync::Arc,
     thread::{Builder, sleep},

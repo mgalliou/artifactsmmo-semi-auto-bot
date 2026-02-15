@@ -1,9 +1,9 @@
 use crate::MapsClient;
+use core::fmt;
 use openapi::models::{
     AccessSchema, InteractionSchema, MapAccessType, MapContentSchema, MapContentType, MapSchema,
     TaskType,
 };
-use core::fmt;
 use serde::{Deserialize, Serialize};
 use std::{ops::Deref, sync::Arc};
 

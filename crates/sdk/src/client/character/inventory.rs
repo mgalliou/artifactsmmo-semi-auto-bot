@@ -3,8 +3,8 @@ use crate::{
     container::{ItemContainer, LimitedContainer, SlotLimited, SpaceLimited},
     entities::Item,
 };
-use openapi::models::{CharacterSchema, InventorySlot, SimpleItemSchema};
 use itertools::Itertools;
+use openapi::models::{CharacterSchema, InventorySlot, SimpleItemSchema};
 use std::sync::Arc;
 
 #[derive(Default, Debug)]

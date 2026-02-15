@@ -1,10 +1,10 @@
+use fs_extra::file::{read_to_string, write_all};
+use itertools::Itertools;
+use log::error;
 use openapi::models::{
     AccessSchema, CharacterFightSchema, ConditionSchema, DropRateSchema, DropSchema, InventorySlot,
     RewardsSchema, SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TransitionSchema,
 };
-use fs_extra::file::{read_to_string, write_all};
-use itertools::Itertools;
-use log::error;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::Path, sync::RwLockReadGuard};
 

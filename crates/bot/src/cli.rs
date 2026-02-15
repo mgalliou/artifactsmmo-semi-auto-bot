@@ -6,6 +6,8 @@ use crate::{
     orderboard::Purpose,
 };
 use anyhow::{Result, bail};
+use clap::{Parser, Subcommand, value_parser};
+use rustyline::{DefaultEditor, error::ReadlineError};
 use sdk::{
     CollectionClient, ItemContainer,
     character::HasCharacterData,
@@ -13,8 +15,6 @@ use sdk::{
     simulator::{Participant, Simulator},
     skill::Skill,
 };
-use clap::{Parser, Subcommand, value_parser};
-use rustyline::{DefaultEditor, error::ReadlineError};
 use std::{process::exit, sync::Arc};
 
 pub fn run(bot: Arc<Bot>) -> Result<()> {

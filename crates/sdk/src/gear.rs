@@ -1,6 +1,6 @@
 use crate::{Code, entities::Item, simulator::HasEffects};
-use openapi::models::{ItemSlot, SimpleEffectSchema, SimpleItemSchema};
 use itertools::Itertools;
+use openapi::models::{ItemSlot, SimpleEffectSchema, SimpleItemSchema};
 use std::{fmt::Display, mem::swap};
 use strum::IntoEnumIterator;
 use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};

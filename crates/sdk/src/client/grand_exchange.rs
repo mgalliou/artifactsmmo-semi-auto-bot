@@ -1,6 +1,6 @@
 use api::ArtifactApi;
-use openapi::models::{GeOrderHistorySchema, GeOrderSchema};
 use itertools::Itertools;
+use openapi::models::{GeOrderHistorySchema, GeOrderSchema};
 use std::sync::Arc;
 
 #[derive(Default, Debug)]

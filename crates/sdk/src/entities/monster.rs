@@ -2,10 +2,8 @@ use crate::{
     CanProvideXp, Code, DropsItems, Level,
     simulator::{DamageType, HasEffects},
 };
-use openapi::models::{
-    DropRateSchema, MonsterSchema, MonsterType, SimpleEffectSchema,
-};
 use itertools::Itertools;
+use openapi::models::{DropRateSchema, MonsterSchema, MonsterType, SimpleEffectSchema};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 

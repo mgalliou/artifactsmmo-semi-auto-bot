@@ -1,4 +1,6 @@
 use crate::{account::AccountController, bank::BankController, character::CharacterController};
+use itertools::Itertools;
+use rayon::iter::{ParallelBridge, ParallelIterator};
 use sdk::{
     CanProvideXp, Code, CollectionClient, ItemsClient, Level, MapsClient, MonstersClient,
     ResourcesClient,
@@ -7,8 +9,6 @@ use sdk::{
     items::SubType,
     skill::Skill,
 };
-use itertools::Itertools;
-use rayon::iter::{ParallelBridge, ParallelIterator};
 use std::sync::Arc;
 
 #[derive(Default)]

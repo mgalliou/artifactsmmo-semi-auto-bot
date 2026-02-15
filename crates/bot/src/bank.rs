@@ -1,4 +1,6 @@
 use crate::{BankDiscriminant, FOOD_CONSUMPTION_BLACKLIST, HasReservation, Reservation};
+use itertools::Itertools;
+use log::debug;
 use sdk::{
     BankClient, Code, CollectionClient, DropsItems, ItemContainer, ItemsClient, Level,
     LimitedContainer, Quantity, SlotLimited,
@@ -6,8 +8,6 @@ use sdk::{
     entities::Item,
     models::{BankSchema, SimpleItemSchema},
 };
-use itertools::Itertools;
-use log::debug;
 use std::{
     fmt::{self, Display, Formatter},
     sync::{

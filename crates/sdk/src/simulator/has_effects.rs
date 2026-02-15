@@ -2,8 +2,8 @@ use crate::{
     Skill,
     simulator::{DamageType, Hit, average_dmg},
 };
-use openapi::models::SimpleEffectSchema;
 use itertools::Itertools;
+use openapi::models::SimpleEffectSchema;
 use strum::IntoEnumIterator;
 
 const HP: &str = "hp";

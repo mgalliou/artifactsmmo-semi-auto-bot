@@ -11,8 +11,8 @@ use crate::{
     skill::Skill,
 };
 use api::ArtifactApi;
-use openapi::models::SimpleItemSchema;
 use itertools::Itertools;
+use openapi::models::SimpleItemSchema;
 use std::{
     collections::HashMap,
     fmt,

@@ -4,8 +4,8 @@ use crate::{
     entities::Monster,
     simulator::entity::{SimulationCharacter, SimulationEntity, SimulationMonster},
 };
-use openapi::models::FightResult;
 use itertools::Itertools;
+use openapi::models::FightResult;
 use rand::seq::IndexedRandom;
 use std::cmp::max;
 

@@ -6,8 +6,8 @@ use crate::{
     grand_exchange::GrandExchangeClient,
 };
 use api::ArtifactApi;
-use openapi::models::AccountAchievementSchema;
 use itertools::Itertools;
+use openapi::models::AccountAchievementSchema;
 use std::sync::{Arc, RwLock};
 
 #[derive(Default, Debug)]

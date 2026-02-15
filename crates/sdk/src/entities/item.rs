@@ -3,11 +3,11 @@ use crate::{
     items::{SubType, Type},
     simulator::HasEffects,
 };
+use core::fmt;
+use itertools::Itertools;
 use openapi::models::{
     ConditionSchema, CraftSchema, ItemSchema, SimpleEffectSchema, SimpleItemSchema,
 };
-use core::fmt;
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::{str::FromStr, sync::Arc};
 

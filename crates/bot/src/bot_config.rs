@@ -1,8 +1,8 @@
-use sdk::{models::TaskType, skill::Skill};
 use figment::{
     Figment,
     providers::{Format, Toml},
 };
+use sdk::{models::TaskType, skill::Skill};
 use serde::Deserialize;
 use std::{
     collections::HashSet,

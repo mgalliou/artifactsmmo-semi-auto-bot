@@ -1,5 +1,5 @@
-use openapi::apis::Error;
 use derive_more::TryFrom;
+use openapi::apis::Error;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display, Formatter};
 use thiserror::Error;

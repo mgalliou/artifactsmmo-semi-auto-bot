@@ -1,4 +1,6 @@
 use crate::{account::AccountController, character::CharacterController};
+use itertools::Itertools;
+use ordered_float::OrderedFloat;
 use sdk::{
     CanProvideXp, Code, CollectionClient, FROZEN_AXE, FROZEN_FISHING_ROD, FROZEN_GLOVES,
     FROZEN_PICKAXE, ItemsClient, Level, MAX_LEVEL,
@@ -10,8 +12,6 @@ use sdk::{
     simulator::{FightParams, HasEffects, Participant, Simulator, time_to_rest},
     skill::Skill,
 };
-use itertools::Itertools;
-use ordered_float::OrderedFloat;
 use std::{cmp::Ordering, sync::Arc};
 
 #[derive(Default)]

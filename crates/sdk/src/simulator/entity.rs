@@ -6,8 +6,8 @@ use crate::{
         damage_type::DamageType,
     },
 };
-use openapi::models::SimpleEffectSchema;
 use dyn_clone::DynClone;
+use openapi::models::SimpleEffectSchema;
 use std::{cell::RefCell, rc::Rc};
 
 pub(super) trait SimulationEntity: HasEffects + DynClone {

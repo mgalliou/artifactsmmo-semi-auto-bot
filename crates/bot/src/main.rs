@@ -1,7 +1,7 @@
 use anyhow::Result;
 use bot::{bot::Bot, cli, orderboard::Purpose};
-use sdk::Client;
 use log::LevelFilter;
+use sdk::Client;
 use std::{env, sync::Arc};
 
 fn main() -> Result<()> {

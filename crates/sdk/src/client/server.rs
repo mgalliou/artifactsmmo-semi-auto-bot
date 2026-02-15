@@ -1,7 +1,7 @@
 use api::ArtifactApi;
-use openapi::models::StatusResponseSchema;
 use chrono::{DateTime, TimeDelta, Utc};
 use log::{debug, error};
+use openapi::models::StatusResponseSchema;
 use std::sync::{Arc, RwLock};
 
 #[derive(Default, Debug)]
