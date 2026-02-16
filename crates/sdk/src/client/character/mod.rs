@@ -37,8 +37,8 @@ use api::ArtifactApi;
 use chrono::{DateTime, Utc};
 use openapi::models::{
     CharacterFightSchema, CharacterSchema, ConditionOperator, GeTransactionSchema, MapContentType,
-    MapLayer, NpcItemTransactionSchema, RecyclingItemsSchema, RewardsSchema,
-    SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
+    MapLayer, NpcItemTransactionSchema, RecyclingItemsSchema, RewardsSchema, SimpleItemSchema,
+    SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
 };
 use std::{
     str::FromStr,
@@ -91,8 +91,8 @@ impl CharacterClient {
         Self {
             id,
             inner: CharacterRequestHandler::new(api, data.clone(), account.clone(), server.clone()),
-            account: account.clone(),
             bank: account.bank.clone(),
+            account,
             items,
             resources,
             monsters,
@@ -136,6 +136,7 @@ impl CharacterClient {
         }
         Ok(())
     }
+
     pub fn fight(
         &self,
         participants: Option<&[String; 2]>,
@@ -145,11 +146,11 @@ impl CharacterClient {
     }
 
     pub fn can_fight(&self, participants: Option<&[String; 2]>) -> Result<(), FightError> {
-        let binding = self.current_map();
-        let Some(monster_code) = binding.monster() else {
-            return Err(FightError::NoMonsterOnMap);
-        };
-        let Some(monster) = self.monsters.get(monster_code) else {
+        let Some(monster) = self
+            .current_map()
+            .content_code()
+            .and_then(|code| self.monsters.get(code))
+        else {
             return Err(FightError::NoMonsterOnMap);
         };
         if !self.inventory().has_room_for_drops_from(&monster) {
@@ -161,14 +162,15 @@ impl CharacterClient {
         if !participants.is_empty() && monster.is_boss() {
             return Err(FightError::MonsterIsNotABoss);
         }
-        for p in participants.iter() {
-            if let Some(p) = self.account.get_character_by_name(p) {
-                if p.position() != self.position() {
-                    return Err(FightError::NoMonsterOnMap);
-                }
-                if !p.inventory().has_room_for_drops_from(&monster) {
-                    return Err(FightError::InsufficientInventorySpace);
-                }
+        for name in participants.iter() {
+            let Some(char) = self.account.get_character_by_name(name) else {
+                return Err(FightError::CharacterNotFound);
+            };
+            if char.position() != self.position() {
+                return Err(FightError::NoMonsterOnMap);
+            }
+            if !char.inventory().has_room_for_drops_from(&monster) {
+                return Err(FightError::InsufficientInventorySpace);
             }
         }
         Ok(())
@@ -180,11 +182,11 @@ impl CharacterClient {
     }
 
     pub fn can_gather(&self) -> Result<(), GatherError> {
-        let binding = self.current_map();
-        let Some(resource_code) = binding.resource() else {
-            return Err(GatherError::NoResourceOnMap);
-        };
-        let Some(resource) = self.resources.get(resource_code) else {
+        let Some(resource) = self
+            .current_map()
+            .content_code()
+            .and_then(|code| self.resources.get(code))
+        else {
             return Err(GatherError::NoResourceOnMap);
         };
         if self.skill_level(resource.skill()) < resource.level() {
@@ -381,14 +383,13 @@ impl CharacterClient {
             return Err(EquipError::InsufficientQuantity);
         }
         if let Some(equiped) = self.items.get(&self.equiped_in(slot)) {
-            if equiped.code() == item_code {
-                if slot.max_quantity() <= 1 {
-                    return Err(EquipError::ItemAlreadyEquiped);
-                } else if self.quantity_in_slot(slot) + quantity > slot.max_quantity() {
-                    return Err(EquipError::QuantityGreaterThanSlotMaxixum);
-                }
-            } else {
+            if equiped.code() != item_code {
                 return Err(EquipError::SlotNotEmpty);
+            };
+            if slot.max_quantity() <= 1 {
+                return Err(EquipError::ItemAlreadyEquiped);
+            } else if self.quantity_in_slot(slot) + quantity > slot.max_quantity() {
+                return Err(EquipError::QuantityGreaterThanSlotMaxixum);
             }
         }
         if !self.meets_conditions_for(&item) {
@@ -469,7 +470,7 @@ impl CharacterClient {
         let Some(task_type) = self.task_type() else {
             return Err(TaskCancellationError::NoCurrentTask);
         };
-        if self.inventory().total_of("tasks_coin") < 1 {
+        if self.inventory().total_of(TASKS_COIN) < 1 {
             return Err(TaskCancellationError::InsufficientTasksCoinQuantity);
         }
         if !self
@@ -524,19 +525,24 @@ impl CharacterClient {
     }
 
     pub fn can_complete_task(&self) -> Result<(), TaskCompletionError> {
-        let Some(task_type) = self.task_type() else {
+        let Some(task) = self.tasks.get(&self.task()) else {
             return Err(TaskCompletionError::NoCurrentTask);
         };
         if !self.task_finished() {
             return Err(TaskCompletionError::TaskNotFullfilled);
         }
-        if self.inventory().free_space() < 2 {
+        if self
+            .inventory()
+            .has_room_for_multiple(&task.rewards().items)
+        {
             return Err(TaskCompletionError::InsufficientInventorySpace);
         }
         if !self
             .current_map()
             .content_type_is(MapContentType::TasksMaster)
-            || !self.current_map().content_code_is(&task_type.to_string())
+            || !self
+                .current_map()
+                .content_code_is(&task.r#type().to_string())
         {
             return Err(TaskCompletionError::WrongOrNoTasksMasterOnMap);
         }
@@ -555,7 +561,7 @@ impl CharacterClient {
         }
         let extra_quantity = self
             .tasks
-            .reward
+            .rewards
             .max_quantity()
             .saturating_sub(TASK_EXCHANGE_PRICE);
         if self.inventory().free_space() < extra_quantity

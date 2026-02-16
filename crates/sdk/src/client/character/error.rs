@@ -94,6 +94,8 @@ pub enum FightError {
     MonsterIsNotABoss = ACTION_ALREADY_IN_PROGRESS,
     #[error("No monster on map")]
     NoMonsterOnMap = ENTITY_NOT_FOUND_ON_MAP,
+    #[error("Character not found")]
+    CharacterNotFound = CHARACTER_NOT_FOUND,
     #[error(transparent)]
     UnhandledError(#[from] RequestError),
 }

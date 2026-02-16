@@ -115,7 +115,7 @@ impl Client {
             api.clone(),
             resources.clone(),
             monsters.clone(),
-            tasks.reward.clone(),
+            tasks.rewards.clone(),
             npcs.clone(),
         ));
 

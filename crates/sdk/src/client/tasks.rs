@@ -9,7 +9,7 @@ use std::{
 #[derive(Default, Debug, CollectionClient)]
 pub struct TasksClient {
     data: RwLock<HashMap<String, Task>>,
-    pub reward: Arc<TasksRewardsClient>,
+    pub rewards: Arc<TasksRewardsClient>,
     api: Arc<ArtifactApi>,
 }
 
@@ -17,7 +17,7 @@ impl TasksClient {
     pub(crate) fn new(api: Arc<ArtifactApi>, reward: Arc<TasksRewardsClient>) -> Self {
         let tasks = Self {
             data: Default::default(),
-            reward,
+            rewards: reward,
             api,
         };
         *tasks.data.write().unwrap() = tasks.load();

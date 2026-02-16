@@ -51,13 +51,7 @@ impl Map {
         self.0.access.r#type == MapAccessType::Blocked
     }
 
-    // TODO: should maybe return `Monster` ?
-    pub fn monster(&self) -> Option<&str> {
-        Some(&self.content()?.code)
-    }
-
-    // TODO: should maybe return `Resource` ?
-    pub fn resource(&self) -> Option<&str> {
+    pub fn content_code(&self) -> Option<&str> {
         Some(&self.content()?.code)
     }
 
