@@ -54,8 +54,48 @@ mod request_handler;
 pub mod action;
 pub mod error;
 pub mod inventory;
+pub mod responses;
 
 pub type CharacterData = Arc<RwLock<Arc<CharacterSchema>>>;
+
+trait MeetsConditionsFor: HasCharacterData {
+    fn meets_conditions_for(&self, entity: &impl HasConditions) -> bool {
+        entity.conditions().iter().flatten().all(|condition| {
+            let value = condition.value as u32;
+            // TODO: simplify this
+            match condition.operator {
+                ConditionOperator::Cost => {
+                    if condition.code == GOLD {
+                        self.gold() >= value
+                    } else {
+                        self.inventory().total_of(&condition.code) >= value
+                    }
+                }
+                ConditionOperator::HasItem => self.has_equiped(&condition.code) >= value,
+                ConditionOperator::AchievementUnlocked => self
+                    .account()
+                    .get_achievement(&condition.code)
+                    .is_some_and(|a| a.completed_at.is_some()),
+                ConditionOperator::Eq => LevelConditionCode::from_str(&condition.code)
+                    .is_ok_and(|code| self.skill_level(Skill::from(code)) == value),
+                ConditionOperator::Ne => LevelConditionCode::from_str(&condition.code)
+                    .is_ok_and(|code| self.skill_level(Skill::from(code)) != value),
+                ConditionOperator::Gt => LevelConditionCode::from_str(&condition.code)
+                    .is_ok_and(|code| self.skill_level(Skill::from(code)) > value),
+                ConditionOperator::Lt => LevelConditionCode::from_str(&condition.code)
+                    .is_ok_and(|code| self.skill_level(Skill::from(code)) < value),
+            }
+        })
+    }
+
+    fn account(&self) -> Arc<AccountClient>;
+}
+
+impl MeetsConditionsFor for CharacterClient {
+    fn account(&self) -> Arc<AccountClient> {
+        self.account.clone()
+    }
+}
 
 #[derive(Default, Debug)]
 pub struct CharacterClient {
@@ -789,40 +829,6 @@ impl CharacterClient {
             rune: self.items.get(&d.rune_slot),
             bag: self.items.get(&d.bag_slot),
         }
-    }
-
-    // TODO: return a result
-    pub fn meets_conditions_for(&self, entity: &impl HasConditions) -> bool {
-        entity.conditions().iter().flatten().all(|condition| {
-            let value = condition.value as u32;
-            // TODO: simplify this
-            match condition.operator {
-                ConditionOperator::Cost => {
-                    if condition.code == GOLD {
-                        self.gold() >= value
-                    } else {
-                        self.inventory().total_of(&condition.code) >= value
-                    }
-                }
-                ConditionOperator::HasItem => self.has_equiped(&condition.code) >= value,
-                ConditionOperator::AchievementUnlocked => self
-                    .account()
-                    .get_achievement(&condition.code)
-                    .is_some_and(|a| a.completed_at.is_some()),
-                ConditionOperator::Eq => LevelConditionCode::from_str(&condition.code)
-                    .is_ok_and(|code| self.skill_level(Skill::from(code)) == value),
-                ConditionOperator::Ne => LevelConditionCode::from_str(&condition.code)
-                    .is_ok_and(|code| self.skill_level(Skill::from(code)) != value),
-                ConditionOperator::Gt => LevelConditionCode::from_str(&condition.code)
-                    .is_ok_and(|code| self.skill_level(Skill::from(code)) > value),
-                ConditionOperator::Lt => LevelConditionCode::from_str(&condition.code)
-                    .is_ok_and(|code| self.skill_level(Skill::from(code)) < value),
-            }
-        })
-    }
-
-    pub fn account(&self) -> Arc<AccountClient> {
-        self.account.clone()
     }
 
     pub fn remaining_cooldown(&self) -> Duration {

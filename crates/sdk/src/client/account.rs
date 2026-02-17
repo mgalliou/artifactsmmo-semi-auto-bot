@@ -10,6 +10,7 @@ use itertools::Itertools;
 use openapi::models::AccountAchievementSchema;
 use std::sync::{Arc, RwLock};
 
+/// Hold and manage data related to a specific account
 #[derive(Default, Debug)]
 pub struct AccountClient {
     pub name: String,

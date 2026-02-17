@@ -1,6 +1,6 @@
-use crate::{client::character::error::RequestError, gear::Slot};
-
-use super::request_handler::ResponseSchema;
+use crate::{
+    character::responses::ResponseSchema, client::character::error::RequestError, gear::Slot,
+};
 use api::ArtifactApi;
 use openapi::models::SimpleItemSchema;
 use strum_macros::{Display, EnumIs};
@@ -276,3 +276,43 @@ impl Action<'_> {
         }
     }
 }
+//
+// trait CharacterAction {
+//     type Result;
+//     type Error;
+//
+//     fn execute(
+//         &self,
+//         request_handler: &CharacterRequestHandler,
+//     ) -> Result<Self::Result, Self::Error>;
+//     fn can_execute(&self, request_handler: &CharacterRequestHandler) -> Result<(), Self::Error>;
+// }
+//
+// struct MoveCharacter {
+//     x: i32,
+//     y: i32,
+//     maps: Arc<MapsClient>,
+// }
+//
+// impl CharacterAction for MoveCharacter {
+//     type Result = Map;
+//     type Error = MoveError;
+//
+//     fn execute(&self, handler: &CharacterRequestHandler) -> Result<Self::Result, Self::Error> {
+//         self.can_execute(handler)?;
+//         Ok(handler.request_move(self.x, self.y)?)
+//     }
+//
+//     fn can_execute(&self, handler: &CharacterRequestHandler) -> Result<(), Self::Error> {
+//         if handler.position() == (handler.position().0, self.x, self.y) {
+//             return Err(MoveError::AlreadyOnMap);
+//         }
+//         let Some(map) = self.maps.get(handler.position().0, self.x, self.y) else {
+//             return Err(MoveError::MapNotFound);
+//         };
+//         if map.is_blocked() || !handler.meets_conditions_for(map.access()) {
+//             return Err(MoveError::ConditionsNotMet);
+//         }
+//         Ok(())
+//     }
+// }
