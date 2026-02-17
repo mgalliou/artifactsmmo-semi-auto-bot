@@ -119,7 +119,7 @@ impl InventoryController {
         Ok(())
     }
 
-    /// Decrease the reserved quantity of `item`
+    /// Decrease the reserved quantity of `items`
     pub fn decrease_reservations(&self, items: &[SimpleItemSchema]) {
         for item in items.iter() {
             self.decrease_reservation(&item.code, item.quantity);
@@ -154,16 +154,6 @@ impl InventoryController {
         Ok(())
     }
 
-    pub fn remove_reservation(&self, reservation: &InventoryReservation) {
-        self.reservations
-            .write()
-            .unwrap()
-            .retain(|r| **r != *reservation);
-        debug!(
-            "{}: removed inventory reservation: {reservation}",
-            self.client.name(),
-        );
-    }
 }
 
 impl Inventory for InventoryController {}
@@ -217,6 +207,17 @@ impl HasReservation for InventoryController {
 
     fn discriminate(reservation: &InventoryReservation) -> InventoryDiscriminant {
         reservation.item.as_str().into()
+    }
+
+    fn remove_reservation(&self, reservation: &InventoryReservation) {
+        self.reservations
+            .write()
+            .unwrap()
+            .retain(|r| **r != *reservation);
+        debug!(
+            "{}: removed inventory reservation: {reservation}",
+            self.client.name(),
+        );
     }
 }
 

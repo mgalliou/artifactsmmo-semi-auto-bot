@@ -71,6 +71,8 @@ trait HasReservation: ItemContainer {
             .cloned()
     }
 
+    fn remove_reservation(&self, reservation: &Self::Reservation);
+
     fn discriminate(reservation: &Self::Reservation) -> Self::Discriminant;
 }
 
@@ -89,12 +91,12 @@ pub trait Reservation: Code + Quantity {
 
 #[derive(PartialEq)]
 pub struct InventoryDiscriminant {
-    item: String,
+    item_code: String,
 }
 
 #[derive(PartialEq)]
 pub struct BankDiscriminant {
-    item: String,
+    item_code: String,
     owner: String,
 }
 
@@ -106,7 +108,7 @@ impl Discriminant for BankDiscriminant {}
 impl From<&str> for InventoryDiscriminant {
     fn from(value: &str) -> Self {
         Self {
-            item: value.to_string(),
+            item_code: value.to_string(),
         }
     }
 }
@@ -114,7 +116,7 @@ impl From<&str> for InventoryDiscriminant {
 impl From<(&str, &str)> for BankDiscriminant {
     fn from(value: (&str, &str)) -> Self {
         Self {
-            item: value.0.to_string(),
+            item_code: value.0.to_string(),
             owner: value.0.to_string(),
         }
     }

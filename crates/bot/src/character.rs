@@ -362,6 +362,9 @@ impl CharacterController {
     // }
 
     fn progress_order(&self, order: &Order) -> Result<u32, OrderProgressionError> {
+        if self.turn_in_order(order) {
+            return Ok(0)
+        }
         if self.order_board.total_missing_for(order) == 0 {
             return Err(OrderProgressionError::NoItemMissing);
         }
