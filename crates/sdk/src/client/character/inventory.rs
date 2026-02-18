@@ -1,19 +1,19 @@
 use crate::{
     Code, DropsItems,
     container::{ItemContainer, LimitedContainer, SlotLimited, SpaceLimited},
-    entities::Item,
+    entities::{Character, Item},
 };
 use itertools::Itertools;
-use openapi::models::{CharacterSchema, InventorySlot, SimpleItemSchema};
+use openapi::models::{InventorySlot, SimpleItemSchema};
 use std::sync::Arc;
 
 #[derive(Default, Debug)]
 pub struct InventoryClient {
-    data: Arc<CharacterSchema>,
+    data: Character
 }
 
 impl InventoryClient {
-    pub fn new(data: Arc<CharacterSchema>) -> Self {
+    pub fn new(data: Character) -> Self {
         Self { data }
     }
 }
@@ -46,13 +46,13 @@ impl ItemContainer for InventoryClient {
     type Slot = InventorySlot;
 
     fn content(&self) -> Arc<Vec<InventorySlot>> {
-        Arc::new(self.data.inventory.iter().flatten().cloned().collect_vec())
+        Arc::new(self.data.inventory().iter().flatten().cloned().collect_vec())
     }
 }
 
 impl SpaceLimited for InventoryClient {
     fn max_items(&self) -> u32 {
-        self.data.inventory_max_items as u32
+        self.data.inventory_max_items() as u32
     }
 }
 

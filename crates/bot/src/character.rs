@@ -25,16 +25,16 @@ use itertools::Itertools;
 use log::{debug, error, info, warn};
 use ordered_float::OrderedFloat;
 use sdk::{
-    Client, Code, CollectionClient, DropsItems, HasConditions, HasDrops, ItemContainer,
-    ItemsClient, Level, LimitedContainer, MapsClient, MonstersClient, NpcsClient,
+    AccountClient, Client, Code, CollectionClient, DropsItems, HasDrops,
+    ItemContainer, ItemsClient, Level, LimitedContainer, MapsClient, MonstersClient, NpcsClient,
     SimpleItemSchemas, SlotLimited, SpaceLimited, TasksClient,
     bank::Bank,
-    character::{CharacterClient, HasCharacterData, error::RestError},
+    character::{CharacterClient, HasCharacterData, MeetsConditionsFor, error::RestError},
     consts::{
         BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, GOLDEN_EGG, GOLDEN_SHRIMP, MAX_LEVEL,
         TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE, TASKS_COIN,
     },
-    entities::{Item, Map, Monster, NpcItem, Resource},
+    entities::{Character, Item, Map, Monster, NpcItem, Resource},
     gear::{Gear, Slot},
     items::ItemSource,
     models::{
@@ -1765,10 +1765,6 @@ impl CharacterController {
         self.client.current_map()
     }
 
-    pub fn meets_conditions_for(&self, entity: &impl HasConditions) -> bool {
-        self.client.meets_conditions_for(entity)
-    }
-
     pub fn skill_enabled(&self, s: Skill) -> bool {
         self.config().skill_is_enabled(s)
     }
@@ -1855,7 +1851,7 @@ impl CharacterController {
 }
 
 impl HasCharacterData for CharacterController {
-    fn data(&self) -> Arc<CharacterSchema> {
+    fn data(&self) -> Character {
         self.client.data()
     }
 
@@ -1865,5 +1861,17 @@ impl HasCharacterData for CharacterController {
 
     fn update_data(&self, schema: CharacterSchema) {
         self.client.update_data(schema);
+    }
+}
+
+impl MeetsConditionsFor for CharacterController {
+    fn account(&self) -> Arc<AccountClient> {
+        self.account.client().clone()
+    }
+}
+
+impl Level for CharacterController {
+    fn level(&self) -> u32 {
+        self.client.data().level()
     }
 }

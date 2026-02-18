@@ -9,7 +9,7 @@ use anyhow::{Result, bail};
 use clap::{Parser, Subcommand, value_parser};
 use rustyline::{DefaultEditor, error::ReadlineError};
 use sdk::{
-    CollectionClient, ItemContainer,
+    CollectionClient, ItemContainer, Level,
     character::HasCharacterData,
     entities::EventSchemaExt,
     simulator::{Participant, Simulator},
@@ -320,8 +320,7 @@ fn respond(
             let Some(char) = character else {
                 bail!("no character selected");
             };
-            let (layer, x, y) = char.position();
-            println!("{:?}", bot.client.maps.get(layer, x, y).unwrap());
+            println!("{:?}", bot.client.maps.get(char.position()).unwrap());
         }
         Commands::Task => {
             let Some(char) = character else {

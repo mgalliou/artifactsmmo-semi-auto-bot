@@ -1,8 +1,5 @@
 use crate::{
-    CharacterClient, Gear, Slot,
-    character::HasCharacterData,
-    entities::Monster,
-    simulator::entity::{SimulationCharacter, SimulationEntity, SimulationMonster},
+    CharacterClient, Gear, Level, Slot, character::HasCharacterData, entities::Monster, simulator::entity::{SimulationCharacter, SimulationEntity, SimulationMonster}
 };
 use itertools::Itertools;
 use openapi::models::FightResult;

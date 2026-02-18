@@ -1,4 +1,5 @@
 mod active_event;
+mod character;
 mod event;
 mod item;
 mod map;
@@ -10,6 +11,7 @@ mod task;
 mod task_reward;
 
 pub use active_event::*;
+pub use character::*;
 pub use event::*;
 pub use item::*;
 pub use map::*;

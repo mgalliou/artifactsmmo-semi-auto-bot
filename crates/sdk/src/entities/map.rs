@@ -2,7 +2,7 @@ use crate::MapsClient;
 use core::fmt;
 use openapi::models::{
     AccessSchema, InteractionSchema, MapAccessType, MapContentSchema, MapContentType, MapSchema,
-    TaskType,
+    TaskType, TransitionSchema,
 };
 use serde::{Deserialize, Serialize};
 use std::{ops::Deref, sync::Arc};
@@ -45,6 +45,10 @@ impl Map {
 
     pub fn interactions(&self) -> &InteractionSchema {
         self.0.interactions.deref()
+    }
+
+    pub fn transition(&self) -> Option<&TransitionSchema> {
+        self.interactions().transition.as_deref()
     }
 
     pub fn is_blocked(&self) -> bool {

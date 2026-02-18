@@ -4,7 +4,7 @@ use ordered_float::OrderedFloat;
 use sdk::{
     CanProvideXp, Code, CollectionClient, FROZEN_AXE, FROZEN_FISHING_ROD, FROZEN_GLOVES,
     FROZEN_PICKAXE, ItemsClient, Level, MAX_LEVEL,
-    character::HasCharacterData,
+    character::{HasCharacterData, MeetsConditionsFor},
     check_lvl_diff,
     entities::{Item, Monster, Resource},
     gear::{Gear, Slot},

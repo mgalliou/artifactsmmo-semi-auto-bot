@@ -5,7 +5,7 @@ use crate::{
 use itertools::Itertools;
 use sdk::{
     AccountClient, Client, Code, CollectionClient, ItemContainer, ItemsClient, NpcsClient, Skill,
-    SpaceLimited, character::HasCharacterData, entities::Item, items::ItemSource,
+    SpaceLimited, character::{HasCharacterData, MeetsConditionsFor}, entities::Item, items::ItemSource,
 };
 use std::sync::{Arc, RwLock};
 
@@ -35,6 +35,10 @@ impl AccountController {
             npcs,
             characters: RwLock::new(vec![]),
         }
+    }
+
+    pub fn client(&self) -> Arc<AccountClient> {
+        self.client.clone()
     }
 
     pub fn init_characters(

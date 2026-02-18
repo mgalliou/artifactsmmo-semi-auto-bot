@@ -1,7 +1,7 @@
 use crate::{
     ClientError, ItemsClient, MapsClient, MonstersClient, NpcsClient, ResourcesClient,
     ServerClient, TasksClient,
-    character::HasCharacterData,
+    character::{CharacterDataHandle, HasCharacterData},
     client::{bank::BankClient, character::CharacterClient},
     grand_exchange::GrandExchangeClient,
 };
@@ -62,7 +62,7 @@ impl AccountClient {
             .map(|(id, data)| {
                 CharacterClient::new(
                     id,
-                    Arc::new(RwLock::new(Arc::new(data))),
+                    CharacterDataHandle::new(data),
                     account.clone(),
                     items.clone(),
                     resources.clone(),
