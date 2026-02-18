@@ -24,7 +24,7 @@ impl Bot {
     pub fn new(client: Arc<Client>) -> Self {
         let config = Arc::new(BotConfig::from_file());
         let bank = Arc::new(BankController::new(
-            client.account.bank.clone(),
+            client.account.bank(),
             client.items.clone(),
         ));
         let account = Arc::new(AccountController::new(

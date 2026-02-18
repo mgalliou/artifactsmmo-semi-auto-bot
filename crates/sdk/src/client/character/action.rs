@@ -4,7 +4,7 @@ use crate::{
         MeetsConditionsFor,
         error::MoveError,
     },
-    entities::Map,
+    entities::{Map, RawCharacter},
 };
 use std::sync::Arc;
 
@@ -28,11 +28,11 @@ impl CharacterAction for MoveCharacter {
 
     fn execute(&self, actionner: &CharacterClient) -> Result<Self::Result, Self::Error> {
         self.can_execute(actionner)?;
-        Ok(actionner.handler.request_move(self.x, self.y)?)
+        Ok(actionner.handler().request_move(self.x, self.y)?)
     }
 
     fn can_execute(&self, actionner: &CharacterClient) -> Result<(), Self::Error> {
-        let position = actionner.handler.character().position();
+        let position = actionner.handler().character().position();
         let layer = position.0;
         if position == (layer, self.x, self.y) {
             return Err(MoveError::AlreadyOnMap);

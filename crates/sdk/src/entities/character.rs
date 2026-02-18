@@ -5,6 +5,30 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use strum::IntoEnumIterator;
 
+pub trait RawCharacter {
+    fn name(&self) -> &str;
+    fn position(&self) -> (MapLayer, i32, i32);
+    fn skill_level(&self, skill: Skill) -> u32;
+    fn skill_xp(&self, skill: Skill) -> i32;
+    fn skill_max_xp(&self, skill: Skill) -> i32;
+    fn hp(&self) -> i32;
+    fn max_hp(&self) -> i32;
+    fn missing_hp(&self) -> i32;
+    fn task(&self) -> &str;
+    fn task_type(&self) -> Option<TaskType>;
+    fn task_progress(&self) -> u32;
+    fn task_total(&self) -> u32;
+    fn task_missing(&self) -> u32;
+    fn task_finished(&self) -> bool;
+    fn equiped_in(&self, slot: Slot) -> &str;
+    fn has_equiped(&self, item_code: &str) -> u32;
+    fn quantity_in_slot(&self, slot: Slot) -> u32;
+    fn inventory(&self) -> &Option<Vec<InventorySlot>>;
+    fn inventory_max_items(&self) -> i32;
+    fn gold(&self) -> u32;
+    fn cooldown_expiration(&self) -> Option<DateTime<Utc>>;
+}
+
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Character(Arc<CharacterSchema>);
 
@@ -12,16 +36,18 @@ impl Character {
     pub fn new(schema: CharacterSchema) -> Self {
         Self(Arc::new(schema))
     }
+}
 
-    pub fn name(&self) -> &str {
+impl RawCharacter for Character {
+    fn name(&self) -> &str {
         &self.0.name
     }
 
-    pub fn position(&self) -> (MapLayer, i32, i32) {
+    fn position(&self) -> (MapLayer, i32, i32) {
         (self.0.layer, self.0.x, self.0.y)
     }
 
-    pub fn skill_level(&self, skill: Skill) -> u32 {
+    fn skill_level(&self, skill: Skill) -> u32 {
         let inner = &self.0;
         (match skill {
             Skill::Combat => inner.level,
@@ -36,7 +62,7 @@ impl Character {
         }) as u32
     }
 
-    pub fn skill_xp(&self, skill: Skill) -> i32 {
+    fn skill_xp(&self, skill: Skill) -> i32 {
         let inner = &self.0;
         match skill {
             Skill::Combat => inner.xp,
@@ -51,7 +77,7 @@ impl Character {
         }
     }
 
-    pub fn skill_max_xp(&self, skill: Skill) -> i32 {
+    fn skill_max_xp(&self, skill: Skill) -> i32 {
         let inner = &self.0;
         match skill {
             Skill::Combat => inner.max_xp,
@@ -66,27 +92,27 @@ impl Character {
         }
     }
 
-    pub fn max_hp(&self) -> i32 {
-        self.0.max_hp
-    }
-
-    pub fn hp(&self) -> i32 {
+    fn hp(&self) -> i32 {
         self.0.hp
     }
 
-    pub fn missing_hp(&self) -> i32 {
+    fn max_hp(&self) -> i32 {
+        self.0.max_hp
+    }
+
+    fn missing_hp(&self) -> i32 {
         self.max_hp() - self.hp()
     }
 
-    pub fn gold(&self) -> u32 {
+    fn gold(&self) -> u32 {
         self.0.gold as u32
     }
 
-    pub fn task(&self) -> &str {
+    fn task(&self) -> &str {
         &self.0.task
     }
 
-    pub fn task_type(&self) -> Option<TaskType> {
+    fn task_type(&self) -> Option<TaskType> {
         match self.0.task_type.as_str() {
             "monsters" => Some(TaskType::Monsters),
             "items" => Some(TaskType::Items),
@@ -94,7 +120,59 @@ impl Character {
         }
     }
 
-    pub fn quantity_in_slot(&self, slot: Slot) -> u32 {
+    fn task_progress(&self) -> u32 {
+        self.0.task_progress as u32
+    }
+
+    fn task_total(&self) -> u32 {
+        self.0.task_total as u32
+    }
+
+    fn task_missing(&self) -> u32 {
+        self.task_total().saturating_sub(self.task_progress())
+    }
+
+    fn task_finished(&self) -> bool {
+        !self.task().is_empty() && self.task_missing() < 1
+    }
+
+    /// Returns the cooldown expiration timestamp of the `Character`.
+    fn cooldown_expiration(&self) -> Option<DateTime<Utc>> {
+        self.0
+            .cooldown_expiration
+            .as_ref()
+            .map(|cd| DateTime::parse_from_rfc3339(cd).ok().map(|dt| dt.to_utc()))?
+    }
+
+    fn equiped_in(&self, slot: Slot) -> &str {
+        let inner = &self.0;
+        match slot {
+            Slot::Weapon => &inner.weapon_slot,
+            Slot::Shield => &inner.shield_slot,
+            Slot::Helmet => &inner.helmet_slot,
+            Slot::BodyArmor => &inner.body_armor_slot,
+            Slot::LegArmor => &inner.leg_armor_slot,
+            Slot::Boots => &inner.boots_slot,
+            Slot::Ring1 => &inner.ring1_slot,
+            Slot::Ring2 => &inner.ring2_slot,
+            Slot::Amulet => &inner.amulet_slot,
+            Slot::Artifact1 => &inner.artifact1_slot,
+            Slot::Artifact2 => &inner.artifact2_slot,
+            Slot::Artifact3 => &inner.artifact3_slot,
+            Slot::Utility1 => &inner.utility1_slot,
+            Slot::Utility2 => &inner.utility2_slot,
+            Slot::Bag => &inner.bag_slot,
+            Slot::Rune => &inner.rune_slot,
+        }
+    }
+
+    fn has_equiped(&self, item_code: &str) -> u32 {
+        Slot::iter()
+            .filter_map(|s| (self.equiped_in(s) == item_code).then_some(self.quantity_in_slot(s)))
+            .sum()
+    }
+
+    fn quantity_in_slot(&self, slot: Slot) -> u32 {
         match slot {
             Slot::Utility1 => self.0.utility1_slot_quantity,
             Slot::Utility2 => self.0.utility2_slot_quantity,
@@ -121,63 +199,11 @@ impl Character {
         }
     }
 
-    pub fn task_progress(&self) -> u32 {
-        self.0.task_progress as u32
-    }
-
-    pub fn task_total(&self) -> u32 {
-        self.0.task_total as u32
-    }
-
-    pub fn task_missing(&self) -> u32 {
-        self.task_total().saturating_sub(self.task_progress())
-    }
-
-    pub fn task_finished(&self) -> bool {
-        !self.task().is_empty() && self.task_missing() < 1
-    }
-
-    /// Returns the cooldown expiration timestamp of the `Character`.
-    pub fn cooldown_expiration(&self) -> Option<DateTime<Utc>> {
-        self.0
-            .cooldown_expiration
-            .as_ref()
-            .map(|cd| DateTime::parse_from_rfc3339(cd).ok().map(|dt| dt.to_utc()))?
-    }
-
-    pub fn equiped_in(&self, slot: Slot) -> &str {
-        let inner = &self.0;
-        match slot {
-            Slot::Weapon => &inner.weapon_slot,
-            Slot::Shield => &inner.shield_slot,
-            Slot::Helmet => &inner.helmet_slot,
-            Slot::BodyArmor => &inner.body_armor_slot,
-            Slot::LegArmor => &inner.leg_armor_slot,
-            Slot::Boots => &inner.boots_slot,
-            Slot::Ring1 => &inner.ring1_slot,
-            Slot::Ring2 => &inner.ring2_slot,
-            Slot::Amulet => &inner.amulet_slot,
-            Slot::Artifact1 => &inner.artifact1_slot,
-            Slot::Artifact2 => &inner.artifact2_slot,
-            Slot::Artifact3 => &inner.artifact3_slot,
-            Slot::Utility1 => &inner.utility1_slot,
-            Slot::Utility2 => &inner.utility2_slot,
-            Slot::Bag => &inner.bag_slot,
-            Slot::Rune => &inner.rune_slot,
-        }
-    }
-
-    pub fn has_equiped(&self, item_code: &str) -> u32 {
-        Slot::iter()
-            .filter_map(|s| (self.equiped_in(s) == item_code).then_some(self.quantity_in_slot(s)))
-            .sum()
-    }
-
-    pub fn inventory(&self) -> &Option<Vec<InventorySlot>> {
+    fn inventory(&self) -> &Option<Vec<InventorySlot>> {
         &self.0.inventory
     }
 
-    pub fn inventory_max_items(&self) -> i32 {
+    fn inventory_max_items(&self) -> i32 {
         self.0.inventory_max_items
     }
 }

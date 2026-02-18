@@ -1,3 +1,6 @@
+use api::ArtifactApi;
+use std::{sync::Arc, thread};
+
 pub use crate::client::{
     account::AccountClient, bank::BankClient, character::CharacterClient, error::ClientError,
     events::EventsClient, grand_exchange::GrandExchangeClient, items::ItemsClient,
@@ -5,8 +8,6 @@ pub use crate::client::{
     resources::ResourcesClient, server::ServerClient, tasks::TasksClient,
     tasks_rewards::TasksRewardsClient,
 };
-use api::ArtifactApi;
-use std::{sync::Arc, thread};
 
 pub mod account;
 pub mod bank;
@@ -26,7 +27,7 @@ pub mod tasks_rewards;
 
 #[derive(Default, Debug)]
 pub struct Client {
-    pub account: Arc<AccountClient>,
+    pub account: AccountClient,
     pub server: Arc<ServerClient>,
     pub events: Arc<EventsClient>,
     pub resources: Arc<ResourcesClient>,
@@ -53,7 +54,7 @@ impl Client {
                     .bank
                     .get_items()
                     .map_err(|e| ClientError::Api(Box::new(e)))?;
-                Ok(Arc::new(BankClient::new(*bank_details.data, bank_items)))
+                Ok(BankClient::new(*bank_details.data, bank_items))
             });
 
             let api_clone = api.clone();
@@ -87,7 +88,7 @@ impl Client {
             )
         });
 
-        let bank: Arc<BankClient> = bank_res?;
+        let bank: BankClient = bank_res?;
 
         let (resources, monsters, maps) = thread::scope(|s| {
             let api_clone = api.clone();
@@ -119,10 +120,9 @@ impl Client {
             npcs.clone(),
         ));
 
-        let account = Arc::new(AccountClient::new(account_name, bank, api.clone()));
+        let account = AccountClient::new(account_name, bank, api.clone());
         let grand_exchange = Arc::new(GrandExchangeClient::new(api.clone()));
         account.load_characters(
-            account.clone(),
             items.clone(),
             resources.clone(),
             monsters.clone(),

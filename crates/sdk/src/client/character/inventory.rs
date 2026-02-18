@@ -1,7 +1,7 @@
 use crate::{
     Code, DropsItems,
     container::{ItemContainer, LimitedContainer, SlotLimited, SpaceLimited},
-    entities::{Character, Item},
+    entities::{Character, Item, RawCharacter},
 };
 use itertools::Itertools;
 use openapi::models::{InventorySlot, SimpleItemSchema};

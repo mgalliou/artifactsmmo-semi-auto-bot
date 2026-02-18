@@ -2,11 +2,9 @@ use crate::{
     AccountClient,
     character::{CharacterDataHandle, MeetsConditionsFor, responses::ResponseSchema},
     client::{
-        bank::BankClient,
         character::{HasCharacterData, action_request::ActionRequest, error::RequestError},
         server::ServerClient,
     },
-    consts::BANK_EXTENSION_SIZE,
     entities::{Character, Map},
     gear::Slot,
 };
@@ -15,21 +13,16 @@ use chrono::Utc;
 use log::{debug, error, info, warn};
 use openapi::models::{
     BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema,
-    BankItemTransactionResponseSchema, BankSchema, CharacterFightResponseSchema,
-    CharacterFightSchema, CharacterMovementResponseSchema, CharacterRestResponseSchema,
-    CharacterSchema, CharacterTransitionResponseSchema, DeleteItemResponseSchema,
+    BankItemTransactionResponseSchema, CharacterFightResponseSchema, CharacterFightSchema,
+    CharacterMovementResponseSchema, CharacterRestResponseSchema, CharacterSchema,
+    CharacterTransitionResponseSchema, DeleteItemResponseSchema,
     GeCreateOrderTransactionResponseSchema, GeTransactionResponseSchema, GeTransactionSchema,
     GiveGoldResponseSchema, GiveItemResponseSchema, NpcItemTransactionSchema,
     NpcMerchantTransactionResponseSchema, RecyclingItemsSchema, RecyclingResponseSchema,
     RewardDataResponseSchema, RewardsSchema, SimpleItemSchema, SkillDataSchema, SkillInfoSchema,
     SkillResponseSchema, TaskResponseSchema, TaskSchema, TaskTradeResponseSchema, TaskTradeSchema,
 };
-use std::{
-    cmp::Ordering,
-    sync::{Arc, RwLockWriteGuard},
-    thread::sleep,
-    time::Duration,
-};
+use std::{cmp::Ordering, sync::Arc, thread::sleep, time::Duration};
 
 /// First layer of abstraction around the character API.
 /// It is responsible for handling the character action requests responce and errors
@@ -37,9 +30,8 @@ use std::{
 #[derive(Default, Debug)]
 pub(crate) struct CharacterRequestHandler {
     api: Arc<ArtifactApi>,
-    account: Arc<AccountClient>,
+    account: AccountClient,
     data: CharacterDataHandle,
-    bank: Arc<BankClient>,
     server: Arc<ServerClient>,
 }
 
@@ -47,13 +39,12 @@ impl CharacterRequestHandler {
     pub fn new(
         api: Arc<ArtifactApi>,
         data: CharacterDataHandle,
-        account: Arc<AccountClient>,
+        account: AccountClient,
         server: Arc<ServerClient>,
     ) -> Self {
         Self {
             api,
             data,
-            bank: account.bank.clone(),
             account,
             server,
         }
@@ -63,27 +54,28 @@ impl CharacterRequestHandler {
         self.data.read()
     }
 
-    fn request_action(&self, action: ActionRequest) -> Result<Box<dyn ResponseSchema>, RequestError> {
-        let mut bank_content: Option<RwLockWriteGuard<'_, Arc<Vec<SimpleItemSchema>>>> = None;
-        let mut bank_details: Option<RwLockWriteGuard<'_, Arc<BankSchema>>> = None;
-
+    fn request_action(
+        &self,
+        action: ActionRequest,
+    ) -> Result<Box<dyn ResponseSchema>, RequestError> {
         self.wait_for_cooldown();
-        if action.is_deposit_item() || action.is_withdraw_item() {
-            bank_content = Some(
-                self.bank
-                    .content
-                    .write()
-                    .expect("bank_content to be writable"),
-            );
-        }
-        if action.is_deposit_gold() || action.is_withdraw_gold() || action.is_expand_bank() {
-            bank_details = Some(
-                self.bank
-                    .details
-                    .write()
-                    .expect("bank_details to be writable"),
-            );
-        }
+        // if action.is_deposit_item() || action.is_withdraw_item() {
+        //     bank_content = Some(
+        //         self.account.bank()
+        //             .content()
+        //             .write()
+        //             .expect("bank_content to be writable"),
+        //     );
+        // }
+        // if action.is_deposit_gold() || action.is_withdraw_gold() || action.is_expand_bank() {
+        //     bank_details = Some(
+        //         self.account
+        //             .bank()
+        //             .details
+        //             .write()
+        //             .expect("bank_details to be writable"),
+        //     );
+        // }
         match action.send(&self.name(), &self.api) {
             Ok(res) => {
                 info!("{}", res.to_string());
@@ -96,44 +88,35 @@ impl CharacterRequestHandler {
                 } else {
                     self.update_data(res.character().clone());
                 }
-                if let Some(res) = res.downcast_ref::<BankItemTransactionResponseSchema>()
-                    && let Some(mut content) = bank_content
-                {
-                    *content = res.data.bank.clone().into();
-                } else if let Some(res) = res.downcast_ref::<BankGoldTransactionResponseSchema>()
-                    && let Some(mut details) = bank_details
-                {
-                    let mut new_details = (*(*details)).clone();
-                    new_details.gold = res.data.bank.quantity;
-                    *details = Arc::new(new_details);
+                if let Some(res) = res.downcast_ref::<BankItemTransactionResponseSchema>() {
+                    self.account().bank().update_content(res.data.bank.clone());
+                } else if let Some(res) = res.downcast_ref::<BankGoldTransactionResponseSchema>() {
+                    self.account().bank().update_gold(res.data.bank.quantity);
                 } else if res
                     .downcast_ref::<BankExtensionTransactionResponseSchema>()
                     .is_some()
-                    && let Some(mut details) = bank_details
                 {
-                    let mut new_details = (*(*details)).clone();
-                    new_details.slots += BANK_EXTENSION_SIZE;
-                    *details = Arc::new(new_details);
+                    self.account().bank().expand();
                 };
                 if let Some(res) = res.downcast_ref::<GiveItemResponseSchema>()
-                    && let Some(c) = self
+                    && let Some(char) = self
                         .account
                         .get_character_by_name(&res.data.receiver_character.name)
                 {
-                    c.update_data(*res.data.receiver_character.clone());
+                    char.update_data(*res.data.receiver_character.clone());
                 }
                 if let Some(res) = res.downcast_ref::<GiveGoldResponseSchema>()
-                    && let Some(c) = self
+                    && let Some(char) = self
                         .account
                         .get_character_by_name(&res.data.receiver_character.name)
                 {
-                    c.update_data(*res.data.receiver_character.clone());
+                    char.update_data(*res.data.receiver_character.clone());
                 }
                 Ok(res)
             }
             Err(e) => {
-                drop(bank_content);
-                drop(bank_details);
+                // drop(bank_content);
+                // drop(bank_details);
                 self.handle_request_error(action, e)
             }
         }
@@ -520,7 +503,7 @@ impl CharacterRequestHandler {
 }
 
 impl MeetsConditionsFor for CharacterRequestHandler {
-    fn account(&self) -> Arc<AccountClient> {
+    fn account(&self) -> AccountClient {
         self.account.clone()
     }
 }

@@ -25,8 +25,8 @@ use itertools::Itertools;
 use log::{debug, error, info, warn};
 use ordered_float::OrderedFloat;
 use sdk::{
-    AccountClient, Client, Code, CollectionClient, DropsItems, HasDrops,
-    ItemContainer, ItemsClient, Level, LimitedContainer, MapsClient, MonstersClient, NpcsClient,
+    AccountClient, Client, Code, CollectionClient, DropsItems, HasDrops, ItemContainer,
+    ItemsClient, Level, LimitedContainer, MapsClient, MonstersClient, NpcsClient,
     SimpleItemSchemas, SlotLimited, SpaceLimited, TasksClient,
     bank::Bank,
     character::{CharacterClient, HasCharacterData, MeetsConditionsFor, error::RestError},
@@ -61,7 +61,7 @@ use std::{
 use strum::IntoEnumIterator;
 
 pub struct CharacterController {
-    client: Arc<CharacterClient>,
+    client: CharacterClient,
     bot_config: Arc<BotConfig>,
     pub inventory: Arc<InventoryController>,
     bank: Arc<BankController>,
@@ -80,9 +80,9 @@ pub struct CharacterController {
 
 impl CharacterController {
     pub fn new(
-        char_client: Arc<CharacterClient>,
+        char_client: CharacterClient,
         bot_cfg: Arc<BotConfig>,
-        client: &Arc<Client>,
+        client: &Client,
         account: Arc<AccountController>,
         order_board: Arc<OrderBoard>,
         gear_finder: Arc<GearFinder>,
@@ -784,7 +784,7 @@ impl CharacterController {
         (1..=1000)
             .filter(|_| {
                 Simulator::fight(
-                    self.client.as_ref().into(),
+                    (&self.client).into(),
                     None,
                     monster.clone(),
                     Default::default(),
@@ -1778,7 +1778,7 @@ impl CharacterController {
     }
 
     pub fn config(&self) -> Arc<CharConfig> {
-        self.bot_config.get_char_config(self.client.id).unwrap()
+        self.bot_config.get_char_config(self.client.id()).unwrap()
     }
 
     //fn progress_gift_order(&self, order: &Order) -> Option<u32> {
@@ -1865,8 +1865,8 @@ impl HasCharacterData for CharacterController {
 }
 
 impl MeetsConditionsFor for CharacterController {
-    fn account(&self) -> Arc<AccountClient> {
-        self.account.client().clone()
+    fn account(&self) -> AccountClient {
+        self.account.client()
     }
 }
 
