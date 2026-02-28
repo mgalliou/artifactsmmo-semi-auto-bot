@@ -5,7 +5,7 @@ use openapi::{
         configuration::Configuration,
         resources_api::{GetAllResourcesResourcesGetError, get_all_resources_resources_get},
     },
-    models::{DataPageResourceSchema, ResourceSchema},
+    models::{ResourceSchema, StaticDataPageResourceSchema},
 };
 use std::sync::Arc;
 
@@ -33,7 +33,7 @@ struct ResourcesRequest<'a> {
 
 impl<'a> Paginate for ResourcesRequest<'a> {
     type Data = ResourceSchema;
-    type Page = DataPageResourceSchema;
+    type Page = StaticDataPageResourceSchema;
     type Error = GetAllResourcesResourcesGetError;
 
     fn request_page(&self, page: u32) -> Result<Self::Page, Error<Self::Error>> {
@@ -49,7 +49,7 @@ impl<'a> Paginate for ResourcesRequest<'a> {
     }
 }
 
-impl DataPage<ResourceSchema> for DataPageResourceSchema {
+impl DataPage<ResourceSchema> for StaticDataPageResourceSchema {
     fn data(self) -> Vec<ResourceSchema> {
         self.data
     }

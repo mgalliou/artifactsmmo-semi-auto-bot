@@ -5,7 +5,7 @@ use openapi::{
         configuration::Configuration,
         items_api::{GetAllItemsItemsGetError, get_all_items_items_get},
     },
-    models::{DataPageItemSchema, ItemSchema},
+    models::{ItemSchema, StaticDataPageItemSchema},
 };
 use std::sync::Arc;
 
@@ -33,7 +33,7 @@ struct ItemsRequest<'a> {
 
 impl<'a> Paginate for ItemsRequest<'a> {
     type Data = ItemSchema;
-    type Page = DataPageItemSchema;
+    type Page = StaticDataPageItemSchema;
     type Error = GetAllItemsItemsGetError;
 
     fn request_page(&self, current_page: u32) -> Result<Self::Page, Error<Self::Error>> {
@@ -51,7 +51,7 @@ impl<'a> Paginate for ItemsRequest<'a> {
     }
 }
 
-impl DataPage<ItemSchema> for DataPageItemSchema {
+impl DataPage<ItemSchema> for StaticDataPageItemSchema {
     fn data(self) -> Vec<ItemSchema> {
         self.data
     }

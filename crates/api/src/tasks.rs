@@ -8,7 +8,9 @@ use openapi::{
             get_all_tasks_rewards_tasks_rewards_get, get_all_tasks_tasks_list_get,
         },
     },
-    models::{DataPageDropRateSchema, DataPageTaskFullSchema, DropRateSchema, TaskFullSchema},
+    models::{
+        DropRateSchema, StaticDataPageDropRateSchema, StaticDataPageTaskFullSchema, TaskFullSchema,
+    },
 };
 use std::sync::Arc;
 
@@ -45,7 +47,7 @@ struct TasksRequest<'a> {
 
 impl<'a> Paginate for TasksRequest<'a> {
     type Data = TaskFullSchema;
-    type Page = DataPageTaskFullSchema;
+    type Page = StaticDataPageTaskFullSchema;
     type Error = GetAllTasksTasksListGetError;
 
     fn request_page(&self, current_page: u32) -> Result<Self::Page, Error<Self::Error>> {
@@ -61,7 +63,7 @@ impl<'a> Paginate for TasksRequest<'a> {
     }
 }
 
-impl DataPage<TaskFullSchema> for DataPageTaskFullSchema {
+impl DataPage<TaskFullSchema> for StaticDataPageTaskFullSchema {
     fn data(self) -> Vec<TaskFullSchema> {
         self.data
     }
@@ -77,7 +79,7 @@ struct TasksRewardsRequest<'a> {
 
 impl<'a> Paginate for TasksRewardsRequest<'a> {
     type Data = DropRateSchema;
-    type Page = DataPageDropRateSchema;
+    type Page = StaticDataPageDropRateSchema;
     type Error = GetAllTasksRewardsTasksRewardsGetError;
 
     fn request_page(&self, current_page: u32) -> Result<Self::Page, Error<Self::Error>> {
@@ -85,7 +87,7 @@ impl<'a> Paginate for TasksRewardsRequest<'a> {
     }
 }
 
-impl DataPage<DropRateSchema> for DataPageDropRateSchema {
+impl DataPage<DropRateSchema> for StaticDataPageDropRateSchema {
     fn data(self) -> Vec<DropRateSchema> {
         self.data
     }

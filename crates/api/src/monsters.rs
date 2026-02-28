@@ -5,7 +5,7 @@ use openapi::{
         configuration::Configuration,
         monsters_api::{GetAllMonstersMonstersGetError, get_all_monsters_monsters_get},
     },
-    models::{DataPageMonsterSchema, MonsterSchema},
+    models::{MonsterSchema, StaticDataPageMonsterSchema},
 };
 use std::sync::Arc;
 
@@ -33,7 +33,7 @@ struct MonstersRequest<'a> {
 
 impl<'a> Paginate for MonstersRequest<'a> {
     type Data = MonsterSchema;
-    type Page = DataPageMonsterSchema;
+    type Page = StaticDataPageMonsterSchema;
     type Error = GetAllMonstersMonstersGetError;
 
     fn request_page(&self, page: u32) -> Result<Self::Page, Error<Self::Error>> {
@@ -49,7 +49,7 @@ impl<'a> Paginate for MonstersRequest<'a> {
     }
 }
 
-impl DataPage<MonsterSchema> for DataPageMonsterSchema {
+impl DataPage<MonsterSchema> for StaticDataPageMonsterSchema {
     fn data(self) -> Vec<MonsterSchema> {
         self.data
     }

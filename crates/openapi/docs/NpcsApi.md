@@ -13,7 +13,7 @@ Method | HTTP request | Description
 
 ## get_all_npcs_items_npcs_items_get
 
-> models::DataPageNpcItem get_all_npcs_items_npcs_items_get(code, npc, currency, page, size)
+> models::StaticDataPageNpcItem get_all_npcs_items_npcs_items_get(code, npc, currency, page, size)
 Get All Npcs Items
 
 Retrieve the list of all NPC items.
@@ -31,7 +31,7 @@ Name | Type | Description  | Required | Notes
 
 ### Return type
 
-[**models::DataPageNpcItem**](DataPage_NPCItem_.md)
+[**models::StaticDataPageNpcItem**](StaticDataPage_NPCItem_.md)
 
 ### Authorization
 
@@ -47,7 +47,7 @@ No authorization required
 
 ## get_all_npcs_npcs_details_get
 
-> models::DataPageNpcSchema get_all_npcs_npcs_details_get(name, r#type, page, size)
+> models::StaticDataPageNpcSchema get_all_npcs_npcs_details_get(name, r#type, page, size)
 Get All Npcs
 
 Fetch NPCs details.
@@ -64,7 +64,7 @@ Name | Type | Description  | Required | Notes
 
 ### Return type
 
-[**models::DataPageNpcSchema**](DataPage_NPCSchema_.md)
+[**models::StaticDataPageNpcSchema**](StaticDataPage_NPCSchema_.md)
 
 ### Authorization
 
@@ -80,7 +80,7 @@ No authorization required
 
 ## get_npc_items_npcs_items_code_get
 
-> models::DataPageNpcItem get_npc_items_npcs_items_code_get(code, page, size)
+> models::StaticDataPageNpcItem get_npc_items_npcs_items_code_get(code, page, size)
 Get Npc Items
 
 Retrieve the items list of a NPC. If the NPC has items to buy, sell or trade, they will be displayed.
@@ -96,7 +96,7 @@ Name | Type | Description  | Required | Notes
 
 ### Return type
 
-[**models::DataPageNpcItem**](DataPage_NPCItem_.md)
+[**models::StaticDataPageNpcItem**](StaticDataPage_NPCItem_.md)
 
 ### Authorization
 

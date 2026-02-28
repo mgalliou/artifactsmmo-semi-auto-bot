@@ -13,8 +13,8 @@ use openapi::{
             ActionEquipItemMyNameActionEquipPostError, ActionFightMyNameActionFightPostError,
             ActionGatheringMyNameActionGatheringPostError,
             ActionGeBuyItemMyNameActionGrandexchangeBuyPostError,
-            ActionGeCancelSellOrderMyNameActionGrandexchangeCancelPostError,
-            ActionGeCreateSellOrderMyNameActionGrandexchangeSellPostError,
+            ActionGeCancelOrderMyNameActionGrandexchangeCancelPostError,
+            ActionGeCreateSellOrderMyNameActionGrandexchangeCreateSellOrderPostError,
             ActionGiveGoldMyNameActionGiveGoldPostError,
             ActionGiveItemsMyNameActionGiveItemPostError, ActionMoveMyNameActionMovePostError,
             ActionNpcBuyItemMyNameActionNpcBuyPostError,
@@ -37,8 +37,8 @@ use openapi::{
             action_equip_item_my_name_action_equip_post, action_fight_my_name_action_fight_post,
             action_gathering_my_name_action_gathering_post,
             action_ge_buy_item_my_name_action_grandexchange_buy_post,
-            action_ge_cancel_sell_order_my_name_action_grandexchange_cancel_post,
-            action_ge_create_sell_order_my_name_action_grandexchange_sell_post,
+            action_ge_cancel_order_my_name_action_grandexchange_cancel_post,
+            action_ge_create_sell_order_my_name_action_grandexchange_create_sell_order_post,
             action_give_gold_my_name_action_give_gold_post,
             action_give_items_my_name_action_give_item_post, action_move_my_name_action_move_post,
             action_npc_buy_item_my_name_action_npc_buy_post,
@@ -391,10 +391,10 @@ impl MyCharacterApi {
         price: u32,
     ) -> Result<
         GeCreateOrderTransactionResponseSchema,
-        Error<ActionGeCreateSellOrderMyNameActionGrandexchangeSellPostError>,
+        Error<ActionGeCreateSellOrderMyNameActionGrandexchangeCreateSellOrderPostError>,
     > {
         let schema = GeOrderCreationrSchema::new(item_code.to_owned(), quantity, price);
-        action_ge_create_sell_order_my_name_action_grandexchange_sell_post(
+        action_ge_create_sell_order_my_name_action_grandexchange_create_sell_order_post(
             &self.configuration,
             name,
             schema,
@@ -407,9 +407,9 @@ impl MyCharacterApi {
         id: &str,
     ) -> Result<
         GeTransactionResponseSchema,
-        Error<ActionGeCancelSellOrderMyNameActionGrandexchangeCancelPostError>,
+        Error<ActionGeCancelOrderMyNameActionGrandexchangeCancelPostError>,
     > {
-        action_ge_cancel_sell_order_my_name_action_grandexchange_cancel_post(
+        action_ge_cancel_order_my_name_action_grandexchange_cancel_post(
             &self.configuration,
             name,
             GeCancelOrderSchema::new(id.to_owned()),

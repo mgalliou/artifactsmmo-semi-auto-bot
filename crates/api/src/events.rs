@@ -8,7 +8,9 @@ use openapi::{
             get_all_active_events_events_active_get, get_all_events_events_get,
         },
     },
-    models::{ActiveEventSchema, DataPageActiveEventSchema, DataPageEventSchema, EventSchema},
+    models::{
+        ActiveEventSchema, EventSchema, StaticDataPageActiveEventSchema, StaticDataPageEventSchema,
+    },
 };
 use std::{option::Option, sync::Arc};
 
@@ -45,7 +47,7 @@ struct EventsRequest<'a> {
 
 impl<'a> Paginate for EventsRequest<'a> {
     type Data = EventSchema;
-    type Page = DataPageEventSchema;
+    type Page = StaticDataPageEventSchema;
     type Error = GetAllEventsEventsGetError;
 
     fn request_page(&self, page: u32) -> Result<Self::Page, Error<Self::Error>> {
@@ -53,7 +55,7 @@ impl<'a> Paginate for EventsRequest<'a> {
     }
 }
 
-impl DataPage<EventSchema> for DataPageEventSchema {
+impl DataPage<EventSchema> for StaticDataPageEventSchema {
     fn data(self) -> Vec<EventSchema> {
         self.data
     }
@@ -69,7 +71,7 @@ struct ActiveEventsRequest<'a> {
 
 impl<'a> Paginate for ActiveEventsRequest<'a> {
     type Data = ActiveEventSchema;
-    type Page = DataPageActiveEventSchema;
+    type Page = StaticDataPageActiveEventSchema;
     type Error = GetAllActiveEventsEventsActiveGetError;
 
     fn request_page(&self, current_page: u32) -> Result<Self::Page, Error<Self::Error>> {
@@ -77,7 +79,7 @@ impl<'a> Paginate for ActiveEventsRequest<'a> {
     }
 }
 
-impl DataPage<ActiveEventSchema> for DataPageActiveEventSchema {
+impl DataPage<ActiveEventSchema> for StaticDataPageActiveEventSchema {
     fn data(self) -> Vec<ActiveEventSchema> {
         self.data
     }

@@ -11,7 +11,7 @@ Method | HTTP request | Description
 
 ## get_all_effects_effects_get
 
-> models::DataPageEffectSchema get_all_effects_effects_get(page, size)
+> models::StaticDataPageEffectSchema get_all_effects_effects_get(page, size)
 Get All Effects
 
 List of all effects. Effects are used by equipment, tools, runes, consumables and monsters. An effect is an action that produces an effect on the game.
@@ -26,7 +26,7 @@ Name | Type | Description  | Required | Notes
 
 ### Return type
 
-[**models::DataPageEffectSchema**](DataPage_EffectSchema_.md)
+[**models::StaticDataPageEffectSchema**](StaticDataPage_EffectSchema_.md)
 
 ### Authorization
 

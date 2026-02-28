@@ -36,9 +36,9 @@ use crate::{
 use api::ArtifactApi;
 use chrono::{DateTime, Utc};
 use openapi::models::{
-    CharacterFightSchema, CharacterSchema, ConditionOperator, GeTransactionSchema, MapContentType,
-    MapLayer, NpcItemTransactionSchema, RecyclingItemsSchema, RewardsSchema, SimpleItemSchema,
-    SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
+    CharacterFightSchema, CharacterSchema, ConditionOperator, GeOrderType, GeTransactionSchema,
+    MapContentType, MapLayer, NpcItemTransactionSchema, RecyclingItemsSchema, RewardsSchema,
+    SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
 };
 use std::{
     str::FromStr,
@@ -58,7 +58,7 @@ pub mod responses;
 
 pub type CharacterData = Arc<RwLock<Arc<CharacterSchema>>>;
 
-trait MeetsConditionsFor: HasCharacterData {
+pub trait MeetsConditionsFor: HasCharacterData {
     fn meets_conditions_for(&self, entity: &impl HasConditions) -> bool {
         entity.conditions().iter().flatten().all(|condition| {
             let value = condition.value as u32;
@@ -734,7 +734,9 @@ impl CharacterClient {
         let Some(order) = self.grand_exchange.get_order_by_id(id) else {
             return Err(GeBuyOrderError::OrderNotFound);
         };
-        if self.account.name == order.seller {
+        if order.r#type.is_some_and(|t| t == GeOrderType::Buy)
+            && order.account.is_some_and(|a| a == self.account.name)
+        {
             return Err(GeBuyOrderError::CannotTradeWithSelf);
         }
         if order.quantity < quantity {
@@ -797,7 +799,7 @@ impl CharacterClient {
         let Some(order) = self.grand_exchange.get_order_by_id(id) else {
             return Err(GeCancelOrderError::OrderNotFound);
         };
-        if self.account.name != order.seller {
+        if order.account.is_some_and(|a| a != self.account.name) {
             return Err(GeCancelOrderError::OrderNotOwned);
         }
         if !self.inventory().has_room_for(&order.code, order.quantity) {

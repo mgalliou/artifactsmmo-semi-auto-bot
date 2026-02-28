@@ -11,7 +11,7 @@ Method | HTTP request | Description
 
 ## get_all_resources_resources_get
 
-> models::DataPageResourceSchema get_all_resources_resources_get(min_level, max_level, skill, drop, page, size)
+> models::StaticDataPageResourceSchema get_all_resources_resources_get(min_level, max_level, skill, drop, page, size)
 Get All Resources
 
 Fetch resources details.
@@ -30,7 +30,7 @@ Name | Type | Description  | Required | Notes
 
 ### Return type
 
-[**models::DataPageResourceSchema**](DataPage_ResourceSchema_.md)
+[**models::StaticDataPageResourceSchema**](StaticDataPage_ResourceSchema_.md)
 
 ### Authorization
 

@@ -8,7 +8,7 @@ use openapi::{
             get_map_by_id_maps_id_map_id_get,
         },
     },
-    models::{DataPageMapSchema, MapResponseSchema, MapSchema},
+    models::{MapResponseSchema, MapSchema, StaticDataPageMapSchema},
 };
 use std::sync::Arc;
 
@@ -43,7 +43,7 @@ struct MapsRequest<'a> {
 
 impl<'a> Paginate for MapsRequest<'a> {
     type Data = MapSchema;
-    type Page = DataPageMapSchema;
+    type Page = StaticDataPageMapSchema;
     type Error = GetAllMapsMapsGetError;
 
     fn request_page(&self, page: u32) -> Result<Self::Page, Error<Self::Error>> {
@@ -59,7 +59,7 @@ impl<'a> Paginate for MapsRequest<'a> {
     }
 }
 
-impl DataPage<MapSchema> for DataPageMapSchema {
+impl DataPage<MapSchema> for StaticDataPageMapSchema {
     fn data(self) -> Vec<MapSchema> {
         self.data
     }

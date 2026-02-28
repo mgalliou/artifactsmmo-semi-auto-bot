@@ -7,6 +7,7 @@ Method | HTTP request | Description
 [**action_accept_new_task_my_name_action_task_new_post**](MyCharactersApi.md#action_accept_new_task_my_name_action_task_new_post) | **POST** /my/{name}/action/task/new | Action Accept New Task
 [**action_buy_bank_expansion_my_name_action_bank_buy_expansion_post**](MyCharactersApi.md#action_buy_bank_expansion_my_name_action_bank_buy_expansion_post) | **POST** /my/{name}/action/bank/buy_expansion | Action Buy Bank Expansion
 [**action_change_skin_my_name_action_change_skin_post**](MyCharactersApi.md#action_change_skin_my_name_action_change_skin_post) | **POST** /my/{name}/action/change_skin | Action Change Skin
+[**action_claim_pending_item_my_name_action_claim_item_id_post**](MyCharactersApi.md#action_claim_pending_item_my_name_action_claim_item_id_post) | **POST** /my/{name}/action/claim_item/{id} | Action Claim Pending Item
 [**action_complete_task_my_name_action_task_complete_post**](MyCharactersApi.md#action_complete_task_my_name_action_task_complete_post) | **POST** /my/{name}/action/task/complete | Action Complete Task
 [**action_crafting_my_name_action_crafting_post**](MyCharactersApi.md#action_crafting_my_name_action_crafting_post) | **POST** /my/{name}/action/crafting | Action Crafting
 [**action_delete_item_my_name_action_delete_post**](MyCharactersApi.md#action_delete_item_my_name_action_delete_post) | **POST** /my/{name}/action/delete | Action Delete Item
@@ -16,8 +17,10 @@ Method | HTTP request | Description
 [**action_fight_my_name_action_fight_post**](MyCharactersApi.md#action_fight_my_name_action_fight_post) | **POST** /my/{name}/action/fight | Action Fight
 [**action_gathering_my_name_action_gathering_post**](MyCharactersApi.md#action_gathering_my_name_action_gathering_post) | **POST** /my/{name}/action/gathering | Action Gathering
 [**action_ge_buy_item_my_name_action_grandexchange_buy_post**](MyCharactersApi.md#action_ge_buy_item_my_name_action_grandexchange_buy_post) | **POST** /my/{name}/action/grandexchange/buy | Action Ge Buy Item
-[**action_ge_cancel_sell_order_my_name_action_grandexchange_cancel_post**](MyCharactersApi.md#action_ge_cancel_sell_order_my_name_action_grandexchange_cancel_post) | **POST** /my/{name}/action/grandexchange/cancel | Action Ge Cancel Sell Order
-[**action_ge_create_sell_order_my_name_action_grandexchange_sell_post**](MyCharactersApi.md#action_ge_create_sell_order_my_name_action_grandexchange_sell_post) | **POST** /my/{name}/action/grandexchange/sell | Action Ge Create Sell Order
+[**action_ge_cancel_order_my_name_action_grandexchange_cancel_post**](MyCharactersApi.md#action_ge_cancel_order_my_name_action_grandexchange_cancel_post) | **POST** /my/{name}/action/grandexchange/cancel | Action Ge Cancel Order
+[**action_ge_create_buy_order_my_name_action_grandexchange_create_buy_order_post**](MyCharactersApi.md#action_ge_create_buy_order_my_name_action_grandexchange_create_buy_order_post) | **POST** /my/{name}/action/grandexchange/create-buy-order | Action Ge Create Buy Order
+[**action_ge_create_sell_order_my_name_action_grandexchange_create_sell_order_post**](MyCharactersApi.md#action_ge_create_sell_order_my_name_action_grandexchange_create_sell_order_post) | **POST** /my/{name}/action/grandexchange/create-sell-order | Action Ge Create Sell Order
+[**action_ge_fill_my_name_action_grandexchange_fill_post**](MyCharactersApi.md#action_ge_fill_my_name_action_grandexchange_fill_post) | **POST** /my/{name}/action/grandexchange/fill | Action Ge Fill
 [**action_give_gold_my_name_action_give_gold_post**](MyCharactersApi.md#action_give_gold_my_name_action_give_gold_post) | **POST** /my/{name}/action/give/gold | Action Give Gold
 [**action_give_items_my_name_action_give_item_post**](MyCharactersApi.md#action_give_items_my_name_action_give_item_post) | **POST** /my/{name}/action/give/item | Action Give Items
 [**action_move_my_name_action_move_post**](MyCharactersApi.md#action_move_my_name_action_move_post) | **POST** /my/{name}/action/move | Action Move
@@ -125,6 +128,37 @@ Name | Type | Description  | Required | Notes
 ### HTTP request headers
 
 - **Content-Type**: application/json
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+
+## action_claim_pending_item_my_name_action_claim_item_id_post
+
+> models::ClaimPendingItemResponseSchema action_claim_pending_item_my_name_action_claim_item_id_post(name, id)
+Action Claim Pending Item
+
+Claim a pending item with a specific character.
+
+### Parameters
+
+
+Name | Type | Description  | Required | Notes
+------------- | ------------- | ------------- | ------------- | -------------
+**name** | **String** | Name of your character. | [required] |
+**id** | **String** | The ID of the pending item to claim. | [required] |
+
+### Return type
+
+[**models::ClaimPendingItemResponseSchema**](ClaimPendingItemResponseSchema.md)
+
+### Authorization
+
+[JWTBearer](../README.md#JWTBearer)
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
 - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
@@ -407,12 +441,12 @@ Name | Type | Description  | Required | Notes
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 
-## action_ge_cancel_sell_order_my_name_action_grandexchange_cancel_post
+## action_ge_cancel_order_my_name_action_grandexchange_cancel_post
 
-> models::GeTransactionResponseSchema action_ge_cancel_sell_order_my_name_action_grandexchange_cancel_post(name, ge_cancel_order_schema)
-Action Ge Cancel Sell Order
+> models::GeTransactionResponseSchema action_ge_cancel_order_my_name_action_grandexchange_cancel_post(name, ge_cancel_order_schema)
+Action Ge Cancel Order
 
-Cancel a sell order at the Grand Exchange on the character's map.
+Cancel an order (sell or buy) at the Grand Exchange on the character's map.  For sell orders: Items are returned to your inventory. For buy orders: Gold is refunded to your character.
 
 ### Parameters
 
@@ -438,12 +472,43 @@ Name | Type | Description  | Required | Notes
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 
-## action_ge_create_sell_order_my_name_action_grandexchange_sell_post
+## action_ge_create_buy_order_my_name_action_grandexchange_create_buy_order_post
 
-> models::GeCreateOrderTransactionResponseSchema action_ge_create_sell_order_my_name_action_grandexchange_sell_post(name, ge_order_creationr_schema)
+> models::GeCreateOrderTransactionResponseSchema action_ge_create_buy_order_my_name_action_grandexchange_create_buy_order_post(name, ge_buy_order_creation_schema)
+Action Ge Create Buy Order
+
+Create a buy order at the Grand Exchange on the character's map.  The total gold (price * quantity) is locked when creating the order. Other players can then sell items to fulfill your order. Items will be delivered to your pending items when the order is filled.
+
+### Parameters
+
+
+Name | Type | Description  | Required | Notes
+------------- | ------------- | ------------- | ------------- | -------------
+**name** | **String** | Name of your character. | [required] |
+**ge_buy_order_creation_schema** | [**GeBuyOrderCreationSchema**](GeBuyOrderCreationSchema.md) |  | [required] |
+
+### Return type
+
+[**models::GeCreateOrderTransactionResponseSchema**](GECreateOrderTransactionResponseSchema.md)
+
+### Authorization
+
+[JWTBearer](../README.md#JWTBearer)
+
+### HTTP request headers
+
+- **Content-Type**: application/json
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+
+## action_ge_create_sell_order_my_name_action_grandexchange_create_sell_order_post
+
+> models::GeCreateOrderTransactionResponseSchema action_ge_create_sell_order_my_name_action_grandexchange_create_sell_order_post(name, ge_order_creationr_schema)
 Action Ge Create Sell Order
 
-Create a sell order at the Grand Exchange on the character's map.  Please note there is a 3% listing tax, charged at the time of posting, on the total price.
+Create a sell order at the Grand Exchange on the character's map.
 
 ### Parameters
 
@@ -456,6 +521,37 @@ Name | Type | Description  | Required | Notes
 ### Return type
 
 [**models::GeCreateOrderTransactionResponseSchema**](GECreateOrderTransactionResponseSchema.md)
+
+### Authorization
+
+[JWTBearer](../README.md#JWTBearer)
+
+### HTTP request headers
+
+- **Content-Type**: application/json
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+
+## action_ge_fill_my_name_action_grandexchange_fill_post
+
+> models::GeTransactionResponseSchema action_ge_fill_my_name_action_grandexchange_fill_post(name, ge_fill_buy_order_schema)
+Action Ge Fill
+
+Sell items to an existing buy order at the Grand Exchange on the character's map.  You will receive the gold immediately. The buyer will receive the items in their pending items.
+
+### Parameters
+
+
+Name | Type | Description  | Required | Notes
+------------- | ------------- | ------------- | ------------- | -------------
+**name** | **String** | Name of your character. | [required] |
+**ge_fill_buy_order_schema** | [**GeFillBuyOrderSchema**](GeFillBuyOrderSchema.md) |  | [required] |
+
+### Return type
+
+[**models::GeTransactionResponseSchema**](GETransactionResponseSchema.md)
 
 ### Authorization
 

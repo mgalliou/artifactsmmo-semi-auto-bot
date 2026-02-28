@@ -5,7 +5,8 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **id** | **String** | Order id. | 
-**seller** | **String** | Seller account name. | 
+**r#type** | Option<[**models::GeOrderType**](GEOrderType.md)> | Order type (sell or buy). | [optional]
+**account** | Option<**String**> | Account linked to the order. | [optional]
 **code** | **String** | Item code. | 
 **quantity** | **u32** | Item quantity. | 
 **price** | **u32** | Item price per unit. | 

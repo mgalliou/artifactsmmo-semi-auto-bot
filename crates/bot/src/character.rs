@@ -29,7 +29,7 @@ use sdk::{
     ItemsClient, Level, LimitedContainer, MapsClient, MonstersClient, NpcsClient,
     SimpleItemSchemas, SlotLimited, SpaceLimited, TasksClient,
     bank::Bank,
-    character::{CharacterClient, HasCharacterData, error::RestError},
+    character::{CharacterClient, HasCharacterData, MeetsConditionsFor, error::RestError},
     consts::{
         BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, GOLDEN_EGG, GOLDEN_SHRIMP, MAX_LEVEL,
         TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE, TASKS_COIN,

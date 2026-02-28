@@ -11,6 +11,8 @@
 | Gathering | gathering |
 | BuyGe | buy_ge |
 | SellGe | sell_ge |
+| CreateBuyOrderGe | create_buy_order_ge |
+| FillBuyOrderGe | fill_buy_order_ge |
 | BuyNpc | buy_npc |
 | SellNpc | sell_npc |
 | CancelGe | cancel_ge |
@@ -31,6 +33,7 @@
 | ChangeSkin | change_skin |
 | Rename | rename |
 | Transition | transition |
+| ClaimItem | claim_item |
 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

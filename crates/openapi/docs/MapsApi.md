@@ -13,7 +13,7 @@ Method | HTTP request | Description
 
 ## get_all_maps_maps_get
 
-> models::DataPageMapSchema get_all_maps_maps_get(layer, content_type, content_code, hide_blocked_maps, page, size)
+> models::StaticDataPageMapSchema get_all_maps_maps_get(layer, content_type, content_code, hide_blocked_maps, page, size)
 Get All Maps
 
 Fetch maps details.
@@ -32,7 +32,7 @@ Name | Type | Description  | Required | Notes
 
 ### Return type
 
-[**models::DataPageMapSchema**](DataPage_MapSchema_.md)
+[**models::StaticDataPageMapSchema**](StaticDataPage_MapSchema_.md)
 
 ### Authorization
 
@@ -48,7 +48,7 @@ No authorization required
 
 ## get_layer_maps_maps_layer_get
 
-> models::DataPageMapSchema get_layer_maps_maps_layer_get(layer, content_type, content_code, hide_blocked_maps, page, size)
+> models::StaticDataPageMapSchema get_layer_maps_maps_layer_get(layer, content_type, content_code, hide_blocked_maps, page, size)
 Get Layer Maps
 
 Fetch maps details.
@@ -67,7 +67,7 @@ Name | Type | Description  | Required | Notes
 
 ### Return type
 
-[**models::DataPageMapSchema**](DataPage_MapSchema_.md)
+[**models::StaticDataPageMapSchema**](StaticDataPage_MapSchema_.md)
 
 ### Authorization
 

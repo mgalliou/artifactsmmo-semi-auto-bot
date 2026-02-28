@@ -4,12 +4,9 @@ use openapi::{
         Error,
         configuration::Configuration,
         grand_exchange_api::{
-            GetGeSellHistoryGrandexchangeHistoryCodeGetError,
-            GetGeSellOrderGrandexchangeOrdersIdGetError,
-            GetGeSellOrdersGrandexchangeOrdersGetError,
-            get_ge_sell_history_grandexchange_history_code_get,
-            get_ge_sell_order_grandexchange_orders_id_get,
-            get_ge_sell_orders_grandexchange_orders_get,
+            GetGeHistoryGrandexchangeHistoryCodeGetError, GetGeOrderGrandexchangeOrdersIdGetError,
+            GetGeOrdersGrandexchangeOrdersGetError, get_ge_history_grandexchange_history_code_get,
+            get_ge_order_grandexchange_orders_id_get, get_ge_orders_grandexchange_orders_get,
         },
     },
     models::{
@@ -32,7 +29,7 @@ impl GrandExchangeApi {
     pub fn sell_history(
         &self,
         item_code: &str,
-    ) -> Result<Vec<GeOrderHistorySchema>, Error<GetGeSellHistoryGrandexchangeHistoryCodeGetError>>
+    ) -> Result<Vec<GeOrderHistorySchema>, Error<GetGeHistoryGrandexchangeHistoryCodeGetError>>
     {
         SellHistoryRequest {
             configuration: &self.configuration,
@@ -43,7 +40,7 @@ impl GrandExchangeApi {
 
     pub fn sell_orders(
         &self,
-    ) -> Result<Vec<GeOrderSchema>, Error<GetGeSellOrdersGrandexchangeOrdersGetError>> {
+    ) -> Result<Vec<GeOrderSchema>, Error<GetGeOrdersGrandexchangeOrdersGetError>> {
         SellOrdersRequest {
             configuration: &self.configuration,
         }
@@ -53,8 +50,8 @@ impl GrandExchangeApi {
     pub fn get_sell_order(
         &self,
         id: &str,
-    ) -> Result<GeOrderResponseSchema, Error<GetGeSellOrderGrandexchangeOrdersIdGetError>> {
-        get_ge_sell_order_grandexchange_orders_id_get(&self.configuration, id)
+    ) -> Result<GeOrderResponseSchema, Error<GetGeOrderGrandexchangeOrdersIdGetError>> {
+        get_ge_order_grandexchange_orders_id_get(&self.configuration, id)
     }
 }
 
@@ -69,13 +66,12 @@ struct SellOrdersRequest<'a> {
 impl<'a> Paginate for SellHistoryRequest<'a> {
     type Data = GeOrderHistorySchema;
     type Page = DataPageGeOrderHistorySchema;
-    type Error = GetGeSellHistoryGrandexchangeHistoryCodeGetError;
+    type Error = GetGeHistoryGrandexchangeHistoryCodeGetError;
 
     fn request_page(&self, current_page: u32) -> Result<Self::Page, Error<Self::Error>> {
-        get_ge_sell_history_grandexchange_history_code_get(
+        get_ge_history_grandexchange_history_code_get(
             self.configuration,
             self.code,
-            None,
             None,
             Some(current_page),
             Some(100),
@@ -96,11 +92,12 @@ impl DataPage<GeOrderHistorySchema> for DataPageGeOrderHistorySchema {
 impl<'a> Paginate for SellOrdersRequest<'a> {
     type Data = GeOrderSchema;
     type Page = DataPageGeOrderSchema;
-    type Error = GetGeSellOrdersGrandexchangeOrdersGetError;
+    type Error = GetGeOrdersGrandexchangeOrdersGetError;
 
     fn request_page(&self, page: u32) -> Result<Self::Page, Error<Self::Error>> {
-        get_ge_sell_orders_grandexchange_orders_get(
+        get_ge_orders_grandexchange_orders_get(
             self.configuration,
+            None,
             None,
             None,
             Some(page),

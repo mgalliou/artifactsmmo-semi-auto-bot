@@ -11,7 +11,7 @@ Method | HTTP request | Description
 
 ## get_all_items_items_get
 
-> models::DataPageItemSchema get_all_items_items_get(name, min_level, max_level, r#type, craft_skill, craft_material, page, size)
+> models::StaticDataPageItemSchema get_all_items_items_get(name, min_level, max_level, r#type, craft_skill, craft_material, page, size)
 Get All Items
 
 Fetch items details.
@@ -32,7 +32,7 @@ Name | Type | Description  | Required | Notes
 
 ### Return type
 
-[**models::DataPageItemSchema**](DataPage_ItemSchema_.md)
+[**models::StaticDataPageItemSchema**](StaticDataPage_ItemSchema_.md)
 
 ### Authorization
 

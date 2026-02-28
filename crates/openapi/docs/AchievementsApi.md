@@ -41,7 +41,7 @@ No authorization required
 
 ## get_all_achievements_achievements_get
 
-> models::DataPageAchievementSchema get_all_achievements_achievements_get(r#type, page, size)
+> models::StaticDataPageAchievementSchema get_all_achievements_achievements_get(r#type, page, size)
 Get All Achievements
 
 List of all achievements.
@@ -57,7 +57,7 @@ Name | Type | Description  | Required | Notes
 
 ### Return type
 
-[**models::DataPageAchievementSchema**](DataPage_AchievementSchema_.md)
+[**models::StaticDataPageAchievementSchema**](StaticDataPage_AchievementSchema_.md)
 
 ### Authorization
 

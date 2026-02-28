@@ -11,7 +11,7 @@ Method | HTTP request | Description
 
 ## get_all_badges_badges_get
 
-> models::DataPageBadgeSchema get_all_badges_badges_get(page, size)
+> models::StaticDataPageBadgeSchema get_all_badges_badges_get(page, size)
 Get All Badges
 
 List of all badges.
@@ -26,7 +26,7 @@ Name | Type | Description  | Required | Notes
 
 ### Return type
 
-[**models::DataPageBadgeSchema**](DataPage_BadgeSchema_.md)
+[**models::StaticDataPageBadgeSchema**](StaticDataPage_BadgeSchema_.md)
 
 ### Authorization
 

@@ -12,7 +12,7 @@ Method | HTTP request | Description
 
 ## get_all_active_events_events_active_get
 
-> models::DataPageActiveEventSchema get_all_active_events_events_active_get(page, size)
+> models::StaticDataPageActiveEventSchema get_all_active_events_events_active_get(page, size)
 Get All Active Events
 
 Fetch active events details.
@@ -27,7 +27,7 @@ Name | Type | Description  | Required | Notes
 
 ### Return type
 
-[**models::DataPageActiveEventSchema**](DataPage_ActiveEventSchema_.md)
+[**models::StaticDataPageActiveEventSchema**](StaticDataPage_ActiveEventSchema_.md)
 
 ### Authorization
 
@@ -43,7 +43,7 @@ No authorization required
 
 ## get_all_events_events_get
 
-> models::DataPageEventSchema get_all_events_events_get(r#type, page, size)
+> models::StaticDataPageEventSchema get_all_events_events_get(r#type, page, size)
 Get All Events
 
 Fetch events details.
@@ -59,7 +59,7 @@ Name | Type | Description  | Required | Notes
 
 ### Return type
 
-[**models::DataPageEventSchema**](DataPage_EventSchema_.md)
+[**models::StaticDataPageEventSchema**](StaticDataPage_EventSchema_.md)
 
 ### Authorization
 
@@ -78,7 +78,7 @@ No authorization required
 > models::ActiveEventResponseSchema spawn_event_events_spawn_post(spawn_event_request)
 Spawn Event
 
-Spawn a specific event by code consuming 1 event token.  Rules:   - Maximum active events defined by utils.config.max_active_events().   - Event must not already be active.   - Member or founder account required.
+Spawn a specific event by consuming 1 event token. Member or founder account required.
 
 ### Parameters
 

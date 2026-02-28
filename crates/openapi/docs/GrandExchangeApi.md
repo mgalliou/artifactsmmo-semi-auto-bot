@@ -4,18 +4,18 @@ All URIs are relative to *http://localhost*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
-[**get_ge_sell_history_grandexchange_history_code_get**](GrandExchangeApi.md#get_ge_sell_history_grandexchange_history_code_get) | **GET** /grandexchange/history/{code} | Get Ge Sell History
-[**get_ge_sell_order_grandexchange_orders_id_get**](GrandExchangeApi.md#get_ge_sell_order_grandexchange_orders_id_get) | **GET** /grandexchange/orders/{id} | Get Ge Sell Order
-[**get_ge_sell_orders_grandexchange_orders_get**](GrandExchangeApi.md#get_ge_sell_orders_grandexchange_orders_get) | **GET** /grandexchange/orders | Get Ge Sell Orders
+[**get_ge_history_grandexchange_history_code_get**](GrandExchangeApi.md#get_ge_history_grandexchange_history_code_get) | **GET** /grandexchange/history/{code} | Get Ge History
+[**get_ge_order_grandexchange_orders_id_get**](GrandExchangeApi.md#get_ge_order_grandexchange_orders_id_get) | **GET** /grandexchange/orders/{id} | Get Ge Order
+[**get_ge_orders_grandexchange_orders_get**](GrandExchangeApi.md#get_ge_orders_grandexchange_orders_get) | **GET** /grandexchange/orders | Get Ge Orders
 
 
 
-## get_ge_sell_history_grandexchange_history_code_get
+## get_ge_history_grandexchange_history_code_get
 
-> models::DataPageGeOrderHistorySchema get_ge_sell_history_grandexchange_history_code_get(code, seller, buyer, page, size)
-Get Ge Sell History
+> models::DataPageGeOrderHistorySchema get_ge_history_grandexchange_history_code_get(code, account, page, size)
+Get Ge History
 
-Fetch the sales history of the item for the last 7 days.
+Fetch the transaction history of the item for the last 7 days (buy and sell orders).
 
 ### Parameters
 
@@ -23,8 +23,7 @@ Fetch the sales history of the item for the last 7 days.
 Name | Type | Description  | Required | Notes
 ------------- | ------------- | ------------- | ------------- | -------------
 **code** | **String** | The code of the item. | [required] |
-**seller** | Option<**String**> | The seller (account name) of the item. |  |
-**buyer** | Option<**String**> | The buyer (account name) of the item. |  |
+**account** | Option<**String**> | Account involved in the transaction (matches either seller or buyer). |  |
 **page** | Option<**u32**> | Page number |  |[default to 1]
 **size** | Option<**u32**> | Page size |  |[default to 50]
 
@@ -44,12 +43,12 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 
-## get_ge_sell_order_grandexchange_orders_id_get
+## get_ge_order_grandexchange_orders_id_get
 
-> models::GeOrderResponseSchema get_ge_sell_order_grandexchange_orders_id_get(id)
-Get Ge Sell Order
+> models::GeOrderResponseSchema get_ge_order_grandexchange_orders_id_get(id)
+Get Ge Order
 
-Retrieve the sell order of a item.
+Retrieve a specific order by ID.
 
 ### Parameters
 
@@ -74,12 +73,12 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 
-## get_ge_sell_orders_grandexchange_orders_get
+## get_ge_orders_grandexchange_orders_get
 
-> models::DataPageGeOrderSchema get_ge_sell_orders_grandexchange_orders_get(code, seller, page, size)
-Get Ge Sell Orders
+> models::DataPageGeOrderSchema get_ge_orders_grandexchange_orders_get(code, account, r#type, page, size)
+Get Ge Orders
 
-Fetch all sell orders.
+Fetch all orders (sell and buy orders).  Use the `type` parameter to filter by order type; when using `account`, `type` is required to decide whether to match seller or buyer.
 
 ### Parameters
 
@@ -87,7 +86,8 @@ Fetch all sell orders.
 Name | Type | Description  | Required | Notes
 ------------- | ------------- | ------------- | ------------- | -------------
 **code** | Option<**String**> | The code of the item. |  |
-**seller** | Option<**String**> | The seller (account name) of the item. |  |
+**account** | Option<**String**> | The account that sells or buys items. |  |
+**r#type** | Option<[**models::GeOrderType**](Models__GeOrderType.md)> | Filter by order type (sell or buy). |  |
 **page** | Option<**u32**> | Page number |  |[default to 1]
 **size** | Option<**u32**> | Page size |  |[default to 50]
 

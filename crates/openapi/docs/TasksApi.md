@@ -13,7 +13,7 @@ Method | HTTP request | Description
 
 ## get_all_tasks_rewards_tasks_rewards_get
 
-> models::DataPageDropRateSchema get_all_tasks_rewards_tasks_rewards_get(page, size)
+> models::StaticDataPageDropRateSchema get_all_tasks_rewards_tasks_rewards_get(page, size)
 Get All Tasks Rewards
 
 Fetch the list of all tasks rewards. To obtain these rewards, you must exchange 6 task coins with a tasks master.
@@ -28,7 +28,7 @@ Name | Type | Description  | Required | Notes
 
 ### Return type
 
-[**models::DataPageDropRateSchema**](DataPage_DropRateSchema_.md)
+[**models::StaticDataPageDropRateSchema**](StaticDataPage_DropRateSchema_.md)
 
 ### Authorization
 
@@ -44,7 +44,7 @@ No authorization required
 
 ## get_all_tasks_tasks_list_get
 
-> models::DataPageTaskFullSchema get_all_tasks_tasks_list_get(min_level, max_level, skill, r#type, page, size)
+> models::StaticDataPageTaskFullSchema get_all_tasks_tasks_list_get(min_level, max_level, skill, r#type, page, size)
 Get All Tasks
 
 Fetch the list of all tasks.
@@ -63,7 +63,7 @@ Name | Type | Description  | Required | Notes
 
 ### Return type
 
-[**models::DataPageTaskFullSchema**](DataPage_TaskFullSchema_.md)
+[**models::StaticDataPageTaskFullSchema**](StaticDataPage_TaskFullSchema_.md)
 
 ### Authorization
 

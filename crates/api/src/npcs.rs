@@ -8,7 +8,7 @@ use openapi::{
             get_all_npcs_items_npcs_items_get, get_all_npcs_npcs_details_get,
         },
     },
-    models::{DataPageNpcItem, DataPageNpcSchema, NpcItem, NpcSchema},
+    models::{NpcItem, NpcSchema, StaticDataPageNpcItem, StaticDataPageNpcSchema},
 };
 use std::sync::Arc;
 
@@ -43,7 +43,7 @@ struct NpcsRequest<'a> {
 
 impl<'a> Paginate for NpcsRequest<'a> {
     type Data = NpcSchema;
-    type Page = DataPageNpcSchema;
+    type Page = StaticDataPageNpcSchema;
     type Error = GetAllNpcsNpcsDetailsGetError;
 
     fn request_page(&self, page: u32) -> Result<Self::Page, Error<Self::Error>> {
@@ -51,7 +51,7 @@ impl<'a> Paginate for NpcsRequest<'a> {
     }
 }
 
-impl DataPage<NpcSchema> for DataPageNpcSchema {
+impl DataPage<NpcSchema> for StaticDataPageNpcSchema {
     fn data(self) -> Vec<NpcSchema> {
         self.data
     }
@@ -67,7 +67,7 @@ struct NpcsItemsRequest<'a> {
 
 impl<'a> Paginate for NpcsItemsRequest<'a> {
     type Data = NpcItem;
-    type Page = DataPageNpcItem;
+    type Page = StaticDataPageNpcItem;
     type Error = GetAllNpcsItemsNpcsItemsGetError;
 
     fn request_page(&self, page: u32) -> Result<Self::Page, Error<Self::Error>> {
@@ -82,7 +82,7 @@ impl<'a> Paginate for NpcsItemsRequest<'a> {
     }
 }
 
-impl DataPage<NpcItem> for DataPageNpcItem {
+impl DataPage<NpcItem> for StaticDataPageNpcItem {
     fn data(self) -> Vec<NpcItem> {
         self.data
     }
