@@ -1,15 +1,15 @@
 use crate::{
-    AccountClient,
-    character::{CharacterDataHandle, MeetsConditionsFor, responses::ResponseSchema},
+    AccountClient, Skill,
+    character::{CharacterDataHandle, responses::ResponseSchema},
     client::{
-        character::{HasCharacterData, action_request::ActionRequest, error::RequestError},
+        character::{HandleCharacterData, action_request::ActionRequest, error::RequestError},
         server::ServerClient,
     },
-    entities::{Character, Map},
+    entities::{CharacterTrait, Map, RawCharacter},
     gear::Slot,
 };
 use api::ArtifactApi;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use log::{debug, error, info, warn};
 use openapi::models::{
     BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema,
@@ -17,10 +17,11 @@ use openapi::models::{
     CharacterMovementResponseSchema, CharacterRestResponseSchema, CharacterSchema,
     CharacterTransitionResponseSchema, DeleteItemResponseSchema,
     GeCreateOrderTransactionResponseSchema, GeTransactionResponseSchema, GeTransactionSchema,
-    GiveGoldResponseSchema, GiveItemResponseSchema, NpcItemTransactionSchema,
-    NpcMerchantTransactionResponseSchema, RecyclingItemsSchema, RecyclingResponseSchema,
-    RewardDataResponseSchema, RewardsSchema, SimpleItemSchema, SkillDataSchema, SkillInfoSchema,
-    SkillResponseSchema, TaskResponseSchema, TaskSchema, TaskTradeResponseSchema, TaskTradeSchema,
+    GiveGoldResponseSchema, GiveItemResponseSchema, InventorySlot, MapLayer,
+    NpcItemTransactionSchema, NpcMerchantTransactionResponseSchema, RecyclingItemsSchema,
+    RecyclingResponseSchema, RewardDataResponseSchema, RewardsSchema, SimpleItemSchema,
+    SkillDataSchema, SkillInfoSchema, SkillResponseSchema, TaskResponseSchema, TaskSchema,
+    TaskTradeResponseSchema, TaskTradeSchema,
 };
 use std::{cmp::Ordering, sync::Arc, thread::sleep, time::Duration};
 
@@ -29,6 +30,7 @@ use std::{cmp::Ordering, sync::Arc, thread::sleep, time::Duration};
 /// by updating character and bank data, and retrying requests in case of errors.
 #[derive(Default, Debug)]
 pub(crate) struct CharacterRequestHandler {
+    name: String,
     api: Arc<ArtifactApi>,
     account: AccountClient,
     data: CharacterDataHandle,
@@ -43,6 +45,7 @@ impl CharacterRequestHandler {
         server: Arc<ServerClient>,
     ) -> Self {
         Self {
+            name: data.read().name().to_string(),
             api,
             data,
             account,
@@ -50,7 +53,7 @@ impl CharacterRequestHandler {
         }
     }
 
-    pub fn character(&self) -> Character {
+    pub fn character(&self) -> RawCharacter {
         self.data.read()
     }
 
@@ -76,7 +79,7 @@ impl CharacterRequestHandler {
         //             .expect("bank_details to be writable"),
         //     );
         // }
-        match action.send(&self.name(), &self.api) {
+        match action.send(self.data.read().name(), &self.api) {
             Ok(res) => {
                 info!("{}", res.to_string());
                 if let Some(res) = res.downcast_ref::<CharacterFightResponseSchema>() {
@@ -89,14 +92,14 @@ impl CharacterRequestHandler {
                     self.update_data(res.character().clone());
                 }
                 if let Some(res) = res.downcast_ref::<BankItemTransactionResponseSchema>() {
-                    self.account().bank().update_content(res.data.bank.clone());
+                    self.account.bank().update_content(res.data.bank.clone());
                 } else if let Some(res) = res.downcast_ref::<BankGoldTransactionResponseSchema>() {
-                    self.account().bank().update_gold(res.data.bank.quantity);
+                    self.account.bank().update_gold(res.data.bank.quantity);
                 } else if res
                     .downcast_ref::<BankExtensionTransactionResponseSchema>()
                     .is_some()
                 {
-                    self.account().bank().expand();
+                    self.account.bank().expand();
                 };
                 if let Some(res) = res.downcast_ref::<GiveItemResponseSchema>()
                     && let Some(char) = self
@@ -502,25 +505,105 @@ impl CharacterRequestHandler {
     }
 }
 
-impl MeetsConditionsFor for CharacterRequestHandler {
-    fn account(&self) -> AccountClient {
-        self.account.clone()
-    }
-}
-
-impl HasCharacterData for CharacterRequestHandler {
-    fn data(&self) -> Character {
+impl HandleCharacterData for CharacterRequestHandler {
+    fn data(&self) -> RawCharacter {
         self.data.read()
     }
 
     fn refresh_data(&self) {
-        let Ok(res) = self.api.character.get(&self.name()) else {
+        let Ok(res) = self.api.character.get(self.data.read().name()) else {
             return;
         };
-        self.update_data(*res.data)
+        self.data.update(RawCharacter::new(*res.data))
     }
 
     fn update_data(&self, schema: CharacterSchema) {
-        self.data.update(Character::new(schema));
+        self.data.update(RawCharacter::new(schema));
+    }
+}
+
+impl CharacterTrait for CharacterRequestHandler {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn position(&self) -> (MapLayer, i32, i32) {
+        self.data().position()
+    }
+
+    fn skill_level(&self, skill: Skill) -> u32 {
+        self.data().skill_level(skill)
+    }
+
+    fn skill_xp(&self, skill: Skill) -> i32 {
+        self.data().skill_xp(skill)
+    }
+
+    fn skill_max_xp(&self, skill: Skill) -> i32 {
+        self.data().skill_max_xp(skill)
+    }
+
+    fn hp(&self) -> i32 {
+        self.data().hp()
+    }
+
+    fn max_hp(&self) -> i32 {
+        self.data().max_hp()
+    }
+
+    fn missing_hp(&self) -> i32 {
+        self.data().missing_hp()
+    }
+
+    fn task(&self) -> String {
+        self.data().task()
+    }
+
+    fn task_type(&self) -> Option<openapi::models::TaskType> {
+        self.data().task_type()
+    }
+
+    fn task_progress(&self) -> u32 {
+        self.data().task_progress()
+    }
+
+    fn task_total(&self) -> u32 {
+        self.data().task_total()
+    }
+
+    fn task_missing(&self) -> u32 {
+        self.data().task_missing()
+    }
+
+    fn task_finished(&self) -> bool {
+        self.data().task_finished()
+    }
+
+    fn inventory_items(&self) -> Option<Vec<InventorySlot>> {
+        self.data().inventory_items()
+    }
+
+    fn inventory_max_items(&self) -> i32 {
+        self.data().inventory_max_items()
+    }
+
+    fn gold(&self) -> u32 {
+        self.data().gold()
+    }
+
+    fn equiped_in(&self, slot: Slot) -> String {
+        self.data().equiped_in(slot)
+    }
+
+    fn has_equiped(&self, item_code: &str) -> u32 {
+        self.data().has_equiped(item_code)
+    }
+
+    fn quantity_in_slot(&self, slot: Slot) -> u32 {
+        self.data().quantity_in_slot(slot)
+    }
+
+    fn cooldown_expiration(&self) -> Option<DateTime<Utc>> {
+        self.data().cooldown_expiration()
     }
 }

@@ -1,10 +1,7 @@
 use crate::{
     CharacterClient, MapsClient,
-    character::{
-        MeetsConditionsFor,
-        error::MoveError,
-    },
-    entities::{Map, RawCharacter},
+    character::error::MoveError,
+    entities::{CharacterTrait, Map},
 };
 use std::sync::Arc;
 

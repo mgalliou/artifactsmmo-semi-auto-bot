@@ -3,10 +3,8 @@ use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use sdk::{
     CanProvideXp, Code, CollectionClient, FROZEN_AXE, FROZEN_FISHING_ROD, FROZEN_GLOVES,
-    FROZEN_PICKAXE, ItemsClient, Level, MAX_LEVEL,
-    character::{HasCharacterData, MeetsConditionsFor},
-    check_lvl_diff,
-    entities::{Item, Monster, Resource},
+    FROZEN_PICKAXE, ItemsClient, Level, MAX_LEVEL, check_lvl_diff,
+    entities::{CharacterTrait, Item, Monster, Resource},
     gear::{Gear, Slot},
     items::Type,
     simulator::{FightParams, HasEffects, Participant, Simulator, time_to_rest},
@@ -47,7 +45,14 @@ impl GearFinder {
         self.gen_combat_gears(char, monster, filter)
             .filter_map(|g| {
                 let fight = Simulator::fight(
-                    Participant::new(char.name(), char.level(), g.clone(), 100, 100, 0),
+                    Participant::new(
+                        char.name().to_string(),
+                        char.level(),
+                        g.clone(),
+                        100,
+                        100,
+                        0,
+                    ),
                     None,
                     monster.clone(),
                     FightParams::default().averaged(),

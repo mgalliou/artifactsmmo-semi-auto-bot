@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use strum::IntoEnumIterator;
 
-pub trait RawCharacter {
+pub trait CharacterTrait {
     fn name(&self) -> &str;
     fn position(&self) -> (MapLayer, i32, i32);
     fn skill_level(&self, skill: Skill) -> u32;
@@ -14,31 +14,31 @@ pub trait RawCharacter {
     fn hp(&self) -> i32;
     fn max_hp(&self) -> i32;
     fn missing_hp(&self) -> i32;
-    fn task(&self) -> &str;
+    fn task(&self) -> String;
     fn task_type(&self) -> Option<TaskType>;
     fn task_progress(&self) -> u32;
     fn task_total(&self) -> u32;
     fn task_missing(&self) -> u32;
     fn task_finished(&self) -> bool;
-    fn equiped_in(&self, slot: Slot) -> &str;
-    fn has_equiped(&self, item_code: &str) -> u32;
-    fn quantity_in_slot(&self, slot: Slot) -> u32;
-    fn inventory(&self) -> &Option<Vec<InventorySlot>>;
+    fn inventory_items(&self) -> Option<Vec<InventorySlot>>;
     fn inventory_max_items(&self) -> i32;
     fn gold(&self) -> u32;
+    fn equiped_in(&self, slot: Slot) -> String;
+    fn has_equiped(&self, item_code: &str) -> u32;
+    fn quantity_in_slot(&self, slot: Slot) -> u32;
     fn cooldown_expiration(&self) -> Option<DateTime<Utc>>;
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Character(Arc<CharacterSchema>);
+pub struct RawCharacter(Arc<CharacterSchema>);
 
-impl Character {
+impl RawCharacter {
     pub fn new(schema: CharacterSchema) -> Self {
         Self(Arc::new(schema))
     }
 }
 
-impl RawCharacter for Character {
+impl CharacterTrait for RawCharacter {
     fn name(&self) -> &str {
         &self.0.name
     }
@@ -108,8 +108,8 @@ impl RawCharacter for Character {
         self.0.gold as u32
     }
 
-    fn task(&self) -> &str {
-        &self.0.task
+    fn task(&self) -> String {
+        self.0.task.clone()
     }
 
     fn task_type(&self) -> Option<TaskType> {
@@ -144,7 +144,7 @@ impl RawCharacter for Character {
             .map(|cd| DateTime::parse_from_rfc3339(cd).ok().map(|dt| dt.to_utc()))?
     }
 
-    fn equiped_in(&self, slot: Slot) -> &str {
+    fn equiped_in(&self, slot: Slot) -> String {
         let inner = &self.0;
         match slot {
             Slot::Weapon => &inner.weapon_slot,
@@ -164,6 +164,7 @@ impl RawCharacter for Character {
             Slot::Bag => &inner.bag_slot,
             Slot::Rune => &inner.rune_slot,
         }
+        .to_string()
     }
 
     fn has_equiped(&self, item_code: &str) -> u32 {
@@ -199,8 +200,8 @@ impl RawCharacter for Character {
         }
     }
 
-    fn inventory(&self) -> &Option<Vec<InventorySlot>> {
-        &self.0.inventory
+    fn inventory_items(&self) -> Option<Vec<InventorySlot>> {
+        self.0.inventory.clone()
     }
 
     fn inventory_max_items(&self) -> i32 {
@@ -208,7 +209,7 @@ impl RawCharacter for Character {
     }
 }
 
-impl Level for Character {
+impl Level for RawCharacter {
     fn level(&self) -> u32 {
         self.0.level as u32
     }

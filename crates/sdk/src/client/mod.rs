@@ -1,6 +1,7 @@
 use api::ArtifactApi;
 use std::{sync::Arc, thread};
 
+use crate::Persist;
 pub use crate::client::{
     account::AccountClient, bank::BankClient, character::CharacterClient, error::ClientError,
     events::EventsClient, grand_exchange::GrandExchangeClient, items::ItemsClient,
@@ -145,5 +146,10 @@ impl Client {
             npcs,
             grand_exchange,
         })
+    }
+
+    pub fn refresh_data(&self) {
+        self.items.refresh();
+        todo!()
     }
 }

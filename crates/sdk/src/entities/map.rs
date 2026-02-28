@@ -11,7 +11,7 @@ use std::{ops::Deref, sync::Arc};
 pub struct Map(Arc<MapSchema>);
 
 impl Map {
-    pub fn new(schema: MapSchema) -> Self {
+    pub(crate) fn new(schema: MapSchema) -> Self {
         Self(Arc::new(schema))
     }
 

@@ -37,19 +37,20 @@ impl BankController {
         }
     }
 
-    /// Returns the quantity of the given item `code` that can be crafted with the mats available in bank
-    /// for the given `owner`.
+    // TODO: check if this can be removed
+    // Returns the quantity of the given item `code` that can be crafted with the mats available in bank
+    // for the given `owner`.
     //  NOTE: this should maybe return a Option to indicate that the item is not craftable and
     //  return None in this case
-    #[deprecated]
-    pub fn has_mats_for(&self, item: &str, owner: &str) -> u32 {
-        self.items
-            .mats_of(item)
-            .iter()
-            .map(|mat| self.has_available(&mat.code, owner) / mat.quantity)
-            .min()
-            .unwrap_or(0)
-    }
+    // #[deprecated]
+    // pub fn has_mats_for(&self, item: &str, owner: &str) -> u32 {
+    //     self.items
+    //         .mats_of(item)
+    //         .iter()
+    //         .map(|mat| self.has_available(&mat.code, owner) / mat.quantity)
+    //         .min()
+    //         .unwrap_or(0)
+    // }
 
     /// Returns the quantity of each of the missing materials required to craft the `quantity` of the  item `code`
     /// for the given `owner`.

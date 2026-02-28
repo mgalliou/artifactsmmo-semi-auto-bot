@@ -21,26 +21,27 @@ use crate::{
     orderboard::{Order, OrderBoard, Purpose},
 };
 use anyhow::Result;
+use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use log::{debug, error, info, warn};
 use ordered_float::OrderedFloat;
 use sdk::{
-    AccountClient, Client, Code, CollectionClient, DropsItems, HasDrops, ItemContainer,
+    Client, Code, CollectionClient, DropsItems, HasConditions, HasDrops, ItemContainer,
     ItemsClient, Level, LimitedContainer, MapsClient, MonstersClient, NpcsClient,
     SimpleItemSchemas, SlotLimited, SpaceLimited, TasksClient,
     bank::Bank,
-    character::{CharacterClient, HasCharacterData, MeetsConditionsFor, error::RestError},
+    character::{CharacterClient, HandleCharacterData, error::RestError},
     consts::{
         BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, GOLDEN_EGG, GOLDEN_SHRIMP, MAX_LEVEL,
         TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE, TASKS_COIN,
     },
-    entities::{Character, Item, Map, Monster, NpcItem, Resource},
+    entities::{CharacterTrait, Item, Map, Monster, NpcItem, RawCharacter, Resource},
     gear::{Gear, Slot},
     items::ItemSource,
     models::{
-        CharacterFightSchema, CharacterSchema, DropSchema, MapContentType, RecyclingItemsSchema,
-        RewardsSchema, SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TaskSchema,
-        TaskTradeSchema, TaskType,
+        CharacterFightSchema, CharacterSchema, DropSchema, InventorySlot, MapContentType, MapLayer,
+        RecyclingItemsSchema, RewardsSchema, SimpleItemSchema, SkillDataSchema, SkillInfoSchema,
+        TaskSchema, TaskTradeSchema, TaskType,
     },
     simulator::{HasEffects, Participant, Simulator, gather_cd, time_to_rest},
     skill::Skill,
@@ -61,6 +62,7 @@ use std::{
 use strum::IntoEnumIterator;
 
 pub struct CharacterController {
+    name: String,
     client: CharacterClient,
     bot_config: Arc<BotConfig>,
     pub inventory: Arc<InventoryController>,
@@ -90,6 +92,7 @@ impl CharacterController {
     ) -> Self {
         let (tx, rx) = channel();
         Self {
+            name: char_client.name().to_string(),
             client: char_client.clone(),
             bot_config: bot_cfg,
             inventory: Arc::new(InventoryController::new(char_client, client.items.clone())),
@@ -169,7 +172,7 @@ impl CharacterController {
                         .add(
                             &item,
                             quantity,
-                            Some(&self.name()),
+                            Some(self.name()),
                             Purpose::Task {
                                 char: self.name().to_owned(),
                             },
@@ -451,7 +454,7 @@ impl CharacterController {
                 TaskTradeCommandError::MissingItems { item, quantity },
             )) => {
                 self.order_board
-                    .add(&item, quantity, Some(&self.name()), order.purpose.clone())?;
+                    .add(&item, quantity, Some(self.name()), order.purpose.clone())?;
                 Ok(0)
             }
             Err(e) => Err(e),
@@ -602,10 +605,10 @@ impl CharacterController {
         self.can_exchange_tasks_coins()?;
         let mut quantity = min(
             self.inventory.max_items() / 2,
-            self.bank.has_available(TASKS_COIN, &self.name()),
+            self.bank.has_available(TASKS_COIN, self.name()),
         );
         quantity = quantity.saturating_sub(quantity % TASK_EXCHANGE_PRICE);
-        if self.inventory().total_of(TASKS_COIN) < TASK_EXCHANGE_PRICE {
+        if self.inventory.total_of(TASKS_COIN) < TASK_EXCHANGE_PRICE {
             self.lock_in_inventory(TASKS_COIN, quantity)?;
         }
         self.move_to_closest_taskmaster(self.task_type())?;
@@ -616,8 +619,7 @@ impl CharacterController {
     }
 
     fn cancel_task(&self) -> Result<(), TaskCancellationCommandError> {
-        if self.bank.has_available(TASKS_COIN, &self.name())
-            < TASK_CANCEL_PRICE + MIN_COIN_THRESHOLD
+        if self.bank.has_available(TASKS_COIN, self.name()) < TASK_CANCEL_PRICE + MIN_COIN_THRESHOLD
         {
             return Err(TaskCancellationCommandError::MissingCoins);
         }
@@ -657,10 +659,10 @@ impl CharacterController {
         if let Err(e) = self.withdraw_food() {
             error!("{}: failed to withdraw food: {e}", self.name())
         }
-        if !self.can_kill_now(monster) || self.health() < 10 {
+        if !self.can_kill_now(monster) || self.hp() < 10 {
             self.eat_food_from_inventory();
         }
-        if !self.can_kill_now(monster) || self.health() < 10 {
+        if !self.can_kill_now(monster) || self.hp() < 10 {
             self.rest()?;
         }
         self.move_to_closest_map_with_content_code(monster.code())?;
@@ -668,7 +670,7 @@ impl CharacterController {
     }
 
     fn rest(&self) -> Result<u32, RestError> {
-        if self.health() < self.max_health() {
+        if self.hp() < self.max_hp() {
             Ok(self.client.rest()?)
         } else {
             Ok(0)
@@ -769,7 +771,14 @@ impl CharacterController {
         (1..=1000)
             .filter(|_| {
                 Simulator::fight(
-                    Participant::new(self.name().clone(), self.level(), gear.clone(), 100, 100, 0),
+                    Participant::new(
+                        self.name().to_string(),
+                        self.level(),
+                        gear.clone(),
+                        100,
+                        100,
+                        0,
+                    ),
                     None,
                     monster.clone(),
                     Default::default(),
@@ -810,7 +819,7 @@ impl CharacterController {
         );
         let mats = self.items.mats_for(item.code(), quantity);
         let missing_mats = self.inventory.missing_among(&mats);
-        self.bank.reserv_items(&missing_mats, &self.name())?;
+        self.bank.reserv_items(&missing_mats, self.name())?;
         self.equip_gear_for(GearPurpose::Crafting(&item))?;
         if !self.inventory.has_room_for_multiple(&missing_mats) {
             self.deposit_all_but_multiple(&mats)?;
@@ -945,7 +954,7 @@ impl CharacterController {
         }
         let missing = quantity.saturating_sub(in_inventory);
         if missing > 0 {
-            self.bank.reserv_item(item, missing, &self.name())?;
+            self.bank.reserv_item(item, missing, self.name())?;
             if !self.inventory.has_room_for(item, missing) {
                 self.deposit_all_but(item)?;
             }
@@ -1076,7 +1085,7 @@ impl CharacterController {
         // TODO: defined food quantity depending on the monster drop rate and damages
         let quantity = min(
             ((self.inventory.max_items() as f32) * 0.90) as u32,
-            self.bank.has_available(food.code(), &self.name()),
+            self.bank.has_available(food.code(), self.name()),
         );
         self.lock_in_inventory(food.code(), quantity)
     }
@@ -1099,7 +1108,7 @@ impl CharacterController {
         if items.is_empty() {
             return Ok(());
         }
-        if !self.bank.has_multiple_available(items, &self.name()) {
+        if !self.bank.has_multiple_available(items, self.name()) {
             return Err(WithdrawItemCommandError::InsufficientQuantity);
         }
         if !self.inventory.has_room_for_multiple(items) {
@@ -1113,7 +1122,7 @@ impl CharacterController {
         self.move_to_closest_map_of_type(MapContentType::Bank)?;
         let result = self.client.withdraw_item(items);
         if result.is_ok() {
-            self.bank.dec_reservations(items, &self.name());
+            self.bank.dec_reservations(items, self.name());
             if let Err(e) = self.inventory.reserv_items(items) {
                 error!("{}: failed reserving withdrawed item: {e}", self.name());
             }
@@ -1255,10 +1264,10 @@ impl CharacterController {
         if !self.inventory.has_room_for(equiped.code(), quantity) {
             self.deposit_all()?;
         }
-        if self.health() <= equiped.health() {
+        if self.hp() <= equiped.health() {
             self.eat_food_from_inventory();
         }
-        if self.health() <= equiped.health() {
+        if self.hp() <= equiped.health() {
             self.rest()?;
         }
         self.client.unequip(slot, quantity)?;
@@ -1490,20 +1499,18 @@ impl CharacterController {
     }
 
     fn process_item(&self, item: &SimpleItemSchema) -> bool {
-        if (item.code == GOLDEN_SHRIMP || item.code == GOLDEN_EGG)
-            && self
-                .sell_item(
-                    &item.code,
-                    min(
-                        self.bank.has_available(&item.code, &self.name()),
-                        self.inventory.max_items(),
-                    ),
-                )
-                .is_ok()
-        {
-            return true;
+        if item.code == GOLDEN_SHRIMP || item.code == GOLDEN_EGG {
+            self.sell_item(
+                &item.code,
+                min(
+                    self.bank.has_available(&item.code, self.name()),
+                    self.inventory.max_items(),
+                ),
+            )
+            .is_ok()
+        } else {
+            self.recycle_or_sell_if_necessary(item)
         }
-        self.recycle_or_sell_if_necessary(item)
     }
 
     fn recycle_or_sell_if_necessary(&self, item: &SimpleItemSchema) -> bool {
@@ -1619,8 +1626,7 @@ impl CharacterController {
         let missing_quantity =
             quantity.saturating_sub(self.inventory.total_of(item) + self.has_equiped(item));
         if missing_quantity > 0 && self.equiped_in(slot) != item {
-            self.bank
-                .reserv_item(item, missing_quantity, &self.name())?
+            self.bank.reserv_item(item, missing_quantity, self.name())?
         }
         Ok(())
     }
@@ -1647,7 +1653,7 @@ impl CharacterController {
     pub fn time_to_kill(&self, monster: &Monster) -> Option<u32> {
         let gear = self.can_kill(monster).ok()?;
         let fight = Simulator::fight(
-            Participant::new(self.name().clone(), self.level(), gear, 100, 100, 0),
+            Participant::new(self.name().to_string(), self.level(), gear, 100, 100, 0),
             None,
             monster.clone(),
             Default::default(),
@@ -1678,15 +1684,16 @@ impl CharacterController {
         self.inventory.max_items() / self.items.mats_quantity_for(item)
     }
 
-    /// Calculates the maximum number of items that can be crafted in one go based on available
-    /// inventory max items and bank materials.
-    #[deprecated]
-    pub fn max_craftable_items_from_bank(&self, item: &str) -> u32 {
-        min(
-            self.bank.has_mats_for(item, &self.name()),
-            self.inventory.max_items() / self.items.mats_quantity_for(item),
-        )
-    }
+    // TODO: check if this can be removed
+    // /// Calculates the maximum number of items that can be crafted in one go based on available
+    // /// inventory max items and bank materials.
+    // #[deprecated]
+    // pub fn max_craftable_items_from_bank(&self, item: &str) -> u32 {
+    //     min(
+    //         self.bank.has_mats_for(item, &self.name()),
+    //         self.inventory.max_items() / self.items.mats_quantity_for(item),
+    //     )
+    // }
 
     pub fn gold_available(&self) -> u32 {
         self.gold() + self.bank.gold()
@@ -1700,7 +1707,7 @@ impl CharacterController {
     /// Returns the amount of the given item `code` available in bank and inventory.
     //TODO: maybe use `inventory.has_available`
     fn has_in_bank_or_inv(&self, item: &str) -> u32 {
-        self.inventory.total_of(item) + self.bank.has_available(item, &self.name())
+        self.inventory.total_of(item) + self.bank.has_available(item, self.name())
     }
 
     fn missing_mats_for(&self, item_code: &str, quantity: u32) -> Vec<SimpleItemSchema> {
@@ -1767,6 +1774,10 @@ impl CharacterController {
 
     pub fn skill_enabled(&self, s: Skill) -> bool {
         self.config().skill_is_enabled(s)
+    }
+
+    pub fn meets_conditions_for(&self, entity: &impl HasConditions) -> bool {
+        self.client.meets_conditions_for(entity)
     }
 
     pub fn toggle_idle(&self) {
@@ -1850,8 +1861,8 @@ impl CharacterController {
     //}
 }
 
-impl HasCharacterData for CharacterController {
-    fn data(&self) -> Character {
+impl HandleCharacterData for CharacterController {
+    fn data(&self) -> RawCharacter {
         self.client.data()
     }
 
@@ -1864,9 +1875,89 @@ impl HasCharacterData for CharacterController {
     }
 }
 
-impl MeetsConditionsFor for CharacterController {
-    fn account(&self) -> AccountClient {
-        self.account.client()
+impl CharacterTrait for CharacterController {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn position(&self) -> (MapLayer, i32, i32) {
+        self.data().position()
+    }
+
+    fn skill_level(&self, skill: Skill) -> u32 {
+        self.data().skill_level(skill)
+    }
+
+    fn skill_xp(&self, skill: Skill) -> i32 {
+        self.data().skill_xp(skill)
+    }
+
+    fn skill_max_xp(&self, skill: Skill) -> i32 {
+        self.data().skill_max_xp(skill)
+    }
+
+    fn hp(&self) -> i32 {
+        self.data().hp()
+    }
+
+    fn max_hp(&self) -> i32 {
+        self.data().max_hp()
+    }
+
+    fn missing_hp(&self) -> i32 {
+        self.data().missing_hp()
+    }
+
+    fn task(&self) -> String {
+        self.data().task()
+    }
+
+    fn task_type(&self) -> Option<TaskType> {
+        self.data().task_type()
+    }
+
+    fn task_progress(&self) -> u32 {
+        self.data().task_progress()
+    }
+
+    fn task_total(&self) -> u32 {
+        self.data().task_total()
+    }
+
+    fn task_missing(&self) -> u32 {
+        self.data().task_missing()
+    }
+
+    fn task_finished(&self) -> bool {
+        self.data().task_finished()
+    }
+
+    fn inventory_items(&self) -> Option<Vec<InventorySlot>> {
+        self.data().inventory_items()
+    }
+
+    fn inventory_max_items(&self) -> i32 {
+        self.data().inventory_max_items()
+    }
+
+    fn gold(&self) -> u32 {
+        self.data().gold()
+    }
+
+    fn equiped_in(&self, slot: Slot) -> String {
+        self.data().equiped_in(slot)
+    }
+
+    fn has_equiped(&self, item_code: &str) -> u32 {
+        self.data().has_equiped(item_code)
+    }
+
+    fn quantity_in_slot(&self, slot: Slot) -> u32 {
+        self.data().quantity_in_slot(slot)
+    }
+
+    fn cooldown_expiration(&self) -> Option<DateTime<Utc>> {
+        self.data().cooldown_expiration()
     }
 }
 

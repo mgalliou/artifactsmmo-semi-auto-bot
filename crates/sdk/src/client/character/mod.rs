@@ -3,6 +3,7 @@ use crate::{
     LimitedContainer, SlotLimited, SpaceLimited, TASK_EXCHANGE_PRICE, TASKS_COIN, TasksClient,
     character::{
         action::{CharacterAction, MoveCharacter},
+        data_handle::CharacterDataHandle,
         error::{
             GeBuyOrderError, GeCancelOrderError, GeCreateOrderError, GiveGoldError, GiveItemError,
             TransitionError,
@@ -28,7 +29,7 @@ use crate::{
         resources::ResourcesClient,
         server::ServerClient,
     },
-    entities::{Character, Map, RawCharacter},
+    entities::{CharacterTrait, Map, RawCharacter},
     gear::Slot,
     grand_exchange::GrandExchangeClient,
     simulator::HasEffects,
@@ -37,15 +38,11 @@ use crate::{
 use api::ArtifactApi;
 use chrono::{DateTime, Utc};
 use openapi::models::{
-    CharacterFightSchema, CharacterSchema, ConditionOperator, GeTransactionSchema, MapContentType,
-    MapLayer, NpcItemTransactionSchema, RecyclingItemsSchema, RewardsSchema, SimpleItemSchema,
-    SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
+    CharacterFightSchema, CharacterSchema, ConditionOperator, GeTransactionSchema, InventorySlot,
+    MapContentType, MapLayer, NpcItemTransactionSchema, RecyclingItemsSchema, RewardsSchema,
+    SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
 };
-use std::{
-    str::FromStr,
-    sync::{Arc, RwLock},
-    time::Duration,
-};
+use std::{str::FromStr, sync::Arc, time::Duration};
 
 pub use inventory::InventoryClient;
 
@@ -53,64 +50,10 @@ mod request_handler;
 
 pub mod action;
 pub mod action_request;
+pub mod data_handle;
 pub mod error;
 pub mod inventory;
 pub mod responses;
-
-#[derive(Default, Debug)]
-pub struct CharacterDataHandle(Arc<RwLock<Character>>);
-
-impl CharacterDataHandle {
-    pub fn new(schema: CharacterSchema) -> Self {
-        Self(Arc::new(RwLock::new(Character::new(schema))))
-    }
-    pub fn read(&self) -> Character {
-        self.0.read().unwrap().clone()
-    }
-
-    pub fn update(&self, data: Character) {
-        *self.0.write().unwrap() = data
-    }
-}
-
-pub trait MeetsConditionsFor: HasCharacterData {
-    fn meets_conditions_for(&self, entity: &impl HasConditions) -> bool {
-        entity.conditions().iter().flatten().all(|condition| {
-            let value = condition.value as u32;
-            // TODO: simplify this
-            match condition.operator {
-                ConditionOperator::Cost => {
-                    if condition.code == GOLD {
-                        self.gold() >= value
-                    } else {
-                        self.inventory().total_of(&condition.code) >= value
-                    }
-                }
-                ConditionOperator::HasItem => self.has_equiped(&condition.code) >= value,
-                ConditionOperator::AchievementUnlocked => self
-                    .account()
-                    .get_achievement(&condition.code)
-                    .is_some_and(|a| a.completed_at.is_some()),
-                ConditionOperator::Eq => LevelConditionCode::from_str(&condition.code)
-                    .is_ok_and(|code| self.skill_level(Skill::from(code)) == value),
-                ConditionOperator::Ne => LevelConditionCode::from_str(&condition.code)
-                    .is_ok_and(|code| self.skill_level(Skill::from(code)) != value),
-                ConditionOperator::Gt => LevelConditionCode::from_str(&condition.code)
-                    .is_ok_and(|code| self.skill_level(Skill::from(code)) > value),
-                ConditionOperator::Lt => LevelConditionCode::from_str(&condition.code)
-                    .is_ok_and(|code| self.skill_level(Skill::from(code)) < value),
-            }
-        })
-    }
-
-    fn account(&self) -> AccountClient;
-}
-
-impl MeetsConditionsFor for CharacterClient {
-    fn account(&self) -> AccountClient {
-        self.0.account.clone()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct CharacterClient(Arc<CharacterClientInner>);
@@ -118,6 +61,7 @@ pub struct CharacterClient(Arc<CharacterClientInner>);
 #[derive(Default, Debug)]
 pub struct CharacterClientInner {
     pub id: usize,
+    name: String,
     handler: CharacterRequestHandler,
     account: AccountClient,
     bank: BankClient,
@@ -148,6 +92,7 @@ impl CharacterClient {
     ) -> Self {
         Self(Arc::new(CharacterClientInner {
             id,
+            name: data.read().name().to_string(),
             handler: CharacterRequestHandler::new(api, data, account.clone(), server.clone()),
             bank: account.bank(),
             account,
@@ -167,6 +112,10 @@ impl CharacterClient {
 
     pub(crate) fn handler(&self) -> &CharacterRequestHandler {
         &self.0.handler
+    }
+
+    pub fn inventory(&self) -> InventoryClient {
+        todo!()
     }
 
     pub fn r#move(&self, x: i32, y: i32) -> Result<Map, MoveError> {
@@ -256,7 +205,7 @@ impl CharacterClient {
     }
 
     pub fn rest(&self) -> Result<u32, RestError> {
-        if self.health() < self.max_health() {
+        if self.hp() < self.max_hp() {
             return Ok(self.0.handler.request_rest()?);
         }
         Ok(0)
@@ -467,7 +416,7 @@ impl CharacterClient {
         let Some(equiped) = self.0.items.get(&self.equiped_in(slot)) else {
             return Err(UnequipError::SlotEmpty);
         };
-        if self.health() <= equiped.health() {
+        if self.hp() <= equiped.health() {
             return Err(UnequipError::InsufficientHealth);
         }
         if self.quantity_in_slot(slot) < quantity {
@@ -852,6 +801,40 @@ impl CharacterClient {
         }
     }
 
+    pub fn meets_conditions_for(&self, entity: &impl HasConditions) -> bool {
+        entity.conditions().iter().flatten().all(|condition| {
+            let value = condition.value as u32;
+            // TODO: simplify this
+            match condition.operator {
+                ConditionOperator::Cost => {
+                    if condition.code == GOLD {
+                        self.gold() >= value
+                    } else {
+                        self.inventory().total_of(&condition.code) >= value
+                    }
+                }
+                ConditionOperator::HasItem => self.has_equiped(&condition.code) >= value,
+                ConditionOperator::AchievementUnlocked => self
+                    .0
+                    .account
+                    .get_achievement(&condition.code)
+                    .is_some_and(|a| a.completed_at.is_some()),
+                ConditionOperator::Eq => LevelConditionCode::from_str(&condition.code)
+                    .is_ok_and(|code| self.skill_level(Skill::from(code)) == value),
+                ConditionOperator::Ne => LevelConditionCode::from_str(&condition.code)
+                    .is_ok_and(|code| self.skill_level(Skill::from(code)) != value),
+                ConditionOperator::Gt => LevelConditionCode::from_str(&condition.code)
+                    .is_ok_and(|code| self.skill_level(Skill::from(code)) > value),
+                ConditionOperator::Lt => LevelConditionCode::from_str(&condition.code)
+                    .is_ok_and(|code| self.skill_level(Skill::from(code)) < value),
+            }
+        })
+    }
+
+    pub fn account(&self) -> AccountClient {
+        self.0.account.clone()
+    }
+
     pub fn remaining_cooldown(&self) -> Duration {
         self.0.handler.remaining_cooldown()
     }
@@ -861,25 +844,41 @@ impl CharacterClient {
     }
 }
 
-pub trait HasCharacterData {
-    fn data(&self) -> Character;
+pub trait HandleCharacterData: CharacterTrait {
+    fn data(&self) -> RawCharacter;
     fn refresh_data(&self);
     fn update_data(&self, schema: CharacterSchema);
+}
 
-    fn inventory(&self) -> InventoryClient {
-        InventoryClient::new(self.data())
+impl HandleCharacterData for CharacterClient {
+    fn data(&self) -> RawCharacter {
+        self.0.handler.data()
     }
 
-    fn name(&self) -> String {
-        self.data().name().to_owned()
+    fn refresh_data(&self) {
+        self.0.handler.refresh_data()
     }
 
-    /// Returns the `Character` position (coordinates).
+    fn update_data(&self, schema: CharacterSchema) {
+        self.0.handler.update_data(schema);
+    }
+}
+
+pub trait MeetsConditionsFor: CharacterTrait {
+    fn account(&self) -> AccountClient;
+
+    fn inventory(&self) -> InventoryClient;
+}
+
+impl CharacterTrait for CharacterClient {
+    fn name(&self) -> &str {
+        &self.0.name
+    }
+
     fn position(&self) -> (MapLayer, i32, i32) {
         self.data().position()
     }
 
-    /// Returns the `Character` level in the given `skill`.
     fn skill_level(&self, skill: Skill) -> u32 {
         self.data().skill_level(skill)
     }
@@ -892,28 +891,20 @@ pub trait HasCharacterData {
         self.data().skill_max_xp(skill)
     }
 
-    fn max_health(&self) -> i32 {
-        self.data().max_hp()
+    fn hp(&self) -> i32 {
+        self.data().hp()
     }
 
-    fn health(&self) -> i32 {
-        self.data().hp()
+    fn max_hp(&self) -> i32 {
+        self.data().max_hp()
     }
 
     fn missing_hp(&self) -> i32 {
         self.data().missing_hp()
     }
 
-    fn gold(&self) -> u32 {
-        self.data().gold()
-    }
-
-    fn quantity_in_slot(&self, slot: Slot) -> u32 {
-        self.data().quantity_in_slot(slot)
-    }
-
     fn task(&self) -> String {
-        self.data().task().to_owned()
+        self.data().task()
     }
 
     fn task_type(&self) -> Option<TaskType> {
@@ -929,44 +920,45 @@ pub trait HasCharacterData {
     }
 
     fn task_missing(&self) -> u32 {
-        self.task_total().saturating_sub(self.task_progress())
+        self.data().task_missing()
     }
 
     fn task_finished(&self) -> bool {
-        !self.task().is_empty() && self.task_missing() < 1
+        self.data().task_finished()
     }
 
-    /// Returns the cooldown expiration timestamp of the `Character`.
-    fn cooldown_expiration(&self) -> Option<DateTime<Utc>> {
-        self.data().cooldown_expiration()
+    fn inventory_items(&self) -> Option<Vec<InventorySlot>> {
+        self.data().inventory_items()
+    }
+
+    fn inventory_max_items(&self) -> i32 {
+        self.data().inventory_max_items()
+    }
+
+    fn gold(&self) -> u32 {
+        self.data().gold()
     }
 
     fn equiped_in(&self, slot: Slot) -> String {
-        self.data().equiped_in(slot).to_owned()
+        self.data().equiped_in(slot)
     }
 
     fn has_equiped(&self, item_code: &str) -> u32 {
         self.data().has_equiped(item_code)
+    }
+
+    fn quantity_in_slot(&self, slot: Slot) -> u32 {
+        self.data().quantity_in_slot(slot)
+    }
+
+    fn cooldown_expiration(&self) -> Option<DateTime<Utc>> {
+        self.data().cooldown_expiration()
     }
 }
 
 impl Level for CharacterClient {
     fn level(&self) -> u32 {
         self.data().level()
-    }
-}
-
-impl HasCharacterData for CharacterClient {
-    fn data(&self) -> Character {
-        self.0.handler.data()
-    }
-
-    fn refresh_data(&self) {
-        self.0.handler.refresh_data();
-    }
-
-    fn update_data(&self, schema: CharacterSchema) {
-        self.0.handler.update_data(schema);
     }
 }
 

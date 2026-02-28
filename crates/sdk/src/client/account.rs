@@ -1,8 +1,9 @@
 use crate::{
     ClientError, ItemsClient, MapsClient, MonstersClient, NpcsClient, ResourcesClient,
     ServerClient, TasksClient,
-    character::{CharacterDataHandle, HasCharacterData},
+    character::data_handle::CharacterDataHandle,
     client::{bank::BankClient, character::CharacterClient},
+    entities::CharacterTrait,
     grand_exchange::GrandExchangeClient,
 };
 use api::ArtifactApi;

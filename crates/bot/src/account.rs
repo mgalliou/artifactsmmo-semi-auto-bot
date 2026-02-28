@@ -5,7 +5,9 @@ use crate::{
 use itertools::Itertools;
 use sdk::{
     AccountClient, Client, Code, CollectionClient, ItemContainer, ItemsClient, NpcsClient, Skill,
-    SpaceLimited, character::{HasCharacterData, MeetsConditionsFor}, entities::Item, items::ItemSource,
+    SpaceLimited,
+    entities::{CharacterTrait, Item},
+    items::ItemSource,
 };
 use std::sync::{Arc, RwLock};
 

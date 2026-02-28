@@ -5,8 +5,8 @@ use log::debug;
 use sdk::{
     CharacterClient, Code, CollectionClient, DropsItems, ItemContainer, ItemsClient, Level,
     LimitedContainer, Quantity, SlotLimited, SpaceLimited,
-    character::{HasCharacterData, inventory::Inventory},
-    entities::Item,
+    character::inventory::Inventory,
+    entities::{CharacterTrait, Item},
     models::{InventorySlot, SimpleItemSchema},
 };
 use std::{
