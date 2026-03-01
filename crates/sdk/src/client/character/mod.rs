@@ -116,7 +116,7 @@ impl CharacterClient {
     }
 
     pub fn inventory(&self) -> InventoryClient {
-        todo!()
+        InventoryClient::new(self.data())
     }
 
     pub fn r#move(&self, x: i32, y: i32) -> Result<Map, MoveError> {
