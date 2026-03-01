@@ -69,6 +69,12 @@ impl Item {
         self.craft_schema().is_some()
     }
 
+    pub fn craft_quantity(&self) -> u32 {
+        self.craft_schema()
+            .and_then(|s| s.quantity.map(|q| q as u32))
+            .unwrap_or(0)
+    }
+
     pub fn is_tradable(&self) -> bool {
         self.0.tradeable
     }

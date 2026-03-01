@@ -28,8 +28,8 @@ impl MapsClient {
         }
     }
 
-    pub fn get(&self, layer: MapLayer, x: i32, y: i32) -> Option<Map> {
-        Some(self.data.get(&(layer, x, y))?.read().unwrap().clone())
+    pub fn get(&self, position: (MapLayer, i32, i32)) -> Option<Map> {
+        Some(self.data.get(&position)?.read().unwrap().clone())
     }
 
     pub fn refresh_from_events(&self) {

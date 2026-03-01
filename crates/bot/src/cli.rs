@@ -9,9 +9,8 @@ use anyhow::{Result, bail};
 use clap::{Parser, Subcommand, value_parser};
 use rustyline::{DefaultEditor, error::ReadlineError};
 use sdk::{
-    CollectionClient, ItemContainer,
-    character::HasCharacterData,
-    entities::EventSchemaExt,
+    CollectionClient, ItemContainer, Level,
+    entities::{CharacterTrait, EventSchemaExt},
     simulator::{Participant, Simulator},
     skill::Skill,
 };
@@ -206,7 +205,7 @@ fn respond(
             from_monster,
             from_npc,
             utilities,
-            winning,
+            winning: _,
             monster,
         } => {
             let Some(char) = character else {
@@ -239,7 +238,7 @@ fn respond(
             from_npc,
             from_monster,
             utilities,
-            winning,
+            winning: _,
             monster,
         } => {
             let Some(char) = character else {
@@ -262,7 +261,7 @@ fn respond(
             if let Some(gear) = gear {
                 println!("{}", gear);
                 let fight = Simulator::fight(
-                    Participant::new(char.name(), char.level(), gear, 100, 100, 0),
+                    Participant::new(char.name().to_string(), char.level(), gear, 100, 100, 0),
                     None,
                     monster,
                     Default::default(),
@@ -320,8 +319,7 @@ fn respond(
             let Some(char) = character else {
                 bail!("no character selected");
             };
-            let (layer, x, y) = char.position();
-            println!("{:?}", bot.client.maps.get(layer, x, y).unwrap());
+            println!("{:?}", bot.client.maps.get(char.position()).unwrap());
         }
         Commands::Task => {
             let Some(char) = character else {

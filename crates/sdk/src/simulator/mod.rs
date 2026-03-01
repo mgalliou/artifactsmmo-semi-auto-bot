@@ -1,7 +1,6 @@
 use crate::{
-    CharacterClient, Gear, Slot,
-    character::HasCharacterData,
-    entities::Monster,
+    CharacterClient, Gear, Level, Slot,
+    entities::{CharacterTrait, Monster},
     simulator::entity::{SimulationCharacter, SimulationEntity, SimulationMonster},
 };
 use itertools::Itertools;
@@ -174,7 +173,7 @@ impl Participant {
 impl From<&CharacterClient> for Participant {
     fn from(value: &CharacterClient) -> Self {
         Self {
-            name: value.name(),
+            name: value.name().to_string(),
             level: value.level(),
             gear: value.gear().clone(),
             utility1_quantity: value.quantity_in_slot(Slot::Utility1),

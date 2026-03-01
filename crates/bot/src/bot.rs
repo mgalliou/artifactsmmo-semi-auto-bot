@@ -3,7 +3,7 @@ use crate::{
     gear_finder::GearFinder, leveling_helper::LevelingHelper, orderboard::OrderBoard,
 };
 use log::error;
-use sdk::{Client, character::HasCharacterData};
+use sdk::{Client, entities::CharacterTrait};
 use std::{
     sync::Arc,
     thread::{Builder, sleep},
@@ -24,7 +24,7 @@ impl Bot {
     pub fn new(client: Arc<Client>) -> Self {
         let config = Arc::new(BotConfig::from_file());
         let bank = Arc::new(BankController::new(
-            client.account.bank.clone(),
+            client.account.bank(),
             client.items.clone(),
         ));
         let account = Arc::new(AccountController::new(
@@ -62,7 +62,7 @@ impl Bot {
         );
         for c in self.account.characters() {
             sleep(Duration::from_millis(250));
-            if let Err(e) = Builder::new().name(c.name().clone()).spawn(move || {
+            if let Err(e) = Builder::new().name(c.name().to_string()).spawn(move || {
                 c.run_loop();
             }) {
                 error!("failed to spawn character thread: {}", e);

@@ -4,8 +4,7 @@ use rayon::iter::{ParallelBridge, ParallelIterator};
 use sdk::{
     CanProvideXp, Code, CollectionClient, ItemsClient, Level, MapsClient, MonstersClient,
     ResourcesClient,
-    character::HasCharacterData,
-    entities::{Item, Monster, Resource},
+    entities::{CharacterTrait, Item, Monster, Resource},
     items::SubType,
     skill::Skill,
 };
@@ -71,7 +70,7 @@ impl LevelingHelper {
                     .mats_for(i.code(), char.max_craftable_items(i.code()));
                 let mats_with_ttg = self
                     .bank
-                    .missing_among(&mats, &char.name())
+                    .missing_among(&mats, char.name())
                     .into_iter()
                     .par_bridge()
                     .map(|m| (m.clone(), self.account.time_to_get(&m.code)))

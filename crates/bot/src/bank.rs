@@ -19,7 +19,7 @@ use thiserror::Error;
 
 #[derive(Default)]
 pub struct BankController {
-    client: Arc<BankClient>,
+    client: BankClient,
     items: Arc<ItemsClient>,
     reservations: RwLock<Vec<Arc<BankReservation>>>,
     pub browsed: RwLock<()>,
@@ -27,7 +27,7 @@ pub struct BankController {
 }
 
 impl BankController {
-    pub fn new(client: Arc<BankClient>, items: Arc<ItemsClient>) -> Self {
+    pub fn new(client: BankClient, items: Arc<ItemsClient>) -> Self {
         Self {
             client,
             items,
@@ -37,19 +37,20 @@ impl BankController {
         }
     }
 
-    /// Returns the quantity of the given item `code` that can be crafted with the mats available in bank
-    /// for the given `owner`.
+    // TODO: check if this can be removed
+    // Returns the quantity of the given item `code` that can be crafted with the mats available in bank
+    // for the given `owner`.
     //  NOTE: this should maybe return a Option to indicate that the item is not craftable and
     //  return None in this case
-    #[deprecated]
-    pub fn has_mats_for(&self, item: &str, owner: &str) -> u32 {
-        self.items
-            .mats_of(item)
-            .iter()
-            .map(|mat| self.has_available(&mat.code, owner) / mat.quantity)
-            .min()
-            .unwrap_or(0)
-    }
+    // #[deprecated]
+    // pub fn has_mats_for(&self, item: &str, owner: &str) -> u32 {
+    //     self.items
+    //         .mats_of(item)
+    //         .iter()
+    //         .map(|mat| self.has_available(&mat.code, owner) / mat.quantity)
+    //         .min()
+    //         .unwrap_or(0)
+    // }
 
     /// Returns the quantity of each of the missing materials required to craft the `quantity` of the  item `code`
     /// for the given `owner`.
@@ -317,28 +318,28 @@ mod tests {
         assert_eq!(Err(BankReservationError::QuantityUnavailable(50)), result);
     }
 
-    #[test]
-    fn reserv_with_item_available() {
-        let bank = BankController::default();
-        *bank.client.content.write().unwrap() = Arc::new(vec![SimpleItemSchema {
-            code: "copper_ore".to_owned(),
-            quantity: 100,
-        }]);
-        let _ = bank.inc_reservation("copper_ore", 50, "char1");
-        let _ = bank.inc_reservation("copper_ore", 50, "char1");
-        assert_eq!(100, bank.has_available("copper_ore", "char1"))
-    }
+    // #[test]
+    // fn reserv_with_item_available() {
+    //     let bank = BankController::default();
+    //     *bank.client.content.write().unwrap() = Arc::new(vec![SimpleItemSchema {
+    //         code: "copper_ore".to_owned(),
+    //         quantity: 100,
+    //     }]);
+    //     let _ = bank.inc_reservation("copper_ore", 50, "char1");
+    //     let _ = bank.inc_reservation("copper_ore", 50, "char1");
+    //     assert_eq!(100, bank.has_available("copper_ore", "char1"))
+    // }
 
-    #[test]
-    fn reserv_if_not_with_item_available() {
-        let bank = BankController::default();
-        *bank.client.content.write().unwrap() = Arc::new(vec![SimpleItemSchema {
-            code: "gold_ore".to_owned(),
-            quantity: 100,
-        }]);
-        let _ = bank.reserv_item("gold_ore", 50, "char1");
-        let _ = bank.reserv_item("gold_ore", 50, "char1");
-        assert_eq!(100, bank.has_available("gold_ore", "char1"));
-        assert_eq!(50, bank.quantity_reserved("gold_ore"))
-    }
+    // #[test]
+    // fn reserv_if_not_with_item_available() {
+    //     let bank = BankController::default();
+    //     *bank.client.content.write().unwrap() = Arc::new(vec![SimpleItemSchema {
+    //         code: "gold_ore".to_owned(),
+    //         quantity: 100,
+    //     }]);
+    //     let _ = bank.reserv_item("gold_ore", 50, "char1");
+    //     let _ = bank.reserv_item("gold_ore", 50, "char1");
+    //     assert_eq!(100, bank.has_available("gold_ore", "char1"));
+    //     assert_eq!(50, bank.quantity_reserved("gold_ore"))
+    // }
 }

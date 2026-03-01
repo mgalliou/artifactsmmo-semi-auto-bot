@@ -1,8 +1,9 @@
 use crate::{
     ClientError, ItemsClient, MapsClient, MonstersClient, NpcsClient, ResourcesClient,
     ServerClient, TasksClient,
-    character::HasCharacterData,
+    character::data_handle::CharacterDataHandle,
     client::{bank::BankClient, character::CharacterClient},
+    entities::CharacterTrait,
     grand_exchange::GrandExchangeClient,
 };
 use api::ArtifactApi;
@@ -10,19 +11,27 @@ use itertools::Itertools;
 use openapi::models::AccountAchievementSchema;
 use std::sync::{Arc, RwLock};
 
+pub trait Account {
+    fn name(&self) -> &str;
+    fn bank(&self) -> BankClient;
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct AccountClient(Arc<AccountInner>);
+
 /// Hold and manage data related to a specific account
 #[derive(Default, Debug)]
-pub struct AccountClient {
-    pub name: String,
-    pub bank: Arc<BankClient>,
-    characters: RwLock<Vec<Arc<CharacterClient>>>,
+pub struct AccountInner {
+    name: String,
+    bank: BankClient,
+    characters: RwLock<Vec<CharacterClient>>,
     achievements: RwLock<Vec<Arc<AccountAchievementSchema>>>,
     api: Arc<ArtifactApi>,
 }
 
 impl AccountClient {
-    pub(crate) fn new(name: String, bank: Arc<BankClient>, api: Arc<ArtifactApi>) -> Self {
-        Self {
+    pub(crate) fn new(name: String, bank: BankClient, api: Arc<ArtifactApi>) -> Self {
+        Self(Arc::new(AccountInner {
             bank,
             characters: Default::default(),
             achievements: RwLock::new(
@@ -35,13 +44,20 @@ impl AccountClient {
             ),
             name,
             api,
-        }
+        }))
+    }
+
+    pub fn name(&self) -> &str {
+        &self.0.name
+    }
+
+    pub fn bank(&self) -> BankClient {
+        self.0.bank.clone()
     }
 
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn load_characters(
         &self,
-        account: Arc<AccountClient>,
         items: Arc<ItemsClient>,
         resources: Arc<ResourcesClient>,
         monsters: Arc<MonstersClient>,
@@ -51,10 +67,11 @@ impl AccountClient {
         server: Arc<ServerClient>,
         grand_exchange: Arc<GrandExchangeClient>,
     ) -> Result<(), ClientError> {
-        *self.characters.write().unwrap() = self
+        *self.0.characters.write().unwrap() = self
+            .0
             .api
             .account
-            .characters(&account.name)
+            .characters(self.name())
             .map_err(|e| ClientError::Api(Box::new(e)))?
             .data
             .into_iter()
@@ -62,8 +79,8 @@ impl AccountClient {
             .map(|(id, data)| {
                 CharacterClient::new(
                     id,
-                    Arc::new(RwLock::new(Arc::new(data))),
-                    account.clone(),
+                    CharacterDataHandle::new(data),
+                    self.clone(),
                     items.clone(),
                     resources.clone(),
                     monsters.clone(),
@@ -72,19 +89,19 @@ impl AccountClient {
                     tasks.clone(),
                     grand_exchange.clone(),
                     server.clone(),
-                    self.api.clone(),
+                    self.0.api.clone(),
                 )
             })
-            .map(Arc::new)
             .collect_vec();
         Ok(())
     }
 
     pub fn load_achievements(&self) -> Result<(), ClientError> {
-        *self.achievements.write().unwrap() = self
+        *self.0.achievements.write().unwrap() = self
+            .0
             .api
             .account
-            .achievements(&self.name)
+            .achievements(self.name())
             .map_err(|e| ClientError::Api(Box::new(e)))?
             .into_iter()
             .map(Arc::new)
@@ -92,21 +109,17 @@ impl AccountClient {
         Ok(())
     }
 
-    pub fn characters(&self) -> Vec<Arc<CharacterClient>> {
-        self.characters.read().unwrap().iter().cloned().collect()
+    pub fn characters(&self) -> Vec<CharacterClient> {
+        self.0.characters.read().unwrap().iter().cloned().collect()
     }
 
-    pub fn get_character_by_name(&self, name: &str) -> Option<Arc<CharacterClient>> {
-        self.characters
-            .read()
-            .unwrap()
-            .iter()
-            .find(|c| c.name() == name)
-            .cloned()
+    pub fn get_character_by_name(&self, name: &str) -> Option<CharacterClient> {
+        self.characters().iter().find(|c| c.name() == name).cloned()
     }
 
     pub fn achievements(&self) -> Vec<Arc<AccountAchievementSchema>> {
-        self.achievements
+        self.0
+            .achievements
             .read()
             .unwrap()
             .iter()

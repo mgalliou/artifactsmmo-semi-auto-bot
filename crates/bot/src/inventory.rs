@@ -5,8 +5,8 @@ use log::debug;
 use sdk::{
     CharacterClient, Code, CollectionClient, DropsItems, ItemContainer, ItemsClient, Level,
     LimitedContainer, Quantity, SlotLimited, SpaceLimited,
-    character::{HasCharacterData, inventory::Inventory},
-    entities::Item,
+    character::inventory::Inventory,
+    entities::{CharacterTrait, Item},
     models::{InventorySlot, SimpleItemSchema},
 };
 use std::{
@@ -20,13 +20,13 @@ use thiserror::Error;
 
 #[derive(Default)]
 pub struct InventoryController {
-    client: Arc<CharacterClient>,
+    client: CharacterClient,
     reservations: RwLock<Vec<Arc<InventoryReservation>>>,
     items: Arc<ItemsClient>,
 }
 
 impl InventoryController {
-    pub fn new(client: Arc<CharacterClient>, items: Arc<ItemsClient>) -> Self {
+    pub fn new(client: CharacterClient, items: Arc<ItemsClient>) -> Self {
         InventoryController {
             client,
             reservations: RwLock::new(vec![]),

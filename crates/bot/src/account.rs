@@ -5,14 +5,16 @@ use crate::{
 use itertools::Itertools;
 use sdk::{
     AccountClient, Client, Code, CollectionClient, ItemContainer, ItemsClient, NpcsClient, Skill,
-    SpaceLimited, character::HasCharacterData, entities::Item, items::ItemSource,
+    SpaceLimited,
+    entities::{CharacterTrait, Item},
+    items::ItemSource,
 };
 use std::sync::{Arc, RwLock};
 
 #[derive(Default)]
 pub struct AccountController {
     config: Arc<BotConfig>,
-    client: Arc<AccountClient>,
+    client: AccountClient,
     items: Arc<ItemsClient>,
     npcs: Arc<NpcsClient>,
     pub bank: Arc<BankController>,
@@ -22,7 +24,7 @@ pub struct AccountController {
 impl AccountController {
     pub fn new(
         config: Arc<BotConfig>,
-        client: Arc<AccountClient>,
+        client: AccountClient,
         items: Arc<ItemsClient>,
         npcs: Arc<NpcsClient>,
         bank: Arc<BankController>,
@@ -35,6 +37,10 @@ impl AccountController {
             npcs,
             characters: RwLock::new(vec![]),
         }
+    }
+
+    pub fn client(&self) -> AccountClient {
+        self.client.clone()
     }
 
     pub fn init_characters(

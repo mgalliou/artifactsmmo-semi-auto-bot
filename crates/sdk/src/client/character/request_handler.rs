@@ -1,87 +1,85 @@
-use super::CharacterData;
 use crate::{
-    AccountClient,
-    character::{MeetsConditionsFor, responses::ResponseSchema},
+    AccountClient, Skill,
+    character::{CharacterDataHandle, responses::ResponseSchema},
     client::{
-        bank::BankClient,
-        character::{HasCharacterData, action::Action, error::RequestError},
+        character::{HandleCharacterData, action_request::ActionRequest, error::RequestError},
         server::ServerClient,
     },
-    consts::BANK_EXTENSION_SIZE,
-    entities::Map,
+    entities::{CharacterTrait, Map, RawCharacter},
     gear::Slot,
 };
 use api::ArtifactApi;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use log::{debug, error, info, warn};
 use openapi::models::{
     BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema,
-    BankItemTransactionResponseSchema, BankSchema, CharacterFightResponseSchema,
-    CharacterFightSchema, CharacterMovementResponseSchema, CharacterRestResponseSchema,
-    CharacterSchema, CharacterTransitionResponseSchema, DeleteItemResponseSchema,
+    BankItemTransactionResponseSchema, CharacterFightResponseSchema, CharacterFightSchema,
+    CharacterMovementResponseSchema, CharacterRestResponseSchema, CharacterSchema,
+    CharacterTransitionResponseSchema, DeleteItemResponseSchema,
     GeCreateOrderTransactionResponseSchema, GeTransactionResponseSchema, GeTransactionSchema,
-    GiveGoldResponseSchema, GiveItemResponseSchema, NpcItemTransactionSchema,
-    NpcMerchantTransactionResponseSchema, RecyclingItemsSchema, RecyclingResponseSchema,
-    RewardDataResponseSchema, RewardsSchema, SimpleItemSchema, SkillDataSchema, SkillInfoSchema,
-    SkillResponseSchema, TaskResponseSchema, TaskSchema, TaskTradeResponseSchema, TaskTradeSchema,
+    GiveGoldResponseSchema, GiveItemResponseSchema, InventorySlot, MapLayer,
+    NpcItemTransactionSchema, NpcMerchantTransactionResponseSchema, RecyclingItemsSchema,
+    RecyclingResponseSchema, RewardDataResponseSchema, RewardsSchema, SimpleItemSchema,
+    SkillDataSchema, SkillInfoSchema, SkillResponseSchema, TaskResponseSchema, TaskSchema,
+    TaskTradeResponseSchema, TaskTradeSchema,
 };
-use std::{
-    cmp::Ordering,
-    sync::{Arc, RwLockWriteGuard},
-    thread::sleep,
-    time::Duration,
-};
+use std::{cmp::Ordering, sync::Arc, thread::sleep, time::Duration};
 
 /// First layer of abstraction around the character API.
 /// It is responsible for handling the character action requests responce and errors
 /// by updating character and bank data, and retrying requests in case of errors.
 #[derive(Default, Debug)]
 pub(crate) struct CharacterRequestHandler {
+    name: String,
     api: Arc<ArtifactApi>,
-    account: Arc<AccountClient>,
-    data: CharacterData,
-    bank: Arc<BankClient>,
+    account: AccountClient,
+    data: CharacterDataHandle,
     server: Arc<ServerClient>,
 }
 
 impl CharacterRequestHandler {
     pub fn new(
         api: Arc<ArtifactApi>,
-        data: CharacterData,
-        account: Arc<AccountClient>,
+        data: CharacterDataHandle,
+        account: AccountClient,
         server: Arc<ServerClient>,
     ) -> Self {
         Self {
+            name: data.read().name().to_string(),
             api,
             data,
-            bank: account.bank.clone(),
             account,
             server,
         }
     }
 
-    fn request_action(&self, action: Action) -> Result<Box<dyn ResponseSchema>, RequestError> {
-        let mut bank_content: Option<RwLockWriteGuard<'_, Arc<Vec<SimpleItemSchema>>>> = None;
-        let mut bank_details: Option<RwLockWriteGuard<'_, Arc<BankSchema>>> = None;
+    pub fn character(&self) -> RawCharacter {
+        self.data.read()
+    }
 
+    fn request_action(
+        &self,
+        action: ActionRequest,
+    ) -> Result<Box<dyn ResponseSchema>, RequestError> {
         self.wait_for_cooldown();
-        if action.is_deposit_item() || action.is_withdraw_item() {
-            bank_content = Some(
-                self.bank
-                    .content
-                    .write()
-                    .expect("bank_content to be writable"),
-            );
-        }
-        if action.is_deposit_gold() || action.is_withdraw_gold() || action.is_expand_bank() {
-            bank_details = Some(
-                self.bank
-                    .details
-                    .write()
-                    .expect("bank_details to be writable"),
-            );
-        }
-        match action.request(&self.name(), &self.api) {
+        // if action.is_deposit_item() || action.is_withdraw_item() {
+        //     bank_content = Some(
+        //         self.account.bank()
+        //             .content()
+        //             .write()
+        //             .expect("bank_content to be writable"),
+        //     );
+        // }
+        // if action.is_deposit_gold() || action.is_withdraw_gold() || action.is_expand_bank() {
+        //     bank_details = Some(
+        //         self.account
+        //             .bank()
+        //             .details
+        //             .write()
+        //             .expect("bank_details to be writable"),
+        //     );
+        // }
+        match action.send(self.data.read().name(), &self.api) {
             Ok(res) => {
                 info!("{}", res.to_string());
                 if let Some(res) = res.downcast_ref::<CharacterFightResponseSchema>() {
@@ -93,44 +91,35 @@ impl CharacterRequestHandler {
                 } else {
                     self.update_data(res.character().clone());
                 }
-                if let Some(res) = res.downcast_ref::<BankItemTransactionResponseSchema>()
-                    && let Some(mut content) = bank_content
-                {
-                    *content = res.data.bank.clone().into();
-                } else if let Some(res) = res.downcast_ref::<BankGoldTransactionResponseSchema>()
-                    && let Some(mut details) = bank_details
-                {
-                    let mut new_details = (*(*details)).clone();
-                    new_details.gold = res.data.bank.quantity;
-                    *details = Arc::new(new_details);
+                if let Some(res) = res.downcast_ref::<BankItemTransactionResponseSchema>() {
+                    self.account.bank().update_content(res.data.bank.clone());
+                } else if let Some(res) = res.downcast_ref::<BankGoldTransactionResponseSchema>() {
+                    self.account.bank().update_gold(res.data.bank.quantity);
                 } else if res
                     .downcast_ref::<BankExtensionTransactionResponseSchema>()
                     .is_some()
-                    && let Some(mut details) = bank_details
                 {
-                    let mut new_details = (*(*details)).clone();
-                    new_details.slots += BANK_EXTENSION_SIZE;
-                    *details = Arc::new(new_details);
+                    self.account.bank().expand();
                 };
                 if let Some(res) = res.downcast_ref::<GiveItemResponseSchema>()
-                    && let Some(c) = self
+                    && let Some(char) = self
                         .account
                         .get_character_by_name(&res.data.receiver_character.name)
                 {
-                    c.update_data(*res.data.receiver_character.clone());
+                    char.update_data(*res.data.receiver_character.clone());
                 }
                 if let Some(res) = res.downcast_ref::<GiveGoldResponseSchema>()
-                    && let Some(c) = self
+                    && let Some(char) = self
                         .account
                         .get_character_by_name(&res.data.receiver_character.name)
                 {
-                    c.update_data(*res.data.receiver_character.clone());
+                    char.update_data(*res.data.receiver_character.clone());
                 }
                 Ok(res)
             }
             Err(e) => {
-                drop(bank_content);
-                drop(bank_details);
+                // drop(bank_content);
+                // drop(bank_details);
                 self.handle_request_error(action, e)
             }
         }
@@ -138,7 +127,7 @@ impl CharacterRequestHandler {
 
     fn handle_request_error(
         &self,
-        action: Action,
+        action: ActionRequest,
         error: RequestError,
     ) -> Result<Box<dyn ResponseSchema>, RequestError> {
         error!(
@@ -149,6 +138,9 @@ impl CharacterRequestHandler {
         );
         match error {
             RequestError::ResponseError(ref res) => {
+                if res.error.code == 489 {
+                    return self.request_action(action);
+                }
                 if res.error.code == 499 {
                     error!(
                         "{}: code 499 received, resyncronizing server time",
@@ -212,7 +204,7 @@ impl CharacterRequestHandler {
     }
 
     pub fn request_move(&self, x: i32, y: i32) -> Result<Map, RequestError> {
-        self.request_action(Action::Move { x, y })
+        self.request_action(ActionRequest::Move { x, y })
             .and_then(|r| {
                 r.downcast::<CharacterMovementResponseSchema>()
                     .map_err(|_| RequestError::DowncastError)
@@ -221,7 +213,7 @@ impl CharacterRequestHandler {
     }
 
     pub fn request_transition(&self) -> Result<Map, RequestError> {
-        self.request_action(Action::Transition)
+        self.request_action(ActionRequest::Transition)
             .and_then(|r| {
                 r.downcast::<CharacterTransitionResponseSchema>()
                     .map_err(|_| RequestError::DowncastError)
@@ -233,7 +225,7 @@ impl CharacterRequestHandler {
         &self,
         participants: Option<&[String; 2]>,
     ) -> Result<CharacterFightSchema, RequestError> {
-        self.request_action(Action::Fight { participants })
+        self.request_action(ActionRequest::Fight { participants })
             .and_then(|r| {
                 r.downcast::<CharacterFightResponseSchema>()
                     .map_err(|_| RequestError::DowncastError)
@@ -242,7 +234,7 @@ impl CharacterRequestHandler {
     }
 
     pub fn request_rest(&self) -> Result<u32, RequestError> {
-        self.request_action(Action::Rest)
+        self.request_action(ActionRequest::Rest)
             .and_then(|r| {
                 r.downcast::<CharacterRestResponseSchema>()
                     .map_err(|_| RequestError::DowncastError)
@@ -251,7 +243,7 @@ impl CharacterRequestHandler {
     }
 
     pub fn request_gather(&self) -> Result<SkillDataSchema, RequestError> {
-        self.request_action(Action::Gather)
+        self.request_action(ActionRequest::Gather)
             .and_then(|r| {
                 r.downcast::<SkillResponseSchema>()
                     .map_err(|_| RequestError::DowncastError)
@@ -264,7 +256,7 @@ impl CharacterRequestHandler {
         item_code: &str,
         quantity: u32,
     ) -> Result<SkillInfoSchema, RequestError> {
-        self.request_action(Action::Craft {
+        self.request_action(ActionRequest::Craft {
             item_code,
             quantity,
         })
@@ -280,7 +272,7 @@ impl CharacterRequestHandler {
         item_code: &str,
         quantity: u32,
     ) -> Result<SimpleItemSchema, RequestError> {
-        self.request_action(Action::Delete {
+        self.request_action(ActionRequest::Delete {
             item_code,
             quantity,
         })
@@ -296,7 +288,7 @@ impl CharacterRequestHandler {
         item_code: &str,
         quantity: u32,
     ) -> Result<RecyclingItemsSchema, RequestError> {
-        self.request_action(Action::Recycle {
+        self.request_action(ActionRequest::Recycle {
             item_code,
             quantity,
         })
@@ -308,17 +300,17 @@ impl CharacterRequestHandler {
     }
 
     pub fn request_deposit_item(&self, items: &[SimpleItemSchema]) -> Result<(), RequestError> {
-        self.request_action(Action::DepositItem { items })
+        self.request_action(ActionRequest::DepositItem { items })
             .map(|_| ())
     }
 
     pub fn request_withdraw_item(&self, items: &[SimpleItemSchema]) -> Result<(), RequestError> {
-        self.request_action(Action::WithdrawItem { items })
+        self.request_action(ActionRequest::WithdrawItem { items })
             .map(|_| ())
     }
 
     pub fn request_deposit_gold(&self, quantity: u32) -> Result<u32, RequestError> {
-        self.request_action(Action::DepositGold { quantity })
+        self.request_action(ActionRequest::DepositGold { quantity })
             .and_then(|r| {
                 r.downcast::<BankGoldTransactionResponseSchema>()
                     .map_err(|_| RequestError::DowncastError)
@@ -327,7 +319,7 @@ impl CharacterRequestHandler {
     }
 
     pub fn request_withdraw_gold(&self, quantity: u32) -> Result<u32, RequestError> {
-        self.request_action(Action::WithdrawGold { quantity })
+        self.request_action(ActionRequest::WithdrawGold { quantity })
             .and_then(|r| {
                 r.downcast::<BankGoldTransactionResponseSchema>()
                     .map_err(|_| RequestError::DowncastError)
@@ -336,7 +328,7 @@ impl CharacterRequestHandler {
     }
 
     pub fn request_expand_bank(&self) -> Result<u32, RequestError> {
-        self.request_action(Action::ExpandBank)
+        self.request_action(ActionRequest::ExpandBank)
             .and_then(|r| {
                 r.downcast::<BankExtensionTransactionResponseSchema>()
                     .map_err(|_| RequestError::DowncastError)
@@ -350,7 +342,7 @@ impl CharacterRequestHandler {
         slot: Slot,
         quantity: u32,
     ) -> Result<(), RequestError> {
-        self.request_action(Action::Equip {
+        self.request_action(ActionRequest::Equip {
             item_code,
             slot,
             quantity,
@@ -359,12 +351,12 @@ impl CharacterRequestHandler {
     }
 
     pub fn request_unequip(&self, slot: Slot, quantity: u32) -> Result<(), RequestError> {
-        self.request_action(Action::Unequip { slot, quantity })
+        self.request_action(ActionRequest::Unequip { slot, quantity })
             .map(|_| ())
     }
 
     pub fn request_use_item(&self, item_code: &str, quantity: u32) -> Result<(), RequestError> {
-        self.request_action(Action::UseItem {
+        self.request_action(ActionRequest::UseItem {
             item_code,
             quantity,
         })
@@ -372,7 +364,7 @@ impl CharacterRequestHandler {
     }
 
     pub fn request_accept_task(&self) -> Result<TaskSchema, RequestError> {
-        self.request_action(Action::AcceptTask)
+        self.request_action(ActionRequest::AcceptTask)
             .and_then(|r| {
                 r.downcast::<TaskResponseSchema>()
                     .map_err(|_| RequestError::DowncastError)
@@ -381,7 +373,7 @@ impl CharacterRequestHandler {
     }
 
     pub fn request_complete_task(&self) -> Result<RewardsSchema, RequestError> {
-        self.request_action(Action::CompleteTask)
+        self.request_action(ActionRequest::CompleteTask)
             .and_then(|r| {
                 r.downcast::<RewardDataResponseSchema>()
                     .map_err(|_| RequestError::DowncastError)
@@ -390,7 +382,7 @@ impl CharacterRequestHandler {
     }
 
     pub fn request_cancel_task(&self) -> Result<(), RequestError> {
-        self.request_action(Action::CancelTask).map(|_| ())
+        self.request_action(ActionRequest::CancelTask).map(|_| ())
     }
 
     pub fn request_trade_task_item(
@@ -398,7 +390,7 @@ impl CharacterRequestHandler {
         item_code: &str,
         quantity: u32,
     ) -> Result<TaskTradeSchema, RequestError> {
-        self.request_action(Action::TradeTaskItem {
+        self.request_action(ActionRequest::TradeTaskItem {
             item_code,
             quantity,
         })
@@ -410,7 +402,7 @@ impl CharacterRequestHandler {
     }
 
     pub fn request_exchange_tasks_coin(&self) -> Result<RewardsSchema, RequestError> {
-        self.request_action(Action::ExchangeTasksCoins)
+        self.request_action(ActionRequest::ExchangeTasksCoins)
             .and_then(|r| {
                 r.downcast::<RewardDataResponseSchema>()
                     .map_err(|_| RequestError::DowncastError)
@@ -423,7 +415,7 @@ impl CharacterRequestHandler {
         item_code: &str,
         quantity: u32,
     ) -> Result<NpcItemTransactionSchema, RequestError> {
-        self.request_action(Action::NpcBuy {
+        self.request_action(ActionRequest::NpcBuy {
             item_code,
             quantity,
         })
@@ -439,7 +431,7 @@ impl CharacterRequestHandler {
         item_code: &str,
         quantity: u32,
     ) -> Result<NpcItemTransactionSchema, RequestError> {
-        self.request_action(Action::NpcSell {
+        self.request_action(ActionRequest::NpcSell {
             item_code,
             quantity,
         })
@@ -455,7 +447,7 @@ impl CharacterRequestHandler {
         items: &[SimpleItemSchema],
         character: &str,
     ) -> Result<(), RequestError> {
-        self.request_action(Action::GiveItem { items, character })
+        self.request_action(ActionRequest::GiveItem { items, character })
             .and_then(|r| {
                 r.downcast::<GiveItemResponseSchema>()
                     .map_err(|_| RequestError::DowncastError)
@@ -464,7 +456,7 @@ impl CharacterRequestHandler {
     }
 
     pub fn request_give_gold(&self, quantity: u32, character: &str) -> Result<(), RequestError> {
-        self.request_action(Action::GiveGold {
+        self.request_action(ActionRequest::GiveGold {
             quantity,
             character,
         })
@@ -480,7 +472,7 @@ impl CharacterRequestHandler {
         id: &str,
         quantity: u32,
     ) -> Result<GeTransactionSchema, RequestError> {
-        self.request_action(Action::GeBuyOrder { id, quantity })
+        self.request_action(ActionRequest::GeBuyOrder { id, quantity })
             .and_then(|r| {
                 r.downcast::<GeTransactionResponseSchema>()
                     .map_err(|_| RequestError::DowncastError)
@@ -494,7 +486,7 @@ impl CharacterRequestHandler {
         quantity: u32,
         price: u32,
     ) -> Result<(), RequestError> {
-        self.request_action(Action::GeCreateOrder {
+        self.request_action(ActionRequest::GeCreateOrder {
             item_code,
             quantity,
             price,
@@ -507,7 +499,7 @@ impl CharacterRequestHandler {
     }
 
     pub fn request_ge_cancel_order(&self, id: &str) -> Result<GeTransactionSchema, RequestError> {
-        self.request_action(Action::GeCancelOrder { id })
+        self.request_action(ActionRequest::GeCancelOrder { id })
             .and_then(|r| {
                 r.downcast::<GeTransactionResponseSchema>()
                     .map_err(|_| RequestError::DowncastError)
@@ -516,25 +508,105 @@ impl CharacterRequestHandler {
     }
 }
 
-impl MeetsConditionsFor for CharacterRequestHandler {
-    fn account(&self) -> Arc<AccountClient> {
-        self.account.clone()
-    }
-}
-
-impl HasCharacterData for CharacterRequestHandler {
-    fn data(&self) -> Arc<CharacterSchema> {
-        self.data.read().unwrap().clone()
+impl HandleCharacterData for CharacterRequestHandler {
+    fn data(&self) -> RawCharacter {
+        self.data.read()
     }
 
     fn refresh_data(&self) {
-        let Ok(res) = self.api.character.get(&self.name()) else {
+        let Ok(res) = self.api.character.get(self.data.read().name()) else {
             return;
         };
-        self.update_data(*res.data)
+        self.data.update(RawCharacter::new(*res.data))
     }
 
     fn update_data(&self, schema: CharacterSchema) {
-        *self.data.write().unwrap() = Arc::new(schema)
+        self.data.update(RawCharacter::new(schema));
+    }
+}
+
+impl CharacterTrait for CharacterRequestHandler {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn position(&self) -> (MapLayer, i32, i32) {
+        self.data().position()
+    }
+
+    fn skill_level(&self, skill: Skill) -> u32 {
+        self.data().skill_level(skill)
+    }
+
+    fn skill_xp(&self, skill: Skill) -> i32 {
+        self.data().skill_xp(skill)
+    }
+
+    fn skill_max_xp(&self, skill: Skill) -> i32 {
+        self.data().skill_max_xp(skill)
+    }
+
+    fn hp(&self) -> i32 {
+        self.data().hp()
+    }
+
+    fn max_hp(&self) -> i32 {
+        self.data().max_hp()
+    }
+
+    fn missing_hp(&self) -> i32 {
+        self.data().missing_hp()
+    }
+
+    fn task(&self) -> String {
+        self.data().task()
+    }
+
+    fn task_type(&self) -> Option<openapi::models::TaskType> {
+        self.data().task_type()
+    }
+
+    fn task_progress(&self) -> u32 {
+        self.data().task_progress()
+    }
+
+    fn task_total(&self) -> u32 {
+        self.data().task_total()
+    }
+
+    fn task_missing(&self) -> u32 {
+        self.data().task_missing()
+    }
+
+    fn task_finished(&self) -> bool {
+        self.data().task_finished()
+    }
+
+    fn inventory_items(&self) -> Option<Vec<InventorySlot>> {
+        self.data().inventory_items()
+    }
+
+    fn inventory_max_items(&self) -> i32 {
+        self.data().inventory_max_items()
+    }
+
+    fn gold(&self) -> u32 {
+        self.data().gold()
+    }
+
+    fn equiped_in(&self, slot: Slot) -> String {
+        self.data().equiped_in(slot)
+    }
+
+    fn has_equiped(&self, item_code: &str) -> u32 {
+        self.data().has_equiped(item_code)
+    }
+
+    fn quantity_in_slot(&self, slot: Slot) -> u32 {
+        self.data().quantity_in_slot(slot)
+    }
+
+    fn cooldown_expiration(&self) -> Option<DateTime<Utc>> {
+        self.data().cooldown_expiration()
     }
 }
