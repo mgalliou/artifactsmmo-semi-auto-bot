@@ -1,6 +1,5 @@
 use crate::{
-    Code, DropsItems, Slot,
-    container::{ItemContainer, LimitedContainer, SlotLimited, SpaceLimited},
+    Code, DropsItems, container::{ItemContainer, LimitedContainer, SlotLimited, SpaceLimited},
     entities::{CharacterTrait, Item, RawCharacter},
 };
 use itertools::Itertools;

@@ -21,7 +21,7 @@ pub struct AccountClient(Arc<AccountInner>);
 
 /// Hold and manage data related to a specific account
 #[derive(Default, Debug)]
-pub struct AccountInner {
+struct AccountInner {
     name: String,
     bank: BankClient,
     characters: RwLock<Vec<CharacterClient>>,

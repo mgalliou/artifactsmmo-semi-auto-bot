@@ -8,15 +8,18 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+#[derive(Default, Debug, Clone)]
+pub struct MapsClient(Arc<MapsClientInner>);
+
 #[derive(Default, Debug)]
-pub struct MapsClient {
+struct MapsClientInner {
     data: HashMap<(MapLayer, i32, i32), RwLock<Map>>,
     events: Arc<EventsClient>,
 }
 
 impl MapsClient {
     pub(crate) fn new(api: &ArtifactApi, events: Arc<EventsClient>) -> Self {
-        Self {
+        Self(Arc::new(MapsClientInner {
             data: api
                 .maps
                 .get_all()
@@ -25,25 +28,37 @@ impl MapsClient {
                 .map(|m| ((m.layer, m.x, m.y), RwLock::new(Map::new(m))))
                 .collect(),
             events,
-        }
+        }))
+    }
+
+    fn events(&self) -> Arc<EventsClient> {
+        self.0.events.clone()
     }
 
     pub fn get(&self, position: (MapLayer, i32, i32)) -> Option<Map> {
-        Some(self.data.get(&position)?.read().unwrap().clone())
+        Some(self.0.data.get(&position)?.read().unwrap().clone())
+    }
+
+    pub fn all(&self) -> Vec<Map> {
+        self.0
+            .data
+            .values()
+            .map(|m| m.read().unwrap().clone())
+            .collect_vec()
     }
 
     pub fn refresh_from_events(&self) {
-        self.events.active().iter().for_each(|e| {
+        self.events().active().iter().for_each(|e| {
             if DateTime::parse_from_rfc3339(e.expiration()).is_ok_and(|e| e < Utc::now())
-                && let Some(map) = self.data.get(&(e.map().layer, e.map().x, e.map().y))
+                && let Some(map) = self.0.data.get(&(e.map().layer, e.map().x, e.map().y))
             {
                 *map.write().unwrap() = Map::new(e.previous_map().clone())
             }
         });
-        self.events.refresh_active();
-        self.events.active().iter().for_each(|e| {
+        self.events().refresh_active();
+        self.events().active().iter().for_each(|e| {
             if DateTime::parse_from_rfc3339(e.expiration()).is_ok_and(|e| e > Utc::now())
-                && let Some(map) = self.data.get(&(e.map().layer, e.map().x, e.map().y))
+                && let Some(map) = self.0.data.get(&(e.map().layer, e.map().x, e.map().y))
             {
                 *map.write().unwrap() = Map::new(e.map().clone())
             }
@@ -58,32 +73,23 @@ impl MapsClient {
     }
 
     pub fn of_type(&self, r#type: MapContentType) -> Vec<Map> {
-        self.data
-            .values()
-            .filter_map(|m| {
-                let map = m.read().unwrap().clone();
-                map.content_type_is(r#type).then_some(map)
-            })
+        self.all()
+            .into_iter()
+            .filter_map(|m| m.content_type_is(r#type).then_some(m))
             .collect_vec()
     }
 
     pub fn with_content_code(&self, code: &str) -> Vec<Map> {
-        self.data
-            .values()
-            .filter_map(|m| {
-                let map = m.read().unwrap().clone();
-                map.content_code_is(code).then_some(map)
-            })
+        self.all()
+            .into_iter()
+            .filter_map(|m| m.content_code_is(code).then_some(m))
             .collect()
     }
 
     pub fn with_content(&self, content: &MapContentSchema) -> Vec<Map> {
-        self.data
-            .values()
-            .filter_map(|m| {
-                let map = m.read().unwrap().clone();
-                map.content_is(content).then_some(map)
-            })
+        self.all()
+            .into_iter()
+            .filter_map(|m| m.content_is(content).then_some(m))
             .collect()
     }
 
