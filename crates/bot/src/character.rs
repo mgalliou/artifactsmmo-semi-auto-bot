@@ -7,13 +7,14 @@ use crate::{
         BankCleanupError, BankExpansionCommandError, BuyNpcCommandError,
         BuyNpcOrderProgressionError, CombatLevelingError, CraftCommandError,
         CraftOrderProgressionError, CraftSkillLevelingError, DeleteCommandError,
-        DepositItemCommandError, EquipCommandError, EquipGearCommandError, GatherCommandError,
-        GoldDepositCommandError, GoldWithdrawCommandError, KillMonsterCommandError,
-        MoveCommandError, OrderProgressionError, RecycleCommandError, SellNpcCommandError,
-        SkillLevelingError, TaskAcceptationCommandError, TaskCancellationCommandError,
-        TaskCompletionCommandError, TaskProgressionError, TaskTradeCommandError,
-        TasksCoinExchangeCommandError, TasksCoinExchangeOrderProgressionError, UnequipCommandError,
-        UseItemCommandError, WithdrawItemCommandError,
+        DepositItemCommandError, EquipCommandError, EquipGearCommandError, FoodOrderingError,
+        GatherCommandError, GoldDepositCommandError, GoldWithdrawCommandError,
+        KillMonsterCommandError, MoveCommandError, OrderProgressionError, RecycleCommandError,
+        SellNpcCommandError, SkillLevelingError, TaskAcceptationCommandError,
+        TaskCancellationCommandError, TaskCompletionCommandError, TaskProgressionError,
+        TaskTradeCommandError, TasksCoinExchangeCommandError,
+        TasksCoinExchangeOrderProgressionError, UnequipCommandError, UseItemCommandError,
+        WithdrawItemCommandError,
     },
     gear_finder::{Filter, GearFinder, GearPurpose},
     inventory::InventoryController,
@@ -129,7 +130,7 @@ impl CharacterController {
                 }
                 continue;
             }
-            if self.order_food() {
+            if self.order_food().is_ok() {
                 continue;
             }
             if let Ok(c) = self.commands_recvr.lock().unwrap().try_recv()
@@ -1448,9 +1449,9 @@ impl CharacterController {
         Ok(npc_item)
     }
 
-    fn order_food(&self) -> bool {
+    fn order_food(&self) -> Result<(), FoodOrderingError> {
         if !self.skill_enabled(Skill::Combat) {
-            return false;
+            return Err(FoodOrderingError::CombatSkillDisabled);
         }
         self.inventory.consumable_food().iter().for_each(|f| {
             if let Err(e) = self
@@ -1470,24 +1471,22 @@ impl CharacterController {
             })
             .into_iter()
             .filter_map(|i| self.account.time_to_get(i.code()).map(|t| (i, t)))
-            .filter(|(i, t)| *t < time_to_rest(i.heal() as u32))
-            .max_by_key(|(i, t)| *t / i.heal() as u32)
+            .max_by_key(|(i, t)| i.heal() as u32 / t)
             .map(|(i, _)| i)
         else {
-            return false;
+            return Err(FoodOrderingError::NoFoodFarmable);
         };
-        self.bank.total_of(best_food.code()) < MIN_FOOD_THRESHOLD
-            && self
-                .order_board
-                .add_or_reset(
-                    best_food.code(),
-                    self.account.fisher_max_items(),
-                    None,
-                    Purpose::Food {
-                        char: self.name().to_owned(),
-                    },
-                )
-                .is_ok()
+        if self.bank.total_of(best_food.code()) < MIN_FOOD_THRESHOLD {
+            self.order_board.add_or_reset(
+                best_food.code(),
+                self.account.fisher_max_items(),
+                None,
+                Purpose::Food {
+                    char: self.name().to_owned(),
+                },
+            )?
+        }
+        Ok(())
     }
 
     fn cleanup_bank(&self) -> Result<(), BankCleanupError> {

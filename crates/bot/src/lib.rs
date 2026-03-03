@@ -26,10 +26,13 @@ pub mod inventory;
 pub mod leveling_helper;
 pub mod orderboard;
 
-pub const FOOD_ORDER_BLACKLIST: [&str; 8] = [
+pub const FOOD_ORDER_BLACKLIST: [&str; 11] = [
+    APPLE,
     APPLE_PIE,
     MUSHROOM_SOUP,
-    "fried_egg",
+    "fried_eggs",
+    "cooked_beef",
+    "cooked_chicken",
     "cheese",
     FISH_SOUP,
     COOKED_HELLHOUND_MEAT,

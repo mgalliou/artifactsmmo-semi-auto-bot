@@ -368,6 +368,16 @@ pub enum OrderProgressionError {
 }
 
 #[derive(Debug, Error)]
+pub enum FoodOrderingError {
+    #[error("Combat skill is disabled")]
+    CombatSkillDisabled,
+    #[error("No food can be farmed")]
+    NoFoodFarmable,
+    #[error("Failed to order food: {0}")]
+    OrderError(#[from] OrderError),
+}
+
+#[derive(Debug, Error)]
 pub enum CraftOrderProgressionError {
     #[error("Failed to craft items: {0}")]
     CraftCommandError(#[from] CraftCommandError),
