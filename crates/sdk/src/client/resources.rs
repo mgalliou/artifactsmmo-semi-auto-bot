@@ -9,21 +9,24 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-#[derive(Default, Debug, CollectionClient)]
-pub struct ResourcesClient {
+#[derive(Default, Debug, Clone, CollectionClient)]
+pub struct ResourcesClient(Arc<ResourcesClientInner>);
+
+#[derive(Default, Debug)]
+pub struct ResourcesClientInner {
     data: RwLock<HashMap<String, Resource>>,
     api: Arc<ArtifactApi>,
-    events: Arc<EventsClient>,
+    events: EventsClient,
 }
 
 impl ResourcesClient {
-    pub(crate) fn new(api: Arc<ArtifactApi>, events: Arc<EventsClient>) -> Self {
-        let resources = Self {
+    pub(crate) fn new(api: Arc<ArtifactApi>, events: EventsClient) -> Self {
+        let resources = Self(Arc::new(ResourcesClientInner {
             data: Default::default(),
             api,
             events,
-        };
-        *resources.data.write().unwrap() = resources.load();
+        }));
+        *resources.0.data.write().unwrap() = resources.load();
         resources
     }
 
@@ -35,7 +38,7 @@ impl ResourcesClient {
     }
 
     pub fn is_event(&self, code: &str) -> bool {
-        self.events.all().iter().any(|e| e.content().code == code)
+        self.0.events.all().iter().any(|e| e.content().code == code)
     }
 }
 
@@ -43,7 +46,8 @@ impl Persist<HashMap<String, Resource>> for ResourcesClient {
     const PATH: &'static str = ".cache/resources.json";
 
     fn load_from_api(&self) -> HashMap<String, Resource> {
-        self.api
+        self.0
+            .api
             .resources
             .get_all()
             .unwrap()
@@ -53,7 +57,7 @@ impl Persist<HashMap<String, Resource>> for ResourcesClient {
     }
 
     fn refresh(&self) {
-        *self.data.write().unwrap() = self.load_from_api();
+        *self.0.data.write().unwrap() = self.load_from_api();
     }
 }
 

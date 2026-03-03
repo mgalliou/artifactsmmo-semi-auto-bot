@@ -69,11 +69,11 @@ pub struct CharacterController {
     pub inventory: Arc<InventoryController>,
     bank: Arc<BankController>,
     account: Arc<AccountController>,
-    maps: Arc<MapsClient>,
-    items: Arc<ItemsClient>,
-    monsters: Arc<MonstersClient>,
-    tasks: Arc<TasksClient>,
-    npcs: Arc<NpcsClient>,
+    maps: MapsClient,
+    items: ItemsClient,
+    monsters: MonstersClient,
+    tasks: TasksClient,
+    npcs: NpcsClient,
     order_board: Arc<OrderBoard>,
     gear_finder: Arc<GearFinder>,
     leveling_helper: Arc<LevelingHelper>,
@@ -1382,7 +1382,7 @@ impl CharacterController {
         item_code: &str,
         quantity: u32,
     ) -> Result<(NpcItem, u32), BuyNpcCommandError> {
-        let Some(npc_item) = self.npcs.items.get(item_code) else {
+        let Some(npc_item) = self.npcs.items().get(item_code) else {
             return Err(BuyNpcCommandError::ItemNotFound(item_code.to_string()));
         };
         let Some(buy_price) = npc_item.buy_price() else {
@@ -1430,7 +1430,7 @@ impl CharacterController {
         if !self.config().is_trader() {
             return Err(SellNpcCommandError::NotAllowed);
         }
-        let Some(npc_item) = self.npcs.items.get(item_code) else {
+        let Some(npc_item) = self.npcs.items().get(item_code) else {
             return Err(SellNpcCommandError::ItemNotFound(item_code.to_string()));
         };
         if npc_item.sell_price().is_none() {

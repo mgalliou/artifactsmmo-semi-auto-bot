@@ -19,12 +19,12 @@ use thiserror::Error;
 #[derive(Default)]
 pub struct OrderBoard {
     orders: RwLock<Vec<Arc<Order>>>,
-    items: Arc<ItemsClient>,
+    items: ItemsClient,
     account: Arc<AccountController>,
 }
 
 impl OrderBoard {
-    pub fn new(items: Arc<ItemsClient>, account: Arc<AccountController>) -> Self {
+    pub fn new(items: ItemsClient, account: Arc<AccountController>) -> Self {
         OrderBoard {
             orders: RwLock::new(vec![]),
             items,

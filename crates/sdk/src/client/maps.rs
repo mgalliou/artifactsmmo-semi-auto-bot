@@ -14,11 +14,11 @@ pub struct MapsClient(Arc<MapsClientInner>);
 #[derive(Default, Debug)]
 struct MapsClientInner {
     data: HashMap<(MapLayer, i32, i32), RwLock<Map>>,
-    events: Arc<EventsClient>,
+    events: EventsClient,
 }
 
 impl MapsClient {
-    pub(crate) fn new(api: &ArtifactApi, events: Arc<EventsClient>) -> Self {
+    pub(crate) fn new(api: &ArtifactApi, events: EventsClient) -> Self {
         Self(Arc::new(MapsClientInner {
             data: api
                 .maps
@@ -31,7 +31,7 @@ impl MapsClient {
         }))
     }
 
-    fn events(&self) -> Arc<EventsClient> {
+    fn events(&self) -> EventsClient {
         self.0.events.clone()
     }
 

@@ -3,7 +3,6 @@ use crate::{
     character::error::MoveError,
     entities::{CharacterTrait, Map},
 };
-use std::sync::Arc;
 
 pub(crate) trait CharacterAction {
     type Result;
@@ -16,7 +15,7 @@ pub(crate) trait CharacterAction {
 pub struct MoveCharacter {
     pub x: i32,
     pub y: i32,
-    pub maps: Arc<MapsClient>,
+    pub maps: MapsClient,
 }
 
 impl CharacterAction for MoveCharacter {

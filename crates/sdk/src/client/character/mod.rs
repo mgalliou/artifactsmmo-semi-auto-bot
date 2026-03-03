@@ -66,13 +66,13 @@ pub struct CharacterClientInner {
     handler: CharacterRequestHandler,
     account: AccountClient,
     bank: BankClient,
-    items: Arc<ItemsClient>,
-    resources: Arc<ResourcesClient>,
-    monsters: Arc<MonstersClient>,
-    maps: Arc<MapsClient>,
-    npcs: Arc<NpcsClient>,
-    tasks: Arc<TasksClient>,
-    grand_exchange: Arc<GrandExchangeClient>,
+    items: ItemsClient,
+    resources: ResourcesClient,
+    monsters: MonstersClient,
+    maps: MapsClient,
+    npcs: NpcsClient,
+    tasks: TasksClient,
+    grand_exchange: GrandExchangeClient,
 }
 
 impl CharacterClient {
@@ -81,13 +81,13 @@ impl CharacterClient {
         id: usize,
         data: CharacterDataHandle,
         account: AccountClient,
-        items: Arc<ItemsClient>,
-        resources: Arc<ResourcesClient>,
-        monsters: Arc<MonstersClient>,
-        maps: Arc<MapsClient>,
-        npcs: Arc<NpcsClient>,
-        tasks: Arc<TasksClient>,
-        grand_exchange: Arc<GrandExchangeClient>,
+        items: ItemsClient,
+        resources: ResourcesClient,
+        monsters: MonstersClient,
+        maps: MapsClient,
+        npcs: NpcsClient,
+        tasks: TasksClient,
+        grand_exchange: GrandExchangeClient,
         server: Arc<ServerClient>,
         api: Arc<ArtifactApi>,
     ) -> Self {
@@ -541,7 +541,7 @@ impl CharacterClient {
         if !self.task_finished() {
             return Err(TaskCompletionError::TaskNotFullfilled);
         }
-        if self
+        if !self
             .inventory()
             .has_room_for_multiple(&task.rewards().items)
         {
@@ -572,7 +572,7 @@ impl CharacterClient {
         let extra_quantity = self
             .0
             .tasks
-            .rewards
+            .rewards()
             .max_quantity()
             .saturating_sub(TASK_EXCHANGE_PRICE);
         if self.inventory().free_space() < extra_quantity
@@ -602,7 +602,7 @@ impl CharacterClient {
         if self.0.items.get(item_code).is_none() {
             return Err(BuyNpcError::ItemNotFound);
         };
-        let Some(item) = self.0.npcs.items.get(item_code) else {
+        let Some(item) = self.0.npcs.items().get(item_code) else {
             return Err(BuyNpcError::ItemNotBuyable);
         };
         let Some(buy_price) = item.buy_price() else {

@@ -14,18 +14,18 @@ use std::sync::Arc;
 pub struct LevelingHelper {
     account: Arc<AccountController>,
     bank: Arc<BankController>,
-    items: Arc<ItemsClient>,
-    monsters: Arc<MonstersClient>,
-    resources: Arc<ResourcesClient>,
-    maps: Arc<MapsClient>,
+    items: ItemsClient,
+    monsters: MonstersClient,
+    resources: ResourcesClient,
+    maps: MapsClient,
 }
 
 impl LevelingHelper {
     pub fn new(
-        items: Arc<ItemsClient>,
-        monsters: Arc<MonstersClient>,
-        resources: Arc<ResourcesClient>,
-        maps: Arc<MapsClient>,
+        items: ItemsClient,
+        monsters: MonstersClient,
+        resources: ResourcesClient,
+        maps: MapsClient,
         account: Arc<AccountController>,
         bank: Arc<BankController>,
     ) -> Self {

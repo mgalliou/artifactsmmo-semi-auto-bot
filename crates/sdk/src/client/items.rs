@@ -21,33 +21,36 @@ use std::{
 };
 use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
 
-#[derive(Default, Debug, CollectionClient)]
-pub struct ItemsClient {
+#[derive(Default, Debug, Clone, CollectionClient)]
+pub struct ItemsClient(Arc<ItemsClientInner>);
+
+#[derive(Default, Debug)]
+pub struct ItemsClientInner {
     data: RwLock<HashMap<String, Item>>,
     api: Arc<ArtifactApi>,
-    resources: Arc<ResourcesClient>,
-    monsters: Arc<MonstersClient>,
-    tasks_rewards: Arc<TasksRewardsClient>,
-    npcs: Arc<NpcsClient>,
+    resources: ResourcesClient,
+    monsters: MonstersClient,
+    tasks_rewards: TasksRewardsClient,
+    npcs: NpcsClient,
 }
 
 impl ItemsClient {
     pub(crate) fn new(
         api: Arc<ArtifactApi>,
-        resources: Arc<ResourcesClient>,
-        monsters: Arc<MonstersClient>,
-        tasks_rewards: Arc<TasksRewardsClient>,
-        npcs: Arc<NpcsClient>,
+        resources: ResourcesClient,
+        monsters: MonstersClient,
+        tasks_rewards: TasksRewardsClient,
+        npcs: NpcsClient,
     ) -> Self {
-        let items = Self {
+        let items = Self(Arc::new(ItemsClientInner {
             data: Default::default(),
             api,
             resources,
             monsters,
             tasks_rewards,
             npcs,
-        };
-        *items.data.write().unwrap() = items.load();
+        }));
+        *items.0.data.write().unwrap() = items.load();
         items
     }
 
@@ -90,7 +93,8 @@ impl ItemsClient {
     /// Takes an `resource` code and returns the items that can be crafted
     /// from the base mats it drops.
     pub fn crafted_from_resource(&self, resource_code: &str) -> Vec<Item> {
-        self.resources
+        self.0
+            .resources
             .get(resource_code)
             .iter()
             .flat_map(|r| {
@@ -202,13 +206,15 @@ impl ItemsClient {
             return vec![ItemSource::Task];
         }
         let mut sources = self
+            .0
             .resources
             .dropping(code)
             .into_iter()
             .map(ItemSource::Resource)
             .collect_vec();
         sources.extend(
-            self.monsters
+            self.0
+                .monsters
                 .dropping(code)
                 .into_iter()
                 .map(ItemSource::Monster)
@@ -217,11 +223,12 @@ impl ItemsClient {
         if self.get(code).is_some_and(|i| i.is_craftable()) {
             sources.push(ItemSource::Craft);
         }
-        if self.tasks_rewards.all().iter().any(|r| r.code() == code) {
+        if self.0.tasks_rewards.all().iter().any(|r| r.code() == code) {
             sources.push(ItemSource::TaskReward);
         }
         sources.extend(
-            self.npcs
+            self.0
+                .npcs
                 .selling(code)
                 .into_iter()
                 .map(ItemSource::Npc)
@@ -233,8 +240,8 @@ impl ItemsClient {
     pub fn is_from_event(&self, code: &str) -> bool {
         self.get(code).is_some_and(|i| {
             self.sources_of(i.code()).iter().any(|s| match s {
-                ItemSource::Resource(resource) => self.resources.is_event(resource.code()),
-                ItemSource::Monster(monster) => self.monsters.is_event(monster.code()),
+                ItemSource::Resource(resource) => self.0.resources.is_event(resource.code()),
+                ItemSource::Monster(monster) => self.0.monsters.is_event(monster.code()),
                 ItemSource::Npc(npc) => npc.is_merchant(),
                 ItemSource::Craft => false,
                 ItemSource::TaskReward => false,
@@ -244,15 +251,17 @@ impl ItemsClient {
     }
 
     pub fn is_buyable(&self, item_code: &str) -> bool {
-        self.npcs
-            .items
+        self.0
+            .npcs
+            .items()
             .get(item_code)
             .is_some_and(|i| i.is_buyable())
     }
 
     pub fn is_salable(&self, item_code: &str) -> bool {
-        self.npcs
-            .items
+        self.0
+            .npcs
+            .items()
             .get(item_code)
             .is_some_and(|i| i.is_salable())
     }
@@ -262,7 +271,8 @@ impl Persist<HashMap<String, Item>> for ItemsClient {
     const PATH: &'static str = ".cache/items.json";
 
     fn load_from_api(&self) -> HashMap<String, Item> {
-        self.api
+        self.0
+            .api
             .items
             .get_all()
             .unwrap()
@@ -272,7 +282,7 @@ impl Persist<HashMap<String, Item>> for ItemsClient {
     }
 
     fn refresh(&self) {
-        *self.data.write().unwrap() = self.load_from_api();
+        *self.0.data.write().unwrap() = self.load_from_api();
     }
 }
 

@@ -15,8 +15,8 @@ use std::sync::{Arc, RwLock};
 pub struct AccountController {
     config: Arc<BotConfig>,
     client: AccountClient,
-    items: Arc<ItemsClient>,
-    npcs: Arc<NpcsClient>,
+    items: ItemsClient,
+    npcs: NpcsClient,
     pub bank: Arc<BankController>,
     pub characters: RwLock<Vec<Arc<CharacterController>>>,
 }
@@ -25,8 +25,8 @@ impl AccountController {
     pub fn new(
         config: Arc<BotConfig>,
         client: AccountClient,
-        items: Arc<ItemsClient>,
-        npcs: Arc<NpcsClient>,
+        items: ItemsClient,
+        npcs: NpcsClient,
         bank: Arc<BankController>,
     ) -> Self {
         Self {
@@ -145,7 +145,7 @@ impl AccountController {
 
         match source {
             ItemSource::Npc(npc) => {
-                if let Some(npc_item) = self.npcs.items.get(item.code())
+                if let Some(npc_item) = self.npcs.items().get(item.code())
                     && npc_item.npc_code() == npc.code()
                 {
                     time += self.time_to_get(npc_item.currency())? * npc_item.buy_price()?

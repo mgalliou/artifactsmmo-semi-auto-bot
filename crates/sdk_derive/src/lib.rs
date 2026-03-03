@@ -13,7 +13,7 @@ pub fn collection_client_derive(input: TokenStream) -> TokenStream {
                 impl crate::Data for #name {
 
                     fn data(&self) -> std::sync::RwLockReadGuard<'_, HashMap<String, Self::Entity>> {
-                        self.data.read().unwrap()
+                        self.0.data.read().unwrap()
                     }
                 }
             };

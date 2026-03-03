@@ -22,11 +22,11 @@ use thiserror::Error;
 pub struct InventoryController {
     client: CharacterClient,
     reservations: RwLock<Vec<Arc<InventoryReservation>>>,
-    items: Arc<ItemsClient>,
+    items: ItemsClient,
 }
 
 impl InventoryController {
-    pub fn new(client: CharacterClient, items: Arc<ItemsClient>) -> Self {
+    pub fn new(client: CharacterClient, items: ItemsClient) -> Self {
         InventoryController {
             client,
             reservations: RwLock::new(vec![]),

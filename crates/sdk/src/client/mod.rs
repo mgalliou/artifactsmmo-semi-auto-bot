@@ -30,14 +30,14 @@ pub mod tasks_rewards;
 pub struct Client {
     pub account: AccountClient,
     pub server: Arc<ServerClient>,
-    pub events: Arc<EventsClient>,
-    pub resources: Arc<ResourcesClient>,
-    pub monsters: Arc<MonstersClient>,
-    pub items: Arc<ItemsClient>,
-    pub tasks: Arc<TasksClient>,
-    pub maps: Arc<MapsClient>,
-    pub npcs: Arc<NpcsClient>,
-    pub grand_exchange: Arc<GrandExchangeClient>,
+    pub events: EventsClient,
+    pub resources: ResourcesClient,
+    pub monsters: MonstersClient,
+    pub items: ItemsClient,
+    pub tasks: TasksClient,
+    pub maps: MapsClient,
+    pub npcs: NpcsClient,
+    pub grand_exchange: GrandExchangeClient,
 }
 
 impl Client {
@@ -59,25 +59,22 @@ impl Client {
             });
 
             let api_clone = api.clone();
-            let events_handle = s.spawn(move || Arc::new(EventsClient::new(api_clone.clone())));
+            let events_handle = s.spawn(move || EventsClient::new(api_clone.clone()));
 
             let api_clone = api.clone();
             let server_handle = s.spawn(move || Arc::new(ServerClient::new(api_clone.clone())));
 
             let api_clone = api.clone();
             let tasks_handle = s.spawn(move || {
-                Arc::new(TasksClient::new(
+                TasksClient::new(
                     api_clone.clone(),
-                    Arc::new(TasksRewardsClient::new(api_clone.clone())),
-                ))
+                    TasksRewardsClient::new(api_clone.clone()),
+                )
             });
 
             let api_clone = api.clone();
             let npcs_handle = s.spawn(move || {
-                Arc::new(NpcsClient::new(
-                    api_clone.clone(),
-                    Arc::new(NpcsItemsClient::new(api_clone.clone())),
-                ))
+                NpcsClient::new(api_clone.clone(), NpcsItemsClient::new(api_clone.clone()))
             });
 
             (
@@ -95,16 +92,16 @@ impl Client {
             let api_clone = api.clone();
             let events_clone = events.clone();
             let resources_handle =
-                s.spawn(move || Arc::new(ResourcesClient::new(api_clone.clone(), events_clone)));
+                s.spawn(move || ResourcesClient::new(api_clone.clone(), events_clone));
 
             let api_clone = api.clone();
             let events_clone = events.clone();
             let monsters_handle =
-                s.spawn(move || Arc::new(MonstersClient::new(api_clone.clone(), events_clone)));
+                s.spawn(move || MonstersClient::new(api_clone.clone(), events_clone));
 
             let api_clone = api.clone();
             let events_clone = events.clone();
-            let maps_handle = s.spawn(move || Arc::new(MapsClient::new(&api_clone, events_clone)));
+            let maps_handle = s.spawn(move || MapsClient::new(&api_clone, events_clone));
 
             (
                 resources_handle.join().unwrap(),
@@ -113,16 +110,16 @@ impl Client {
             )
         });
 
-        let items = Arc::new(ItemsClient::new(
+        let items = ItemsClient::new(
             api.clone(),
             resources.clone(),
             monsters.clone(),
-            tasks.rewards.clone(),
+            tasks.rewards().clone(),
             npcs.clone(),
-        ));
+        );
 
         let account = AccountClient::new(account_name, bank, api.clone());
-        let grand_exchange = Arc::new(GrandExchangeClient::new(api.clone()));
+        let grand_exchange = GrandExchangeClient::new(api.clone());
         account.load_characters(
             items.clone(),
             resources.clone(),

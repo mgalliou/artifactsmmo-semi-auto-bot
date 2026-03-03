@@ -20,14 +20,14 @@ use thiserror::Error;
 #[derive(Default)]
 pub struct BankController {
     client: BankClient,
-    items: Arc<ItemsClient>,
+    items: ItemsClient,
     reservations: RwLock<Vec<Arc<BankReservation>>>,
     pub browsed: RwLock<()>,
     pub being_expanded: RwLock<()>,
 }
 
 impl BankController {
-    pub fn new(client: BankClient, items: Arc<ItemsClient>) -> Self {
+    pub fn new(client: BankClient, items: ItemsClient) -> Self {
         Self {
             client,
             items,

@@ -58,14 +58,14 @@ impl AccountClient {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn load_characters(
         &self,
-        items: Arc<ItemsClient>,
-        resources: Arc<ResourcesClient>,
-        monsters: Arc<MonstersClient>,
-        maps: Arc<MapsClient>,
-        npcs: Arc<NpcsClient>,
-        tasks: Arc<TasksClient>,
+        items: ItemsClient,
+        resources: ResourcesClient,
+        monsters: MonstersClient,
+        maps: MapsClient,
+        npcs: NpcsClient,
+        tasks: TasksClient,
         server: Arc<ServerClient>,
-        grand_exchange: Arc<GrandExchangeClient>,
+        grand_exchange: GrandExchangeClient,
     ) -> Result<(), ClientError> {
         *self.0.characters.write().unwrap() = self
             .0

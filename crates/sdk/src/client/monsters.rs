@@ -9,21 +9,24 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-#[derive(Default, Debug, CollectionClient)]
-pub struct MonstersClient {
+#[derive(Default, Debug, Clone, CollectionClient)]
+pub struct MonstersClient(Arc<MonstersClientInner>);
+
+#[derive(Default, Debug)]
+pub struct MonstersClientInner {
     data: RwLock<HashMap<String, Monster>>,
     api: Arc<ArtifactApi>,
-    events: Arc<EventsClient>,
+    events: EventsClient,
 }
 
 impl MonstersClient {
-    pub(crate) fn new(api: Arc<ArtifactApi>, events: Arc<EventsClient>) -> Self {
-        let monsters = Self {
+    pub(crate) fn new(api: Arc<ArtifactApi>, events: EventsClient) -> Self {
+        let monsters = Self(Arc::new(MonstersClientInner {
             data: Default::default(),
             api,
             events,
-        };
-        *monsters.data.write().unwrap() = monsters.load();
+        }));
+        *monsters.0.data.write().unwrap() = monsters.load();
         monsters
     }
 
@@ -49,7 +52,7 @@ impl MonstersClient {
     }
 
     pub fn is_event(&self, code: &str) -> bool {
-        self.events.all().iter().any(|e| e.content().code == code)
+        self.0.events.all().iter().any(|e| e.content().code == code)
     }
 }
 
@@ -57,7 +60,7 @@ impl Persist<HashMap<String, Monster>> for MonstersClient {
     const PATH: &'static str = ".cache/monsters.json";
 
     fn load_from_api(&self) -> HashMap<String, Monster> {
-        self.api
+        self.0.api
             .monsters
             .get_all()
             .unwrap()
@@ -67,7 +70,7 @@ impl Persist<HashMap<String, Monster>> for MonstersClient {
     }
 
     fn refresh(&self) {
-        *self.data.write().unwrap() = self.load_from_api();
+        *self.0.data.write().unwrap() = self.load_from_api();
     }
 }
 

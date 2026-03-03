@@ -14,12 +14,12 @@ use std::{cmp::Ordering, sync::Arc};
 
 #[derive(Default)]
 pub struct GearFinder {
-    items: Arc<ItemsClient>,
+    items: ItemsClient,
     account: Arc<AccountController>,
 }
 
 impl GearFinder {
-    pub fn new(items: Arc<ItemsClient>, account: Arc<AccountController>) -> Self {
+    pub fn new(items: ItemsClient, account: Arc<AccountController>) -> Self {
         Self { items, account }
     }
 

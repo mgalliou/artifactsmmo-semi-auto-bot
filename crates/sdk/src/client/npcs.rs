@@ -8,26 +8,34 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-#[derive(Default, Debug, CollectionClient)]
-pub struct NpcsClient {
+#[derive(Default, Debug, Clone, CollectionClient)]
+pub struct NpcsClient(Arc<NpcsClientInner>);
+
+#[derive(Default, Debug)]
+pub struct NpcsClientInner {
     data: RwLock<HashMap<String, Npc>>,
     api: Arc<ArtifactApi>,
-    pub items: Arc<NpcsItemsClient>,
+    items: NpcsItemsClient,
 }
 
 impl NpcsClient {
-    pub(crate) fn new(api: Arc<ArtifactApi>, items: Arc<NpcsItemsClient>) -> Self {
-        let npcs = Self {
+    pub(crate) fn new(api: Arc<ArtifactApi>, items: NpcsItemsClient) -> Self {
+        let npcs = Self(Arc::new(NpcsClientInner {
             data: Default::default(),
             api,
             items,
-        };
-        *npcs.data.write().unwrap() = npcs.load();
+        }));
+        *npcs.0.data.write().unwrap() = npcs.load();
         npcs
     }
 
+    pub fn items(&self) -> NpcsItemsClient {
+        self.0.items.clone()
+    }
+
     pub fn selling(&self, code: &str) -> Vec<Npc> {
-        self.items
+        self.0
+            .items
             .all()
             .iter()
             .filter(|i| i.is_buyable() && i.code() == code)
@@ -40,7 +48,8 @@ impl Persist<HashMap<String, Npc>> for NpcsClient {
     const PATH: &'static str = ".cache/npcs.json";
 
     fn load_from_api(&self) -> HashMap<String, Npc> {
-        self.api
+        self.0
+            .api
             .npcs
             .get_all()
             .unwrap()
@@ -50,7 +59,7 @@ impl Persist<HashMap<String, Npc>> for NpcsClient {
     }
 
     fn refresh(&self) {
-        *self.data.write().unwrap() = self.load_from_api();
+        *self.0.data.write().unwrap() = self.load_from_api();
     }
 }
 

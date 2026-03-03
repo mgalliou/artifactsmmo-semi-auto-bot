@@ -5,19 +5,22 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-#[derive(Default, Debug, CollectionClient)]
-pub struct TasksRewardsClient {
+#[derive(Default, Debug, Clone, CollectionClient)]
+pub struct TasksRewardsClient(Arc<TasksRewardsClientInner>);
+
+#[derive(Default, Debug)]
+pub struct TasksRewardsClientInner {
     data: RwLock<HashMap<String, TaskReward>>,
     api: Arc<ArtifactApi>,
 }
 
 impl TasksRewardsClient {
     pub(crate) fn new(api: Arc<ArtifactApi>) -> Self {
-        let rewards = Self {
+        let rewards = Self(Arc::new(TasksRewardsClientInner {
             data: Default::default(),
             api,
-        };
-        *rewards.data.write().unwrap() = rewards.load();
+        }));
+        *rewards.0.data.write().unwrap() = rewards.load();
         rewards
     }
 
@@ -33,7 +36,7 @@ impl Persist<HashMap<String, TaskReward>> for TasksRewardsClient {
     const PATH: &'static str = ".cache/tasks_rewards.json";
 
     fn load_from_api(&self) -> HashMap<String, TaskReward> {
-        self.api
+        self.0.api
             .tasks
             .get_rewards()
             .unwrap()
@@ -43,7 +46,7 @@ impl Persist<HashMap<String, TaskReward>> for TasksRewardsClient {
     }
 
     fn refresh(&self) {
-        *self.data.write().unwrap() = self.load_from_api();
+        *self.0.data.write().unwrap() = self.load_from_api();
     }
 }
 

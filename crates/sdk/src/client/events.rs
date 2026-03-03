@@ -12,8 +12,11 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-#[derive(Default, Debug, CollectionClient)]
-pub struct EventsClient {
+#[derive(Default, Debug, Clone, CollectionClient)]
+pub struct EventsClient(Arc<EventsClientInner>);
+
+#[derive(Default, Debug)]
+pub struct EventsClientInner {
     data: RwLock<HashMap<String, Event>>,
     api: Arc<ArtifactApi>,
     active: RwLock<Vec<ActiveEvent>>,
@@ -22,19 +25,19 @@ pub struct EventsClient {
 
 impl EventsClient {
     pub(crate) fn new(api: Arc<ArtifactApi>) -> Self {
-        let events = Self {
+        let events = Self(Arc::new(EventsClientInner {
             data: Default::default(),
             api,
             active: RwLock::new(vec![]),
             last_refresh: RwLock::new(DateTime::<Utc>::MIN_UTC),
-        };
-        *events.data.write().unwrap() = events.load();
+        }));
+        *events.0.data.write().unwrap() = events.load();
         events.refresh_active();
         events
     }
 
     pub fn active(&self) -> Vec<ActiveEvent> {
-        self.active.read().unwrap().iter().cloned().collect_vec()
+        self.0.active.read().unwrap().iter().cloned().collect_vec()
     }
 
     pub fn refresh_active(&self) {
@@ -43,16 +46,16 @@ impl EventsClient {
             return;
         }
         // NOTE: keep `events` locked before updating last refresh
-        let mut events = self.active.write().unwrap();
+        let mut events = self.0.active.write().unwrap();
         self.update_last_refresh(now);
-        if let Ok(new) = self.api.events.get_active() {
+        if let Ok(new) = self.0.api.events.get_active() {
             *events = new.into_iter().map(ActiveEvent::new).collect_vec();
             debug!("events refreshed.");
         }
     }
 
     fn update_last_refresh(&self, now: DateTime<Utc>) {
-        self.last_refresh
+        self.0.last_refresh
             .write()
             .expect("`last_refresh` to be writable")
             .clone_from(&now);
@@ -60,7 +63,7 @@ impl EventsClient {
 
     pub fn last_refresh(&self) -> DateTime<Utc> {
         *self
-            .last_refresh
+            .0.last_refresh
             .read()
             .expect("`last_refresh` to be readable")
     }
@@ -70,7 +73,7 @@ impl Persist<HashMap<String, Event>> for EventsClient {
     const PATH: &'static str = ".cache/events.json";
 
     fn load_from_api(&self) -> HashMap<String, Event> {
-        self.api
+        self.0.api
             .events
             .get_all()
             .unwrap()
@@ -80,7 +83,7 @@ impl Persist<HashMap<String, Event>> for EventsClient {
     }
 
     fn refresh(&self) {
-        *self.data.write().unwrap() = self.load_from_api();
+        *self.0.data.write().unwrap() = self.load_from_api();
     }
 }
 
