@@ -22,7 +22,7 @@ pub struct AccountController {
 }
 
 impl AccountController {
-    pub fn new(
+    pub const fn new(
         config: Arc<BotConfig>,
         client: AccountClient,
         items: ItemsClient,
@@ -46,7 +46,7 @@ impl AccountController {
     pub fn init_characters(
         &self,
         client: Arc<Client>,
-        account: Arc<AccountController>,
+        account: Arc<Self>,
         order_board: Arc<OrderBoard>,
         gear_finder: Arc<GearFinder>,
         leveling_helper: Arc<LevelingHelper>,

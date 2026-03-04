@@ -45,7 +45,7 @@ impl Gear {
         artifact3: Option<Item>,
         rune: Option<Item>,
         bag: Option<Item>,
-    ) -> Option<Gear> {
+    ) -> Option<Self> {
         (!(utility1.is_some() && utility1 == utility2
             || artifact1.is_some() && artifact1 == artifact2
             || artifact2.is_some() && artifact2 == artifact3
@@ -91,7 +91,7 @@ impl Gear {
         }
     }
 
-    pub fn align_to(&mut self, other: &Gear) {
+    pub fn align_to(&mut self, other: &Self) {
         if self.ring1 == other.ring2 || self.ring2 == other.ring1 {
             swap(&mut self.ring1, &mut self.ring2);
         }
@@ -148,10 +148,7 @@ impl From<Gear> for Vec<SimpleItemSchema> {
                 })
             })
             .collect_vec();
-        let mut quantity = 1;
-        if value.ring1 == value.ring2 {
-            quantity = 2;
-        }
+        let quantity = if value.ring1 == value.ring2 { 2 } else { 1 };
         if let Some(ring1) = value.ring1 {
             items.push(SimpleItemSchema {
                 code: ring1.code().to_owned(),
@@ -195,22 +192,22 @@ pub enum Slot {
 }
 
 impl Slot {
-    pub fn max_quantity(&self) -> u32 {
+    pub const fn max_quantity(&self) -> u32 {
         match self.is_utility() {
             true => 100,
             false => 1,
         }
     }
 
-    pub fn is_ring(&self) -> bool {
+    pub const fn is_ring(&self) -> bool {
         self.is_ring_1() || self.is_ring_2()
     }
 
-    pub fn is_artifact(&self) -> bool {
+    pub const fn is_artifact(&self) -> bool {
         self.is_artifact_1() || self.is_artifact_2() || self.is_artifact_3()
     }
 
-    pub fn is_utility(&self) -> bool {
+    pub const fn is_utility(&self) -> bool {
         self.is_utility_1() || self.is_utility_2()
     }
 }

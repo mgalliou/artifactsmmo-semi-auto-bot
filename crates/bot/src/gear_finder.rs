@@ -19,7 +19,7 @@ pub struct GearFinder {
 }
 
 impl GearFinder {
-    pub fn new(items: ItemsClient, account: Arc<AccountController>) -> Self {
+    pub const fn new(items: ItemsClient, account: Arc<AccountController>) -> Self {
         Self { items, account }
     }
 
@@ -143,7 +143,7 @@ impl GearFinder {
         if let Some(bag) = self.best_bag(char, filter) {
             items.push(vec![ItemWrapper::Armor(Some(bag))]);
         }
-        self.gen_all_gears(Some(weapon.clone()), items)
+        self.gen_all_gears(Some(weapon), items)
     }
 
     fn gen_combat_ring_sets(
@@ -698,7 +698,7 @@ fn gen_artifacts_sets(mut artifacts: Vec<Option<Item>>) -> Vec<ItemWrapper> {
         .collect_vec()
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Filter {
     pub available_only: bool,
     pub craftable: bool,
@@ -764,11 +764,11 @@ impl RingSet {
             None
         } else {
             rings.sort_by(item_cmp);
-            Some(RingSet { rings })
+            Some(Self { rings })
         }
     }
 
-    fn slot(&self, slot: Slot) -> &Option<Item> {
+    const fn slot(&self, slot: Slot) -> &Option<Item> {
         match slot {
             Slot::Ring1 => self.ring1(),
             Slot::Ring2 => self.ring2(),
@@ -776,11 +776,11 @@ impl RingSet {
         }
     }
 
-    fn ring1(&self) -> &Option<Item> {
+    const fn ring1(&self) -> &Option<Item> {
         &self.rings[0]
     }
 
-    fn ring2(&self) -> &Option<Item> {
+    const fn ring2(&self) -> &Option<Item> {
         &self.rings[1]
     }
 }
@@ -800,11 +800,11 @@ impl ArtifactSet {
             None
         } else {
             artifacts.sort_by(item_cmp);
-            Some(ArtifactSet { artifacts })
+            Some(Self { artifacts })
         }
     }
 
-    fn slot(&self, slot: Slot) -> &Option<Item> {
+    const fn slot(&self, slot: Slot) -> &Option<Item> {
         match slot {
             Slot::Artifact1 => self.artifact1(),
             Slot::Artifact2 => self.artifact2(),
@@ -813,15 +813,15 @@ impl ArtifactSet {
         }
     }
 
-    fn artifact1(&self) -> &Option<Item> {
+    const fn artifact1(&self) -> &Option<Item> {
         &self.artifacts[0]
     }
 
-    fn artifact2(&self) -> &Option<Item> {
+    const fn artifact2(&self) -> &Option<Item> {
         &self.artifacts[1]
     }
 
-    fn artifact3(&self) -> &Option<Item> {
+    const fn artifact3(&self) -> &Option<Item> {
         &self.artifacts[2]
     }
 }
@@ -839,11 +839,11 @@ impl UtilitySet {
             None
         } else {
             utilities.sort_by(item_cmp);
-            Some(UtilitySet { utilities })
+            Some(Self { utilities })
         }
     }
 
-    fn slot(&self, slot: Slot) -> &Option<Item> {
+    const fn slot(&self, slot: Slot) -> &Option<Item> {
         match slot {
             Slot::Utility1 => self.utility1(),
             Slot::Utility2 => self.utility2(),
@@ -851,11 +851,11 @@ impl UtilitySet {
         }
     }
 
-    fn utility1(&self) -> &Option<Item> {
+    const fn utility1(&self) -> &Option<Item> {
         &self.utilities[0]
     }
 
-    fn utility2(&self) -> &Option<Item> {
+    const fn utility2(&self) -> &Option<Item> {
         &self.utilities[1]
     }
 }

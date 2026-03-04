@@ -54,7 +54,7 @@ impl ArtifactApi {
             c
         });
         let auth_conf = Arc::new({
-            let mut c = (*conf.clone()).clone();
+            let mut c = (*conf).clone();
             c.bearer_access_token = Some(token);
             c
         });
@@ -67,11 +67,11 @@ impl ArtifactApi {
             items: ItemsApi::new(conf.clone()),
             maps: MapsApi::new(conf.clone()),
             monsters: MonstersApi::new(conf.clone()),
-            my_character: MyCharacterApi::new(auth_conf.clone()),
+            my_character: MyCharacterApi::new(auth_conf),
             npcs: NpcsApi::new(conf.clone()),
             resources: ResourcesApi::new(conf.clone()),
             server: ServerApi::new(conf.clone()),
-            tasks: TasksApi::new(conf.clone()),
+            tasks: TasksApi::new(conf),
         }
     }
 }

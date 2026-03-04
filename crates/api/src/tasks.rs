@@ -20,7 +20,7 @@ pub struct TasksApi {
 }
 
 impl TasksApi {
-    pub(crate) fn new(configuration: Arc<Configuration>) -> Self {
+    pub(crate) const fn new(configuration: Arc<Configuration>) -> Self {
         Self { configuration }
     }
 

@@ -29,7 +29,7 @@ use std::{cmp::Ordering, sync::Arc, thread::sleep, time::Duration};
 /// It is responsible for handling the character action requests responce and errors
 /// by updating character and bank data, and retrying requests in case of errors.
 #[derive(Default, Debug)]
-pub(crate) struct CharacterRequestHandler {
+pub struct CharacterRequestHandler {
     name: String,
     api: Arc<ArtifactApi>,
     account: AccountClient,

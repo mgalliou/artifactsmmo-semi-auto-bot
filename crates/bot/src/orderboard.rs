@@ -24,8 +24,8 @@ pub struct OrderBoard {
 }
 
 impl OrderBoard {
-    pub fn new(items: ItemsClient, account: Arc<AccountController>) -> Self {
-        OrderBoard {
+    pub const fn new(items: ItemsClient, account: Arc<AccountController>) -> Self {
+        Self {
             orders: RwLock::new(vec![]),
             items,
             account,
@@ -173,8 +173,10 @@ impl OrderBoard {
     }
 
     pub fn remove(&self, order: &Order) {
-        let mut orders = self.orders.write().unwrap();
-        orders.retain(|r| !r.is_similar(order));
+        self.orders
+            .write()
+            .unwrap()
+            .retain(|r| !r.is_similar(order));
         info!("orderboard: order removed: {}", order);
     }
 
@@ -210,11 +212,11 @@ impl Order {
         item: &str,
         quantity: u32,
         purpose: Purpose,
-    ) -> Result<Order, OrderError> {
+    ) -> Result<Self, OrderError> {
         if quantity == 0 {
             return Err(OrderError::InvalidQuantity);
         }
-        Ok(Order {
+        Ok(Self {
             owner: owner.map(|o| o.to_owned()),
             item: item.to_owned(),
             quantity: AtomicU32::new(quantity),
@@ -225,7 +227,7 @@ impl Order {
         })
     }
 
-    fn is_similar(&self, other: &Order) -> bool {
+    fn is_similar(&self, other: &Self) -> bool {
         self.item == other.item && self.owner == other.owner && self.purpose == other.purpose
     }
 
@@ -309,11 +311,11 @@ impl Display for Purpose {
             f,
             "{}",
             match self {
-                Purpose::Cli => "CLI".to_owned(),
-                Purpose::Leveling { char, skill } => format!("{skill} ({char})"),
-                Purpose::Food { char } => format!("food ({char})"),
-                Purpose::Gear { char, item_code } => format!("'{item_code}': ({char})"),
-                Purpose::Task { char } => format!("task ({char})"),
+                Self::Cli => "CLI".to_owned(),
+                Self::Leveling { char, skill } => format!("{skill} ({char})"),
+                Self::Food { char } => format!("food ({char})"),
+                Self::Gear { char, item_code } => format!("'{item_code}': ({char})"),
+                Self::Task { char } => format!("task ({char})"),
             }
         )
     }

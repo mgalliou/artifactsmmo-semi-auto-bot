@@ -56,18 +56,18 @@ pub enum RequestError {
 impl<T> From<Error<T>> for RequestError {
     fn from(value: Error<T>) -> Self {
         match value {
-            Error::Reqwest(e) => RequestError::Reqwest(e),
-            Error::Serde(e) => RequestError::Serde(e),
-            Error::Io(e) => RequestError::Io(e),
+            Error::Reqwest(e) => Self::Reqwest(e),
+            Error::Serde(e) => Self::Serde(e),
+            Error::Io(e) => Self::Io(e),
             Error::ResponseError(res) => match serde_json::from_str(&res.content) {
-                Ok(e) => RequestError::ResponseError(e),
-                Err(e) => RequestError::Serde(e),
+                Ok(e) => Self::ResponseError(e),
+                Err(e) => Self::Serde(e),
             },
         }
     }
 }
 
-#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Default, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ApiErrorResponseSchema {
     pub error: ApiErrorSchema,
 }
@@ -78,7 +78,7 @@ impl Display for ApiErrorResponseSchema {
     }
 }
 
-#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Default, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ApiErrorSchema {
     pub code: u32,
     pub message: String,

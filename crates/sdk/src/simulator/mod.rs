@@ -83,7 +83,7 @@ impl Simulator {
             if remaining_fighters.is_empty() {
                 remaining_fighters = fighters.clone();
             }
-            let Some(mut fighter) = get_next_fighter(&mut remaining_fighters) else {
+            let Some(mut fighter) = get_next_fighter(&remaining_fighters) else {
                 break;
             };
             remaining_fighters.retain(|f| f.name() != fighter.name());
@@ -115,7 +115,7 @@ impl Simulator {
 }
 
 fn get_next_fighter(
-    fighters: &mut Vec<Box<dyn SimulationEntity>>,
+    fighters: &Vec<Box<dyn SimulationEntity>>,
 ) -> Option<Box<dyn SimulationEntity>> {
     fighters
         .iter()
@@ -151,7 +151,7 @@ pub struct Participant {
 }
 
 impl Participant {
-    pub fn new(
+    pub const fn new(
         name: String,
         level: u32,
         gear: Gear,
@@ -175,7 +175,7 @@ impl From<&CharacterClient> for Participant {
         Self {
             name: value.name().to_string(),
             level: value.level(),
-            gear: value.gear().clone(),
+            gear: value.gear(),
             utility1_quantity: value.quantity_in_slot(Slot::Utility1),
             utility2_quantity: value.quantity_in_slot(Slot::Utility2),
             missing_hp: value.missing_hp(),
@@ -190,12 +190,12 @@ pub struct FightParams {
 }
 
 impl FightParams {
-    pub fn averaged(mut self) -> Self {
+    pub const fn averaged(mut self) -> Self {
         self.averaged = true;
         self
     }
 
-    pub fn ignore_death(mut self) -> Self {
+    pub const fn ignore_death(mut self) -> Self {
         self.ignore_death = true;
         self
     }
@@ -212,11 +212,11 @@ pub struct Fight {
 }
 
 impl Fight {
-    pub fn is_winning(&self) -> bool {
+    pub const fn is_winning(&self) -> bool {
         matches!(self.result, FightResult::Win)
     }
 
-    pub fn is_losing(&self) -> bool {
+    pub const fn is_losing(&self) -> bool {
         matches!(self.result, FightResult::Loss)
     }
 }
@@ -235,7 +235,7 @@ pub fn average_dmg(
 
 fn average_multiplier(dmg_increase: i32, critical_strike: i32, target_res: i32) -> f32 {
     critless_multiplier(dmg_increase, target_res)
-        * (1.0 + critical_strike as f32 * 0.01 * CRIT_MULTIPLIER)
+        * (critical_strike as f32 * 0.01).mul_add(CRIT_MULTIPLIER, 1.0)
 }
 
 fn critless_multiplier(dmg_increase: i32, target_res: i32) -> f32 {
@@ -247,7 +247,7 @@ fn crit_multiplier(dmg_increase: i32, target_res: i32) -> f32 {
 }
 
 fn dmg_multiplier(dmg_increase: i32) -> f32 {
-    1.0 + dmg_increase as f32 * 0.01
+    (dmg_increase as f32).mul_add(0.01, 1.0)
 }
 
 fn res_multiplier(target_res: i32) -> f32 {
@@ -259,7 +259,7 @@ fn res_multiplier(target_res: i32) -> f32 {
     1.0 - target_res * 0.01
 }
 
-pub fn time_to_rest(health: u32) -> u32 {
+pub const fn time_to_rest(health: u32) -> u32 {
     health / REST_HP_PER_SEC
         + if health.is_multiple_of(REST_HP_PER_SEC) {
             0
@@ -271,8 +271,11 @@ pub fn time_to_rest(health: u32) -> u32 {
 fn fight_cd(haste: i32, turns: u32) -> u32 {
     max(
         MIN_FIGHT_CD,
-        ((turns * SECOND_PER_TURN) as f32
-            - (haste as f32 * 0.01) * (turns * SECOND_PER_TURN) as f32)
+        (haste as f32 * 0.01)
+            .mul_add(
+                -((turns * SECOND_PER_TURN) as f32),
+                (turns * SECOND_PER_TURN) as f32,
+            )
             .round() as u32,
     )
 }
@@ -281,7 +284,7 @@ pub fn gather_cd(resource_level: u32, cooldown_reduction: i32) -> u32 {
     let level = resource_level as f32;
     let reduction = cooldown_reduction as f32;
 
-    ((30.0 + (level / 2.0)) * (1.0 + reduction * 0.01)).round() as u32
+    ((30.0 + (level / 2.0)) * reduction.mul_add(0.01, 1.0)).round() as u32
 }
 
 #[cfg(test)]

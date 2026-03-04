@@ -29,15 +29,13 @@ pub(crate) trait Persist<D: for<'a> Deserialize<'a> + Serialize> {
     const PATH: &'static str;
 
     fn load(&self) -> D {
-        if let Ok(data) = self.load_from_file::<D>() {
-            data
-        } else {
+        self.load_from_file::<D>().unwrap_or_else(|_| {
             let data = self.load_from_api();
             if let Err(e) = Self::persist(&data) {
                 error!("failed to persist data: {}", e);
             }
             data
-        }
+        })
     }
 
     fn load_from_api(&self) -> D;
@@ -268,7 +266,7 @@ impl DropRateSchemaExt for DropRateSchema {
     }
 }
 
-pub fn check_lvl_diff(char_level: u32, entity_level: u32) -> bool {
+pub const fn check_lvl_diff(char_level: u32, entity_level: u32) -> bool {
     char_level >= entity_level && char_level.saturating_sub(entity_level) <= MAX_LEVEL_DIFF
 }
 

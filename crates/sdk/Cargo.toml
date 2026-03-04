@@ -23,3 +23,7 @@ strum.workspace = true
 strum_macros.workspace = true
 thiserror.workspace = true
 dyn-clone.workspace = true
+
+[lints.clippy]
+pedentic = { level = "warn" }
+nursery = { level = "warn" }

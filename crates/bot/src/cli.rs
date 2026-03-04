@@ -26,7 +26,7 @@ pub fn run(bot: Arc<Bot>) -> Result<()> {
                 chars
                     .as_ref()
                     .map(|c| c.name().to_string())
-                    .unwrap_or("none".to_string())
+                    .unwrap_or_else(|| "none".to_string())
             )
             .as_str(),
         );
@@ -126,7 +126,7 @@ fn respond(
                     skill,
                     bot.leveling_helper
                         .best_craft(char.skill_level(skill), skill, char)
-                        .map_or("none".to_string(), |i| i.name().to_string().clone())
+                        .map_or_else(|| "none".to_string(), |i| i.name().to_string())
                 );
             }
             ItemsAction::BestCrafts { skill } => {
@@ -185,7 +185,7 @@ fn respond(
                 bail!("no character selected");
             };
             char.send_cmd(CharacterCommand::Recycle {
-                code: item.to_owned(),
+                code: item,
                 quantity,
             })?;
         }

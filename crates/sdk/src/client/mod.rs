@@ -59,22 +59,22 @@ impl Client {
             });
 
             let api_clone = api.clone();
-            let events_handle = s.spawn(move || EventsClient::new(api_clone.clone()));
+            let events_handle = s.spawn(move || EventsClient::new(api_clone));
 
             let api_clone = api.clone();
-            let server_handle = s.spawn(move || Arc::new(ServerClient::new(api_clone.clone())));
+            let server_handle = s.spawn(move || Arc::new(ServerClient::new(api_clone)));
 
             let api_clone = api.clone();
             let tasks_handle = s.spawn(move || {
                 TasksClient::new(
                     api_clone.clone(),
-                    TasksRewardsClient::new(api_clone.clone()),
+                    TasksRewardsClient::new(api_clone),
                 )
             });
 
             let api_clone = api.clone();
             let npcs_handle = s.spawn(move || {
-                NpcsClient::new(api_clone.clone(), NpcsItemsClient::new(api_clone.clone()))
+                NpcsClient::new(api_clone.clone(), NpcsItemsClient::new(api_clone))
             });
 
             (
@@ -114,12 +114,12 @@ impl Client {
             api.clone(),
             resources.clone(),
             monsters.clone(),
-            tasks.rewards().clone(),
+            tasks.rewards(),
             npcs.clone(),
         );
 
         let account = AccountClient::new(account_name, bank, api.clone());
-        let grand_exchange = GrandExchangeClient::new(api.clone());
+        let grand_exchange = GrandExchangeClient::new(api);
         account.load_characters(
             items.clone(),
             resources.clone(),

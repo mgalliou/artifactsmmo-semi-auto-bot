@@ -27,7 +27,7 @@ pub struct BankController {
 }
 
 impl BankController {
-    pub fn new(client: BankClient, items: ItemsClient) -> Self {
+    pub const fn new(client: BankClient, items: ItemsClient) -> Self {
         Self {
             client,
             items,
@@ -173,7 +173,7 @@ impl BankController {
             quantity: AtomicU32::new(quantity),
             owner: owner.to_owned(),
         });
-        self.reservations.write().unwrap().push(res.clone());
+        self.reservations.write().unwrap().push(res);
         Ok(())
     }
 
@@ -236,7 +236,7 @@ impl SlotLimited for BankController {
     }
 }
 
-#[derive(Debug, Error, PartialEq)]
+#[derive(Debug, Error, PartialEq, Eq)]
 pub enum BankReservationError {
     #[error("Quantity unavailable: {0}")]
     QuantityUnavailable(u32),

@@ -94,7 +94,7 @@ impl CharacterClient {
         Self(Arc::new(CharacterClientInner {
             id,
             name: data.read().name().to_string(),
-            handler: CharacterRequestHandler::new(api, data, account.clone(), server.clone()),
+            handler: CharacterRequestHandler::new(api, data, account.clone(), server),
             bank: account.bank(),
             account,
             items,

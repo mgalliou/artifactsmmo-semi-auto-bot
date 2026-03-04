@@ -14,20 +14,20 @@ use std::{
 };
 use strum_macros::{AsRefStr, EnumIs, EnumIter, EnumString};
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct BotConfig {
-    inner: RwLock<Arc<BaseBotConfig>>,
+    inner: Arc<RwLock<Arc<BotConfigInner>>>,
 }
 
 impl BotConfig {
     pub fn from_file() -> Self {
         Self {
-            inner: RwLock::new(Arc::new(BaseBotConfig::from_file())),
+            inner: Arc::new(RwLock::new(Arc::new(BotConfigInner::from_file()))),
         }
     }
 
     pub fn reload(&self) {
-        *self.inner.write().unwrap() = Arc::new(BaseBotConfig::from_file())
+        *self.inner.write().unwrap() = Arc::new(BotConfigInner::from_file())
     }
 
     pub fn order_gear(&self) -> bool {
@@ -38,13 +38,13 @@ impl BotConfig {
         self.inner().get_char_config(i)
     }
 
-    fn inner(&self) -> Arc<BaseBotConfig> {
+    fn inner(&self) -> Arc<BotConfigInner> {
         self.inner.read().unwrap().clone()
     }
 }
 
 #[derive(Debug, Default, Deserialize)]
-pub struct BaseBotConfig {
+pub struct BotConfigInner {
     pub base_url: String,
     pub token: String,
     pub characters: RwLock<Vec<Arc<CharConfig>>>,
@@ -52,7 +52,7 @@ pub struct BaseBotConfig {
     pub order_gear: bool,
 }
 
-impl BaseBotConfig {
+impl BotConfigInner {
     pub fn from_file() -> Self {
         Figment::new()
             .merge(Toml::file_exact("ArtifactsMMO.toml"))
@@ -109,7 +109,9 @@ impl CharConfig {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Deserialize, AsRefStr, EnumIter, EnumString, EnumIs)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Deserialize, AsRefStr, EnumIter, EnumString, EnumIs,
+)]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all(deserialize = "snake_case"))]
 pub enum Goal {
@@ -128,24 +130,24 @@ pub enum Goal {
 impl Display for Goal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Goal::Orders => {
+            Self::Orders => {
                 write!(f, "progress orders")
             }
-            Goal::ReachSkillLevel { skill, level } => {
+            Self::ReachSkillLevel { skill, level } => {
                 write!(f, "reach_skill_level: {},{}", skill, level)
             }
-            Goal::FollowMaxSkillLevel {
+            Self::FollowMaxSkillLevel {
                 skill,
                 skill_to_follow,
             } => {
                 write!(f, "follow_max_skill_level: {},{}", skill, skill_to_follow)
             }
-            Goal::Events => write!(f, "handle events"),
+            Self::Events => write!(f, "handle events"),
         }
     }
 }
 
-#[derive(Debug, Default, PartialEq, Copy, Clone, Deserialize, EnumIs)]
+#[derive(Debug, Default, PartialEq, Eq, Copy, Clone, Deserialize, EnumIs)]
 pub enum Role {
     #[default]
     Fighter,
@@ -156,13 +158,13 @@ pub enum Role {
 }
 
 impl Role {
-    pub fn to_skill(&self) -> Option<Skill> {
+    pub const fn to_skill(&self) -> Option<Skill> {
         match *self {
-            Role::Fighter => None,
-            Role::Miner => Some(Skill::Mining),
-            Role::Woodcutter => Some(Skill::Woodcutting),
-            Role::Fisher => Some(Skill::Fishing),
-            Role::Weaponcrafter => Some(Skill::Weaponcrafting),
+            Self::Fighter => None,
+            Self::Miner => Some(Skill::Mining),
+            Self::Woodcutter => Some(Skill::Woodcutting),
+            Self::Fisher => Some(Skill::Fishing),
+            Self::Weaponcrafter => Some(Skill::Weaponcrafting),
         }
     }
 }

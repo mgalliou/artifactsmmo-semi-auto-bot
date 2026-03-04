@@ -59,7 +59,7 @@ impl Map {
         Some(&self.content()?.code)
     }
 
-    pub fn closest_among(&self, others: &[Map]) -> Option<Map> {
+    pub fn closest_among(&self, others: &[Self]) -> Option<Self> {
         MapsClient::closest_from_amoung(self.0.x, self.0.y, others)
     }
 

@@ -78,8 +78,8 @@ pub struct MyCharacterApi {
 }
 
 impl MyCharacterApi {
-    pub(crate) fn new(configuration: Arc<Configuration>) -> Self {
-        MyCharacterApi { configuration }
+    pub(crate) const fn new(configuration: Arc<Configuration>) -> Self {
+        Self { configuration }
     }
 
     pub fn r#move(

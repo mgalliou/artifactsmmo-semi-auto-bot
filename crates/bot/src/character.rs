@@ -558,7 +558,7 @@ impl CharacterController {
             .saturating_sub(self.has_in_bank_or_inv(&self.task()));
         if missing_quantity > 0 {
             return Err(TaskTradeCommandError::MissingItems {
-                item: self.task().to_owned(),
+                item: self.task(),
                 quantity: missing_quantity,
             });
         }
@@ -649,9 +649,7 @@ impl CharacterController {
         }
         let mut gear = self.can_kill(monster)?;
         self.equip_gear(&mut gear)?;
-        if !self.inventory.has_room_for_drops_from(monster)
-            || !self.current_map().content_code_is(monster.code())
-        {
+        if !self.inventory.has_room_for_drops_from(monster) {
             //TODO: don't deposit food
             //NOTE: deposit_all_but_reserved is not used here because if for some reason all items
             // in inventory are reserved, the command fail in a loop
@@ -687,9 +685,7 @@ impl CharacterController {
             return Ok(Default::default());
         }
         self.equip_gear_for(GearPurpose::Gathering(resource))?;
-        if !self.inventory.has_room_for_drops_from(resource)
-            || !self.current_map().content_code_is(resource.code())
-        {
+        if !self.inventory.has_room_for_drops_from(resource) {
             self.deposit_all()?;
         };
         self.move_to_closest_map_with_content_code(resource.code())?;

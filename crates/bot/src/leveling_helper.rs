@@ -21,7 +21,7 @@ pub struct LevelingHelper {
 }
 
 impl LevelingHelper {
-    pub fn new(
+    pub const fn new(
         items: ItemsClient,
         monsters: MonstersClient,
         resources: ResourcesClient,

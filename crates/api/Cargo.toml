@@ -6,3 +6,7 @@ publish.workspace = true
 
 [dependencies]
 openapi.workspace = true
+
+[lints.clippy]
+pedentic = { level = "warn" }
+nursery = { level = "warn" }

@@ -33,10 +33,10 @@ pub enum Skill {
 }
 
 impl Skill {
-    pub fn is_gathering(&self) -> bool {
+    pub const fn is_gathering(&self) -> bool {
         matches!(
             self,
-            Skill::Mining | Skill::Woodcutting | Skill::Fishing | Skill::Alchemy
+            Self::Mining | Self::Woodcutting | Self::Fishing | Self::Alchemy
         )
     }
 }
@@ -44,13 +44,13 @@ impl Skill {
 impl From<CraftSkill> for Skill {
     fn from(value: CraftSkill) -> Self {
         match value {
-            CraftSkill::Weaponcrafting => Skill::Weaponcrafting,
-            CraftSkill::Gearcrafting => Skill::Gearcrafting,
-            CraftSkill::Jewelrycrafting => Skill::Jewelrycrafting,
-            CraftSkill::Cooking => Skill::Cooking,
-            CraftSkill::Woodcutting => Skill::Woodcutting,
-            CraftSkill::Mining => Skill::Mining,
-            CraftSkill::Alchemy => Skill::Alchemy,
+            CraftSkill::Weaponcrafting => Self::Weaponcrafting,
+            CraftSkill::Gearcrafting => Self::Gearcrafting,
+            CraftSkill::Jewelrycrafting => Self::Jewelrycrafting,
+            CraftSkill::Cooking => Self::Cooking,
+            CraftSkill::Woodcutting => Self::Woodcutting,
+            CraftSkill::Mining => Self::Mining,
+            CraftSkill::Alchemy => Self::Alchemy,
         }
     }
 }

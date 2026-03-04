@@ -13,7 +13,7 @@ impl Hit {
         target_res: i32,
         r#type: DamageType,
         is_crit: bool,
-    ) -> Hit {
+    ) -> Self {
         let mut dmg = attack_dmg as f32;
 
         dmg *= if is_crit {
@@ -21,7 +21,7 @@ impl Hit {
         } else {
             critless_multiplier(dmg_increase, target_res)
         };
-        Hit {
+        Self {
             dmg: dmg.round() as i32,
             r#type,
             is_crit,
@@ -34,11 +34,11 @@ impl Hit {
         critical_strike: i32,
         target_res: i32,
         r#type: DamageType,
-    ) -> Hit {
+    ) -> Self {
         let mut dmg = attack_dmg as f32;
 
         dmg *= average_multiplier(dmg_increase, critical_strike, target_res);
-        Hit {
+        Self {
             r#type,
             dmg: dmg.round() as i32,
             is_crit: true,

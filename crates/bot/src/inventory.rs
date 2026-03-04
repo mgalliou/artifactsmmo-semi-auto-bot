@@ -26,8 +26,8 @@ pub struct InventoryController {
 }
 
 impl InventoryController {
-    pub fn new(client: CharacterClient, items: ItemsClient) -> Self {
-        InventoryController {
+    pub const fn new(client: CharacterClient, items: ItemsClient) -> Self {
+        Self {
             client,
             reservations: RwLock::new(vec![]),
             items,

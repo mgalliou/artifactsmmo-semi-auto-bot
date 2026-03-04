@@ -18,8 +18,8 @@ pub struct BankApi {
 }
 
 impl BankApi {
-    pub fn new(configuration: Arc<Configuration>) -> Self {
-        BankApi { configuration }
+    pub const fn new(configuration: Arc<Configuration>) -> Self {
+        Self { configuration }
     }
 
     pub fn get_items(

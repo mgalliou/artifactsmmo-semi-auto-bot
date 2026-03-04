@@ -90,12 +90,12 @@ pub trait Reservation: Code + Quantity {
     fn quantity_atomic(&self) -> &AtomicU32;
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq)]
 pub struct InventoryDiscriminant {
     item: String,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq)]
 pub struct BankDiscriminant {
     item: String,
     owner: String,

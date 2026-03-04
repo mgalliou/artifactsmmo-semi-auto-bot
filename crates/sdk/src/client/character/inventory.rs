@@ -12,7 +12,7 @@ pub struct InventoryClient {
 }
 
 impl InventoryClient {
-    pub fn new(data: RawCharacter) -> Self {
+    pub const fn new(data: RawCharacter) -> Self {
         Self { data }
     }
 }

@@ -290,7 +290,7 @@ impl DataEntity for ItemsClient {
     type Entity = Item;
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Display, AsRefStr, EnumIter, EnumString, EnumIs)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Display, AsRefStr, EnumIter, EnumString, EnumIs)]
 #[strum(serialize_all = "snake_case")]
 pub enum Type {
     Consumable,
@@ -339,7 +339,7 @@ impl PartialEq<Type> for String {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Display, AsRefStr, EnumIter, EnumString, EnumIs)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Display, AsRefStr, EnumIter, EnumString, EnumIs)]
 #[strum(serialize_all = "snake_case")]
 pub enum SubType {
     Alchemy,
@@ -379,19 +379,19 @@ pub enum ItemSource {
 impl fmt::Display for ItemSource {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ItemSource::Resource(r) => {
+            Self::Resource(r) => {
                 write!(f, "Resource ({})", r.name())
             }
-            ItemSource::Monster(m) => write!(f, "Monster ({})", m.name()),
-            ItemSource::Npc(npc_schema) => write!(f, "NPC ({})", npc_schema.name()),
-            ItemSource::Craft => write!(f, "Craft"),
-            ItemSource::TaskReward => write!(f, "Task Reward"),
-            ItemSource::Task => write!(f, "Task"),
+            Self::Monster(m) => write!(f, "Monster ({})", m.name()),
+            Self::Npc(npc_schema) => write!(f, "NPC ({})", npc_schema.name()),
+            Self::Craft => write!(f, "Craft"),
+            Self::TaskReward => write!(f, "Task Reward"),
+            Self::Task => write!(f, "Task"),
         }
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Display, AsRefStr, EnumIter, EnumString, EnumIs)]
+#[derive(Debug, Clone, PartialEq, Eq, Display, AsRefStr, EnumIter, EnumString, EnumIs)]
 #[strum(serialize_all = "snake_case")]
 pub enum LevelConditionCode {
     AlchemyLevel,
@@ -404,11 +404,11 @@ pub enum LevelConditionCode {
 impl From<LevelConditionCode> for Skill {
     fn from(value: LevelConditionCode) -> Self {
         match value {
-            LevelConditionCode::AlchemyLevel => Skill::Alchemy,
-            LevelConditionCode::MiningLevel => Skill::Mining,
-            LevelConditionCode::WoodcuttingLevel => Skill::Woodcutting,
-            LevelConditionCode::FishingLevel => Skill::Fishing,
-            LevelConditionCode::Level => Skill::Combat,
+            LevelConditionCode::AlchemyLevel => Self::Alchemy,
+            LevelConditionCode::MiningLevel => Self::Mining,
+            LevelConditionCode::WoodcuttingLevel => Self::Woodcutting,
+            LevelConditionCode::FishingLevel => Self::Fishing,
+            LevelConditionCode::Level => Self::Combat,
         }
     }
 }

@@ -7,9 +7,9 @@ use std::{env, sync::Arc};
 fn main() -> Result<()> {
     simple_logging::log_to_file("artifactsmmo.log", LevelFilter::Info)?;
     let client = Client::new(
-        "https://api.artifactsmmo.com".to_string(),
-        "podJio".to_string(),
-        env::var("ARTIFACTSMMO_TOKEN").unwrap_or("".to_string()),
+        "https://api.artifactsmmo.com".into(),
+        "podJio".into(),
+        env::var("ARTIFACTSMMO_TOKEN").unwrap_or_default(),
     )?;
     let bot = Arc::new(Bot::new(Arc::new(client)));
     bot.order_board
@@ -27,5 +27,5 @@ fn main() -> Result<()> {
     // bot.order_board
     //     .add("strange_ore", 6000, None, Purpose::Cli)?;
     bot.run_characters();
-    cli::run(bot.clone())
+    cli::run(bot)
 }

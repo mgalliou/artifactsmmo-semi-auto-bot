@@ -9,7 +9,7 @@ pub struct GrandExchangeClient {
 }
 
 impl GrandExchangeClient {
-    pub(crate) fn new(api: Arc<ArtifactApi>) -> Self {
+    pub(crate) const fn new(api: Arc<ArtifactApi>) -> Self {
         Self { api }
     }
 
