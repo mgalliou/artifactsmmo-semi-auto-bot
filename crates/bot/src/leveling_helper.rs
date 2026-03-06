@@ -4,7 +4,7 @@ use rayon::iter::{ParallelBridge, ParallelIterator};
 use sdk::{
     CanProvideXp, Code, CollectionClient, ItemsClient, Level, MapsClient, MonstersClient,
     ResourcesClient,
-    entities::{CharacterTrait, Item, Monster, Resource},
+    entities::{Character, Item, Monster, Resource},
     items::SubType,
     skill::Skill,
 };

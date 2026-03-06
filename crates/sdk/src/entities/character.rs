@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use strum::IntoEnumIterator;
 
-pub trait CharacterTrait {
+pub trait Character: Level {
     fn name(&self) -> &str;
     fn position(&self) -> (MapLayer, i32, i32);
     fn skill_level(&self, skill: Skill) -> u32;
@@ -38,7 +38,7 @@ impl RawCharacter {
     }
 }
 
-impl CharacterTrait for RawCharacter {
+impl Character for RawCharacter {
     fn name(&self) -> &str {
         &self.0.name
     }

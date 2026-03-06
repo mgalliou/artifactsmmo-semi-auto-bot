@@ -1,6 +1,6 @@
 use crate::{
     CharacterClient, Gear, Level, Slot,
-    entities::{CharacterTrait, Monster},
+    entities::{Character, Monster},
     simulator::entity::{SimulationCharacter, SimulationEntity, SimulationMonster},
 };
 use itertools::Itertools;

@@ -28,7 +28,7 @@ use crate::{
         resources::ResourcesClient,
         server::ServerClient,
     },
-    entities::{CharacterTrait, Map, RawCharacter},
+    entities::{Character, Map, RawCharacter},
     gear::Slot,
     grand_exchange::GrandExchangeClient,
     simulator::HasEffects,
@@ -848,7 +848,7 @@ impl CharacterClient {
     }
 
     pub fn remaining_cooldown(&self) -> Duration {
-        self.0.handler.remaining_cooldown()
+        self.handler().remaining_cooldown()
     }
 
     pub fn current_map(&self) -> Map {
@@ -856,7 +856,7 @@ impl CharacterClient {
     }
 }
 
-pub trait HandleCharacterData: CharacterTrait {
+pub trait HandleCharacterData: Character {
     fn data(&self) -> RawCharacter;
     fn refresh_data(&self);
     fn update_data(&self, schema: CharacterSchema);
@@ -876,13 +876,13 @@ impl HandleCharacterData for CharacterClient {
     }
 }
 
-pub trait MeetsConditionsFor: CharacterTrait {
+pub trait MeetsConditionsFor: Character {
     fn account(&self) -> AccountClient;
 
     fn inventory(&self) -> InventoryClient;
 }
 
-impl CharacterTrait for CharacterClient {
+impl Character for CharacterClient {
     fn name(&self) -> &str {
         &self.0.name
     }

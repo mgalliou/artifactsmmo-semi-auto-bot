@@ -6,7 +6,7 @@ use itertools::Itertools;
 use sdk::{
     AccountClient, Client, Code, CollectionClient, ItemContainer, ItemsClient, NpcsClient, Skill,
     SpaceLimited,
-    entities::{CharacterTrait, Item},
+    entities::{Character, Item},
     items::ItemSource,
 };
 use std::sync::{Arc, RwLock};

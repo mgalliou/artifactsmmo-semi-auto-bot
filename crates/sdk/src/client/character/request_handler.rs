@@ -1,11 +1,11 @@
 use crate::{
-    AccountClient, Skill,
+    AccountClient, Level, Skill,
     character::{CharacterDataHandle, responses::ResponseSchema},
     client::{
         character::{HandleCharacterData, action_request::ActionRequest, error::RequestError},
         server::ServerClient,
     },
-    entities::{CharacterTrait, Map, RawCharacter},
+    entities::{Character, Map, RawCharacter},
     gear::Slot,
 };
 use api::ArtifactApi;
@@ -53,10 +53,6 @@ impl CharacterRequestHandler {
         }
     }
 
-    pub fn character(&self) -> RawCharacter {
-        self.data.read()
-    }
-
     fn request_action(
         &self,
         action: ActionRequest,
@@ -79,7 +75,7 @@ impl CharacterRequestHandler {
         //             .expect("bank_details to be writable"),
         //     );
         // }
-        match action.send(self.data.read().name(), &self.api) {
+        match action.send(self.name(), &self.api) {
             Ok(res) => {
                 info!("{}", res.to_string());
                 if let Some(res) = res.downcast_ref::<CharacterFightResponseSchema>() {
@@ -525,7 +521,13 @@ impl HandleCharacterData for CharacterRequestHandler {
     }
 }
 
-impl CharacterTrait for CharacterRequestHandler {
+impl Level for CharacterRequestHandler {
+    fn level(&self) -> u32 {
+        self.data().level()
+    }
+}
+
+impl Character for CharacterRequestHandler {
     fn name(&self) -> &str {
         &self.name
     }

@@ -6,7 +6,7 @@ use sdk::{
     CharacterClient, Code, CollectionClient, DropsItems, ItemContainer, ItemsClient, Level,
     LimitedContainer, Quantity, SlotLimited, SpaceLimited,
     character::inventory::Inventory,
-    entities::{CharacterTrait, Item},
+    entities::{Character, Item},
     models::{InventorySlot, SimpleItemSchema},
 };
 use std::{

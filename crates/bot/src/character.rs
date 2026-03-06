@@ -36,7 +36,7 @@ use sdk::{
         BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, GOLDEN_EGG, GOLDEN_SHRIMP, MAX_LEVEL,
         TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE, TASKS_COIN,
     },
-    entities::{CharacterTrait, Item, Map, Monster, NpcItem, RawCharacter, Resource},
+    entities::{Character, Item, Map, Monster, NpcItem, RawCharacter, Resource},
     gear::{Gear, Slot},
     items::ItemSource,
     models::{
@@ -1870,7 +1870,7 @@ impl HandleCharacterData for CharacterController {
     }
 }
 
-impl CharacterTrait for CharacterController {
+impl Character for CharacterController {
     fn name(&self) -> &str {
         &self.name
     }

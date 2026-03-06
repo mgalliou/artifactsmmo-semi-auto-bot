@@ -10,7 +10,7 @@ use clap::{Parser, Subcommand, value_parser};
 use rustyline::{DefaultEditor, error::ReadlineError};
 use sdk::{
     CollectionClient, ItemContainer, Level,
-    entities::{CharacterTrait, EventSchemaExt},
+    entities::{Character, EventSchemaExt},
     simulator::{Participant, Simulator},
     skill::Skill,
 };

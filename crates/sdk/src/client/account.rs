@@ -3,7 +3,7 @@ use crate::{
     ServerClient, TasksClient,
     character::data_handle::CharacterDataHandle,
     client::{bank::BankClient, character::CharacterClient},
-    entities::CharacterTrait,
+    entities::Character,
     grand_exchange::GrandExchangeClient,
 };
 use api::ArtifactApi;

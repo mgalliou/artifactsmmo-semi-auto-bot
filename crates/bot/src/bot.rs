@@ -3,7 +3,7 @@ use crate::{
     gear_finder::GearFinder, leveling_helper::LevelingHelper, orderboard::OrderBoard,
 };
 use log::error;
-use sdk::{Client, entities::CharacterTrait};
+use sdk::{Client, entities::Character};
 use std::{
     sync::Arc,
     thread::{Builder, sleep},
