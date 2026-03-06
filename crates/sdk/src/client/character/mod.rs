@@ -2,7 +2,6 @@ use crate::{
     AccountClient, Code, CollectionClient, GOLD, Gear, HasConditions, ItemContainer, Level,
     LimitedContainer, SlotLimited, SpaceLimited, TASK_EXCHANGE_PRICE, TASKS_COIN, TasksClient,
     character::{
-        action::{CharacterAction, MoveCharacter},
         data_handle::CharacterDataHandle,
         error::{
             GeBuyOrderError, GeCancelOrderError, GeCreateOrderError, GiveGoldError, GiveItemError,
@@ -49,7 +48,6 @@ pub use inventory::InventoryClient;
 
 mod request_handler;
 
-pub mod action;
 pub mod action_request;
 pub mod data_handle;
 pub mod error;
@@ -120,12 +118,23 @@ impl CharacterClient {
     }
 
     pub fn r#move(&self, x: i32, y: i32) -> Result<Map, MoveError> {
-        MoveCharacter {
-            x,
-            y,
-            maps: self.0.maps.clone(),
+        self.can_move(x, y)?;
+        Ok(self.handler().request_move(x, y)?)
+    }
+
+    pub fn can_move(&self, x: i32, y: i32) -> Result<(), MoveError> {
+        let position = self.position();
+        let layer = position.0;
+        if position == (layer, x, y) {
+            return Err(MoveError::AlreadyOnMap);
         }
-        .execute(self)
+        let Some(map) = self.0.maps.get((layer, x, y)) else {
+            return Err(MoveError::MapNotFound);
+        };
+        if map.is_blocked() || !self.meets_conditions_for(map.access()) {
+            return Err(MoveError::ConditionsNotMet);
+        }
+        Ok(())
     }
 
     pub fn transition(&self) -> Result<Map, TransitionError> {
