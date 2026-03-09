@@ -320,7 +320,6 @@ impl CharacterController {
                         self.account.available_in_inventories(&order.item),
                     );
                 }
-                self.turn_in_order(order);
                 Ok(progress)
             }
             Err(e) => {
@@ -331,14 +330,19 @@ impl CharacterController {
     }
 
     fn can_progress(&self, order: &Order) -> bool {
+        if self.inventory.total_of(&order.item) > 0 {
+            return true;
+        }
         self.best_source_of(&order.item).iter().any(|s| match s {
-            ItemSource::Resource(r) => self.can_gather(r).is_ok(),
-            ItemSource::Monster(m) => self.can_kill(m).is_ok(),
+            ItemSource::Resource(resource) => self.can_gather(resource).is_ok(),
+            ItemSource::Monster(monster) => self.can_kill(monster).is_ok(),
             ItemSource::Craft => self.can_craft(&order.item).is_ok(),
 
             ItemSource::TaskReward => order.in_progress() == 0,
             ItemSource::Task => true,
-            ItemSource::Npc(_) => true,
+            ItemSource::Npc(_) => {
+                self.config().is_trader() && self.can_buy_item(&order.item, order.missing()).is_ok()
+            }
         })
     }
 
@@ -366,6 +370,9 @@ impl CharacterController {
     // }
 
     fn progress_order(&self, order: &Order) -> Result<u32, OrderProgressionError> {
+        if self.turn_in_order(order) {
+            return Ok(0);
+        }
         if self.order_board.total_missing_for(order) == 0 {
             return Err(OrderProgressionError::NoItemMissing);
         }
