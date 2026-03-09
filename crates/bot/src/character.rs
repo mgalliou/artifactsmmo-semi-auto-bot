@@ -65,7 +65,7 @@ use strum::IntoEnumIterator;
 pub struct CharacterController {
     name: String,
     client: CharacterClient,
-    bot_config: Arc<BotConfig>,
+    bot_config: BotConfig,
     pub inventory: Arc<InventoryController>,
     bank: Arc<BankController>,
     account: Arc<AccountController>,
@@ -84,7 +84,7 @@ pub struct CharacterController {
 impl CharacterController {
     pub fn new(
         char_client: CharacterClient,
-        bot_cfg: Arc<BotConfig>,
+        bot_cfg: BotConfig,
         client: &Client,
         account: Arc<AccountController>,
         order_board: Arc<OrderBoard>,

@@ -13,7 +13,7 @@ use std::sync::{Arc, RwLock};
 
 #[derive(Default)]
 pub struct AccountController {
-    config: Arc<BotConfig>,
+    config: BotConfig,
     client: AccountClient,
     items: ItemsClient,
     npcs: NpcsClient,
@@ -23,7 +23,7 @@ pub struct AccountController {
 
 impl AccountController {
     pub const fn new(
-        config: Arc<BotConfig>,
+        config: BotConfig,
         client: AccountClient,
         items: ItemsClient,
         npcs: NpcsClient,

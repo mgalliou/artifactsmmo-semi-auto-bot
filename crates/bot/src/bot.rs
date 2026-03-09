@@ -11,7 +11,7 @@ use std::{
 };
 
 pub struct Bot {
-    pub config: Arc<BotConfig>,
+    pub config: BotConfig,
     pub client: Arc<Client>,
     pub order_board: Arc<OrderBoard>,
     pub gear_finder: Arc<GearFinder>,
@@ -22,7 +22,7 @@ pub struct Bot {
 
 impl Bot {
     pub fn new(client: Arc<Client>) -> Self {
-        let config = Arc::new(BotConfig::from_file());
+        let config = BotConfig::from_file();
         let bank = Arc::new(BankController::new(
             client.account.bank(),
             client.items.clone(),
