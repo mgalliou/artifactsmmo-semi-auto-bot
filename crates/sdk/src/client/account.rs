@@ -1,14 +1,13 @@
 use crate::{
-    ClientError, ItemsClient, MapsClient, MonstersClient, NpcsClient, ResourcesClient,
+    ClientError, Code, ItemsClient, MapsClient, MonstersClient, NpcsClient, ResourcesClient,
     ServerClient, TasksClient,
     character::data_handle::CharacterDataHandle,
     client::{bank::BankClient, character::CharacterClient},
-    entities::Character,
+    entities::{AccountAchievement, Character},
     grand_exchange::GrandExchangeClient,
 };
 use api::ArtifactApi;
 use itertools::Itertools;
-use openapi::models::AccountAchievementSchema;
 use std::sync::{Arc, RwLock};
 
 pub trait Account {
@@ -25,7 +24,7 @@ struct AccountInner {
     name: String,
     bank: BankClient,
     characters: RwLock<Vec<CharacterClient>>,
-    achievements: RwLock<Vec<Arc<AccountAchievementSchema>>>,
+    achievements: RwLock<Vec<AccountAchievement>>,
     api: Arc<ArtifactApi>,
 }
 
@@ -39,7 +38,7 @@ impl AccountClient {
                     .achievements(&name)
                     .unwrap()
                     .into_iter()
-                    .map(Arc::new)
+                    .map(Into::into)
                     .collect_vec(),
             ),
             name,
@@ -104,7 +103,7 @@ impl AccountClient {
             .achievements(self.name())
             .map_err(|e| ClientError::Api(Box::new(e)))?
             .into_iter()
-            .map(Arc::new)
+            .map(|a| a.into())
             .collect_vec();
         Ok(())
     }
@@ -117,7 +116,7 @@ impl AccountClient {
         self.characters().iter().find(|c| c.name() == name).cloned()
     }
 
-    pub fn achievements(&self) -> Vec<Arc<AccountAchievementSchema>> {
+    pub fn achievements(&self) -> Vec<AccountAchievement> {
         self.0
             .achievements
             .read()
@@ -127,7 +126,10 @@ impl AccountClient {
             .collect_vec()
     }
 
-    pub fn get_achievement(&self, code: &str) -> Option<Arc<AccountAchievementSchema>> {
-        self.achievements().iter().find(|a| a.code == code).cloned()
+    pub fn get_achievement(&self, code: &str) -> Option<AccountAchievement> {
+        self.achievements()
+            .iter()
+            .find(|a| a.code() == code)
+            .cloned()
     }
 }

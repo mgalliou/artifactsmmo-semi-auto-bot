@@ -1,4 +1,5 @@
 mod active_event;
+mod account_achievement;
 mod character;
 mod event;
 mod item;
@@ -11,6 +12,7 @@ mod task;
 mod task_reward;
 
 pub use active_event::*;
+pub use account_achievement::*;
 pub use character::*;
 pub use event::*;
 pub use item::*;

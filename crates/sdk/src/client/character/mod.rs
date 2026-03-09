@@ -830,7 +830,7 @@ impl CharacterClient {
                     .0
                     .account
                     .get_achievement(&condition.code)
-                    .is_some_and(|a| a.completed_at.is_some()),
+                    .is_some_and(|a| a.is_completed()),
                 ConditionOperator::Eq => LevelConditionCode::from_str(&condition.code)
                     .is_ok_and(|code| self.skill_level(Skill::from(code)) == value),
                 ConditionOperator::Ne => LevelConditionCode::from_str(&condition.code)
