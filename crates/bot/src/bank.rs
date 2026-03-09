@@ -99,8 +99,8 @@ impl BankController {
         items: &[SimpleItemSchema],
         owner: &str,
     ) -> Result<(), BankReservationError> {
-        for m in items.iter() {
-            self.reserv_item(&m.code, m.quantity, owner)?
+        for item in items.iter() {
+            self.reserv_item(&item.code, item.quantity, owner)?
         }
         Ok(())
     }
