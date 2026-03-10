@@ -52,7 +52,7 @@ struct AchievementsRequest<'a> {
     account: &'a str,
 }
 
-impl<'a> Paginate for AchievementsRequest<'a> {
+impl Paginate for AchievementsRequest<'_> {
     type Data = AccountAchievementSchema;
     type Page = DataPageAccountAchievementSchema;
     type Error = GetAccountAchievementsAccountsAccountAchievementsGetError;

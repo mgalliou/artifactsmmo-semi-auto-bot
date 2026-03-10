@@ -31,7 +31,7 @@ struct MonstersRequest<'a> {
     configuration: &'a Configuration,
 }
 
-impl<'a> Paginate for MonstersRequest<'a> {
+impl Paginate for MonstersRequest<'_> {
     type Data = MonsterSchema;
     type Page = StaticDataPageMonsterSchema;
     type Error = GetAllMonstersMonstersGetError;

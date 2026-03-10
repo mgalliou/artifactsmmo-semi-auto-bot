@@ -45,7 +45,7 @@ struct TasksRequest<'a> {
     configuration: &'a Configuration,
 }
 
-impl<'a> Paginate for TasksRequest<'a> {
+impl Paginate for TasksRequest<'_> {
     type Data = TaskFullSchema;
     type Page = StaticDataPageTaskFullSchema;
     type Error = GetAllTasksTasksListGetError;
@@ -77,7 +77,7 @@ struct TasksRewardsRequest<'a> {
     configuration: &'a Configuration,
 }
 
-impl<'a> Paginate for TasksRewardsRequest<'a> {
+impl Paginate for TasksRewardsRequest<'_> {
     type Data = DropRateSchema;
     type Page = StaticDataPageDropRateSchema;
     type Error = GetAllTasksRewardsTasksRewardsGetError;

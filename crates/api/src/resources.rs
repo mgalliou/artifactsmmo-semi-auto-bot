@@ -31,7 +31,7 @@ struct ResourcesRequest<'a> {
     configuration: &'a Configuration,
 }
 
-impl<'a> Paginate for ResourcesRequest<'a> {
+impl Paginate for ResourcesRequest<'_> {
     type Data = ResourceSchema;
     type Page = StaticDataPageResourceSchema;
     type Error = GetAllResourcesResourcesGetError;

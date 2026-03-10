@@ -25,5 +25,5 @@ thiserror.workspace = true
 dyn-clone.workspace = true
 
 [lints.clippy]
-pedentic = { level = "warn" }
+pedantic = { level = "warn" }
 nursery = { level = "warn" }

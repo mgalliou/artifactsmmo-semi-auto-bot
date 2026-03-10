@@ -31,7 +31,7 @@ struct ItemsRequest<'a> {
     configuration: &'a Configuration,
 }
 
-impl<'a> Paginate for ItemsRequest<'a> {
+impl Paginate for ItemsRequest<'_> {
     type Data = ItemSchema;
     type Page = StaticDataPageItemSchema;
     type Error = GetAllItemsItemsGetError;

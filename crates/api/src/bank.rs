@@ -40,7 +40,7 @@ struct BankItemsRequest<'a> {
     configuration: &'a Configuration,
 }
 
-impl<'a> Paginate for BankItemsRequest<'a> {
+impl Paginate for BankItemsRequest<'_> {
     type Data = SimpleItemSchema;
     type Page = DataPageSimpleItemSchema;
     type Error = GetBankItemsMyBankItemsGetError;

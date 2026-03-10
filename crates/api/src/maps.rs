@@ -41,7 +41,7 @@ struct MapsRequest<'a> {
     configuration: &'a Configuration,
 }
 
-impl<'a> Paginate for MapsRequest<'a> {
+impl Paginate for MapsRequest<'_> {
     type Data = MapSchema;
     type Page = StaticDataPageMapSchema;
     type Error = GetAllMapsMapsGetError;

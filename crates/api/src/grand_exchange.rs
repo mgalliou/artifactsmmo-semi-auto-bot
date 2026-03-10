@@ -63,7 +63,7 @@ struct SellHistoryRequest<'a> {
 struct SellOrdersRequest<'a> {
     configuration: &'a Configuration,
 }
-impl<'a> Paginate for SellHistoryRequest<'a> {
+impl Paginate for SellHistoryRequest<'_> {
     type Data = GeOrderHistorySchema;
     type Page = DataPageGeOrderHistorySchema;
     type Error = GetGeHistoryGrandexchangeHistoryCodeGetError;
@@ -89,7 +89,7 @@ impl DataPage<GeOrderHistorySchema> for DataPageGeOrderHistorySchema {
     }
 }
 
-impl<'a> Paginate for SellOrdersRequest<'a> {
+impl Paginate for SellOrdersRequest<'_> {
     type Data = GeOrderSchema;
     type Page = DataPageGeOrderSchema;
     type Error = GetGeOrdersGrandexchangeOrdersGetError;

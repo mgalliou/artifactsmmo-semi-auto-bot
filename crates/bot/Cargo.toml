@@ -22,5 +22,5 @@ strum_macros.workspace = true
 thiserror.workspace = true
 
 [lints.clippy]
-pedentic = { level = "warn" }
+pedantic = { level = "warn" }
 nursery = { level = "warn" }

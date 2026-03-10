@@ -103,12 +103,12 @@ pub trait Paginate {
             let resp = self.request_page(current_page)?;
             if let Some(pages) = resp.pages() {
                 if current_page >= pages {
-                    finished = true
+                    finished = true;
                 }
                 current_page += 1;
             } else {
                 // No pagination information, assume single page
-                finished = true
+                finished = true;
             }
             npcs.extend(resp.data());
         }

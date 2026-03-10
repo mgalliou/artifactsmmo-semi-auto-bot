@@ -41,7 +41,7 @@ struct NpcsRequest<'a> {
     configuration: &'a Configuration,
 }
 
-impl<'a> Paginate for NpcsRequest<'a> {
+impl Paginate for NpcsRequest<'_> {
     type Data = NpcSchema;
     type Page = StaticDataPageNpcSchema;
     type Error = GetAllNpcsNpcsDetailsGetError;
@@ -65,7 +65,7 @@ struct NpcsItemsRequest<'a> {
     configuration: &'a Configuration,
 }
 
-impl<'a> Paginate for NpcsItemsRequest<'a> {
+impl Paginate for NpcsItemsRequest<'_> {
     type Data = NpcItem;
     type Page = StaticDataPageNpcItem;
     type Error = GetAllNpcsItemsNpcsItemsGetError;

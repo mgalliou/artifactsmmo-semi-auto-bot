@@ -45,7 +45,7 @@ struct EventsRequest<'a> {
     configuration: &'a Configuration,
 }
 
-impl<'a> Paginate for EventsRequest<'a> {
+impl Paginate for EventsRequest<'_> {
     type Data = EventSchema;
     type Page = StaticDataPageEventSchema;
     type Error = GetAllEventsEventsGetError;
@@ -69,7 +69,7 @@ struct ActiveEventsRequest<'a> {
     configuration: &'a Configuration,
 }
 
-impl<'a> Paginate for ActiveEventsRequest<'a> {
+impl Paginate for ActiveEventsRequest<'_> {
     type Data = ActiveEventSchema;
     type Page = StaticDataPageActiveEventSchema;
     type Error = GetAllActiveEventsEventsActiveGetError;
