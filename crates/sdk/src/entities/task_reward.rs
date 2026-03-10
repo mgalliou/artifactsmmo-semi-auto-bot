@@ -8,8 +8,8 @@ use crate::Code;
 pub struct TaskReward(Arc<DropRateSchema>);
 
 impl TaskReward {
-    pub fn new(schema: DropRateSchema) -> Self {
-        Self(Arc::new(schema))
+    pub(crate) fn new(schema: DropRateSchema) -> Self {
+        Self(schema.into())
     }
 
     pub fn max_quantity(&self) -> u32 {

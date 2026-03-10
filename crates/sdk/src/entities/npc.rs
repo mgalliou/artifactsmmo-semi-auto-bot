@@ -8,7 +8,7 @@ pub struct Npc(Arc<NpcSchema>);
 
 impl Npc {
     pub fn new(schema: NpcSchema) -> Self {
-        Self(Arc::new(schema))
+        Self(schema.into())
     }
 
     pub fn name(&self) -> &str {

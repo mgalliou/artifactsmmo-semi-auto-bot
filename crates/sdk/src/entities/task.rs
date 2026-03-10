@@ -8,8 +8,8 @@ use crate::Code;
 pub struct Task(Arc<TaskFullSchema>);
 
 impl Task {
-    pub fn new(schema: TaskFullSchema) -> Self {
-        Self(Arc::new(schema))
+    pub(crate) fn new(schema: TaskFullSchema) -> Self {
+        Self(schema.into())
     }
 
     pub fn r#type(&self) -> TaskType {

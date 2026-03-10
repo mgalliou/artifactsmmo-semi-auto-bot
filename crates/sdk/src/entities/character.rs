@@ -33,8 +33,8 @@ pub trait Character: Level {
 pub struct RawCharacter(Arc<CharacterSchema>);
 
 impl RawCharacter {
-    pub fn new(schema: CharacterSchema) -> Self {
-        Self(Arc::new(schema))
+    pub(crate) fn new(schema: CharacterSchema) -> Self {
+        Self(schema.into())
     }
 }
 

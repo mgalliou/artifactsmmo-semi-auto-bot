@@ -44,14 +44,14 @@ impl MonstersClient {
         self.all()
             .into_iter()
             .filter(|m| m.provides_xp_at(level))
-            .min_by_key(|m| m.level())
+            .min_by_key(Level::level)
     }
 
     pub fn highest_providing_exp(&self, level: u32) -> Option<Monster> {
         self.all()
             .into_iter()
             .filter(|m| m.provides_xp_at(level))
-            .max_by_key(|m| m.level())
+            .max_by_key(Level::level)
     }
 
     pub fn is_event(&self, code: &str) -> bool {

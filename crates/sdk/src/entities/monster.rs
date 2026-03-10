@@ -11,8 +11,8 @@ use std::sync::Arc;
 pub struct Monster(Arc<MonsterSchema>);
 
 impl Monster {
-    pub fn new(schema: MonsterSchema) -> Self {
-        Self(Arc::new(schema))
+    pub(crate) fn new(schema: MonsterSchema) -> Self {
+        Self(schema.into())
     }
 
     pub fn name(&self) -> &str {

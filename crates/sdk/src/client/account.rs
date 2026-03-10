@@ -40,7 +40,7 @@ impl AccountClient {
                         .achievements(&name)
                         .unwrap()
                         .into_iter()
-                        .map(Into::into)
+                        .map(AccountAchievement::new)
                         .collect_vec(),
                 ),
                 name,
@@ -106,7 +106,7 @@ impl AccountClient {
             .achievements(self.name())
             .map_err(|e| ClientError::Api(Box::new(e)))?
             .into_iter()
-            .map(Into::into)
+            .map(AccountAchievement::new)
             .collect_vec();
         Ok(())
     }

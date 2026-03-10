@@ -12,7 +12,7 @@ pub struct Map(Arc<MapSchema>);
 
 impl Map {
     pub(crate) fn new(schema: MapSchema) -> Self {
-        Self(Arc::new(schema))
+        Self(schema.into())
     }
 
     pub fn x(&self) -> i32 {

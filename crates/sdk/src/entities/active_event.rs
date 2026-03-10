@@ -5,13 +5,10 @@ use std::{ops::Deref, sync::Arc};
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ActiveEvent(Arc<ActiveEventSchema>);
 
-impl From<ActiveEventSchema> for ActiveEvent {
-    fn from(value: ActiveEventSchema) -> Self {
-        Self(value.into())
-    }
-}
-
 impl ActiveEvent {
+    pub(crate) fn new(schema: ActiveEventSchema) -> Self {
+        Self(schema.into())
+    }
     pub fn expiration(&self) -> &str {
         &self.0.expiration
     }

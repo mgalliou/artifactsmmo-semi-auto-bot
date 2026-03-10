@@ -7,8 +7,8 @@ use std::{ops::Deref, sync::Arc};
 pub struct Event(Arc<EventSchema>);
 
 impl Event {
-    pub fn new(schema: EventSchema) -> Self {
-        Self(Arc::new(schema))
+    pub(crate) fn new(schema: EventSchema) -> Self {
+        Self(schema.into())
     }
 
     pub fn content(&self) -> &EventContentSchema {

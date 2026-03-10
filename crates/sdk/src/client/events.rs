@@ -26,10 +26,10 @@ pub struct EventsClientInner {
 impl EventsClient {
     pub(crate) fn new(api: Arc<ArtifactApi>) -> Self {
         let events = Self(Arc::new(EventsClientInner {
-            data: Default::default(),
             api,
-            active: RwLock::new(vec![]),
-            last_refresh: RwLock::new(DateTime::<Utc>::MIN_UTC),
+            data: Default::default(),
+            active: Default::default(),
+            last_refresh: Default::default(),
         }));
         *events.0.data.write().unwrap() = events.load();
         events.refresh_active();
@@ -49,7 +49,7 @@ impl EventsClient {
         let mut events = self.0.active.write().unwrap();
         self.update_last_refresh(now);
         if let Ok(new) = self.0.api.events.get_active() {
-            *events = new.into_iter().map(Into::into).collect_vec();
+            *events = new.into_iter().map(ActiveEvent::new).collect_vec();
             debug!("events refreshed.");
         }
     }

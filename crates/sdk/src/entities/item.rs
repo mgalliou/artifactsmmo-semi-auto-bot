@@ -15,8 +15,8 @@ use std::{str::FromStr, sync::Arc};
 pub struct Item(Arc<ItemSchema>);
 
 impl Item {
-    pub fn new(schema: ItemSchema) -> Self {
-        Self(Arc::new(schema))
+    pub(crate) fn new(schema: ItemSchema) -> Self {
+        Self(schema.into())
     }
 
     pub fn is_crafted_with(&self, item_code: &str) -> bool {

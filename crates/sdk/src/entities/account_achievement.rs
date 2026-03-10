@@ -8,13 +8,11 @@ use crate::Code;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct AccountAchievement(Arc<AccountAchievementSchema>);
 
-impl From<AccountAchievementSchema> for AccountAchievement {
-    fn from(value: AccountAchievementSchema) -> Self {
-        Self(Arc::new(value))
-    }
-}
-
 impl AccountAchievement {
+    pub(crate) fn new(schema: AccountAchievementSchema) -> Self {
+        Self(schema.into())
+    }
+
     pub fn is_completed(self) -> bool {
         self.completed_at().is_some()
     }

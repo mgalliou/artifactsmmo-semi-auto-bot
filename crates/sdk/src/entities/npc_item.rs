@@ -7,8 +7,8 @@ use std::sync::Arc;
 pub struct NpcItem(Arc<models::NpcItem>);
 
 impl NpcItem {
-    pub fn new(shema: models::NpcItem) -> Self {
-        Self(Arc::new(shema))
+    pub(crate) fn new(shema: models::NpcItem) -> Self {
+        Self(shema.into())
     }
 
     pub fn npc_code(&self) -> &str {

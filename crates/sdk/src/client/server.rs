@@ -19,7 +19,7 @@ impl ServerClient {
         let server = Self(Arc::new(ServerClientInner {
             api,
             status: Default::default(),
-            time_offset: RwLock::new(TimeDelta::default()),
+            time_offset: Default::default(),
         }));
         server.update_offset();
         server
