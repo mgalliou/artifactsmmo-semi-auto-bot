@@ -14,18 +14,21 @@ pub struct ResourcesClient(Arc<ResourcesClientInner>);
 
 #[derive(Default, Debug)]
 pub struct ResourcesClientInner {
-    data: RwLock<HashMap<String, Resource>>,
     api: Arc<ArtifactApi>,
+    data: RwLock<HashMap<String, Resource>>,
     events: EventsClient,
 }
 
 impl ResourcesClient {
     pub(crate) fn new(api: Arc<ArtifactApi>, events: EventsClient) -> Self {
-        let resources = Self(Arc::new(ResourcesClientInner {
-            data: Default::default(),
-            api,
-            events,
-        }));
+        let resources = Self(
+            ResourcesClientInner {
+                api,
+                data: Default::default(),
+                events,
+            }
+            .into(),
+        );
         *resources.0.data.write().unwrap() = resources.load();
         resources
     }

@@ -30,11 +30,11 @@ use std::{cmp::Ordering, sync::Arc, thread::sleep, time::Duration};
 /// by updating character and bank data, and retrying requests in case of errors.
 #[derive(Default, Debug)]
 pub struct CharacterRequestHandler {
-    name: String,
     api: Arc<ArtifactApi>,
-    account: AccountClient,
     data: CharacterDataHandle,
-    server: Arc<ServerClient>,
+    name: String,
+    account: AccountClient,
+    server: ServerClient,
 }
 
 impl CharacterRequestHandler {
@@ -42,11 +42,11 @@ impl CharacterRequestHandler {
         api: Arc<ArtifactApi>,
         data: CharacterDataHandle,
         account: AccountClient,
-        server: Arc<ServerClient>,
+        server: ServerClient,
     ) -> Self {
         Self {
-            name: data.read().name().to_string(),
             api,
+            name: data.read().name().to_string(),
             data,
             account,
             server,
@@ -191,7 +191,7 @@ impl CharacterRequestHandler {
 
     pub fn remaining_cooldown(&self) -> Duration {
         if let Some(exp) = self.cooldown_expiration() {
-            let synced = Utc::now() - *self.server.server_offset.read().unwrap();
+            let synced = Utc::now() - self.server.time_offset();
             if synced.cmp(&exp.to_utc()) == Ordering::Less {
                 return (exp.to_utc() - synced).to_std().unwrap();
             }

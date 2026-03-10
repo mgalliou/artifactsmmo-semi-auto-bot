@@ -14,18 +14,21 @@ pub struct MonstersClient(Arc<MonstersClientInner>);
 
 #[derive(Default, Debug)]
 pub struct MonstersClientInner {
-    data: RwLock<HashMap<String, Monster>>,
     api: Arc<ArtifactApi>,
+    data: RwLock<HashMap<String, Monster>>,
     events: EventsClient,
 }
 
 impl MonstersClient {
     pub(crate) fn new(api: Arc<ArtifactApi>, events: EventsClient) -> Self {
-        let monsters = Self(Arc::new(MonstersClientInner {
-            data: Default::default(),
-            api,
-            events,
-        }));
+        let monsters = Self(
+            MonstersClientInner {
+                api,
+                data: Default::default(),
+                events,
+            }
+            .into(),
+        );
         *monsters.0.data.write().unwrap() = monsters.load();
         monsters
     }
@@ -60,7 +63,8 @@ impl Persist<HashMap<String, Monster>> for MonstersClient {
     const PATH: &'static str = ".cache/monsters.json";
 
     fn load_from_api(&self) -> HashMap<String, Monster> {
-        self.0.api
+        self.0
+            .api
             .monsters
             .get_all()
             .unwrap()

@@ -86,7 +86,7 @@ impl CharacterClient {
         npcs: NpcsClient,
         tasks: TasksClient,
         grand_exchange: GrandExchangeClient,
-        server: Arc<ServerClient>,
+        server: ServerClient,
         api: Arc<ArtifactApi>,
     ) -> Self {
         Self(Arc::new(CharacterClientInner {

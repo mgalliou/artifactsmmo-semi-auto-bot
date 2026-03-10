@@ -17,10 +17,10 @@ pub struct NpcsItemsClientInner {
 
 impl NpcsItemsClient {
     pub(crate) fn new(api: Arc<ArtifactApi>) -> Self {
-        let npcs_items = Self(Arc::new(NpcsItemsClientInner {
+        let npcs_items = Self(NpcsItemsClientInner {
             data: Default::default(),
             api,
-        }));
+        }.into());
         *npcs_items.0.data.write().unwrap() = npcs_items.load();
         npcs_items
     }

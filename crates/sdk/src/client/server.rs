@@ -1,32 +1,44 @@
 use api::ArtifactApi;
 use chrono::{DateTime, TimeDelta, Utc};
 use log::{debug, error};
-use openapi::models::StatusResponseSchema;
+use openapi::models::StatusSchema;
 use std::sync::{Arc, RwLock};
 
+#[derive(Default, Debug, Clone)]
+pub struct ServerClient(Arc<ServerClientInner>);
+
 #[derive(Default, Debug)]
-pub struct ServerClient {
+pub struct ServerClientInner {
     api: Arc<ArtifactApi>,
-    pub server_offset: RwLock<TimeDelta>,
+    status: RwLock<StatusSchema>,
+    time_offset: RwLock<TimeDelta>,
 }
 
 impl ServerClient {
     pub(crate) fn new(api: Arc<ArtifactApi>) -> Self {
-        let server = Self {
+        let server = Self(Arc::new(ServerClientInner {
             api,
-            server_offset: RwLock::new(TimeDelta::default()),
-        };
+            status: Default::default(),
+            time_offset: RwLock::new(TimeDelta::default()),
+        }));
         server.update_offset();
         server
     }
 
-    pub fn status(&self) -> Option<StatusResponseSchema> {
-        self.api.server.status()
+    pub fn update_status(&self) {
+        let Some(status) = self.0.api.server.status() else {
+            return;
+        };
+        *self.0.status.write().unwrap() = *status.data
     }
 
-    pub fn time(&self) -> Option<DateTime<Utc>> {
-        let status = self.status()?;
-        let Ok(time) = DateTime::parse_from_rfc3339(&status.data.server_time) else {
+    pub fn time_offset(&self) -> TimeDelta {
+        *self.0.time_offset.read().unwrap()
+    }
+
+    fn server_time(&self) -> Option<DateTime<Utc>> {
+        let time_str = &self.0.status.read().unwrap().server_time;
+        let Ok(time) = DateTime::parse_from_rfc3339(time_str) else {
             return None;
         };
         Some(time.to_utc())
@@ -34,18 +46,19 @@ impl ServerClient {
 
     pub fn update_offset(&self) {
         let now = Utc::now();
-        let Some(server_time) = self.time() else {
+        self.update_status();
+        let Some(server_time) = self.server_time() else {
             error!("failed to update time offset");
             return;
         };
-        *self.server_offset.write().unwrap() = now - server_time;
+        *self.0.time_offset.write().unwrap() = now - server_time;
         debug!("system time: {}", now);
         debug!("server time: {}", server_time);
         debug!(
             "time offset: {}s and {}ms",
-            self.server_offset.read().unwrap().num_seconds(),
-            self.server_offset.read().unwrap().subsec_nanos() / 1000000
+            self.0.time_offset.read().unwrap().num_seconds(),
+            self.0.time_offset.read().unwrap().subsec_nanos() / 1000000
         );
-        debug!("synced time: {}", now - *self.server_offset.read().unwrap());
+        debug!("synced time: {}", now - *self.0.time_offset.read().unwrap());
     }
 }

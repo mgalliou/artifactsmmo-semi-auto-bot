@@ -49,13 +49,14 @@ impl EventsClient {
         let mut events = self.0.active.write().unwrap();
         self.update_last_refresh(now);
         if let Ok(new) = self.0.api.events.get_active() {
-            *events = new.into_iter().map(ActiveEvent::new).collect_vec();
+            *events = new.into_iter().map(Into::into).collect_vec();
             debug!("events refreshed.");
         }
     }
 
     fn update_last_refresh(&self, now: DateTime<Utc>) {
-        self.0.last_refresh
+        self.0
+            .last_refresh
             .write()
             .expect("`last_refresh` to be writable")
             .clone_from(&now);
@@ -63,7 +64,8 @@ impl EventsClient {
 
     pub fn last_refresh(&self) -> DateTime<Utc> {
         *self
-            .0.last_refresh
+            .0
+            .last_refresh
             .read()
             .expect("`last_refresh` to be readable")
     }
@@ -73,7 +75,8 @@ impl Persist<HashMap<String, Event>> for EventsClient {
     const PATH: &'static str = ".cache/events.json";
 
     fn load_from_api(&self) -> HashMap<String, Event> {
-        self.0.api
+        self.0
+            .api
             .events
             .get_all()
             .unwrap()

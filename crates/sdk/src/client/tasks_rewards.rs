@@ -10,16 +10,19 @@ pub struct TasksRewardsClient(Arc<TasksRewardsClientInner>);
 
 #[derive(Default, Debug)]
 pub struct TasksRewardsClientInner {
-    data: RwLock<HashMap<String, TaskReward>>,
     api: Arc<ArtifactApi>,
+    data: RwLock<HashMap<String, TaskReward>>,
 }
 
 impl TasksRewardsClient {
     pub(crate) fn new(api: Arc<ArtifactApi>) -> Self {
-        let rewards = Self(Arc::new(TasksRewardsClientInner {
-            data: Default::default(),
-            api,
-        }));
+        let rewards = Self(
+            TasksRewardsClientInner {
+                api,
+                data: Default::default(),
+            }
+            .into(),
+        );
         *rewards.0.data.write().unwrap() = rewards.load();
         rewards
     }
@@ -36,7 +39,8 @@ impl Persist<HashMap<String, TaskReward>> for TasksRewardsClient {
     const PATH: &'static str = ".cache/tasks_rewards.json";
 
     fn load_from_api(&self) -> HashMap<String, TaskReward> {
-        self.0.api
+        self.0
+            .api
             .tasks
             .get_rewards()
             .unwrap()

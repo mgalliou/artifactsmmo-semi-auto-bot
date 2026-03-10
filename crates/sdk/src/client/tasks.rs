@@ -11,18 +11,21 @@ pub struct TasksClient(Arc<TasksClientInner>);
 
 #[derive(Default, Debug)]
 pub struct TasksClientInner {
-    data: RwLock<HashMap<String, Task>>,
-    pub rewards: TasksRewardsClient,
     api: Arc<ArtifactApi>,
+    data: RwLock<HashMap<String, Task>>,
+    rewards: TasksRewardsClient,
 }
 
 impl TasksClient {
     pub(crate) fn new(api: Arc<ArtifactApi>, reward: TasksRewardsClient) -> Self {
-        let tasks = Self(Arc::new(TasksClientInner {
-            data: Default::default(),
-            rewards: reward,
-            api,
-        }));
+        let tasks = Self(
+            TasksClientInner {
+                api,
+                data: Default::default(),
+                rewards: reward,
+            }
+            .into(),
+        );
         *tasks.0.data.write().unwrap() = tasks.load();
         tasks
     }

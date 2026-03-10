@@ -26,8 +26,8 @@ pub struct ItemsClient(Arc<ItemsClientInner>);
 
 #[derive(Default, Debug)]
 pub struct ItemsClientInner {
-    data: RwLock<HashMap<String, Item>>,
     api: Arc<ArtifactApi>,
+    data: RwLock<HashMap<String, Item>>,
     resources: ResourcesClient,
     monsters: MonstersClient,
     tasks_rewards: TasksRewardsClient,
@@ -42,14 +42,17 @@ impl ItemsClient {
         tasks_rewards: TasksRewardsClient,
         npcs: NpcsClient,
     ) -> Self {
-        let items = Self(Arc::new(ItemsClientInner {
-            data: Default::default(),
-            api,
-            resources,
-            monsters,
-            tasks_rewards,
-            npcs,
-        }));
+        let items = Self(
+            ItemsClientInner {
+                api,
+                data: Default::default(),
+                resources,
+                monsters,
+                tasks_rewards,
+                npcs,
+            }
+            .into(),
+        );
         *items.0.data.write().unwrap() = items.load();
         items
     }

@@ -19,16 +19,19 @@ struct MapsClientInner {
 
 impl MapsClient {
     pub(crate) fn new(api: &ArtifactApi, events: EventsClient) -> Self {
-        Self(Arc::new(MapsClientInner {
-            data: api
-                .maps
-                .get_all()
-                .unwrap()
-                .into_iter()
-                .map(|m| ((m.layer, m.x, m.y), RwLock::new(Map::new(m))))
-                .collect(),
-            events,
-        }))
+        Self(
+            MapsClientInner {
+                data: api
+                    .maps
+                    .get_all()
+                    .unwrap()
+                    .into_iter()
+                    .map(|m| ((m.layer, m.x, m.y), RwLock::new(Map::new(m))))
+                    .collect(),
+                events,
+            }
+            .into(),
+        )
     }
 
     fn events(&self) -> EventsClient {

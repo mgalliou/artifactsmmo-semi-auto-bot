@@ -16,34 +16,37 @@ pub trait Account {
 }
 
 #[derive(Default, Debug, Clone)]
-pub struct AccountClient(Arc<AccountInner>);
+pub struct AccountClient(Arc<AccountClientInner>);
 
 /// Hold and manage data related to a specific account
 #[derive(Default, Debug)]
-struct AccountInner {
+struct AccountClientInner {
+    api: Arc<ArtifactApi>,
     name: String,
     bank: BankClient,
     characters: RwLock<Vec<CharacterClient>>,
     achievements: RwLock<Vec<AccountAchievement>>,
-    api: Arc<ArtifactApi>,
 }
 
 impl AccountClient {
     pub(crate) fn new(name: String, bank: BankClient, api: Arc<ArtifactApi>) -> Self {
-        Self(Arc::new(AccountInner {
-            bank,
-            characters: Default::default(),
-            achievements: RwLock::new(
-                api.account
-                    .achievements(&name)
-                    .unwrap()
-                    .into_iter()
-                    .map(Into::into)
-                    .collect_vec(),
-            ),
-            name,
-            api,
-        }))
+        Self(
+            AccountClientInner {
+                api: api.clone(),
+                bank,
+                characters: Default::default(),
+                achievements: RwLock::new(
+                    api.account
+                        .achievements(&name)
+                        .unwrap()
+                        .into_iter()
+                        .map(Into::into)
+                        .collect_vec(),
+                ),
+                name,
+            }
+            .into(),
+        )
     }
 
     pub fn name(&self) -> &str {
@@ -63,7 +66,7 @@ impl AccountClient {
         maps: MapsClient,
         npcs: NpcsClient,
         tasks: TasksClient,
-        server: Arc<ServerClient>,
+        server: ServerClient,
         grand_exchange: GrandExchangeClient,
     ) -> Result<(), ClientError> {
         *self.0.characters.write().unwrap() = self
@@ -103,7 +106,7 @@ impl AccountClient {
             .achievements(self.name())
             .map_err(|e| ClientError::Api(Box::new(e)))?
             .into_iter()
-            .map(|a| a.into())
+            .map(Into::into)
             .collect_vec();
         Ok(())
     }

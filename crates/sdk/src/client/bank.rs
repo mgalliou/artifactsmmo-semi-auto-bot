@@ -1,4 +1,5 @@
 use crate::{BANK_EXTENSION_SIZE, ItemContainer, LimitedContainer, SlotLimited};
+use api::ArtifactApi;
 use openapi::models::{BankSchema, SimpleItemSchema};
 use std::{
     ops::Deref,
@@ -15,10 +16,10 @@ pub struct BankClientInner {
 }
 
 impl BankClient {
-    pub(crate) fn new(details: BankSchema, content: Vec<SimpleItemSchema>) -> Self {
+    pub(crate) fn new(api: Arc<ArtifactApi>) -> Self {
         Self(Arc::new(BankClientInner {
-            details: RwLock::new(Arc::new(details)),
-            content: RwLock::new(Arc::new(content)),
+            details: RwLock::new(api.bank.get_details().unwrap().into()),
+            content: RwLock::new(api.bank.get_items().unwrap().into()),
         }))
     }
 

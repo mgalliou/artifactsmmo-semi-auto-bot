@@ -8,7 +8,7 @@ use openapi::{
             get_bank_details_my_bank_get, get_bank_items_my_bank_items_get,
         },
     },
-    models::{BankResponseSchema, DataPageSimpleItemSchema, SimpleItemSchema},
+    models::{BankSchema, DataPageSimpleItemSchema, SimpleItemSchema},
 };
 use std::sync::Arc;
 
@@ -31,8 +31,8 @@ impl BankApi {
         .send()
     }
 
-    pub fn get_details(&self) -> Result<BankResponseSchema, Error<GetBankDetailsMyBankGetError>> {
-        get_bank_details_my_bank_get(&self.configuration)
+    pub fn get_details(&self) -> Result<BankSchema, Error<GetBankDetailsMyBankGetError>> {
+        get_bank_details_my_bank_get(&self.configuration).map(|s| *s.data)
     }
 }
 

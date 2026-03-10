@@ -1,5 +1,8 @@
 use api::ArtifactApi;
-use std::{sync::Arc, thread};
+use std::{
+    sync::Arc,
+    thread::{self},
+};
 
 use crate::Persist;
 pub use crate::client::{
@@ -29,7 +32,7 @@ pub mod tasks_rewards;
 #[derive(Default, Debug)]
 pub struct Client {
     pub account: AccountClient,
-    pub server: Arc<ServerClient>,
+    pub server: ServerClient,
     pub events: EventsClient,
     pub resources: ResourcesClient,
     pub monsters: MonstersClient,
@@ -43,39 +46,15 @@ pub struct Client {
 impl Client {
     pub fn new(url: String, account_name: String, token: String) -> Result<Self, ClientError> {
         let api = Arc::new(ArtifactApi::new(url, token));
+        let (bank, events, server, tasks, npcs) = thread::scope(|s| {
+            let bank_handle = s.spawn(|| BankClient::new(api.clone()));
+            let events_handle = s.spawn(|| EventsClient::new(api.clone()));
+            let server_handle = s.spawn(|| ServerClient::new(api.clone()));
+            let tasks_handle =
+                s.spawn(|| TasksClient::new(api.clone(), TasksRewardsClient::new(api.clone())));
 
-        let (bank_res, events, server, tasks, npcs) = thread::scope(|s| {
-            let api_clone = api.clone();
-            let bank_handle = s.spawn(move || {
-                let bank_details = api_clone
-                    .bank
-                    .get_details()
-                    .map_err(|e| ClientError::Api(Box::new(e)))?;
-                let bank_items = api_clone
-                    .bank
-                    .get_items()
-                    .map_err(|e| ClientError::Api(Box::new(e)))?;
-                Ok(BankClient::new(*bank_details.data, bank_items))
-            });
-
-            let api_clone = api.clone();
-            let events_handle = s.spawn(move || EventsClient::new(api_clone));
-
-            let api_clone = api.clone();
-            let server_handle = s.spawn(move || Arc::new(ServerClient::new(api_clone)));
-
-            let api_clone = api.clone();
-            let tasks_handle = s.spawn(move || {
-                TasksClient::new(
-                    api_clone.clone(),
-                    TasksRewardsClient::new(api_clone),
-                )
-            });
-
-            let api_clone = api.clone();
-            let npcs_handle = s.spawn(move || {
-                NpcsClient::new(api_clone.clone(), NpcsItemsClient::new(api_clone))
-            });
+            let npcs_handle =
+                s.spawn(|| NpcsClient::new(api.clone(), NpcsItemsClient::new(api.clone())));
 
             (
                 bank_handle.join().unwrap(),
@@ -85,23 +64,12 @@ impl Client {
                 npcs_handle.join().unwrap(),
             )
         });
-
-        let bank: BankClient = bank_res?;
-
         let (resources, monsters, maps) = thread::scope(|s| {
-            let api_clone = api.clone();
-            let events_clone = events.clone();
-            let resources_handle =
-                s.spawn(move || ResourcesClient::new(api_clone.clone(), events_clone));
+            let resources_handle = s.spawn(|| ResourcesClient::new(api.clone(), events.clone()));
 
-            let api_clone = api.clone();
-            let events_clone = events.clone();
-            let monsters_handle =
-                s.spawn(move || MonstersClient::new(api_clone.clone(), events_clone));
+            let monsters_handle = s.spawn(|| MonstersClient::new(api.clone(), events.clone()));
 
-            let api_clone = api.clone();
-            let events_clone = events.clone();
-            let maps_handle = s.spawn(move || MapsClient::new(&api_clone, events_clone));
+            let maps_handle = s.spawn(|| MapsClient::new(&api.clone(), events.clone()));
 
             (
                 resources_handle.join().unwrap(),
@@ -147,6 +115,14 @@ impl Client {
 
     pub fn refresh_data(&self) {
         self.items.refresh();
-        todo!()
+        self.monsters.refresh();
+        self.events.refresh();
+        // TODO: implement this
+        //self.maps.refresh();
+        self.tasks.refresh();
+        self.tasks.rewards().refresh();
+        self.npcs.refresh();
+        self.npcs.items().refresh();
+        self.server.update_status();
     }
 }
