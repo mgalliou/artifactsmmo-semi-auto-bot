@@ -1,8 +1,5 @@
 use api::ArtifactApi;
-use std::{
-    sync::Arc,
-    thread::{self},
-};
+use std::thread::{self};
 
 use crate::Persist;
 pub use crate::client::{
@@ -45,7 +42,7 @@ pub struct Client {
 
 impl Client {
     pub fn new(url: String, account_name: String, token: String) -> Result<Self, ClientError> {
-        let api = Arc::new(ArtifactApi::new(url, token));
+        let api = ArtifactApi::new(url, token);
         let (bank, events, server, tasks, npcs) = thread::scope(|s| {
             let bank_handle = s.spawn(|| BankClient::new(api.clone()));
             let events_handle = s.spawn(|| EventsClient::new(api.clone()));

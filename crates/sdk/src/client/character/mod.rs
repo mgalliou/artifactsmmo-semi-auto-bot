@@ -87,7 +87,7 @@ impl CharacterClient {
         tasks: TasksClient,
         grand_exchange: GrandExchangeClient,
         server: ServerClient,
-        api: Arc<ArtifactApi>,
+        api: ArtifactApi,
     ) -> Self {
         Self(Arc::new(CharacterClientInner {
             id,

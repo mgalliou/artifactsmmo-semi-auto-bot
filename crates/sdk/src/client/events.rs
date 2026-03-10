@@ -18,13 +18,13 @@ pub struct EventsClient(Arc<EventsClientInner>);
 #[derive(Default, Debug)]
 pub struct EventsClientInner {
     data: RwLock<HashMap<String, Event>>,
-    api: Arc<ArtifactApi>,
+    api: ArtifactApi,
     active: RwLock<Vec<ActiveEvent>>,
     last_refresh: RwLock<DateTime<Utc>>,
 }
 
 impl EventsClient {
-    pub(crate) fn new(api: Arc<ArtifactApi>) -> Self {
+    pub(crate) fn new(api: ArtifactApi) -> Self {
         let events = Self(Arc::new(EventsClientInner {
             api,
             data: Default::default(),

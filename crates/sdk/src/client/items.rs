@@ -26,7 +26,7 @@ pub struct ItemsClient(Arc<ItemsClientInner>);
 
 #[derive(Default, Debug)]
 pub struct ItemsClientInner {
-    api: Arc<ArtifactApi>,
+    api: ArtifactApi,
     data: RwLock<HashMap<String, Item>>,
     resources: ResourcesClient,
     monsters: MonstersClient,
@@ -36,7 +36,7 @@ pub struct ItemsClientInner {
 
 impl ItemsClient {
     pub(crate) fn new(
-        api: Arc<ArtifactApi>,
+        api: ArtifactApi,
         resources: ResourcesClient,
         monsters: MonstersClient,
         tasks_rewards: TasksRewardsClient,

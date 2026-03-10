@@ -1,15 +1,14 @@
 use api::ArtifactApi;
 use itertools::Itertools;
 use openapi::models::{GeOrderHistorySchema, GeOrderSchema};
-use std::sync::Arc;
 
 #[derive(Default, Debug, Clone)]
 pub struct GrandExchangeClient {
-    api: Arc<ArtifactApi>,
+    api: ArtifactApi,
 }
 
 impl GrandExchangeClient {
-    pub(crate) const fn new(api: Arc<ArtifactApi>) -> Self {
+    pub(crate) const fn new(api: ArtifactApi) -> Self {
         Self { api }
     }
 

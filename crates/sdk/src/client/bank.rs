@@ -16,7 +16,7 @@ pub struct BankClientInner {
 }
 
 impl BankClient {
-    pub(crate) fn new(api: Arc<ArtifactApi>) -> Self {
+    pub(crate) fn new(api: ArtifactApi) -> Self {
         Self(Arc::new(BankClientInner {
             details: RwLock::new(api.bank.get_details().unwrap().into()),
             content: RwLock::new(api.bank.get_items().unwrap().into()),

@@ -9,13 +9,13 @@ pub struct ServerClient(Arc<ServerClientInner>);
 
 #[derive(Default, Debug)]
 pub struct ServerClientInner {
-    api: Arc<ArtifactApi>,
+    api: ArtifactApi,
     status: RwLock<StatusSchema>,
     time_offset: RwLock<TimeDelta>,
 }
 
 impl ServerClient {
-    pub(crate) fn new(api: Arc<ArtifactApi>) -> Self {
+    pub(crate) fn new(api: ArtifactApi) -> Self {
         let server = Self(Arc::new(ServerClientInner {
             api,
             status: Default::default(),

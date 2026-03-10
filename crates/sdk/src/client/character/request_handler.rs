@@ -23,14 +23,14 @@ use openapi::models::{
     SkillDataSchema, SkillInfoSchema, SkillResponseSchema, TaskResponseSchema, TaskSchema,
     TaskTradeResponseSchema, TaskTradeSchema,
 };
-use std::{cmp::Ordering, sync::Arc, thread::sleep, time::Duration};
+use std::{cmp::Ordering, thread::sleep, time::Duration};
 
 /// First layer of abstraction around the character API.
 /// It is responsible for handling the character action requests responce and errors
 /// by updating character and bank data, and retrying requests in case of errors.
 #[derive(Default, Debug)]
 pub struct CharacterRequestHandler {
-    api: Arc<ArtifactApi>,
+    api: ArtifactApi,
     data: CharacterDataHandle,
     name: String,
     account: AccountClient,
@@ -39,7 +39,7 @@ pub struct CharacterRequestHandler {
 
 impl CharacterRequestHandler {
     pub fn new(
-        api: Arc<ArtifactApi>,
+        api: ArtifactApi,
         data: CharacterDataHandle,
         account: AccountClient,
         server: ServerClient,

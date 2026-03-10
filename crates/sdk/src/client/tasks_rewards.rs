@@ -10,12 +10,12 @@ pub struct TasksRewardsClient(Arc<TasksRewardsClientInner>);
 
 #[derive(Default, Debug)]
 pub struct TasksRewardsClientInner {
-    api: Arc<ArtifactApi>,
+    api: ArtifactApi,
     data: RwLock<HashMap<String, TaskReward>>,
 }
 
 impl TasksRewardsClient {
-    pub(crate) fn new(api: Arc<ArtifactApi>) -> Self {
+    pub(crate) fn new(api: ArtifactApi) -> Self {
         let rewards = Self(
             TasksRewardsClientInner {
                 api,

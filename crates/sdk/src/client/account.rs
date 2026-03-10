@@ -21,7 +21,7 @@ pub struct AccountClient(Arc<AccountClientInner>);
 /// Hold and manage data related to a specific account
 #[derive(Default, Debug)]
 struct AccountClientInner {
-    api: Arc<ArtifactApi>,
+    api: ArtifactApi,
     name: String,
     bank: BankClient,
     characters: RwLock<Vec<CharacterClient>>,
@@ -29,7 +29,7 @@ struct AccountClientInner {
 }
 
 impl AccountClient {
-    pub(crate) fn new(name: String, bank: BankClient, api: Arc<ArtifactApi>) -> Self {
+    pub(crate) fn new(name: String, bank: BankClient, api: ArtifactApi) -> Self {
         Self(
             AccountClientInner {
                 api: api.clone(),

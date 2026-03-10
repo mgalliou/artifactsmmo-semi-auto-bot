@@ -1,5 +1,5 @@
 use openapi::apis::{Error, configuration::Configuration};
-use std::sync::Arc;
+use std::{ops::Deref, sync::Arc};
 
 pub use account::AccountApi;
 pub use bank::BankApi;
@@ -29,8 +29,11 @@ pub mod resources;
 pub mod server;
 pub mod tasks;
 
+#[derive(Default, Debug, Clone)]
+pub struct ArtifactApi(Arc<ArtifactApiInner>);
+
 #[derive(Default, Debug)]
-pub struct ArtifactApi {
+pub struct ArtifactApiInner {
     pub account: AccountApi,
     pub bank: BankApi,
     pub character: CharactersApi,
@@ -46,6 +49,14 @@ pub struct ArtifactApi {
     pub tasks: TasksApi,
 }
 
+impl Deref for ArtifactApi {
+    type Target = ArtifactApiInner;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl ArtifactApi {
     pub fn new(base_path: String, token: String) -> Self {
         let conf = Arc::new({
@@ -58,21 +69,24 @@ impl ArtifactApi {
             c.bearer_access_token = Some(token);
             c
         });
-        Self {
-            account: AccountApi::new(auth_conf.clone()),
-            bank: BankApi::new(auth_conf.clone()),
-            character: CharactersApi::new(conf.clone()),
-            events: EventsApi::new(conf.clone()),
-            grand_exchange: GrandExchangeApi::new(conf.clone()),
-            items: ItemsApi::new(conf.clone()),
-            maps: MapsApi::new(conf.clone()),
-            monsters: MonstersApi::new(conf.clone()),
-            my_character: MyCharacterApi::new(auth_conf),
-            npcs: NpcsApi::new(conf.clone()),
-            resources: ResourcesApi::new(conf.clone()),
-            server: ServerApi::new(conf.clone()),
-            tasks: TasksApi::new(conf),
-        }
+        Self(
+            ArtifactApiInner {
+                account: AccountApi::new(auth_conf.clone()),
+                bank: BankApi::new(auth_conf.clone()),
+                character: CharactersApi::new(conf.clone()),
+                events: EventsApi::new(conf.clone()),
+                grand_exchange: GrandExchangeApi::new(conf.clone()),
+                items: ItemsApi::new(conf.clone()),
+                maps: MapsApi::new(conf.clone()),
+                monsters: MonstersApi::new(conf.clone()),
+                my_character: MyCharacterApi::new(auth_conf),
+                npcs: NpcsApi::new(conf.clone()),
+                resources: ResourcesApi::new(conf.clone()),
+                server: ServerApi::new(conf.clone()),
+                tasks: TasksApi::new(conf),
+            }
+            .into(),
+        )
     }
 }
 

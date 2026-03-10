@@ -14,13 +14,13 @@ pub struct MonstersClient(Arc<MonstersClientInner>);
 
 #[derive(Default, Debug)]
 pub struct MonstersClientInner {
-    api: Arc<ArtifactApi>,
+    api: ArtifactApi,
     data: RwLock<HashMap<String, Monster>>,
     events: EventsClient,
 }
 
 impl MonstersClient {
-    pub(crate) fn new(api: Arc<ArtifactApi>, events: EventsClient) -> Self {
+    pub(crate) fn new(api: ArtifactApi, events: EventsClient) -> Self {
         let monsters = Self(
             MonstersClientInner {
                 api,

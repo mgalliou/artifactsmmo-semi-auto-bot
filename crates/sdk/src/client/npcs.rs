@@ -13,13 +13,13 @@ pub struct NpcsClient(Arc<NpcsClientInner>);
 
 #[derive(Default, Debug)]
 pub struct NpcsClientInner {
-    api: Arc<ArtifactApi>,
+    api: ArtifactApi,
     data: RwLock<HashMap<String, Npc>>,
     items: NpcsItemsClient,
 }
 
 impl NpcsClient {
-    pub(crate) fn new(api: Arc<ArtifactApi>, items: NpcsItemsClient) -> Self {
+    pub(crate) fn new(api: ArtifactApi, items: NpcsItemsClient) -> Self {
         let npcs = Self(
             NpcsClientInner {
                 api,
