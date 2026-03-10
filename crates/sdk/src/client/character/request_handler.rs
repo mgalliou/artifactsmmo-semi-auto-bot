@@ -96,7 +96,7 @@ impl CharacterRequestHandler {
                     .is_some()
                 {
                     self.account.bank().expand();
-                };
+                }
                 if let Some(res) = res.downcast_ref::<GiveItemResponseSchema>()
                     && let Some(char) = self
                         .account
@@ -163,7 +163,7 @@ impl CharacterRequestHandler {
             }
             RequestError::Serde(_) | RequestError::Io(_) | RequestError::DowncastError => {
                 warn!("{}: refreshing data", self.name());
-                self.refresh_data()
+                self.refresh_data();
             }
         }
         Err(error)
@@ -173,7 +173,7 @@ impl CharacterRequestHandler {
         if let Some(expiration) = self.cooldown_expiration() {
             let late = Utc::now() - expiration;
             if late.num_seconds() > 1 {
-                warn!("{}: is late by {}s", self.name(), late.num_seconds())
+                warn!("{}: is late by {}s", self.name(), late.num_seconds());
             }
         }
         let s = self.remaining_cooldown();
@@ -513,7 +513,7 @@ impl HandleCharacterData for CharacterRequestHandler {
         let Ok(res) = self.api.character.get(self.data.read().name()) else {
             return;
         };
-        self.data.update(RawCharacter::new(*res.data))
+        self.data.update(RawCharacter::new(*res.data));
     }
 
     fn update_data(&self, schema: CharacterSchema) {

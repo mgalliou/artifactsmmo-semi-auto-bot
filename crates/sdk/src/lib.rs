@@ -6,7 +6,7 @@ use openapi::models::{
     RewardsSchema, SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TransitionSchema,
 };
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, path::Path, sync::RwLockReadGuard};
+use std::{collections::HashMap, fmt, path::Path, sync::RwLockReadGuard};
 
 pub use openapi::models;
 pub use sdk_derive::CollectionClient;
@@ -32,7 +32,7 @@ pub(crate) trait Persist<D: for<'a> Deserialize<'a> + Serialize> {
         self.load_from_file::<D>().unwrap_or_else(|_| {
             let data = self.load_from_api();
             if let Err(e) = Self::persist(&data) {
-                error!("failed to persist data: {}", e);
+                error!("failed to persist data: {e}");
             }
             data
         })
@@ -132,7 +132,7 @@ impl HasDrops for CharacterFightSchema {
                 c.drops
                     .iter()
                     .find(|i| i.code == item_code)
-                    .map_or(0, |i| i.quantity())
+                    .map_or(0, Quantity::quantity)
             })
             .sum()
     }
@@ -144,7 +144,7 @@ impl HasDrops for SkillDataSchema {
             .items
             .iter()
             .find(|i| i.code == item_code)
-            .map_or(0, |i| i.quantity())
+            .map_or(0, Quantity::quantity)
     }
 }
 
@@ -153,7 +153,7 @@ impl HasDrops for SkillInfoSchema {
         self.items
             .iter()
             .find(|i| i.code == item_code)
-            .map_or(0, |i| i.quantity())
+            .map_or(0, Quantity::quantity)
     }
 }
 
@@ -178,7 +178,7 @@ impl HasDrops for Vec<DropSchema> {
     fn amount_of(&self, item_code: &str) -> u32 {
         self.iter()
             .find(|i| i.code == item_code)
-            .map_or(0, |i| i.quantity())
+            .map_or(0, Quantity::quantity)
     }
 }
 
@@ -186,7 +186,7 @@ pub trait DropsItems {
     fn average_drop_quantity(&self) -> u32 {
         self.drops()
             .iter()
-            .map(|d| d.effective_rate())
+            .map(DropRateSchemaExt::effective_rate)
             .sum::<f32>()
             .ceil() as u32
     }
@@ -195,18 +195,22 @@ pub trait DropsItems {
         self.drops()
             .iter()
             .find(|d| d.code == item_code)
-            .map_or(0.0, |d| d.rate())
+            .map_or(0.0, DropRateSchemaExt::rate)
     }
 
     fn effective_drop_rate_of(&self, item_code: &str) -> f32 {
         self.drops()
             .iter()
             .find(|d| d.code == item_code)
-            .map_or(0.0, |d| d.effective_rate())
+            .map_or(0.0, DropRateSchemaExt::effective_rate)
     }
 
     fn average_drop_slots(&self) -> u32 {
-        self.drops().iter().map(|d| d.rate()).sum::<f32>().ceil() as u32
+        self.drops()
+            .iter()
+            .map(DropRateSchemaExt::rate)
+            .sum::<f32>()
+            .ceil() as u32
     }
 
     fn min_drop_quantity(&self) -> u32 {
@@ -272,30 +276,32 @@ pub const fn check_lvl_diff(char_level: u32, entity_level: u32) -> bool {
 
 pub struct DropSchemas<'a>(pub &'a [DropSchema]);
 
-impl std::fmt::Display for DropSchemas<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut items: String = "".to_string();
+impl fmt::Display for DropSchemas<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut empty = true;
         for item in self.0 {
-            if !items.is_empty() {
-                items.push_str(", ");
+            if !empty {
+                write!(f, ", ")?;
             }
-            items.push_str(&format!("'{}'x{}", item.code, item.quantity));
+            write!(f, "'{}'x{}", item.code, item.quantity)?;
+            empty = false;
         }
-        write!(f, "{}", items)
+        Ok(())
     }
 }
 
 pub struct SimpleItemSchemas<'a>(pub &'a [SimpleItemSchema]);
 
-impl std::fmt::Display for SimpleItemSchemas<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut items: String = "".to_string();
+impl fmt::Display for SimpleItemSchemas<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut empty = true;
         for item in self.0 {
-            if !items.is_empty() {
-                items.push_str(", ");
+            if !empty {
+                write!(f, ", ")?;
             }
-            items.push_str(&format!("'{}'x{}", item.code, item.quantity));
+            write!(f, "'{}'x{}", item.code, item.quantity)?;
+            empty = false;
         }
-        write!(f, "{}", items)
+        Ok(())
     }
 }

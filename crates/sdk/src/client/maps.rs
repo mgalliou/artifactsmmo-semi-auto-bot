@@ -55,7 +55,7 @@ impl MapsClient {
             if DateTime::parse_from_rfc3339(e.expiration()).is_ok_and(|e| e < Utc::now())
                 && let Some(map) = self.0.data.get(&(e.map().layer, e.map().x, e.map().y))
             {
-                *map.write().unwrap() = Map::new(e.previous_map().clone())
+                *map.write().unwrap() = Map::new(e.previous_map().clone());
             }
         });
         self.events().refresh_active();
@@ -63,7 +63,7 @@ impl MapsClient {
             if DateTime::parse_from_rfc3339(e.expiration()).is_ok_and(|e| e > Utc::now())
                 && let Some(map) = self.0.data.get(&(e.map().layer, e.map().x, e.map().y))
             {
-                *map.write().unwrap() = Map::new(e.map().clone())
+                *map.write().unwrap() = Map::new(e.map().clone());
             }
         });
     }
@@ -105,12 +105,11 @@ impl MapsClient {
             | Skill::Woodcutting
             | Skill::Mining
             | Skill::Alchemy => self.with_content_code(skill.as_ref()).first().cloned(),
-            Skill::Combat => None,
-            Skill::Fishing => None,
+            Skill::Combat | Skill::Fishing => None,
         }
     }
 
-    pub fn closest_with_content_code_from(&self, map: Map, code: &str) -> Option<Map> {
+    pub fn closest_with_content_code_from(&self, map: &Map, code: &str) -> Option<Map> {
         let maps = self.with_content_code(code);
         if maps.is_empty() {
             return None;
@@ -118,7 +117,7 @@ impl MapsClient {
         map.closest_among(&maps)
     }
 
-    fn closest_with_content_from(&self, map: Map, content: &MapContentSchema) -> Option<Map> {
+    fn closest_with_content_from(&self, map: &Map, content: &MapContentSchema) -> Option<Map> {
         let maps = self.with_content(content);
         if maps.is_empty() {
             return None;
@@ -126,7 +125,7 @@ impl MapsClient {
         map.closest_among(&maps)
     }
 
-    pub fn closest_of_type_from(&self, map: Map, r#type: MapContentType) -> Option<Map> {
+    pub fn closest_of_type_from(&self, map: &Map, r#type: MapContentType) -> Option<Map> {
         let maps = self.of_type(r#type);
         if maps.is_empty() {
             return None;
@@ -134,18 +133,19 @@ impl MapsClient {
         map.closest_among(&maps)
     }
 
-    pub fn closest_tasksmaster_from(&self, map: Map, r#type: Option<TaskType>) -> Option<Map> {
-        if let Some(r#type) = r#type {
-            self.closest_with_content_from(
-                map,
-                &MapContentSchema {
-                    r#type: MapContentType::TasksMaster,
-                    code: r#type.to_string(),
-                },
-            )
-        } else {
-            self.closest_of_type_from(map, MapContentType::TasksMaster)
-        }
+    pub fn closest_tasksmaster_from(&self, map: &Map, r#type: Option<TaskType>) -> Option<Map> {
+        r#type.map_or_else(
+            || self.closest_of_type_from(map, MapContentType::TasksMaster),
+            |r#type| {
+                self.closest_with_content_from(
+                    map,
+                    &MapContentSchema {
+                        r#type: MapContentType::TasksMaster,
+                        code: r#type.to_string(),
+                    },
+                )
+            },
+        )
     }
 }
 

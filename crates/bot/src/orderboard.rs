@@ -4,13 +4,10 @@ use itertools::Itertools;
 use log::{debug, error, info};
 use sdk::{CollectionClient, ItemsClient, models::SimpleItemSchema, skill::Skill};
 use std::{
-    cmp::min,
-    fmt::{self, Display, Formatter},
-    mem::discriminant,
-    sync::{
+    borrow::ToOwned, cmp::min, fmt::{self, Display, Formatter}, mem::discriminant, sync::{
         Arc, RwLock,
         atomic::{AtomicU32, Ordering::SeqCst},
-    },
+    }
 };
 use strum::IntoEnumIterator;
 use strum_macros::{EnumIs, EnumIter};
@@ -84,18 +81,15 @@ impl OrderBoard {
         purpose: &Purpose,
     ) -> Result<(), OrderError> {
         let mut ordered: bool = false;
-        for m in items.iter() {
+        for m in items {
             if self
                 .add(&m.code, m.quantity, owner, purpose.clone())
                 .is_ok()
             {
-                ordered = true
+                ordered = true;
             }
         }
-        match ordered {
-            true => Ok(()),
-            false => Err(OrderError::AlreadyExists),
-        }
+        if ordered { Ok(()) } else { Err(OrderError::AlreadyExists) }
     }
 
     pub fn add(
@@ -141,9 +135,9 @@ impl OrderBoard {
     }
 
     pub fn register_deposited_items(&self, items: &[SimpleItemSchema]) {
-        items.iter().for_each(|item| {
+        for item in items { {
             let mut remaining = item.quantity;
-            for order in self.orders_by_priority().iter() {
+            for order in &self.orders_by_priority() {
                 if remaining < 1 {
                     break;
                 }
@@ -158,14 +152,14 @@ impl OrderBoard {
                         .bank
                         .inc_reservation(&order.item, quantity, owner)
                 {
-                    error!("orderboard: failed reserving deposited item: {e}")
+                    error!("orderboard: failed reserving deposited item: {e}");
                 }
                 if order.turned_in() {
                     self.remove(order);
                 }
                 remaining = remaining.saturating_sub(quantity);
             }
-        });
+        } }
     }
 
     pub fn clear(&self) {
@@ -177,7 +171,7 @@ impl OrderBoard {
             .write()
             .unwrap()
             .retain(|r| !r.is_similar(order));
-        info!("orderboard: order removed: {}", order);
+        info!("orderboard: order removed: {order}");
     }
 
     pub fn should_be_turned_in(&self, order: &Order) -> bool {
@@ -217,7 +211,7 @@ impl Order {
             return Err(OrderError::InvalidQuantity);
         }
         Ok(Self {
-            owner: owner.map(|o| o.to_owned()),
+            owner: owner.map(ToOwned::to_owned),
             item: item.to_owned(),
             quantity: AtomicU32::new(quantity),
             purpose,

@@ -11,12 +11,12 @@ use rustyline::{DefaultEditor, error::ReadlineError};
 use sdk::{
     CollectionClient, ItemContainer, Level,
     entities::{Character, EventSchemaExt},
-    simulator::{Participant, Simulator},
+    simulator::{FightParams, Participant, Simulator},
     skill::Skill,
 };
 use std::{process::exit, sync::Arc};
 
-pub fn run(bot: Arc<Bot>) -> Result<()> {
+pub fn run(bot: &Arc<Bot>) -> Result<()> {
     let mut rl = DefaultEditor::new()?;
     let mut chars: Option<Arc<CharacterController>> = None;
     loop {
@@ -24,20 +24,18 @@ pub fn run(bot: Arc<Bot>) -> Result<()> {
             format!(
                 "{} >> ",
                 chars
-                    .as_ref()
-                    .map(|c| c.name().to_string())
-                    .unwrap_or_else(|| "none".to_string())
+                    .as_ref().map_or_else(|| "none".to_string(), |c| c.name().to_string())
             )
             .as_str(),
         );
         match readline {
-            Ok(line) => match respond(&line, bot.clone(), &mut chars) {
-                Ok(_) => {
+            Ok(line) => match respond(&line, bot, &mut chars) {
+                Ok(()) => {
                     if let Err(e) = rl.add_history_entry(line.as_str()) {
-                        eprintln!("failed to add history entry: {}", e);
+                        eprintln!("failed to add history entry: {e}");
                     }
                 }
-                Err(e) => eprintln!("{}", e),
+                Err(e) => eprintln!("{e}"),
             },
             Err(ReadlineError::Interrupted) => {
                 println!("Quit");
@@ -47,15 +45,16 @@ pub fn run(bot: Arc<Bot>) -> Result<()> {
                 exit(0);
             }
             Err(err) => {
-                println!("Error: {:#?}", err);
+                println!("Error: {err:#?}");
             }
         }
     }
 }
 
+#[allow(clippy::too_many_lines)]
 fn respond(
     line: &str,
-    bot: Arc<Bot>,
+    bot: &Arc<Bot>,
     character: &mut Option<Arc<CharacterController>>,
 ) -> Result<()> {
     match Cli::try_parse_from(line.split_whitespace())?.command {
@@ -76,7 +75,7 @@ fn respond(
                         "{}, in inventory: {}",
                         o,
                         bot.account.available_in_inventories(&o.item)
-                    )
+                    );
                 });
             }
             OrderboardAction::Clear => bot.order_board.clear(),
@@ -87,7 +86,7 @@ fn respond(
                 bot.bank
                     .reservations()
                     .iter()
-                    .for_each(|r| println!("{}", r));
+                    .for_each(|r| println!("{r}"));
             }
             BankAction::List => {
                 bot.bank
@@ -108,13 +107,13 @@ fn respond(
                     };
                     char.best_source_of(&item)
                         .iter()
-                        .for_each(|s| println!("{}", s))
+                        .for_each(|s| println!("{s}"));
                 } else {
                     bot.client
                         .items
                         .sources_of(&item)
                         .iter()
-                        .for_each(|s| println!("{}", s))
+                        .for_each(|s| println!("{s}"));
                 }
             }
             ItemsAction::BestCraft { skill } => {
@@ -133,11 +132,11 @@ fn respond(
                 let Some(char) = character else {
                     bail!("no character selected");
                 };
-                println!("best {} crafts:", skill);
+                println!("best {skill} crafts:");
                 bot.leveling_helper
                     .best_crafts(char.skill_level(skill), skill)
                     .iter()
-                    .for_each(|i| println!("{}", i.name()))
+                    .for_each(|i| println!("{}", i.name()));
             }
         },
         Commands::Events { action } => match action {
@@ -153,16 +152,15 @@ fn respond(
                     .events
                     .active()
                     .iter()
-                    .for_each(|e| println!("{:?}", e));
+                    .for_each(|e| println!("{e:?}"));
             }
         },
         Commands::Char { i } => {
             character.clone_from(&bot.account.get_character(i as usize));
             if let Some(char) = character.clone() {
                 bail!("character '{}' selected", char.name());
-            } else {
-                bail!("character not found");
             }
+            bail!("character not found");
         }
         Commands::Status => todo!(),
         Commands::Idle => {
@@ -218,17 +216,17 @@ fn respond(
                 available_only,
                 craftable,
                 from_task,
-                from_monster,
                 from_npc,
+                from_monster,
                 utilities,
             };
             let gear = bot
                 .gear_finder
                 .best_for(GearPurpose::Combat(&monster), char, filter);
             if let Some(gear) = gear {
-                println!("{gear}")
+                println!("{gear}");
             } else {
-                println!("no winning gear found")
+                println!("no winning gear found");
             }
         }
         Commands::Simulate {
@@ -251,24 +249,24 @@ fn respond(
                 available_only,
                 craftable,
                 from_task,
-                from_monster,
                 from_npc,
+                from_monster,
                 utilities,
             };
             let gear = bot
                 .gear_finder
                 .best_for(GearPurpose::Combat(&monster), char, filter);
             if let Some(gear) = gear {
-                println!("{}", gear);
+                println!("{gear}");
                 let fight = Simulator::fight(
                     Participant::new(char.name().to_string(), char.level(), gear, 100, 100, 0),
                     None,
                     monster,
-                    Default::default(),
+                    &FightParams::default(),
                 );
-                println!("{:?}", fight)
+                println!("{fight:?}");
             } else {
-                println!("no winning gear found")
+                println!("no winning gear found");
             }
         }
         Commands::Deposit { item, quantity } => {
@@ -311,7 +309,7 @@ fn respond(
                         char.skill_max_xp(*s),
                         (f64::from(char.skill_xp(*s)) / f64::from(char.skill_max_xp(*s)) * 100.0)
                             .round() as u32
-                    )
+                    );
                 });
             }
         },

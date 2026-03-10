@@ -46,7 +46,7 @@ impl Item {
 
     pub fn recycled_quantity(&self) -> u32 {
         let q = self.mats_quantity();
-        q / 5 + if q.is_multiple_of(5) { 0 } else { 1 }
+        q / 5 + u32::from(!q.is_multiple_of(5))
     }
 
     pub fn skill_to_craft(&self) -> Option<Skill> {

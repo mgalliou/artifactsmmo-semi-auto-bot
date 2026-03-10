@@ -45,7 +45,7 @@ impl ItemsClient {
         let items = Self(
             ItemsClientInner {
                 api,
-                data: Default::default(),
+                data: RwLock::default(),
                 resources,
                 monsters,
                 tasks_rewards,
@@ -59,7 +59,7 @@ impl ItemsClient {
 
     /// Takes an item `code` and return the mats required to craft it.
     pub fn mats_of(&self, code: &str) -> Vec<SimpleItemSchema> {
-        self.get(code).iter().flat_map(|i| i.mats()).collect_vec()
+        self.get(code).iter().flat_map(Item::mats).collect_vec()
     }
 
     pub fn mats_for(&self, code: &str, quantity: u32) -> Vec<SimpleItemSchema> {
@@ -151,14 +151,14 @@ impl ItemsClient {
         if len < 1 {
             return 0;
         }
-        mob_mats.iter().map(|i| i.level()).sum::<u32>() / len
+        mob_mats.iter().map(Level::level).sum::<u32>() / len
     }
 
     pub fn mats_mob_max_lvl(&self, code: &str) -> u32 {
         self.mats_of(code)
             .iter()
             .filter_map(|i| self.get(&i.code).filter(|i| i.subtype_is(SubType::Mob)))
-            .max_by_key(|i| i.level())
+            .max_by_key(Level::level)
             .map_or(0, |i| i.level())
     }
 
@@ -170,12 +170,7 @@ impl ItemsClient {
 
     pub fn recycled_quantity_for(&self, code: &str) -> u32 {
         let mats_quantity_for = self.mats_quantity_for(code);
-        mats_quantity_for / 5
-            + if mats_quantity_for.is_multiple_of(5) {
-                0
-            } else {
-                1
-            }
+        mats_quantity_for / 5 + u32::from(!mats_quantity_for.is_multiple_of(5))
     }
 
     pub fn restoring_utilities(&self, level: u32) -> Vec<Item> {
@@ -246,9 +241,7 @@ impl ItemsClient {
                 ItemSource::Resource(resource) => self.0.resources.is_event(resource.code()),
                 ItemSource::Monster(monster) => self.0.monsters.is_event(monster.code()),
                 ItemSource::Npc(npc) => npc.is_merchant(),
-                ItemSource::Craft => false,
-                ItemSource::TaskReward => false,
-                ItemSource::Task => false,
+                ItemSource::Craft | ItemSource::TaskReward | ItemSource::Task => false,
             })
         })
     }
@@ -322,14 +315,10 @@ impl From<Slot> for Type {
             Slot::BodyArmor => Self::BodyArmor,
             Slot::LegArmor => Self::LegArmor,
             Slot::Boots => Self::Boots,
-            Slot::Ring1 => Self::Ring,
-            Slot::Ring2 => Self::Ring,
+            Slot::Ring1 | Slot::Ring2 => Self::Ring,
             Slot::Amulet => Self::Amulet,
-            Slot::Artifact1 => Self::Artifact,
-            Slot::Artifact2 => Self::Artifact,
-            Slot::Artifact3 => Self::Artifact,
-            Slot::Utility1 => Self::Utility,
-            Slot::Utility2 => Self::Utility,
+            Slot::Artifact1 | Slot::Artifact2 | Slot::Artifact3 => Self::Artifact,
+            Slot::Utility1 | Slot::Utility2 => Self::Utility,
             Slot::Bag => Self::Bag,
             Slot::Rune => Self::Rune,
         }

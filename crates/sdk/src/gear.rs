@@ -153,7 +153,7 @@ impl From<Gear> for Vec<SimpleItemSchema> {
             items.push(SimpleItemSchema {
                 code: ring1.code().to_owned(),
                 quantity,
-            })
+            });
         }
         if quantity == 1
             && let Some(ring2) = value.ring2
@@ -161,7 +161,7 @@ impl From<Gear> for Vec<SimpleItemSchema> {
             items.push(SimpleItemSchema {
                 code: ring2.code().to_owned(),
                 quantity,
-            })
+            });
         }
         items
     }
@@ -193,10 +193,7 @@ pub enum Slot {
 
 impl Slot {
     pub const fn max_quantity(&self) -> u32 {
-        match self.is_utility() {
-            true => 100,
-            false => 1,
-        }
+        if self.is_utility() { 100 } else { 1 }
     }
 
     pub const fn is_ring(&self) -> bool {

@@ -22,12 +22,12 @@ pub struct BotConfig {
 impl BotConfig {
     pub fn from_file() -> Self {
         Self {
-            inner: Arc::new(RwLock::new(Arc::new(BotConfigInner::from_file()))),
+            inner: RwLock::new(BotConfigInner::from_file().into()).into(),
         }
     }
 
     pub fn reload(&self) {
-        *self.inner.write().unwrap() = Arc::new(BotConfigInner::from_file())
+        *self.inner.write().unwrap() = BotConfigInner::from_file().into();
     }
 
     pub fn order_gear(&self) -> bool {
@@ -134,13 +134,13 @@ impl Display for Goal {
                 write!(f, "progress orders")
             }
             Self::ReachSkillLevel { skill, level } => {
-                write!(f, "reach_skill_level: {},{}", skill, level)
+                write!(f, "reach_skill_level: {skill},{level}")
             }
             Self::FollowMaxSkillLevel {
                 skill,
                 skill_to_follow,
             } => {
-                write!(f, "follow_max_skill_level: {},{}", skill, skill_to_follow)
+                write!(f, "follow_max_skill_level: {skill},{skill_to_follow}")
             }
             Self::Events => write!(f, "handle events"),
         }

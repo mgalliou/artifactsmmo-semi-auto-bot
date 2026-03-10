@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use openapi::models::{ActiveEventSchema, EventContentSchema, EventSchema};
 use serde::{Deserialize, Serialize};
-use std::{ops::Deref, sync::Arc};
+use std::sync::Arc;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Event(Arc<EventSchema>);
@@ -12,7 +12,7 @@ impl Event {
     }
 
     pub fn content(&self) -> &EventContentSchema {
-        self.0.content.deref()
+        &self.0.content
     }
 }
 

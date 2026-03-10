@@ -5,7 +5,7 @@ use openapi::models::{
     TaskType, TransitionSchema,
 };
 use serde::{Deserialize, Serialize};
-use std::{ops::Deref, sync::Arc};
+use std::{convert::AsRef, sync::Arc};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Map(Arc<MapSchema>);
@@ -24,7 +24,7 @@ impl Map {
     }
 
     pub fn content(&self) -> Option<&MapContentSchema> {
-        self.0.interactions.content.as_ref().map(|c| c.as_ref())
+        self.0.interactions.content.as_ref().map(AsRef::as_ref)
     }
 
     pub fn content_is(&self, content: &MapContentSchema) -> bool {
@@ -40,11 +40,11 @@ impl Map {
     }
 
     pub fn access(&self) -> &AccessSchema {
-        self.0.access.deref()
+        &self.0.access
     }
 
     pub fn interactions(&self) -> &InteractionSchema {
-        self.0.interactions.deref()
+        &self.0.interactions
     }
 
     pub fn transition(&self) -> Option<&TransitionSchema> {

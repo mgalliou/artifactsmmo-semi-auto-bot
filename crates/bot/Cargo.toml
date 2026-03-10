@@ -24,3 +24,6 @@ thiserror.workspace = true
 [lints.clippy]
 pedantic = { level = "warn" }
 nursery = { level = "warn" }
+missing_panics_doc = { level = "allow" }
+missing_errors_doc = { level = "allow" }
+must_use_candidate = { level = "allow" }

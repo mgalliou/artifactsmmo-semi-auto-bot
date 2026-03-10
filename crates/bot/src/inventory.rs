@@ -81,8 +81,8 @@ impl InventoryController {
         &self,
         items: &[SimpleItemSchema],
     ) -> Result<(), InventoryReservationError> {
-        for item in items.iter() {
-            self.reserv_item(&item.code, item.quantity)?
+        for item in items {
+            self.reserv_item(&item.code, item.quantity)?;
         }
         Ok(())
     }
@@ -95,7 +95,7 @@ impl InventoryController {
         let quantity_to_reserv = quantity.saturating_sub(res.quantity());
         if quantity_to_reserv == 0 {
             return Ok(());
-        };
+        }
         self.inc_reservation(item, quantity_to_reserv)
     }
 
@@ -121,7 +121,7 @@ impl InventoryController {
 
     /// Decrease the reserved quantity of `item`
     pub fn decrease_reservations(&self, items: &[SimpleItemSchema]) {
-        for item in items.iter() {
+        for item in items {
             self.decrease_reservation(&item.code, item.quantity);
         }
     }

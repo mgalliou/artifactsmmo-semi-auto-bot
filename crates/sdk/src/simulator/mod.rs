@@ -40,7 +40,7 @@ impl Simulator {
         initiator: Participant,
         participants: Option<Vec<Participant>>,
         monster: Monster,
-        params: FightParams,
+        params: &FightParams,
     ) -> Fight {
         let char = SimulationCharacter::new(
             initiator.name.clone(),
@@ -67,13 +67,15 @@ impl Simulator {
                     )
                 })
                 .collect_vec();
-            participants.iter().for_each(|p| chars.push(p.clone()));
+            for p in &participants {
+                chars.push(p.clone());
+            }
         }
         let mut monster = SimulationMonster::new(monster, params.averaged);
         let mut fighters: Vec<Box<dyn SimulationEntity>> = vec![Box::new(monster.clone())];
-        chars
-            .iter()
-            .for_each(|c| fighters.push(Box::new(c.clone())));
+        for c in &chars {
+            fighters.push(Box::new(c.clone()));
+        }
         let mut remaining_fighters = fighters.clone();
         let mut turn = 1;
         while turn <= MAX_TURN
@@ -81,7 +83,7 @@ impl Simulator {
             && chars.iter().all(|c| c.current_health() > 0)
         {
             if remaining_fighters.is_empty() {
-                remaining_fighters = fighters.clone();
+                remaining_fighters.clone_from(&fighters);
             }
             let Some(mut fighter) = get_next_fighter(&remaining_fighters) else {
                 break;
@@ -354,6 +356,6 @@ mod tests {
     // }
     #[test]
     fn check_gather_cd() {
-        assert_eq!(gather_cd(1, -10), 27)
+        assert_eq!(gather_cd(1, -10), 27);
     }
 }

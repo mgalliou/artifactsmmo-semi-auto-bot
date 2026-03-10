@@ -30,12 +30,12 @@ impl LevelingHelper {
         bank: Arc<BankController>,
     ) -> Self {
         Self {
+            account,
+            bank,
             items,
             monsters,
             resources,
             maps,
-            account,
-            bank,
         }
     }
 
@@ -51,14 +51,14 @@ impl LevelingHelper {
     /// providing experience when crafted.
     pub fn lowest_crafts_providing_exp(&self, level: u32, skill: Skill) -> Vec<Item> {
         self.crafts_providing_exp(level, skill)
-            .min_set_by_key(|i| i.level())
+            .min_set_by_key(Level::level)
     }
 
     /// Takes a `level` and a `skill` and returns the items of the highest level
     /// providing experience when crafted.
     pub fn highest_crafts_providing_exp(&self, level: u32, skill: Skill) -> Vec<Item> {
         self.crafts_providing_exp(level, skill)
-            .max_set_by_key(|i| i.level())
+            .max_set_by_key(Level::level)
     }
 
     pub fn best_craft(&self, level: u32, skill: Skill, char: &CharacterController) -> Option<Item> {
@@ -90,17 +90,16 @@ impl LevelingHelper {
             .map(|(i, _)| i)
     }
 
-    /// Returns the best items to level the given `skill` at the given `level.
+    /// Returns the best items to level the given `skill` at the given `level`.
     pub fn best_crafts_hardcoded(&self, level: u32, skill: Skill) -> Vec<Item> {
         match skill {
             Skill::Gearcrafting => {
                 if level >= 5 {
                     return self.best_crafts(level, skill);
-                } else {
-                    vec![self.items.get("wooden_shield")]
                 }
+                vec![self.items.get("wooden_shield")]
             }
-            Skill::Weaponcrafting => {
+            Skill::Weaponcrafting | Skill::Mining | Skill::Woodcutting | Skill::Alchemy => {
                 return self.best_crafts(level, skill);
             }
             Skill::Jewelrycrafting => {
@@ -131,11 +130,7 @@ impl LevelingHelper {
                     vec![self.items.get("cooked_gudgeon")]
                 }
             }
-            Skill::Mining | Skill::Woodcutting | Skill::Alchemy => {
-                return self.best_crafts(level, skill);
-            }
-            Skill::Fishing => vec![None],
-            Skill::Combat => vec![None],
+            Skill::Fishing | Skill::Combat => vec![None],
         }
         .into_iter()
         .flatten()
@@ -153,7 +148,7 @@ impl LevelingHelper {
                     || i.is_crafted_with("strange_ore")
                     || i.is_crafted_with("magic_wood"))
             })
-            .max_set_by_key(|i| i.level())
+            .max_set_by_key(Level::level)
     }
 
     pub fn best_resource(&self, level: u32, skill: Skill) -> Option<Resource> {
@@ -164,7 +159,7 @@ impl LevelingHelper {
                     && !self.maps.with_content_code(r.code()).is_empty()
             })
             .into_iter()
-            .max_by_key(|r| r.level())
+            .max_by_key(Level::level)
     }
 
     pub fn best_monster(&self, char: &CharacterController) -> Option<Monster> {
@@ -175,6 +170,6 @@ impl LevelingHelper {
                     && char.can_kill(m).is_ok()
             })
             .into_iter()
-            .max_by_key(|m| m.level())
+            .max_by_key(Level::level)
     }
 }

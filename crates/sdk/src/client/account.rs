@@ -29,12 +29,12 @@ struct AccountClientInner {
 }
 
 impl AccountClient {
-    pub(crate) fn new(name: String, bank: BankClient, api: ArtifactApi) -> Self {
+    pub(crate) fn new(name: String, bank: BankClient, api: &ArtifactApi) -> Self {
         Self(
             AccountClientInner {
                 api: api.clone(),
                 bank,
-                characters: Default::default(),
+                characters: RwLock::default(),
                 achievements: RwLock::new(
                     api.account
                         .achievements(&name)
@@ -60,14 +60,14 @@ impl AccountClient {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn load_characters(
         &self,
-        items: ItemsClient,
-        resources: ResourcesClient,
-        monsters: MonstersClient,
-        maps: MapsClient,
-        npcs: NpcsClient,
-        tasks: TasksClient,
-        server: ServerClient,
-        grand_exchange: GrandExchangeClient,
+        items: &ItemsClient,
+        resources: &ResourcesClient,
+        monsters: &MonstersClient,
+        maps: &MapsClient,
+        npcs: &NpcsClient,
+        tasks: &TasksClient,
+        server: &ServerClient,
+        grand_exchange: &GrandExchangeClient,
     ) -> Result<(), ClientError> {
         *self.0.characters.write().unwrap() = self
             .0

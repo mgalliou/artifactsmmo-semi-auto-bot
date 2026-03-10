@@ -15,6 +15,6 @@ impl CharacterDataHandle {
     }
 
     pub(crate) fn update(&self, data: RawCharacter) {
-        *self.0.write().unwrap() = data
+        *self.0.write().unwrap() = data;
     }
 }

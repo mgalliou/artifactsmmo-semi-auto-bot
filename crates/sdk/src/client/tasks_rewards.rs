@@ -19,7 +19,7 @@ impl TasksRewardsClient {
         let rewards = Self(
             TasksRewardsClientInner {
                 api,
-                data: Default::default(),
+                data: RwLock::default(),
             }
             .into(),
         );
@@ -31,7 +31,7 @@ impl TasksRewardsClient {
         self.all()
             .iter()
             .max_by_key(|i| i.max_quantity())
-            .map_or(0, |i| i.max_quantity())
+            .map_or(0, TaskReward::max_quantity)
     }
 }
 

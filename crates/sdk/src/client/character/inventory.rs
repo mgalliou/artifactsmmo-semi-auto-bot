@@ -76,14 +76,14 @@ impl LimitedContainer for InventoryClient {
     fn has_room_for_multiple(&self, items: &[SimpleItemSchema]) -> bool {
         let mut free_slot = self.free_slots();
         let mut free_space = self.free_space();
-        for item in items.iter() {
+        for item in items {
             if free_slot < 1 || free_space < item.quantity {
                 return false;
             }
             if self.total_of(&item.code) < 1 {
-                free_slot -= 1
+                free_slot -= 1;
             }
-            free_space -= item.quantity
+            free_space -= item.quantity;
         }
         true
     }

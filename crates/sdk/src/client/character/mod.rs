@@ -28,7 +28,7 @@ use crate::{
         resources::ResourcesClient,
         server::ServerClient,
     },
-    entities::{Character, Map, RawCharacter},
+    entities::{AccountAchievement, Character, Map, RawCharacter},
     gear::Slot,
     grand_exchange::GrandExchangeClient,
     simulator::HasEffects,
@@ -178,7 +178,7 @@ impl CharacterClient {
         if !participants.is_empty() && monster.is_boss() {
             return Err(FightError::MonsterIsNotABoss);
         }
-        for name in participants.iter() {
+        for name in participants {
             let Some(char) = self.0.account.get_character_by_name(name) else {
                 return Err(FightError::CharacterNotFound);
             };
@@ -290,7 +290,7 @@ impl CharacterClient {
     pub fn can_delete(&self, item_code: &str, quantity: u32) -> Result<(), DeleteError> {
         if self.0.items.get(item_code).is_none() {
             return Err(DeleteError::ItemNotFound);
-        };
+        }
         if self.inventory().total_of(item_code) < quantity {
             return Err(DeleteError::InsufficientQuantity);
         }
@@ -303,10 +303,10 @@ impl CharacterClient {
     }
 
     pub fn can_deposit_items(&self, items: &[SimpleItemSchema]) -> Result<(), DepositError> {
-        for item in items.iter() {
+        for item in items {
             if self.0.items.get(&item.code).is_none() {
                 return Err(DepositError::ItemNotFound);
-            };
+            }
             if self.inventory().total_of(&item.code) < item.quantity {
                 return Err(DepositError::InsufficientQuantity);
             }
@@ -331,7 +331,7 @@ impl CharacterClient {
             .any(|i| self.0.bank.total_of(&i.code) < i.quantity)
         {
             return Err(WithdrawError::InsufficientQuantity);
-        };
+        }
         if !self.inventory().has_room_for_multiple(items) {
             return Err(WithdrawError::InsufficientInventorySpace);
         }
@@ -401,7 +401,7 @@ impl CharacterClient {
         if let Some(equiped) = self.0.items.get(&self.equiped_in(slot)) {
             if equiped.code() != item_code {
                 return Err(EquipError::SlotNotEmpty);
-            };
+            }
             if slot.max_quantity() <= 1 {
                 return Err(EquipError::ItemAlreadyEquiped);
             } else if self.quantity_in_slot(slot) + quantity > slot.max_quantity() {
@@ -518,7 +518,7 @@ impl CharacterClient {
     ) -> Result<(), TaskTradeError> {
         if self.0.items.get(item_code).is_none() {
             return Err(TaskTradeError::ItemNotFound);
-        };
+        }
         if item_code != self.task() {
             return Err(TaskTradeError::WrongTask);
         }
@@ -610,7 +610,7 @@ impl CharacterClient {
     fn can_npc_buy(&self, item_code: &str, quantity: u32) -> Result<(), BuyNpcError> {
         if self.0.items.get(item_code).is_none() {
             return Err(BuyNpcError::ItemNotFound);
-        };
+        }
         let Some(item) = self.0.npcs.items().get(item_code) else {
             return Err(BuyNpcError::ItemNotBuyable);
         };
@@ -639,7 +639,7 @@ impl CharacterClient {
     fn can_npc_sell(&self, item_code: &str, quantity: u32) -> Result<(), SellNpcError> {
         if self.0.items.get(item_code).is_none() {
             return Err(SellNpcError::ItemNotFound);
-        };
+        }
         if !self.0.items.is_salable(item_code) {
             return Err(SellNpcError::ItemNotSalable);
         }
@@ -663,7 +663,7 @@ impl CharacterClient {
         items: &[SimpleItemSchema],
         character: &str,
     ) -> Result<(), GiveItemError> {
-        for item in items.iter() {
+        for item in items {
             if self.0.items.get(&item.code).is_none() {
                 return Err(GiveItemError::ItemNotFound);
             }
@@ -830,7 +830,7 @@ impl CharacterClient {
                     .0
                     .account
                     .get_achievement(&condition.code)
-                    .is_some_and(|a| a.is_completed()),
+                    .is_some_and(AccountAchievement::is_completed),
                 ConditionOperator::Eq => LevelConditionCode::from_str(&condition.code)
                     .is_ok_and(|code| self.skill_level(Skill::from(code)) == value),
                 ConditionOperator::Ne => LevelConditionCode::from_str(&condition.code)
@@ -868,7 +868,7 @@ impl HandleCharacterData for CharacterClient {
     }
 
     fn refresh_data(&self) {
-        self.0.handler.refresh_data()
+        self.0.handler.refresh_data();
     }
 
     fn update_data(&self, schema: CharacterSchema) {

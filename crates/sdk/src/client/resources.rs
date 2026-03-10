@@ -24,7 +24,7 @@ impl ResourcesClient {
         let resources = Self(
             ResourcesClientInner {
                 api,
-                data: Default::default(),
+                data: RwLock::default(),
                 events,
             }
             .into(),

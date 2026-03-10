@@ -37,7 +37,7 @@ pub(super) trait SimulationEntity: HasEffects + DynClone {
             self.apply_burn(target);
             self.apply_poison(target);
         }
-        for hit in self.hits_against(target, self.averaged()).iter() {
+        for hit in &self.hits_against(target, self.averaged()) {
             target.dec_health(hit.dmg);
             if hit.is_crit {
                 self.inc_health(hit.dmg * self.lifesteal() / 100);
@@ -61,7 +61,7 @@ pub(super) trait SimulationEntity: HasEffects + DynClone {
     }
 
     fn receive_healing(&mut self) {
-        self.inc_health((self.max_hp() as f32 * self.healing() as f32 * 0.01).round() as i32)
+        self.inc_health((self.max_hp() as f32 * self.healing() as f32 * 0.01).round() as i32);
     }
 
     fn consume_restore_utilities(&mut self) {
@@ -111,11 +111,11 @@ pub(super) trait SimulationEntity: HasEffects + DynClone {
     fn inc_health(&mut self, value: i32) {
         let missing = self.max_hp() - self.current_health();
         let value = if value > missing { missing } else { value };
-        self.set_health(self.current_health() + value)
+        self.set_health(self.current_health() + value);
     }
 
     fn dec_health(&mut self, value: i32) {
-        self.set_health(self.current_health() - value)
+        self.set_health(self.current_health() - value);
     }
 
     fn utility1(&self) -> Option<Item> {
@@ -237,7 +237,7 @@ impl SimulationEntity for SimulationCharacter {
     }
 
     fn inc_turn(&mut self) {
-        self.0.borrow_mut().current_turn += 1
+        self.0.borrow_mut().current_turn += 1;
     }
 
     fn max_hp(&self) -> i32 {
@@ -393,7 +393,7 @@ impl SimulationEntity for SimulationMonster {
     }
 
     fn inc_turn(&mut self) {
-        self.0.borrow_mut().current_turn += 1
+        self.0.borrow_mut().current_turn += 1;
     }
 
     fn max_hp(&self) -> i32 {
@@ -413,7 +413,7 @@ impl SimulationEntity for SimulationMonster {
     }
 
     fn set_burning(&mut self, value: i32) {
-        self.0.borrow_mut().burning = value
+        self.0.borrow_mut().burning = value;
     }
 
     fn poisoned(&self) -> i32 {
@@ -421,7 +421,7 @@ impl SimulationEntity for SimulationMonster {
     }
 
     fn set_poisoned(&mut self, value: i32) {
-        self.0.borrow_mut().poisoned = value
+        self.0.borrow_mut().poisoned = value;
     }
 
     fn suffer_corruption(&mut self, r#type: DamageType) {

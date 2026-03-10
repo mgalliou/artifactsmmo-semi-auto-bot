@@ -8,14 +8,14 @@ pub trait ItemContainer {
     fn content(&self) -> Arc<Vec<Self::Slot>>;
 
     fn total_items(&self) -> u32 {
-        self.content().iter().map(|i| i.quantity()).sum()
+        self.content().iter().map(Quantity::quantity).sum()
     }
 
     fn total_of(&self, item_code: &str) -> u32 {
         self.content()
             .iter()
             .find(|i| i.code() == item_code)
-            .map_or(0, |i| i.quantity())
+            .map_or(0, Quantity::quantity)
     }
 
     fn contains_multiple(&self, items: &[SimpleItemSchema]) -> bool {

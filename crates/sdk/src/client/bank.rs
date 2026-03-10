@@ -16,7 +16,7 @@ pub struct BankClientInner {
 }
 
 impl BankClient {
-    pub(crate) fn new(api: ArtifactApi) -> Self {
+    pub(crate) fn new(api: &ArtifactApi) -> Self {
         Self(Arc::new(BankClientInner {
             details: RwLock::new(api.bank.get_details().unwrap().into()),
             content: RwLock::new(api.bank.get_items().unwrap().into()),
@@ -36,11 +36,11 @@ impl BankClient {
     }
 
     pub(crate) fn update_details(&self, details: BankSchema) {
-        *self.0.details.write().unwrap() = Arc::new(details)
+        *self.0.details.write().unwrap() = Arc::new(details);
     }
 
     pub(crate) fn update_content(&self, content: Vec<SimpleItemSchema>) {
-        *self.0.content.write().unwrap() = Arc::new(content)
+        *self.0.content.write().unwrap() = Arc::new(content);
     }
 }
 
@@ -93,12 +93,12 @@ impl LimitedContainer for BankClient {
 
     fn has_room_for_multiple(&self, items: &[SimpleItemSchema]) -> bool {
         let mut free_slot = self.free_slots();
-        for item in items.iter() {
+        for item in items {
             if free_slot < 1 {
                 return false;
             }
             if self.total_of(&item.code) < 1 {
-                free_slot -= 1
+                free_slot -= 1;
             }
         }
         true

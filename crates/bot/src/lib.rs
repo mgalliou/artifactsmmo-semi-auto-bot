@@ -148,7 +148,7 @@ pub struct CommandQueue {
 impl CommandQueue {
     pub fn new() -> Self {
         Self {
-            commands: Default::default(),
+            commands: RwLock::default(),
         }
     }
 

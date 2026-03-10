@@ -190,13 +190,7 @@ impl Character for RawCharacter {
             | Slot::Artifact2
             | Slot::Artifact3
             | Slot::Bag
-            | Slot::Rune => {
-                if self.equiped_in(slot).is_empty() {
-                    0
-                } else {
-                    1
-                }
-            }
+            | Slot::Rune => u32::from(!self.equiped_in(slot).is_empty()),
         }
     }
 

@@ -99,8 +99,8 @@ impl BankController {
         items: &[SimpleItemSchema],
         owner: &str,
     ) -> Result<(), BankReservationError> {
-        for item in items.iter() {
-            self.reserv_item(&item.code, item.quantity, owner)?
+        for item in items {
+            self.reserv_item(&item.code, item.quantity, owner)?;
         }
         Ok(())
     }
@@ -120,7 +120,7 @@ impl BankController {
         let quantity_to_reserv = quantity.saturating_sub(res.quantity());
         if quantity_to_reserv == 0 {
             return Ok(());
-        };
+        }
         self.inc_reservation(item, quantity_to_reserv, owner)
     }
 
@@ -143,7 +143,7 @@ impl BankController {
     }
 
     pub fn dec_reservations(&self, items: &[SimpleItemSchema], owner: &str) {
-        for item in items.iter() {
+        for item in items {
             self.dec_reservation(&item.code, item.quantity, owner);
         }
     }
@@ -155,7 +155,7 @@ impl BankController {
         res.dec_quantity(quantity);
         debug!("bank: decreased '{item}' reservation by '{quantity}' for '{owner}'",);
         if res.quantity() < 1 {
-            self.remove_reservation(&res)
+            self.remove_reservation(&res);
         }
     }
 

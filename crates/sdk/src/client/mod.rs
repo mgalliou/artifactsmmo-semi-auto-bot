@@ -44,7 +44,7 @@ impl Client {
     pub fn new(url: String, account_name: String, token: String) -> Result<Self, ClientError> {
         let api = ArtifactApi::new(url, token);
         let (bank, events, server, tasks, npcs) = thread::scope(|s| {
-            let bank_handle = s.spawn(|| BankClient::new(api.clone()));
+            let bank_handle = s.spawn(|| BankClient::new(&api));
             let events_handle = s.spawn(|| EventsClient::new(api.clone()));
             let server_handle = s.spawn(|| ServerClient::new(api.clone()));
             let tasks_handle =
@@ -83,26 +83,26 @@ impl Client {
             npcs.clone(),
         );
 
-        let account = AccountClient::new(account_name, bank, api.clone());
+        let account = AccountClient::new(account_name, bank, &api);
         let grand_exchange = GrandExchangeClient::new(api);
         account.load_characters(
-            items.clone(),
-            resources.clone(),
-            monsters.clone(),
-            maps.clone(),
-            npcs.clone(),
-            tasks.clone(),
-            server.clone(),
-            grand_exchange.clone(),
+            &items,
+            &resources,
+            &monsters,
+            &maps,
+            &npcs,
+            &tasks,
+            &server,
+            &grand_exchange,
         )?;
 
         Ok(Self {
             account,
-            items,
-            monsters,
-            resources,
             server,
             events,
+            resources,
+            monsters,
+            items,
             tasks,
             maps,
             npcs,

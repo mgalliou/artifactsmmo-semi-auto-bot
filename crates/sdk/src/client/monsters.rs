@@ -24,7 +24,7 @@ impl MonstersClient {
         let monsters = Self(
             MonstersClientInner {
                 api,
-                data: Default::default(),
+                data: RwLock::default(),
                 events,
             }
             .into(),

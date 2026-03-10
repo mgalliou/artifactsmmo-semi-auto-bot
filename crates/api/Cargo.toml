@@ -8,5 +8,8 @@ publish.workspace = true
 openapi.workspace = true
 
 [lints.clippy]
-pedentic = { level = "warn" }
+pedantic = { level = "warn" }
 nursery = { level = "warn" }
+missing_panics_doc = { level = "allow" }
+missing_errors_doc = { level = "allow" }
+must_use_candidate = { level = "allow" }

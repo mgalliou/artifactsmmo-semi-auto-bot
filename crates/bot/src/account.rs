@@ -45,11 +45,11 @@ impl AccountController {
 
     pub fn init_characters(
         &self,
-        client: Arc<Client>,
-        account: Arc<Self>,
-        order_board: Arc<OrderBoard>,
-        gear_finder: Arc<GearFinder>,
-        leveling_helper: Arc<LevelingHelper>,
+        client: &Arc<Client>,
+        account: &Arc<Self>,
+        order_board: &Arc<OrderBoard>,
+        gear_finder: &Arc<GearFinder>,
+        leveling_helper: &Arc<LevelingHelper>,
     ) {
         let Ok(mut chars) = self.characters.write() else {
             return;
@@ -62,14 +62,14 @@ impl AccountController {
                 Arc::new(CharacterController::new(
                     char_client.clone(),
                     self.config.clone(),
-                    &client,
+                    client,
                     account.clone(),
                     order_board.clone(),
                     gear_finder.clone(),
                     leveling_helper.clone(),
                 ))
             })
-            .collect_vec()
+            .collect_vec();
     }
 
     pub fn characters(&self) -> Vec<Arc<CharacterController>> {
@@ -105,11 +105,11 @@ impl AccountController {
                 .sum::<u32>()
     }
 
-    pub fn meets_conditions(&self, item: &Item) -> u32 {
+    pub fn meets_conditions(&self, item: &Item) -> usize {
         self.characters()
             .iter()
             .filter(|c| c.meets_conditions_for(item))
-            .count() as u32
+            .count()
     }
 
     pub fn can_craft(&self, item: &str) -> bool {
@@ -148,11 +148,11 @@ impl AccountController {
                 if let Some(npc_item) = self.npcs.items().get(item.code())
                     && npc_item.npc_code() == npc.code()
                 {
-                    time += self.time_to_get(npc_item.currency())? * npc_item.buy_price()?
+                    time += self.time_to_get(npc_item.currency())? * npc_item.buy_price()?;
                 }
             }
             ItemSource::Craft => {
-                for mat in item.mats().iter() {
+                for mat in &item.mats() {
                     time += self.time_to_get(&mat.code)? * mat.quantity;
                 }
             }

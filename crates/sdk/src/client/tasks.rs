@@ -21,7 +21,7 @@ impl TasksClient {
         let tasks = Self(
             TasksClientInner {
                 api,
-                data: Default::default(),
+                data: RwLock::default(),
                 rewards: reward,
             }
             .into(),

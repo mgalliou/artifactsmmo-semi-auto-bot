@@ -21,7 +21,7 @@ pub struct Bot {
 }
 
 impl Bot {
-    pub fn new(client: Arc<Client>) -> Self {
+    pub fn new(client: &Arc<Client>) -> Self {
         let config = BotConfig::from_file();
         let bank = Arc::new(BankController::new(
             client.account.bank(),
@@ -54,18 +54,18 @@ impl Bot {
 
     pub fn run_characters(&self) {
         self.account.init_characters(
-            self.client.clone(),
-            self.account.clone(),
-            self.order_board.clone(),
-            self.gear_finder.clone(),
-            self.leveling_helper.clone(),
+            &self.client,
+            &self.account,
+            &self.order_board,
+            &self.gear_finder,
+            &self.leveling_helper,
         );
         for c in self.account.characters() {
             sleep(Duration::from_millis(250));
             if let Err(e) = Builder::new().name(c.name().to_string()).spawn(move || {
                 c.run_loop();
             }) {
-                error!("failed to spawn character thread: {}", e);
+                error!("failed to spawn character thread: {e}");
             }
         }
     }

@@ -18,8 +18,8 @@ impl ServerClient {
     pub(crate) fn new(api: ArtifactApi) -> Self {
         let server = Self(Arc::new(ServerClientInner {
             api,
-            status: Default::default(),
-            time_offset: Default::default(),
+            status: RwLock::default(),
+            time_offset: RwLock::default(),
         }));
         server.update_offset();
         server
@@ -29,7 +29,7 @@ impl ServerClient {
         let Some(status) = self.0.api.server.status() else {
             return;
         };
-        *self.0.status.write().unwrap() = *status.data
+        *self.0.status.write().unwrap() = *status.data;
     }
 
     pub fn time_offset(&self) -> TimeDelta {
@@ -52,12 +52,12 @@ impl ServerClient {
             return;
         };
         *self.0.time_offset.write().unwrap() = now - server_time;
-        debug!("system time: {}", now);
-        debug!("server time: {}", server_time);
+        debug!("system time: {now}");
+        debug!("server time: {server_time}");
         debug!(
             "time offset: {}s and {}ms",
             self.0.time_offset.read().unwrap().num_seconds(),
-            self.0.time_offset.read().unwrap().subsec_nanos() / 1000000
+            self.0.time_offset.read().unwrap().subsec_nanos() / 1_000_000
         );
         debug!("synced time: {}", now - *self.0.time_offset.read().unwrap());
     }

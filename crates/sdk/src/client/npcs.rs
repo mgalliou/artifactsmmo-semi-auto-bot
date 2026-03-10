@@ -23,7 +23,7 @@ impl NpcsClient {
         let npcs = Self(
             NpcsClientInner {
                 api,
-                data: Default::default(),
+                data: RwLock::default(),
                 items,
             }
             .into(),
@@ -41,8 +41,13 @@ impl NpcsClient {
             .items
             .all()
             .iter()
-            .filter(|i| i.is_buyable() && i.code() == code)
-            .flat_map(|i| self.get(i.npc_code()))
+            .filter_map(|i| {
+                if i.is_buyable() && i.code() == code {
+                    self.get(i.npc_code())
+                } else {
+                    None
+                }
+            })
             .collect_vec()
     }
 }
