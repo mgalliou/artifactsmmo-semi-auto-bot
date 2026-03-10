@@ -47,7 +47,15 @@ impl Paginate for NpcsRequest<'_> {
     type Error = GetAllNpcsNpcsDetailsGetError;
 
     fn request_page(&self, page: u32) -> Result<Self::Page, Error<Self::Error>> {
-        get_all_npcs_npcs_details_get(self.configuration, None, None, Some(page), Some(100))
+        get_all_npcs_npcs_details_get(
+            self.configuration,
+            None,
+            None,
+            None,
+            None,
+            Some(page),
+            Some(100),
+        )
     }
 }
 

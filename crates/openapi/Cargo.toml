@@ -1,6 +1,6 @@
 [package]
 name = "openapi"
-version = "7.0.1"
+version = "7.0.3"
 authors = ["OpenAPI Generator team and contributors"]
 description = "Artifacts is an API-based MMO game where you can manage 5 characters to explore, fight, gather resources, craft items and much more.  Website: https://artifactsmmo.com/  Documentation: https://docs.artifactsmmo.com/  OpenAPI Spec: https://api.artifactsmmo.com/openapi.json"
 # Override this license by providing a License Object in the OpenAPI.

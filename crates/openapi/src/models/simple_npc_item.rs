@@ -12,32 +12,28 @@ use crate::models;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
-pub struct NpcItemTransactionSchema {
+pub struct SimpleNpcItem {
     /// Item code.
     #[serde(rename = "code")]
     pub code: String,
-    /// Item quantity.
-    #[serde(rename = "quantity")]
-    pub quantity: i32,
-    /// Currency used for the transaction.
+    /// Currency used to buy/sell the item. If it's not gold, it's the item code.
     #[serde(rename = "currency")]
     pub currency: String,
-    /// Item price.
-    #[serde(rename = "price")]
-    pub price: i32,
-    /// Total price of the transaction.
-    #[serde(rename = "total_price")]
-    pub total_price: i32,
+    /// Price to buy the item.
+    #[serde(rename = "buy_price", skip_serializing_if = "Option::is_none")]
+    pub buy_price: Option<i32>,
+    /// Price to sell the item.
+    #[serde(rename = "sell_price", skip_serializing_if = "Option::is_none")]
+    pub sell_price: Option<i32>,
 }
 
-impl NpcItemTransactionSchema {
-    pub fn new(code: String, quantity: i32, currency: String, price: i32, total_price: i32) -> NpcItemTransactionSchema {
-        NpcItemTransactionSchema {
+impl SimpleNpcItem {
+    pub fn new(code: String, currency: String) -> SimpleNpcItem {
+        SimpleNpcItem {
             code,
-            quantity,
             currency,
-            price,
-            total_price,
+            buy_price: None,
+            sell_price: None,
         }
     }
 }

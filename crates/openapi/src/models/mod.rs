@@ -338,6 +338,8 @@ pub mod simple_effect_schema;
 pub use self::simple_effect_schema::SimpleEffectSchema;
 pub mod simple_item_schema;
 pub use self::simple_item_schema::SimpleItemSchema;
+pub mod simple_npc_item;
+pub use self::simple_npc_item::SimpleNpcItem;
 pub mod skill;
 pub use self::skill::Skill;
 pub mod skill_data_schema;
