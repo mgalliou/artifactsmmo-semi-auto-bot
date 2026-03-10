@@ -39,48 +39,25 @@ impl Simulator {
     pub fn fight(
         initiator: Participant,
         participants: Option<Vec<Participant>>,
-        monster: Monster,
+        monster: &Monster,
         params: &FightParams,
     ) -> Fight {
-        let char = SimulationCharacter::new(
-            initiator.name.clone(),
-            initiator.level,
-            initiator.gear,
-            initiator.utility1_quantity,
-            initiator.utility2_quantity,
-            initiator.missing_hp,
-            params.averaged,
-        );
+        let char = SimulationCharacter::from(initiator);
         let mut chars = vec![char.clone()];
         if let Some(participants) = participants {
-            let participants = participants
+            participants
                 .into_iter()
-                .map(|participant| {
-                    SimulationCharacter::new(
-                        participant.name.clone(),
-                        participant.level,
-                        participant.gear,
-                        participant.utility1_quantity,
-                        participant.utility2_quantity,
-                        participant.missing_hp,
-                        params.averaged,
-                    )
-                })
-                .collect_vec();
-            for p in &participants {
-                chars.push(p.clone());
-            }
+                .map(SimulationCharacter::from)
+                .for_each(|c| chars.push(c));
         }
-        let mut monster = SimulationMonster::new(monster, params.averaged);
+        let mut monster = SimulationMonster::from(monster.clone());
         let mut fighters: Vec<Box<dyn SimulationEntity>> = vec![Box::new(monster.clone())];
         for c in &chars {
             fighters.push(Box::new(c.clone()));
         }
         let mut remaining_fighters = fighters.clone();
         let mut turn = 1;
-        while turn <= MAX_TURN
-            && monster.current_health() > 0
-            && chars.iter().all(|c| c.current_health() > 0)
+        while turn <= MAX_TURN && monster.is_alive() && chars.iter().all(SimulationEntity::is_alive)
         {
             if remaining_fighters.is_empty() {
                 remaining_fighters.clone_from(&fighters);
@@ -93,9 +70,9 @@ impl Simulator {
                 let Some(mut target) = pick_monster_target(&chars) else {
                     break;
                 };
-                monster.turn_against(&mut target, turn);
+                monster.turn_against(&mut target, turn, params.averaged);
             } else {
-                fighter.turn_against(&mut monster, turn);
+                fighter.turn_against(&mut monster, turn, params.averaged);
             }
             turn += 1;
         }
@@ -104,9 +81,7 @@ impl Simulator {
             hp: char.current_health(),
             monster_hp: monster.current_health(),
             hp_lost: char.starting_hp() - char.current_health(),
-            result: if char.current_health() <= 0
-                || (turn > MAX_TURN && monster.current_health() > 0)
-            {
+            result: if char.is_dead() || (turn > MAX_TURN && monster.is_alive()) {
                 FightResult::Loss
             } else {
                 FightResult::Win
@@ -119,7 +94,7 @@ impl Simulator {
 fn get_next_fighter(fighters: &[Box<dyn SimulationEntity>]) -> Option<Box<dyn SimulationEntity>> {
     fighters
         .iter()
-        .filter(|f| f.current_health() > 0)
+        .filter(|f| f.is_alive())
         .max_set_by_key(|f| f.initiative())
         .into_iter()
         .max_set_by_key(|f| f.current_health())
@@ -128,7 +103,7 @@ fn get_next_fighter(fighters: &[Box<dyn SimulationEntity>]) -> Option<Box<dyn Si
 }
 
 fn pick_monster_target(chars: &[SimulationCharacter]) -> Option<SimulationCharacter> {
-    let chars_alive = chars.iter().filter(|c| c.current_health() > 0);
+    let chars_alive = chars.iter().filter(|c| c.is_alive());
     let targets = if rand::random_range(1..=100) <= 90 {
         chars_alive.max_set_by_key(HasEffects::threat)
     } else {

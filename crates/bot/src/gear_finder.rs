@@ -54,7 +54,7 @@ impl GearFinder {
                         0,
                     ),
                     None,
-                    monster.clone(),
+                    monster,
                     &FightParams::default().averaged(),
                 );
                 fight.is_winning().then_some((fight, g))

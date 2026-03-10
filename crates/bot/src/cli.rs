@@ -261,7 +261,7 @@ fn respond(
                 let fight = Simulator::fight(
                     Participant::new(char.name().to_string(), char.level(), gear, 100, 100, 0),
                     None,
-                    monster,
+                    &monster,
                     &FightParams::default(),
                 );
                 println!("{fight:?}");

@@ -789,7 +789,7 @@ impl CharacterController {
                         0,
                     ),
                     None,
-                    monster.clone(),
+                    monster,
                     &FightParams::default(),
                 )
                 .is_winning()
@@ -804,7 +804,7 @@ impl CharacterController {
                 Simulator::fight(
                     (&self.client).into(),
                     None,
-                    monster.clone(),
+                    monster,
                     &FightParams::default(),
                 )
                 .is_winning()
@@ -1663,7 +1663,7 @@ impl CharacterController {
         let fight = Simulator::fight(
             Participant::new(self.name().to_string(), self.level(), gear, 100, 100, 0),
             None,
-            monster.clone(),
+            monster,
             &FightParams::default(),
         );
         Some(fight.cd + (fight.hp_lost / 5 + i32::from(fight.hp_lost % 5 > 0)) as u32)

@@ -2,7 +2,7 @@ use crate::{
     Gear,
     entities::{Item, Monster},
     simulator::{
-        BASE_HP, BASE_INITIATIVE, BURN_MULTIPLIER, HP_PER_LEVEL, HasEffects,
+        BASE_HP, BASE_INITIATIVE, BURN_MULTIPLIER, HP_PER_LEVEL, HasEffects, Participant,
         damage_type::DamageType,
     },
 };
@@ -11,7 +11,7 @@ use openapi::models::SimpleEffectSchema;
 use std::{cell::RefCell, rc::Rc};
 
 pub(super) trait SimulationEntity: HasEffects + DynClone {
-    fn turn_against(&mut self, target: &mut dyn SimulationEntity, turn: u32) {
+    fn turn_against(&mut self, target: &mut dyn SimulationEntity, turn: u32, averaged: bool) {
         if turn == self.reconstitution() as u32 {
             self.set_health(self.max_hp());
         }
@@ -37,7 +37,7 @@ pub(super) trait SimulationEntity: HasEffects + DynClone {
             self.apply_burn(target);
             self.apply_poison(target);
         }
-        for hit in &self.hits_against(target, self.averaged()) {
+        for hit in &self.hits_against(target, averaged) {
             target.dec_health(hit.dmg);
             if hit.is_crit {
                 self.inc_health(hit.dmg * self.lifesteal() / 100);
@@ -95,11 +95,19 @@ pub(super) trait SimulationEntity: HasEffects + DynClone {
     }
 
     fn name(&self) -> String;
-    fn averaged(&self) -> bool;
     fn current_turn(&self) -> u32;
     fn inc_turn(&mut self);
     fn starting_hp(&self) -> i32;
     fn max_hp(&self) -> i32;
+
+    fn is_alive(&self) -> bool {
+        self.current_health() > 0
+    }
+
+    fn is_dead(&self) -> bool {
+        self.current_health() < 1
+    }
+
     fn current_health(&self) -> i32;
     fn set_health(&mut self, value: i32);
     fn burning(&self) -> i32;
@@ -144,31 +152,8 @@ dyn_clone::clone_trait_object!(SimulationEntity);
 #[derive(Clone)]
 pub(super) struct SimulationCharacter(Rc<RefCell<BaseSimulationCharacter>>);
 
-impl SimulationCharacter {
-    pub(super) fn new(
-        name: String,
-        level: u32,
-        gear: Gear,
-        utility1_quantity: u32,
-        utility2_quantity: u32,
-        missing_hp: i32,
-        average: bool,
-    ) -> Self {
-        Self(Rc::new(RefCell::new(BaseSimulationCharacter::new(
-            name,
-            level,
-            gear,
-            utility1_quantity,
-            utility2_quantity,
-            missing_hp,
-            average,
-        ))))
-    }
-}
-
 pub struct BaseSimulationCharacter {
     name: String,
-    averaged: bool,
     gear: Gear,
     pub(super) starting_hp: i32,
     max_hp: i32,
@@ -190,14 +175,13 @@ pub struct BaseSimulationCharacter {
 }
 
 impl BaseSimulationCharacter {
-    pub(super) fn new(
+    fn new(
         name: String,
         level: u32,
         gear: Gear,
         utility1_quantity: u32,
         utility2_quantity: u32,
         missing_hp: i32,
-        average: bool,
     ) -> Self {
         let base_hp = (BASE_HP + HP_PER_LEVEL * level) as i32;
         let max_hp = base_hp + gear.health();
@@ -218,18 +202,26 @@ impl BaseSimulationCharacter {
             utility2_quantity,
             burning: 0,
             poisoned: 0,
-            averaged: average,
         }
+    }
+}
+
+impl From<Participant> for SimulationCharacter {
+    fn from(value: Participant) -> Self {
+        Self(Rc::new(RefCell::new(BaseSimulationCharacter::new(
+            value.name,
+            value.level,
+            value.gear,
+            value.utility1_quantity,
+            value.utility2_quantity,
+            value.missing_hp,
+        ))))
     }
 }
 
 impl SimulationEntity for SimulationCharacter {
     fn name(&self) -> String {
         self.0.borrow().name.clone()
-    }
-
-    fn averaged(&self) -> bool {
-        self.0.borrow().averaged
     }
 
     fn current_turn(&self) -> u32 {
@@ -338,16 +330,9 @@ impl HasEffects for SimulationCharacter {
 #[derive(Clone)]
 pub(super) struct SimulationMonster(Rc<RefCell<BaseSimulationMonster>>);
 
-impl SimulationMonster {
-    pub(super) fn new(monster: Monster, average: bool) -> Self {
-        Self(Rc::new(RefCell::new(BaseSimulationMonster::new(
-            monster, average,
-        ))))
-    }
-}
+impl SimulationMonster {}
 
-pub(super) struct BaseSimulationMonster {
-    averaged: bool,
+struct BaseSimulationMonster {
     monster: Monster,
 
     current_turn: u32,
@@ -362,30 +347,28 @@ pub(super) struct BaseSimulationMonster {
     poisoned: i32,
 }
 
-impl BaseSimulationMonster {
-    pub(super) fn new(monster: Monster, average: bool) -> Self {
-        Self {
-            current_health: monster.health(),
-            current_turn: 1,
-            burning: 0,
-            poisoned: 0,
-            averaged: average,
-            fire_res: monster.res(DamageType::Fire),
-            earth_res: monster.res(DamageType::Earth),
-            water_res: monster.res(DamageType::Water),
-            air_res: monster.res(DamageType::Air),
-            monster,
-        }
+impl From<Monster> for SimulationMonster {
+    fn from(monster: Monster) -> Self {
+        Self(Rc::new(
+            BaseSimulationMonster {
+                current_health: monster.health(),
+                current_turn: 1,
+                burning: 0,
+                poisoned: 0,
+                fire_res: monster.res(DamageType::Fire),
+                earth_res: monster.res(DamageType::Earth),
+                water_res: monster.res(DamageType::Water),
+                air_res: monster.res(DamageType::Air),
+                monster,
+            }
+            .into(),
+        ))
     }
 }
 
 impl SimulationEntity for SimulationMonster {
     fn name(&self) -> String {
         self.0.borrow().monster.name().to_string()
-    }
-
-    fn averaged(&self) -> bool {
-        self.0.borrow().averaged
     }
 
     fn current_turn(&self) -> u32 {
