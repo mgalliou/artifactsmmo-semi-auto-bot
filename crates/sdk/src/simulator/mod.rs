@@ -116,9 +116,7 @@ impl Simulator {
     }
 }
 
-fn get_next_fighter(
-    fighters: &Vec<Box<dyn SimulationEntity>>,
-) -> Option<Box<dyn SimulationEntity>> {
+fn get_next_fighter(fighters: &[Box<dyn SimulationEntity>]) -> Option<Box<dyn SimulationEntity>> {
     fighters
         .iter()
         .filter(|f| f.current_health() > 0)
@@ -132,7 +130,7 @@ fn get_next_fighter(
 fn pick_monster_target(chars: &[SimulationCharacter]) -> Option<SimulationCharacter> {
     let chars_alive = chars.iter().filter(|c| c.current_health() > 0);
     let targets = if rand::random_range(1..=100) <= 90 {
-        chars_alive.max_set_by_key(|c| c.threat())
+        chars_alive.max_set_by_key(HasEffects::threat)
     } else {
         chars_alive.collect_vec()
     };
@@ -192,11 +190,13 @@ pub struct FightParams {
 }
 
 impl FightParams {
+    #[must_use]
     pub const fn averaged(mut self) -> Self {
         self.averaged = true;
         self
     }
 
+    #[must_use]
     pub const fn ignore_death(mut self) -> Self {
         self.ignore_death = true;
         self
@@ -230,9 +230,7 @@ pub fn average_dmg(
     critical_strike: i32,
     target_res: i32,
 ) -> f32 {
-    let multiplier = average_multiplier(dmg_increase, critical_strike, target_res);
-
-    attack_dmg as f32 * multiplier
+    attack_dmg as f32 * average_multiplier(dmg_increase, critical_strike, target_res)
 }
 
 fn average_multiplier(dmg_increase: i32, critical_strike: i32, target_res: i32) -> f32 {
@@ -253,21 +251,16 @@ fn dmg_multiplier(dmg_increase: i32) -> f32 {
 }
 
 fn res_multiplier(target_res: i32) -> f32 {
-    let target_res = if target_res > 100 {
+    if target_res > 100 {
         100.0
     } else {
         target_res as f32
-    };
-    1.0 - target_res * 0.01
+    }
+    .mul_add(0.01, -1.0)
 }
 
-pub const fn time_to_rest(health: u32) -> u32 {
-    health / REST_HP_PER_SEC
-        + if health.is_multiple_of(REST_HP_PER_SEC) {
-            0
-        } else {
-            1
-        }
+pub fn time_to_rest(health: u32) -> u32 {
+    health / REST_HP_PER_SEC + u32::from(!health.is_multiple_of(REST_HP_PER_SEC))
 }
 
 fn fight_cd(haste: i32, turns: u32) -> u32 {

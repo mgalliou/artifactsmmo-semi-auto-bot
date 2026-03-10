@@ -308,7 +308,7 @@ fn respond(
                         char.skill_xp(*s),
                         char.skill_max_xp(*s),
                         (f64::from(char.skill_xp(*s)) / f64::from(char.skill_max_xp(*s)) * 100.0)
-                            .round() as u32
+                            .round()
                     );
                 });
             }

@@ -1340,7 +1340,7 @@ impl CharacterController {
         self.inventory
             .consumable_food()
             .iter()
-            .sorted_by_key(|i| i.heal())
+            .sorted_by_key(HasEffects::heal)
             .for_each(|food| {
                 // TODO: improve logic to eat different foods to restore more hp
                 let mut quantity = (self.missing_hp() / food.heal()) as u32;

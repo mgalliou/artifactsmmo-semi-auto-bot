@@ -29,4 +29,8 @@ pedantic = { level = "warn" }
 nursery = { level = "warn" }
 missing_panics_doc = { level = "allow" }
 missing_errors_doc = { level = "allow" }
+cast_possible_truncation = { level = "allow" }
+cast_sign_loss = { level = "allow" }
+cast_possible_wrap = { level = "allow" }
+cast_precision_loss = { level = "allow" }
 must_use_candidate = { level = "allow" }

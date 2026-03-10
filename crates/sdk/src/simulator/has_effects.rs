@@ -210,3 +210,12 @@ pub trait HasEffects {
 
     fn effects(&self) -> Vec<SimpleEffectSchema>;
 }
+
+impl<E> HasEffects for &E
+where
+    E: HasEffects,
+{
+    fn effects(&self) -> Vec<SimpleEffectSchema> {
+        (*self).effects()
+    }
+}

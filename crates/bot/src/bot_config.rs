@@ -1,3 +1,4 @@
+use anyhow::bail;
 use figment::{
     Figment,
     providers::{Format, Toml},
@@ -157,14 +158,16 @@ pub enum Role {
     Weaponcrafter,
 }
 
-impl Role {
-    pub const fn to_skill(&self) -> Option<Skill> {
-        match *self {
-            Self::Fighter => None,
-            Self::Miner => Some(Skill::Mining),
-            Self::Woodcutter => Some(Skill::Woodcutting),
-            Self::Fisher => Some(Skill::Fishing),
-            Self::Weaponcrafter => Some(Skill::Weaponcrafting),
+impl TryFrom<Role> for Skill {
+    type Error = anyhow::Error;
+
+    fn try_from(value: Role) -> Result<Self, Self::Error> {
+        match value {
+            Role::Fighter => bail!("No corresponding role for skill"),
+            Role::Miner => Ok(Self::Mining),
+            Role::Woodcutter => Ok(Self::Woodcutting),
+            Role::Fisher => Ok(Self::Fishing),
+            Role::Weaponcrafter => Ok(Self::Weaponcrafting),
         }
     }
 }

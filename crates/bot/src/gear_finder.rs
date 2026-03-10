@@ -232,7 +232,7 @@ impl GearFinder {
         bests
             .into_iter()
             .map(Some)
-            .sorted_by(item_cmp)
+            .sorted_by(|a, b| item_cmp(a.as_ref(), b.as_ref()))
             .dedup()
             .collect_vec()
     }
@@ -269,7 +269,7 @@ impl GearFinder {
         bests
             .into_iter()
             .map(Some)
-            .sorted_by(item_cmp)
+            .sorted_by(|a, b| item_cmp(a.as_ref(), b.as_ref()))
             .dedup()
             .collect_vec()
     }
@@ -278,7 +278,7 @@ impl GearFinder {
         self.items
             .filtered(|i| self.is_eligible(i, Type::Rune, filter, char))
             .iter()
-            .max_set_by_key(|i| i.burn())
+            .max_set_by_key(HasEffects::burn)
             .into_iter()
             .map(|i| ItemWrapper::Armor(Some(i.clone())))
             .collect_vec()
@@ -396,9 +396,9 @@ impl GearFinder {
             bests.push(best.clone());
         }
         bests
-            .iter()
-            .map(|i| Some(i.clone()))
-            .sorted_by(item_cmp)
+            .into_iter()
+            .map(Some)
+            .sorted_by(|a, b| item_cmp(a.as_ref(), b.as_ref()))
             .dedup()
             .collect_vec()
     }
@@ -473,12 +473,11 @@ impl GearFinder {
     fn item_from_wrappers(wrappers: &[ItemWrapper], slot: Slot) -> Option<Item> {
         wrappers.iter().find_map(|w| {
             match w {
-                ItemWrapper::Armor(armor) => armor,
+                ItemWrapper::Armor(armor) => armor.as_ref(),
                 ItemWrapper::Rings(set) => set.slot(slot),
                 ItemWrapper::Artifacts(set) => set.slot(slot),
                 ItemWrapper::Utility(set) => set.slot(slot),
             }
-            .as_ref()
             .and_then(|i| i.type_is(slot.into()).then_some(i.clone()))
         })
     }
@@ -585,10 +584,10 @@ fn best_armor_by<'a>(
         ArmorCriteria::DamageReduction { monster } => {
             armors.max_set_by_key(|i| OrderedFloat(i.average_dmg_reduction_against(monster)))
         }
-        ArmorCriteria::Prospecting => armors.max_set_by_key(|i| i.prospecting()),
-        ArmorCriteria::Wisdom => armors.max_set_by_key(|i| i.wisdom()),
-        ArmorCriteria::Health => armors.max_set_by_key(|i| i.health()),
-        ArmorCriteria::Restore => armors.max_set_by_key(|i| i.restore()),
+        ArmorCriteria::Prospecting => armors.max_set_by_key(HasEffects::prospecting),
+        ArmorCriteria::Wisdom => armors.max_set_by_key(HasEffects::wisdom),
+        ArmorCriteria::Health => armors.max_set_by_key(HasEffects::health),
+        ArmorCriteria::Restore => armors.max_set_by_key(HasEffects::restore),
     };
     armors
         .into_iter()
@@ -699,6 +698,7 @@ fn gen_artifacts_sets(mut artifacts: Vec<Option<Item>>) -> Vec<ItemWrapper> {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct Filter {
     pub available_only: bool,
     pub craftable: bool,
@@ -763,25 +763,26 @@ impl RingSet {
         if rings[0].is_none() && rings[1].is_none() {
             None
         } else {
-            rings.sort_by(item_cmp);
+            rings.sort_by(|a, b| item_cmp(a.as_ref(), b.as_ref()));
+
             Some(Self { rings })
         }
     }
 
-    const fn slot(&self, slot: Slot) -> &Option<Item> {
+    const fn slot(&self, slot: Slot) -> Option<&Item> {
         match slot {
             Slot::Ring1 => self.ring1(),
             Slot::Ring2 => self.ring2(),
-            _ => &None,
+            _ => None,
         }
     }
 
-    const fn ring1(&self) -> &Option<Item> {
-        &self.rings[0]
+    const fn ring1(&self) -> Option<&Item> {
+        self.rings[0].as_ref()
     }
 
-    const fn ring2(&self) -> &Option<Item> {
-        &self.rings[1]
+    const fn ring2(&self) -> Option<&Item> {
+        self.rings[1].as_ref()
     }
 }
 
@@ -799,30 +800,30 @@ impl ArtifactSet {
         {
             None
         } else {
-            artifacts.sort_by(item_cmp);
+            artifacts.sort_by(|a, b| item_cmp(a.as_ref(), b.as_ref()));
             Some(Self { artifacts })
         }
     }
 
-    const fn slot(&self, slot: Slot) -> &Option<Item> {
+    const fn slot(&self, slot: Slot) -> Option<&Item> {
         match slot {
             Slot::Artifact1 => self.artifact1(),
             Slot::Artifact2 => self.artifact2(),
             Slot::Artifact3 => self.artifact3(),
-            _ => &None,
+            _ => None,
         }
     }
 
-    const fn artifact1(&self) -> &Option<Item> {
-        &self.artifacts[0]
+    const fn artifact1(&self) -> Option<&Item> {
+        self.artifacts[0].as_ref()
     }
 
-    const fn artifact2(&self) -> &Option<Item> {
-        &self.artifacts[1]
+    const fn artifact2(&self) -> Option<&Item> {
+        self.artifacts[1].as_ref()
     }
 
-    const fn artifact3(&self) -> &Option<Item> {
-        &self.artifacts[2]
+    const fn artifact3(&self) -> Option<&Item> {
+        self.artifacts[2].as_ref()
     }
 }
 
@@ -838,29 +839,29 @@ impl UtilitySet {
         {
             None
         } else {
-            utilities.sort_by(item_cmp);
+            utilities.sort_by(|a, b| item_cmp(a.as_ref(), b.as_ref()));
             Some(Self { utilities })
         }
     }
 
-    const fn slot(&self, slot: Slot) -> &Option<Item> {
+    const fn slot(&self, slot: Slot) -> Option<&Item> {
         match slot {
             Slot::Utility1 => self.utility1(),
             Slot::Utility2 => self.utility2(),
-            _ => &None,
+            _ => None,
         }
     }
 
-    const fn utility1(&self) -> &Option<Item> {
-        &self.utilities[0]
+    const fn utility1(&self) -> Option<&Item> {
+        self.utilities[0].as_ref()
     }
 
-    const fn utility2(&self) -> &Option<Item> {
-        &self.utilities[1]
+    const fn utility2(&self) -> Option<&Item> {
+        self.utilities[1].as_ref()
     }
 }
 
-fn item_cmp(a: &Option<Item>, b: &Option<Item>) -> Ordering {
+fn item_cmp(a: Option<&Item>, b: Option<&Item>) -> Ordering {
     if a == b {
         return Ordering::Equal;
     }
