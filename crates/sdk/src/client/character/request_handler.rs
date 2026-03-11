@@ -80,7 +80,7 @@ impl CharacterRequestHandler {
                 info!("{}", res.to_string());
                 if let Some(res) = res.downcast_ref::<CharacterFightResponseSchema>() {
                     res.data.characters.iter().for_each(|c| {
-                        if let Some(char_client) = self.account.get_character_by_name(&c.name) {
+                        if let Some(char_client) = self.account.get_character(&c.name) {
                             char_client.update_data(c.clone());
                         }
                     });
@@ -100,14 +100,14 @@ impl CharacterRequestHandler {
                 if let Some(res) = res.downcast_ref::<GiveItemResponseSchema>()
                     && let Some(char) = self
                         .account
-                        .get_character_by_name(&res.data.receiver_character.name)
+                        .get_character(&res.data.receiver_character.name)
                 {
                     char.update_data(*res.data.receiver_character.clone());
                 }
                 if let Some(res) = res.downcast_ref::<GiveGoldResponseSchema>()
                     && let Some(char) = self
                         .account
-                        .get_character_by_name(&res.data.receiver_character.name)
+                        .get_character(&res.data.receiver_character.name)
                 {
                     char.update_data(*res.data.receiver_character.clone());
                 }

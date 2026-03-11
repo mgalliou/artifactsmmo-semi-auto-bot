@@ -1,5 +1,9 @@
 use api::ArtifactApi;
-use std::thread::{self};
+use std::{
+    ops::Deref,
+    sync::Arc,
+    thread::{self},
+};
 
 use crate::Persist;
 pub use crate::client::{
@@ -26,8 +30,19 @@ pub mod server;
 pub mod tasks;
 pub mod tasks_rewards;
 
+#[derive(Default, Debug, Clone)]
+pub struct Client(Arc<ClientInner>);
+
+impl Deref for Client {
+    type Target = ClientInner;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 #[derive(Default, Debug)]
-pub struct Client {
+pub struct ClientInner {
     pub account: AccountClient,
     pub server: ServerClient,
     pub events: EventsClient,
@@ -96,18 +111,21 @@ impl Client {
             &grand_exchange,
         )?;
 
-        Ok(Self {
-            account,
-            server,
-            events,
-            resources,
-            monsters,
-            items,
-            tasks,
-            maps,
-            npcs,
-            grand_exchange,
-        })
+        Ok(Self(
+            ClientInner {
+                account,
+                server,
+                events,
+                resources,
+                monsters,
+                items,
+                tasks,
+                maps,
+                npcs,
+                grand_exchange,
+            }
+            .into(),
+        ))
     }
 
     pub fn refresh_data(&self) {

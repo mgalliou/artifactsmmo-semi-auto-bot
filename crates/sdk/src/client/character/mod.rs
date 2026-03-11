@@ -179,7 +179,7 @@ impl CharacterClient {
             return Err(FightError::MonsterIsNotABoss);
         }
         for name in participants {
-            let Some(char) = self.0.account.get_character_by_name(name) else {
+            let Some(char) = self.0.account.get_character(name) else {
                 return Err(FightError::CharacterNotFound);
             };
             if char.position() != self.position() {
@@ -671,7 +671,7 @@ impl CharacterClient {
                 return Err(GiveItemError::InsufficientQuantity);
             }
         }
-        let Some(character) = self.0.account.get_character_by_name(character) else {
+        let Some(character) = self.0.account.get_character(character) else {
             return Err(GiveItemError::CharacterNotFound);
         };
         if character.position() != self.position() {
@@ -692,7 +692,7 @@ impl CharacterClient {
         if self.gold() < quantity {
             return Err(GiveGoldError::InsufficientGold);
         }
-        let Some(character) = self.0.account.get_character_by_name(character) else {
+        let Some(character) = self.0.account.get_character(character) else {
             return Err(GiveGoldError::CharacterNotFound);
         };
         if character.position() != self.position() {

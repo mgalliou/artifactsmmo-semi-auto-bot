@@ -45,7 +45,7 @@ impl AccountController {
 
     pub fn init_characters(
         &self,
-        client: &Arc<Client>,
+        client: &Client,
         account: &Arc<Self>,
         order_board: &Arc<OrderBoard>,
         gear_finder: &Arc<GearFinder>,

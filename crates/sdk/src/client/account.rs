@@ -10,11 +10,6 @@ use api::ArtifactApi;
 use itertools::Itertools;
 use std::sync::{Arc, RwLock};
 
-pub trait Account {
-    fn name(&self) -> &str;
-    fn bank(&self) -> BankClient;
-}
-
 #[derive(Default, Debug, Clone)]
 pub struct AccountClient(Arc<AccountClientInner>);
 
@@ -115,7 +110,7 @@ impl AccountClient {
         self.0.characters.read().unwrap().iter().cloned().collect()
     }
 
-    pub fn get_character_by_name(&self, name: &str) -> Option<CharacterClient> {
+    pub fn get_character(&self, name: &str) -> Option<CharacterClient> {
         self.characters().iter().find(|c| c.name() == name).cloned()
     }
 
