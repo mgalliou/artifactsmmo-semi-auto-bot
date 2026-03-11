@@ -23,7 +23,7 @@ use crate::{
 };
 use anyhow::Result;
 use chrono::{DateTime, Utc};
-use itertools::Itertools;
+use itertools::{Either, Itertools};
 use log::{debug, error, info, warn};
 use ordered_float::OrderedFloat;
 use sdk::{
@@ -1301,7 +1301,7 @@ impl CharacterController {
         else {
             return Err(MoveCommandError::MapNotFound);
         };
-        self.r#move(map.x(), map.y())
+        self.r#move(&Either::Left((map.x(), map.y())))
     }
 
     fn move_to_closest_map_of_type(&self, r#type: MapContentType) -> Result<Map, MoveCommandError> {
@@ -1312,7 +1312,7 @@ impl CharacterController {
         let Some(map) = self.maps.closest_of_type_from(&self.current_map(), r#type) else {
             return Err(MoveCommandError::MapNotFound);
         };
-        self.r#move(map.x(), map.y())
+        self.r#move(&Either::Left((map.x(), map.y())))
     }
 
     fn move_to_closest_map_with_content_code(&self, code: &str) -> Result<Map, MoveCommandError> {
@@ -1326,12 +1326,26 @@ impl CharacterController {
         else {
             return Err(MoveCommandError::MapNotFound);
         };
-        self.r#move(map.x(), map.y())
+        self.r#move(&Either::Left((map.x(), map.y())))
     }
 
-    fn r#move(&self, x: i32, y: i32) -> Result<Map, MoveCommandError> {
-        if self.position() == (self.position().0, x, y) {
-            return Ok(self.current_map());
+    fn r#move(&self, destination: &Either<(i32, i32), i32>) -> Result<Map, MoveCommandError> {
+        match destination {
+            Either::Left((x, y)) => {
+                if self.position() == (self.position().0, *x, *y) {
+                    return Ok(self.current_map());
+                }
+                Ok(self.client.r#move(*x, *y)?)
+            }
+            Either::Right(id) => {
+                if self.current_map().id() == *id {
+                    return Ok(self.current_map());
+                }
+                let Some(map) = self.maps.all().into_iter().find(|m| m.id() == *id) else {
+                    return Err(MoveCommandError::MapNotFound);
+                };
+                Ok(self.client.r#move(map.x(), map.y())?)
+            }
         }
         Ok(self.client.r#move(x, y)?)
     }
