@@ -23,6 +23,10 @@ impl Map {
         self.0.y
     }
 
+    pub fn id(&self) -> i32 {
+        self.0.map_id
+    }
+
     pub fn content(&self) -> Option<&MapContentSchema> {
         self.0.interactions.content.as_ref().map(AsRef::as_ref)
     }

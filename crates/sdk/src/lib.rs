@@ -86,6 +86,12 @@ pub trait Code {
     fn code(&self) -> &str;
 }
 
+impl Code for DropSchema {
+    fn code(&self) -> &str {
+        &self.code
+    }
+}
+
 impl Code for InventorySlot {
     fn code(&self) -> &str {
         &self.code
@@ -274,32 +280,19 @@ pub const fn check_lvl_diff(char_level: u32, entity_level: u32) -> bool {
     char_level >= entity_level && char_level.saturating_sub(entity_level) <= MAX_LEVEL_DIFF
 }
 
-pub struct DropSchemas<'a>(pub &'a [DropSchema]);
+pub struct ItemList<'a, T: Code + Quantity>(pub &'a [T]);
 
-impl fmt::Display for DropSchemas<'_> {
+impl<T> fmt::Display for ItemList<'_, T>
+where
+    T: Code + Quantity,
+{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut empty = true;
         for item in self.0 {
             if !empty {
                 write!(f, ", ")?;
             }
-            write!(f, "'{}'x{}", item.code, item.quantity)?;
-            empty = false;
-        }
-        Ok(())
-    }
-}
-
-pub struct SimpleItemSchemas<'a>(pub &'a [SimpleItemSchema]);
-
-impl fmt::Display for SimpleItemSchemas<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut empty = true;
-        for item in self.0 {
-            if !empty {
-                write!(f, ", ")?;
-            }
-            write!(f, "'{}'x{}", item.code, item.quantity)?;
+            write!(f, "'{}'x{}", item.code(), item.quantity())?;
             empty = false;
         }
         Ok(())

@@ -12,7 +12,7 @@ use openapi::models::{
     UseItemResponseSchema,
 };
 
-use crate::{DropSchemas, SimpleItemSchemas, entities::Map};
+use crate::{ItemList, entities::Map};
 
 pub trait ResponseSchema: Downcast {
     fn character(&self) -> &CharacterSchema;
@@ -62,7 +62,7 @@ impl ResponseSchema for CharacterFightResponseSchema {
                 "{} won a fight after {} turns ([{}], {}xp, {}g). {}s",
                 names,
                 self.data.fight.turns,
-                DropSchemas(&drops),
+                ItemList(&drops),
                 xp,
                 gold,
                 self.data.cooldown.remaining_seconds
@@ -117,7 +117,7 @@ impl ResponseSchema for SkillResponseSchema {
         format!(
             "{}: {reason} [{}] ({}xp). {}s",
             self.data.character.name,
-            DropSchemas(&self.data.details.items),
+            ItemList(&self.data.details.items),
             self.data.details.xp,
             self.data.cooldown.remaining_seconds
         )
@@ -147,14 +147,14 @@ impl ResponseSchema for BankItemTransactionResponseSchema {
             format!(
                 "{}: withdrawed [{}] from the bank. {}s",
                 self.data.character.name,
-                SimpleItemSchemas(&self.data.items),
+                ItemList(&self.data.items),
                 self.data.cooldown.remaining_seconds
             )
         } else {
             format!(
                 "{}: deposited [{}] to the bank. {}s",
                 self.data.character.name,
-                SimpleItemSchemas(&self.data.items),
+                ItemList(&self.data.items),
                 self.data.cooldown.remaining_seconds
             )
         }
@@ -205,7 +205,7 @@ impl ResponseSchema for RecyclingResponseSchema {
         format!(
             "{}: recycled and received {}. {}s",
             self.data.character.name,
-            DropSchemas(&self.data.details.items),
+            ItemList(&self.data.details.items),
             self.data.cooldown.remaining_seconds
         )
     }
@@ -263,7 +263,7 @@ impl ResponseSchema for RewardDataResponseSchema {
         format!(
             "{}: completed task and was rewarded with [{}] and {}g. {}s",
             self.data.character.name,
-            SimpleItemSchemas(&self.data.rewards.items),
+            ItemList(&self.data.rewards.items),
             self.data.rewards.gold,
             self.data.cooldown.remaining_seconds
         )
@@ -327,7 +327,7 @@ impl ResponseSchema for GiveItemResponseSchema {
         format!(
             "{}: gave '{}' to {}. {}s",
             self.data.character.name,
-            SimpleItemSchemas(&self.data.items),
+            ItemList(&self.data.items),
             self.data.receiver_character.name,
             self.data.cooldown.remaining_seconds,
         )

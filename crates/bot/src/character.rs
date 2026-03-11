@@ -27,25 +27,14 @@ use itertools::{Either, Itertools};
 use log::{debug, error, info, warn};
 use ordered_float::OrderedFloat;
 use sdk::{
-    Client, Code, CollectionClient, DropsItems, HasConditions, HasDrops, ItemContainer,
-    ItemsClient, Level, LimitedContainer, MapsClient, MonstersClient, NpcsClient,
-    SimpleItemSchemas, SlotLimited, SpaceLimited, TasksClient,
-    bank::Bank,
-    character::{CharacterClient, HandleCharacterData, error::RestError},
-    consts::{
+    Client, Code, CollectionClient, DropsItems, HasConditions, HasDrops, ItemContainer, ItemList, ItemsClient, Level, LimitedContainer, MapsClient, MonstersClient, NpcsClient, SlotLimited, SpaceLimited, TasksClient, bank::Bank, character::{CharacterClient, HandleCharacterData, error::RestError}, consts::{
         BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, GOLDEN_EGG, GOLDEN_SHRIMP, MAX_LEVEL,
         TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE, TASKS_COIN,
-    },
-    entities::{Character, Item, Map, Monster, NpcItem, RawCharacter, Resource},
-    gear::{Gear, Slot},
-    items::ItemSource,
-    models::{
+    }, entities::{Character, Item, Map, Monster, NpcItem, RawCharacter, Resource}, gear::{Gear, Slot}, items::ItemSource, models::{
         CharacterFightSchema, CharacterSchema, DropSchema, InventorySlot, MapContentType, MapLayer,
         RecyclingItemsSchema, RewardsSchema, SimpleItemSchema, SkillDataSchema, SkillInfoSchema,
         TaskSchema, TaskTradeSchema, TaskType,
-    },
-    simulator::{FightParams, HasEffects, Participant, Simulator, gather_cd, time_to_rest},
-    skill::Skill,
+    }, simulator::{FightParams, HasEffects, Participant, Simulator, gather_cd, time_to_rest}, skill::Skill
 };
 use std::{
     cmp::min,
@@ -886,11 +875,11 @@ impl CharacterController {
         quantity: u32,
     ) -> Result<RecyclingItemsSchema, RecycleCommandError> {
         let skill = self.can_recycle(item, quantity)?;
-        info!("{}: going to recycle '{item}'x{quantity}", self.name(),);
+        info!("{}: going to recycle '{item}'x{quantity}", self.name());
         self.lock_in_inventory(item, quantity)?;
         self.move_to_closest_map_with_content_code(skill.as_ref())?;
         let result = self.client.recycle(item, quantity);
-        self.inventory.decrease_reservation(&self.task(), quantity);
+        self.inventory.decrease_reservation(item, quantity);
         Ok(result?)
     }
 
@@ -936,10 +925,10 @@ impl CharacterController {
         if quantity < 1 {
             return Err(DeleteCommandError::InvalidQuantity);
         }
-        info!("{}: going to delete '{}'x{}.", self.name(), item, quantity);
+        info!("{}: going to delete '{item}'x{quantity}.", self.name());
         self.lock_in_inventory(item, quantity)?;
         let result = self.client.delete(item, quantity);
-        self.inventory.decrease_reservation(&self.task(), quantity);
+        self.inventory.decrease_reservation(item, quantity);
         Ok(result?)
     }
 
@@ -1054,7 +1043,7 @@ impl CharacterController {
         info!(
             "{}: going to deposit items: {}",
             self.name(),
-            SimpleItemSchemas(items)
+            ItemList(items)
         );
         self.move_to_closest_map_of_type(MapContentType::Bank)?;
         if self.bank.free_slots() <= BANK_MIN_FREE_SLOT
@@ -1066,14 +1055,12 @@ impl CharacterController {
         match deposit {
             Ok(()) => {
                 self.order_board.register_deposited_items(items);
-                for i in items {
-                    self.inventory.decrease_reservation(&i.code, i.quantity);
-                }
+                self.inventory.decrease_reservations(items);
             }
-            Err(ref e) => error!("{}: error depositing: {e}", self.name()),
+            Err(ref e) => error!("{}: failed to deposit items: {e}", self.name()),
         }
         if let Err(e) = self.deposit_all_gold() {
-            error!("{}: failed to deposit gold to the bank: {e}", self.name(),);
+            error!("{}: failed to deposit gold: {e}", self.name());
         }
         Ok(deposit?)
     }
@@ -1127,7 +1114,7 @@ impl CharacterController {
         info!(
             "{}: going to withdraw items: {}",
             self.name(),
-            SimpleItemSchemas(items)
+            ItemList(items)
         );
         self.move_to_closest_map_of_type(MapContentType::Bank)?;
         let result = self.client.withdraw_item(items);
@@ -1347,7 +1334,6 @@ impl CharacterController {
                 Ok(self.client.r#move(map.x(), map.y())?)
             }
         }
-        Ok(self.client.r#move(x, y)?)
     }
 
     fn eat_food_from_inventory(&self) {
@@ -1985,6 +1971,6 @@ impl Character for CharacterController {
 
 impl Level for CharacterController {
     fn level(&self) -> u32 {
-        self.client.data().level()
+        self.client.level()
     }
 }
