@@ -276,6 +276,8 @@ impl DropRateSchemaExt for DropRateSchema {
     }
 }
 
+/// Checks a character at the `char_level` would receive XP by crafting, killing,
+/// or gathering an entity at the `entity_level`
 pub const fn check_lvl_diff(char_level: u32, entity_level: u32) -> bool {
     char_level >= entity_level && char_level.saturating_sub(entity_level) <= MAX_LEVEL_DIFF
 }
