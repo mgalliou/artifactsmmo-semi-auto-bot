@@ -27,14 +27,25 @@ use itertools::{Either, Itertools};
 use log::{debug, error, info, warn};
 use ordered_float::OrderedFloat;
 use sdk::{
-    Client, Code, CollectionClient, DropsItems, HasConditions, HasDrops, ItemContainer, ItemList, ItemsClient, Level, LimitedContainer, MapsClient, MonstersClient, NpcsClient, SlotLimited, SpaceLimited, TasksClient, bank::Bank, character::{CharacterClient, HandleCharacterData, error::RestError}, consts::{
+    Client, Code, CollectionClient, DropsItems, HasConditions, HasDrops, ItemContainer, ItemList,
+    ItemsClient, Level, LimitedContainer, MapsClient, MonstersClient, NpcsClient, SlotLimited,
+    SpaceLimited, TasksClient,
+    bank::Bank,
+    character::{CharacterClient, HandleCharacterData, error::RestError},
+    consts::{
         BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, GOLDEN_EGG, GOLDEN_SHRIMP, MAX_LEVEL,
         TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE, TASKS_COIN,
-    }, entities::{Character, Item, Map, Monster, NpcItem, RawCharacter, Resource}, gear::{Gear, Slot}, items::ItemSource, models::{
+    },
+    entities::{Character, Item, Map, Monster, NpcItem, RawCharacter, Resource},
+    gear::{Gear, Slot},
+    items::ItemSource,
+    models::{
         CharacterFightSchema, CharacterSchema, DropSchema, InventorySlot, MapContentType, MapLayer,
         RecyclingItemsSchema, RewardsSchema, SimpleItemSchema, SkillDataSchema, SkillInfoSchema,
         TaskSchema, TaskTradeSchema, TaskType,
-    }, simulator::{FightParams, HasEffects, Participant, Simulator, gather_cd, time_to_rest}, skill::Skill
+    },
+    simulator::{FightParams, HasEffects, Participant, Simulator, gather_cd, time_to_rest},
+    skill::Skill,
 };
 use std::{
     cmp::min,
@@ -382,11 +393,11 @@ impl CharacterController {
     fn progress_resource_order(
         &self,
         order: &Order,
-        r: &Resource,
+        ressource: &Resource,
     ) -> Result<u32, GatherCommandError> {
         order.inc_in_progress(1);
         let result = self
-            .gather_resource(r)
+            .gather_resource(ressource)
             .map(|gather| gather.amount_of(&order.item));
         order.dec_in_progress(1);
         result
@@ -395,9 +406,9 @@ impl CharacterController {
     fn progress_monster_order(
         &self,
         order: &Order,
-        m: &Monster,
+        monster: &Monster,
     ) -> Result<u32, KillMonsterCommandError> {
-        self.kill_monster(m)
+        self.kill_monster(monster)
             .map(|fight| fight.amount_of(&order.item))
     }
 

@@ -21,7 +21,7 @@ use openapi::models::{
     NpcItemTransactionSchema, NpcMerchantTransactionResponseSchema, RecyclingItemsSchema,
     RecyclingResponseSchema, RewardDataResponseSchema, RewardsSchema, SimpleItemSchema,
     SkillDataSchema, SkillInfoSchema, SkillResponseSchema, TaskResponseSchema, TaskSchema,
-    TaskTradeResponseSchema, TaskTradeSchema,
+    TaskTradeResponseSchema, TaskTradeSchema, TaskType,
 };
 use std::{cmp::Ordering, thread::sleep, time::Duration};
 
@@ -127,10 +127,8 @@ impl CharacterRequestHandler {
         error: RequestError,
     ) -> Result<Box<dyn ResponseSchema>, RequestError> {
         error!(
-            "{}: failed to request action '{}': {}",
+            "{}: failed to request action '{action}': {error}",
             self.name(),
-            action,
-            error
         );
         match error {
             RequestError::ResponseError(ref res) => {
@@ -564,7 +562,7 @@ impl Character for CharacterRequestHandler {
         self.data().task()
     }
 
-    fn task_type(&self) -> Option<openapi::models::TaskType> {
+    fn task_type(&self) -> Option<TaskType> {
         self.data().task_type()
     }
 

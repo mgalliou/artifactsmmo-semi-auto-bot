@@ -52,7 +52,7 @@ impl Bot {
         }
     }
 
-    pub fn run_characters(&self) {
+    pub fn run(&self) {
         self.account.init_characters(
             &self.client,
             &self.account,
@@ -60,10 +60,10 @@ impl Bot {
             &self.gear_finder,
             &self.leveling_helper,
         );
-        for c in self.account.characters() {
+        for char in self.account.characters() {
             sleep(Duration::from_millis(250));
-            if let Err(e) = Builder::new().name(c.name().to_string()).spawn(move || {
-                c.run_loop();
+            if let Err(e) = Builder::new().name(char.name().to_string()).spawn(move || {
+                char.run_loop();
             }) {
                 error!("failed to spawn character thread: {e}");
             }

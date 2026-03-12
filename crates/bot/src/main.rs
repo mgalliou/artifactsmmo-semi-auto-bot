@@ -26,6 +26,6 @@ fn main() -> Result<()> {
     //     .add("magic_wood", 6000, None, Purpose::Cli)?;
     // bot.order_board
     //     .add("strange_ore", 6000, None, Purpose::Cli)?;
-    bot.run_characters();
+    bot.run();
     cli::run(&bot)
 }
