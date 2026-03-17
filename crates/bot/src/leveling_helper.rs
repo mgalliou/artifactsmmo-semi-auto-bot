@@ -8,12 +8,11 @@ use sdk::{
     items::SubType,
     skill::Skill,
 };
-use std::sync::Arc;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct LevelingHelper {
-    account: Arc<AccountController>,
-    bank: Arc<BankController>,
+    account: AccountController,
+    bank: BankController,
     items: ItemsClient,
     monsters: MonstersClient,
     resources: ResourcesClient,
@@ -26,8 +25,8 @@ impl LevelingHelper {
         monsters: MonstersClient,
         resources: ResourcesClient,
         maps: MapsClient,
-        account: Arc<AccountController>,
-        bank: Arc<BankController>,
+        account: AccountController,
+        bank: BankController,
     ) -> Self {
         Self {
             account,

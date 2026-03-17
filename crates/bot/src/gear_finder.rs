@@ -10,16 +10,16 @@ use sdk::{
     simulator::{FightParams, HasEffects, Participant, Simulator, time_to_rest},
     skill::Skill,
 };
-use std::{cmp::Ordering, sync::Arc};
+use std::cmp::Ordering;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GearFinder {
     items: ItemsClient,
-    account: Arc<AccountController>,
+    account: AccountController,
 }
 
 impl GearFinder {
-    pub const fn new(items: ItemsClient, account: Arc<AccountController>) -> Self {
+    pub const fn new(items: ItemsClient, account: AccountController) -> Self {
         Self { items, account }
     }
 

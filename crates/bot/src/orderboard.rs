@@ -4,26 +4,30 @@ use itertools::Itertools;
 use log::{debug, error, info};
 use sdk::{CollectionClient, ItemsClient, models::SimpleItemSchema, skill::Skill};
 use std::{
-    borrow::ToOwned, cmp::min, fmt::{self, Display, Formatter}, mem::discriminant, sync::{
+    borrow::ToOwned,
+    cmp::min,
+    fmt::{self, Display, Formatter},
+    mem::discriminant,
+    sync::{
         Arc, RwLock,
         atomic::{AtomicU32, Ordering::SeqCst},
-    }
+    },
 };
 use strum::IntoEnumIterator;
 use strum_macros::{EnumIs, EnumIter};
 use thiserror::Error;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct OrderBoard {
-    orders: RwLock<Vec<Arc<Order>>>,
+    orders: Arc<RwLock<Vec<Arc<Order>>>>,
     items: ItemsClient,
-    account: Arc<AccountController>,
+    account: AccountController,
 }
 
 impl OrderBoard {
-    pub const fn new(items: ItemsClient, account: Arc<AccountController>) -> Self {
+    pub fn new(items: ItemsClient, account: AccountController) -> Self {
         Self {
-            orders: RwLock::new(vec![]),
+            orders: RwLock::default().into(),
             items,
             account,
         }
@@ -89,7 +93,11 @@ impl OrderBoard {
                 ordered = true;
             }
         }
-        if ordered { Ok(()) } else { Err(OrderError::AlreadyExists) }
+        if ordered {
+            Ok(())
+        } else {
+            Err(OrderError::AlreadyExists)
+        }
     }
 
     pub fn add(
@@ -135,31 +143,33 @@ impl OrderBoard {
     }
 
     pub fn register_deposited_items(&self, items: &[SimpleItemSchema]) {
-        for item in items { {
-            let mut remaining = item.quantity;
-            for order in &self.orders_by_priority() {
-                if remaining < 1 {
-                    break;
+        for item in items {
+            {
+                let mut remaining = item.quantity;
+                for order in &self.orders_by_priority() {
+                    if remaining < 1 {
+                        break;
+                    }
+                    if item.code != order.item {
+                        continue;
+                    }
+                    let quantity = min(order.quantity(), remaining);
+                    order.inc_deposited(quantity);
+                    if let Some(ref owner) = order.owner
+                        && let Err(e) =
+                            self.account
+                                .bank()
+                                .inc_reservation(&order.item, quantity, owner)
+                    {
+                        error!("orderboard: failed reserving deposited item: {e}");
+                    }
+                    if order.turned_in() {
+                        self.remove(order);
+                    }
+                    remaining = remaining.saturating_sub(quantity);
                 }
-                if item.code != order.item {
-                    continue;
-                }
-                let quantity = min(order.quantity(), remaining);
-                order.inc_deposited(quantity);
-                if let Some(ref owner) = order.owner
-                    && let Err(e) = self
-                        .account
-                        .bank
-                        .inc_reservation(&order.item, quantity, owner)
-                {
-                    error!("orderboard: failed reserving deposited item: {e}");
-                }
-                if order.turned_in() {
-                    self.remove(order);
-                }
-                remaining = remaining.saturating_sub(quantity);
             }
-        } }
+        }
     }
 
     pub fn clear(&self) {

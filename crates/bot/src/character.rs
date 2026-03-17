@@ -68,16 +68,16 @@ pub struct CharacterController {
     client: CharacterClient,
     bot_config: BotConfig,
     pub inventory: Arc<InventoryController>,
-    bank: Arc<BankController>,
-    account: Arc<AccountController>,
+    bank: BankController,
+    account: AccountController,
     maps: MapsClient,
     items: ItemsClient,
     monsters: MonstersClient,
     tasks: TasksClient,
     npcs: NpcsClient,
-    order_board: Arc<OrderBoard>,
-    gear_finder: Arc<GearFinder>,
-    leveling_helper: Arc<LevelingHelper>,
+    order_board: OrderBoard,
+    gear_finder: GearFinder,
+    leveling_helper: LevelingHelper,
     commands_sendr: Arc<Sender<CharacterCommand>>,
     commands_recvr: Arc<Mutex<Receiver<CharacterCommand>>>,
 }
@@ -87,10 +87,10 @@ impl CharacterController {
         char_client: CharacterClient,
         bot_cfg: BotConfig,
         client: &Client,
-        account: Arc<AccountController>,
-        order_board: Arc<OrderBoard>,
-        gear_finder: Arc<GearFinder>,
-        leveling_helper: Arc<LevelingHelper>,
+        account: AccountController,
+        order_board: &OrderBoard,
+        gear_finder: GearFinder,
+        leveling_helper: LevelingHelper,
     ) -> Self {
         let (tx, rx) = channel();
         Self {
@@ -98,14 +98,14 @@ impl CharacterController {
             client: char_client.clone(),
             bot_config: bot_cfg,
             inventory: Arc::new(InventoryController::new(char_client, client.items.clone())),
-            bank: account.bank.clone(),
+            bank: account.bank(),
             account,
             maps: client.maps.clone(),
             items: client.items.clone(),
             monsters: client.monsters.clone(),
             tasks: client.tasks.clone(),
             npcs: client.npcs.clone(),
-            order_board,
+            order_board: order_board.clone(),
             gear_finder,
             leveling_helper,
             commands_sendr: Arc::new(tx),
@@ -1165,7 +1165,7 @@ impl CharacterController {
     }
 
     pub fn expand_bank(&self) -> Result<u32, BankExpansionCommandError> {
-        let Ok(_being_expanded) = self.bank.being_expanded.try_write() else {
+        let Ok(_being_expanded) = self.bank.expension_lock() else {
             return Err(BankExpansionCommandError::BankUnavailable);
         };
         if self.bank.gold() + self.gold() < self.bank.next_expansion_cost() {

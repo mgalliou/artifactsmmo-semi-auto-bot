@@ -11,60 +11,71 @@ use sdk::{
 };
 use std::sync::{Arc, RwLock};
 
+#[derive(Default, Clone)]
+pub struct AccountController(Arc<AccountControllerInner>);
+
 #[derive(Default)]
-pub struct AccountController {
+pub struct AccountControllerInner {
     config: BotConfig,
     client: AccountClient,
     items: ItemsClient,
     npcs: NpcsClient,
-    pub bank: Arc<BankController>,
+    pub bank: BankController,
     pub characters: RwLock<Vec<Arc<CharacterController>>>,
 }
 
 impl AccountController {
-    pub const fn new(
+    pub fn new(
         config: BotConfig,
         client: AccountClient,
         items: ItemsClient,
         npcs: NpcsClient,
-        bank: Arc<BankController>,
+        bank: BankController,
     ) -> Self {
-        Self {
-            config,
-            client,
-            items,
-            bank,
-            npcs,
-            characters: RwLock::new(vec![]),
-        }
+        Self(
+            AccountControllerInner {
+                config,
+                client,
+                items,
+                bank,
+                npcs,
+                characters: RwLock::default(),
+            }
+            .into(),
+        )
     }
 
     pub fn client(&self) -> AccountClient {
-        self.client.clone()
+        self.0.client.clone()
+    }
+
+    pub fn bank(&self) -> BankController {
+        self.0.bank.clone()
     }
 
     pub fn init_characters(
         &self,
         client: &Client,
-        account: &Arc<Self>,
-        order_board: &Arc<OrderBoard>,
-        gear_finder: &Arc<GearFinder>,
-        leveling_helper: &Arc<LevelingHelper>,
+        account: &Self,
+        order_board: &OrderBoard,
+        gear_finder: &GearFinder,
+        leveling_helper: &LevelingHelper,
     ) {
-        let Ok(mut chars) = self.characters.write() else {
+        let Ok(mut chars) = self.0.characters.write() else {
             return;
         };
         *chars = self
+            .0
             .client
             .characters()
             .iter()
             .map(|char_client| {
                 Arc::new(CharacterController::new(
                     char_client.clone(),
-                    self.config.clone(),
+                    self.0.config.clone(),
                     client,
                     account.clone(),
-                    order_board.clone(),
+                    order_board,
                     gear_finder.clone(),
                     leveling_helper.clone(),
                 ))
@@ -73,7 +84,8 @@ impl AccountController {
     }
 
     pub fn characters(&self) -> Vec<Arc<CharacterController>> {
-        self.characters
+        self.0
+            .characters
             .read()
             .unwrap()
             .iter()
@@ -97,7 +109,7 @@ impl AccountController {
     }
 
     pub fn total_of(&self, item: &str) -> u32 {
-        self.bank.total_of(item)
+        self.0.bank.total_of(item)
             + self
                 .characters()
                 .iter()
@@ -136,7 +148,7 @@ impl AccountController {
     }
 
     pub fn time_to_get(&self, code: &str) -> Option<u32> {
-        let item = self.items.get(code)?;
+        let item = self.0.items.get(code)?;
         let (source, mut time) = self
             .characters()
             .iter()
@@ -145,7 +157,7 @@ impl AccountController {
 
         match source {
             ItemSource::Npc(npc) => {
-                if let Some(npc_item) = self.npcs.items().get(item.code())
+                if let Some(npc_item) = self.0.npcs.items().get(item.code())
                     && npc_item.npc_code() == npc.code()
                 {
                     time += self.time_to_get(npc_item.currency())? * npc_item.buy_price()?;

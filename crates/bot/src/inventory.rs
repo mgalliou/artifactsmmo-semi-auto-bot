@@ -20,17 +20,17 @@ use thiserror::Error;
 
 #[derive(Default)]
 pub struct InventoryController {
+    items: ItemsClient,
     client: CharacterClient,
     reservations: RwLock<Vec<Arc<InventoryReservation>>>,
-    items: ItemsClient,
 }
 
 impl InventoryController {
     pub const fn new(client: CharacterClient, items: ItemsClient) -> Self {
         Self {
             client,
-            reservations: RwLock::new(vec![]),
             items,
+            reservations: RwLock::new(vec![]),
         }
     }
 
