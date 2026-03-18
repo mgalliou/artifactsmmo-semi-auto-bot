@@ -139,7 +139,7 @@ impl CharacterClient {
 
     pub fn transition(&self) -> Result<Map, TransitionError> {
         self.can_transition()?;
-        Ok(self.0.handler.request_transition()?)
+        Ok(self.handler().request_transition()?)
     }
 
     pub fn can_transition(&self) -> Result<(), TransitionError> {
@@ -158,7 +158,7 @@ impl CharacterClient {
         participants: Option<&[String; 2]>,
     ) -> Result<CharacterFightSchema, FightError> {
         self.can_fight(participants)?;
-        Ok(self.0.handler.request_fight(participants)?)
+        Ok(self.handler().request_fight(participants)?)
     }
 
     pub fn can_fight(&self, participants: Option<&[String; 2]>) -> Result<(), FightError> {
@@ -194,7 +194,7 @@ impl CharacterClient {
 
     pub fn gather(&self) -> Result<SkillDataSchema, GatherError> {
         self.can_gather()?;
-        Ok(self.0.handler.request_gather()?)
+        Ok(self.handler().request_gather()?)
     }
 
     pub fn can_gather(&self) -> Result<(), GatherError> {
@@ -216,14 +216,14 @@ impl CharacterClient {
 
     pub fn rest(&self) -> Result<u32, RestError> {
         if self.hp() < self.max_hp() {
-            return Ok(self.0.handler.request_rest()?);
+            return Ok(self.handler().request_rest()?);
         }
         Ok(0)
     }
 
     pub fn craft(&self, item_code: &str, quantity: u32) -> Result<SkillInfoSchema, CraftError> {
         self.can_craft(item_code, quantity)?;
-        Ok(self.0.handler.request_craft(item_code, quantity)?)
+        Ok(self.handler().request_craft(item_code, quantity)?)
     }
 
     pub fn can_craft(&self, item_code: &str, quantity: u32) -> Result<(), CraftError> {
@@ -254,7 +254,7 @@ impl CharacterClient {
         quantity: u32,
     ) -> Result<RecyclingItemsSchema, RecycleError> {
         self.can_recycle(item_code, quantity)?;
-        Ok(self.0.handler.request_recycle(item_code, quantity)?)
+        Ok(self.handler().request_recycle(item_code, quantity)?)
     }
 
     pub fn can_recycle(&self, item_code: &str, quantity: u32) -> Result<(), RecycleError> {
@@ -284,7 +284,7 @@ impl CharacterClient {
 
     pub fn delete(&self, item_code: &str, quantity: u32) -> Result<SimpleItemSchema, DeleteError> {
         self.can_delete(item_code, quantity)?;
-        Ok(self.0.handler.request_delete(item_code, quantity)?)
+        Ok(self.handler().request_delete(item_code, quantity)?)
     }
 
     pub fn can_delete(&self, item_code: &str, quantity: u32) -> Result<(), DeleteError> {
@@ -299,7 +299,7 @@ impl CharacterClient {
 
     pub fn deposit_item(&self, items: &[SimpleItemSchema]) -> Result<(), DepositError> {
         self.can_deposit_items(items)?;
-        Ok(self.0.handler.request_deposit_item(items)?)
+        Ok(self.handler().request_deposit_item(items)?)
     }
 
     pub fn can_deposit_items(&self, items: &[SimpleItemSchema]) -> Result<(), DepositError> {
@@ -322,7 +322,7 @@ impl CharacterClient {
 
     pub fn withdraw_item(&self, items: &[SimpleItemSchema]) -> Result<(), WithdrawError> {
         self.can_withdraw_items(items)?;
-        Ok(self.0.handler.request_withdraw_item(items)?)
+        Ok(self.handler().request_withdraw_item(items)?)
     }
 
     pub fn can_withdraw_items(&self, items: &[SimpleItemSchema]) -> Result<(), WithdrawError> {
@@ -343,7 +343,7 @@ impl CharacterClient {
 
     pub fn deposit_gold(&self, quantity: u32) -> Result<u32, GoldDepositError> {
         self.can_deposit_gold(quantity)?;
-        Ok(self.0.handler.request_deposit_gold(quantity)?)
+        Ok(self.handler().request_deposit_gold(quantity)?)
     }
 
     pub fn can_deposit_gold(&self, quantity: u32) -> Result<(), GoldDepositError> {
@@ -358,7 +358,7 @@ impl CharacterClient {
 
     pub fn withdraw_gold(&self, quantity: u32) -> Result<u32, GoldWithdrawError> {
         self.can_withdraw_gold(quantity)?;
-        Ok(self.0.handler.request_withdraw_gold(quantity)?)
+        Ok(self.handler().request_withdraw_gold(quantity)?)
     }
 
     pub fn can_withdraw_gold(&self, quantity: u32) -> Result<(), GoldWithdrawError> {
@@ -373,7 +373,7 @@ impl CharacterClient {
 
     pub fn expand_bank(&self) -> Result<u32, BankExpansionError> {
         self.can_expand_bank()?;
-        Ok(self.0.handler.request_expand_bank()?)
+        Ok(self.handler().request_expand_bank()?)
     }
 
     pub fn can_expand_bank(&self) -> Result<(), BankExpansionError> {
@@ -388,7 +388,7 @@ impl CharacterClient {
 
     pub fn equip(&self, item_code: &str, slot: Slot, quantity: u32) -> Result<(), EquipError> {
         self.can_equip(item_code, slot, quantity)?;
-        Ok(self.0.handler.request_equip(item_code, slot, quantity)?)
+        Ok(self.handler().request_equip(item_code, slot, quantity)?)
     }
 
     pub fn can_equip(&self, item_code: &str, slot: Slot, quantity: u32) -> Result<(), EquipError> {
@@ -419,7 +419,7 @@ impl CharacterClient {
 
     pub fn unequip(&self, slot: Slot, quantity: u32) -> Result<(), UnequipError> {
         self.can_unequip(slot, quantity)?;
-        Ok(self.0.handler.request_unequip(slot, quantity)?)
+        Ok(self.handler().request_unequip(slot, quantity)?)
     }
 
     pub fn can_unequip(&self, slot: Slot, quantity: u32) -> Result<(), UnequipError> {
@@ -440,7 +440,7 @@ impl CharacterClient {
 
     pub fn use_item(&self, item_code: &str, quantity: u32) -> Result<(), UseError> {
         self.can_use_item(item_code, quantity)?;
-        Ok(self.0.handler.request_use_item(item_code, quantity)?)
+        Ok(self.handler().request_use_item(item_code, quantity)?)
     }
 
     pub fn can_use_item(&self, item_code: &str, quantity: u32) -> Result<(), UseError> {
@@ -461,7 +461,7 @@ impl CharacterClient {
 
     pub fn accept_task(&self) -> Result<TaskSchema, TaskAcceptationError> {
         self.can_accept_task()?;
-        Ok(self.0.handler.request_accept_task()?)
+        Ok(self.handler().request_accept_task()?)
     }
 
     pub fn can_accept_task(&self) -> Result<(), TaskAcceptationError> {
@@ -479,7 +479,7 @@ impl CharacterClient {
 
     pub fn cancel_task(&self) -> Result<(), TaskCancellationError> {
         self.can_cancel_task()?;
-        Ok(self.0.handler.request_cancel_task()?)
+        Ok(self.handler().request_cancel_task()?)
     }
 
     pub fn can_cancel_task(&self) -> Result<(), TaskCancellationError> {
@@ -540,7 +540,7 @@ impl CharacterClient {
 
     pub fn complete_task(&self) -> Result<RewardsSchema, TaskCompletionError> {
         self.can_complete_task()?;
-        Ok(self.0.handler.request_complete_task()?)
+        Ok(self.handler().request_complete_task()?)
     }
 
     pub fn can_complete_task(&self) -> Result<(), TaskCompletionError> {
@@ -570,7 +570,7 @@ impl CharacterClient {
 
     pub fn exchange_tasks_coins(&self) -> Result<RewardsSchema, TasksCoinExchangeError> {
         self.can_exchange_tasks_coins()?;
-        Ok(self.0.handler.request_exchange_tasks_coin()?)
+        Ok(self.handler().request_exchange_tasks_coin()?)
     }
 
     pub fn can_exchange_tasks_coins(&self) -> Result<(), TasksCoinExchangeError> {
@@ -604,7 +604,7 @@ impl CharacterClient {
         quantity: u32,
     ) -> Result<NpcItemTransactionSchema, BuyNpcError> {
         self.can_npc_buy(item_code, quantity)?;
-        Ok(self.0.handler.request_npc_buy(item_code, quantity)?)
+        Ok(self.handler().request_npc_buy(item_code, quantity)?)
     }
 
     fn can_npc_buy(&self, item_code: &str, quantity: u32) -> Result<(), BuyNpcError> {
@@ -633,7 +633,7 @@ impl CharacterClient {
         quantity: u32,
     ) -> Result<NpcItemTransactionSchema, SellNpcError> {
         self.can_npc_sell(item_code, quantity)?;
-        Ok(self.0.handler.request_npc_sell(item_code, quantity)?)
+        Ok(self.handler().request_npc_sell(item_code, quantity)?)
     }
 
     fn can_npc_sell(&self, item_code: &str, quantity: u32) -> Result<(), SellNpcError> {
@@ -655,7 +655,7 @@ impl CharacterClient {
         character: &str,
     ) -> Result<(), GiveItemError> {
         self.can_give_item(items, character)?;
-        Ok(self.0.handler.request_give_item(items, character)?)
+        Ok(self.handler().request_give_item(items, character)?)
     }
 
     pub fn can_give_item(
@@ -685,7 +685,7 @@ impl CharacterClient {
 
     pub fn give_gold(&self, quantity: u32, character: &str) -> Result<(), GiveGoldError> {
         self.can_give_gold(quantity, character)?;
-        Ok(self.0.handler.request_give_gold(quantity, character)?)
+        Ok(self.handler().request_give_gold(quantity, character)?)
     }
 
     pub fn can_give_gold(&self, quantity: u32, character: &str) -> Result<(), GiveGoldError> {
@@ -707,7 +707,7 @@ impl CharacterClient {
         quantity: u32,
     ) -> Result<GeTransactionSchema, GeBuyOrderError> {
         self.can_ge_buy_order(id, quantity)?;
-        Ok(self.0.handler.request_ge_buy_order(id, quantity)?)
+        Ok(self.handler().request_ge_buy_order(id, quantity)?)
     }
 
     pub fn can_ge_buy_order(&self, id: &str, quantity: u32) -> Result<(), GeBuyOrderError> {
@@ -773,7 +773,7 @@ impl CharacterClient {
 
     pub fn ge_cancel_order(&self, id: &str) -> Result<GeTransactionSchema, GeCancelOrderError> {
         self.can_ge_cancel_order(id)?;
-        Ok(self.0.handler.request_ge_cancel_order(id)?)
+        Ok(self.handler().request_ge_cancel_order(id)?)
     }
 
     pub fn can_ge_cancel_order(&self, id: &str) -> Result<(), GeCancelOrderError> {
@@ -864,15 +864,15 @@ pub trait HandleCharacterData: Character {
 
 impl HandleCharacterData for CharacterClient {
     fn data(&self) -> RawCharacter {
-        self.0.handler.data()
+        self.handler().data()
     }
 
     fn refresh_data(&self) {
-        self.0.handler.refresh_data();
+        self.handler().refresh_data();
     }
 
     fn update_data(&self, schema: CharacterSchema) {
-        self.0.handler.update_data(schema);
+        self.handler().update_data(schema);
     }
 }
 
