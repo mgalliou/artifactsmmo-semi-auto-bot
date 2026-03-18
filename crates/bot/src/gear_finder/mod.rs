@@ -1,4 +1,6 @@
-use crate::{account::AccountController, character::CharacterController};
+use crate::{
+    account::AccountController, character::CharacterController, gear_finder::item_wrapper::item_cmp,
+};
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use sdk::{
@@ -10,7 +12,25 @@ use sdk::{
     simulator::{FightParams, HasEffects, Participant, Simulator, time_to_rest},
     skill::Skill,
 };
-use std::cmp::Ordering;
+
+pub use artifact_set::ArtifactSet;
+pub use filter::Filter;
+pub use item_wrapper::ItemWrapper;
+pub use ring_set::RingSet;
+pub use utility_set::UtilitySet;
+
+mod artifact_set;
+mod filter;
+mod item_wrapper;
+mod ring_set;
+mod utility_set;
+
+#[derive(Clone, Copy)]
+pub enum GearPurpose<'a> {
+    Combat(&'a Monster),
+    Crafting(&'a Item),
+    Gathering(&'a Resource),
+}
 
 #[derive(Default, Clone)]
 pub struct GearFinder {
@@ -141,7 +161,7 @@ impl GearFinder {
             items.push(runes);
         }
         if let Some(bag) = self.best_bag(char, filter) {
-            items.push(vec![ItemWrapper::Armor(Some(bag))]);
+            items.push(vec![ItemWrapper::from(bag)]);
         }
         Self::gen_all_gears(Some(weapon), items)
     }
@@ -280,7 +300,7 @@ impl GearFinder {
             .iter()
             .max_set_by_key(HasEffects::burn)
             .into_iter()
-            .map(|i| ItemWrapper::Armor(Some(i.clone())))
+            .map(Into::into)
             .collect_vec()
     }
 
@@ -355,7 +375,7 @@ impl GearFinder {
             .then_some(self.best_tool(char, skill, filter))
             .flatten();
         if let Some(bag) = self.best_bag(char, filter) {
-            items.push(vec![ItemWrapper::Armor(Some(bag))]);
+            items.push(vec![ItemWrapper::from(&bag)]);
         }
         Self::gen_all_gears(tool, items)
     }
@@ -621,19 +641,9 @@ fn gen_ring_sets(mut rings1: Vec<Option<Item>>, mut rings2: Vec<Option<Item>>) -
         .multi_cartesian_product()
         .map(|rings| [rings[0].clone(), rings[1].clone()])
         .filter_map(RingSet::new)
-        .sorted_by(|a, b| {
-            if a == b {
-                Ordering::Equal
-            } else {
-                match item_cmp(a.ring1(), b.ring1()) {
-                    Ordering::Less => Ordering::Less,
-                    Ordering::Equal => item_cmp(a.ring2(), b.ring2()),
-                    Ordering::Greater => Ordering::Greater,
-                }
-            }
-        })
+        .sorted()
         .dedup()
-        .map(ItemWrapper::Rings)
+        .map(ItemWrapper::from)
         .collect_vec()
 }
 
@@ -646,17 +656,7 @@ fn gen_utility_sets(mut utilities: Vec<Option<Item>>) -> Vec<ItemWrapper> {
         .multi_cartesian_product()
         .map(|utilities| [utilities[0].clone(), utilities[1].clone()])
         .filter_map(UtilitySet::new)
-        .sorted_by(|a, b| {
-            if a == b {
-                Ordering::Equal
-            } else {
-                match item_cmp(a.utility1(), b.utility1()) {
-                    Ordering::Less => Ordering::Less,
-                    Ordering::Equal => item_cmp(a.utility2(), b.utility2()),
-                    Ordering::Greater => Ordering::Greater,
-                }
-            }
-        })
+        .sorted()
         .dedup()
         .map(ItemWrapper::Utility)
         .collect_vec()
@@ -677,204 +677,10 @@ fn gen_artifacts_sets(mut artifacts: Vec<Option<Item>>) -> Vec<ItemWrapper> {
             ]
         })
         .filter_map(ArtifactSet::new)
-        .sorted_by(|a, b| {
-            if a == b {
-                Ordering::Equal
-            } else {
-                match item_cmp(a.artifact1(), b.artifact1()) {
-                    Ordering::Less => Ordering::Less,
-                    Ordering::Equal => match item_cmp(a.artifact2(), b.artifact2()) {
-                        Ordering::Less => Ordering::Less,
-                        Ordering::Equal => item_cmp(a.artifact3(), b.artifact3()),
-                        Ordering::Greater => Ordering::Greater,
-                    },
-                    Ordering::Greater => Ordering::Greater,
-                }
-            }
-        })
+        .sorted()
         .dedup()
         .map(ItemWrapper::Artifacts)
         .collect_vec()
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[allow(clippy::struct_excessive_bools)]
-pub struct Filter {
-    pub available_only: bool,
-    pub craftable: bool,
-    pub from_task: bool,
-    pub from_npc: bool,
-    pub from_monster: bool,
-    pub utilities: bool,
-}
-
-impl Default for Filter {
-    fn default() -> Self {
-        Self {
-            available_only: false,
-            craftable: true,
-            from_task: true,
-            from_npc: true,
-            from_monster: false,
-            utilities: false,
-        }
-    }
-}
-
-impl Filter {
-    pub const fn available_only() -> Self {
-        Self {
-            available_only: true,
-            craftable: false,
-            from_task: false,
-            from_npc: false,
-            from_monster: false,
-            utilities: false,
-        }
-    }
-
-    pub const fn everything() -> Self {
-        Self {
-            available_only: false,
-            craftable: true,
-            from_task: true,
-            from_npc: true,
-            from_monster: true,
-            utilities: true,
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-enum ItemWrapper {
-    Armor(Option<Item>),
-    Rings(RingSet),
-    Artifacts(ArtifactSet),
-    Utility(UtilitySet),
-}
-
-#[derive(Clone, Debug, PartialEq)]
-struct RingSet {
-    rings: [Option<Item>; 2],
-}
-
-impl RingSet {
-    fn new(mut rings: [Option<Item>; 2]) -> Option<Self> {
-        if rings[0].is_none() && rings[1].is_none() {
-            None
-        } else {
-            rings.sort_by(|a, b| item_cmp(a.as_ref(), b.as_ref()));
-
-            Some(Self { rings })
-        }
-    }
-
-    const fn slot(&self, slot: Slot) -> Option<&Item> {
-        match slot {
-            Slot::Ring1 => self.ring1(),
-            Slot::Ring2 => self.ring2(),
-            _ => None,
-        }
-    }
-
-    const fn ring1(&self) -> Option<&Item> {
-        self.rings[0].as_ref()
-    }
-
-    const fn ring2(&self) -> Option<&Item> {
-        self.rings[1].as_ref()
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-struct ArtifactSet {
-    artifacts: [Option<Item>; 3],
-}
-
-impl ArtifactSet {
-    fn new(mut artifacts: [Option<Item>; 3]) -> Option<Self> {
-        if artifacts[0].is_some() && artifacts[0] == artifacts[1]
-            || artifacts[1].is_some() && artifacts[1] == artifacts[2]
-            || artifacts[0].is_some() && artifacts[0] == artifacts[2]
-            || (artifacts[0].is_none() && artifacts[1].is_none() && artifacts[2].is_none())
-        {
-            None
-        } else {
-            artifacts.sort_by(|a, b| item_cmp(a.as_ref(), b.as_ref()));
-            Some(Self { artifacts })
-        }
-    }
-
-    const fn slot(&self, slot: Slot) -> Option<&Item> {
-        match slot {
-            Slot::Artifact1 => self.artifact1(),
-            Slot::Artifact2 => self.artifact2(),
-            Slot::Artifact3 => self.artifact3(),
-            _ => None,
-        }
-    }
-
-    const fn artifact1(&self) -> Option<&Item> {
-        self.artifacts[0].as_ref()
-    }
-
-    const fn artifact2(&self) -> Option<&Item> {
-        self.artifacts[1].as_ref()
-    }
-
-    const fn artifact3(&self) -> Option<&Item> {
-        self.artifacts[2].as_ref()
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-struct UtilitySet {
-    utilities: [Option<Item>; 2],
-}
-
-impl UtilitySet {
-    fn new(mut utilities: [Option<Item>; 2]) -> Option<Self> {
-        if utilities[0].is_some() && utilities[0] == utilities[1]
-            || utilities[0].is_none() && utilities[1].is_none()
-        {
-            None
-        } else {
-            utilities.sort_by(|a, b| item_cmp(a.as_ref(), b.as_ref()));
-            Some(Self { utilities })
-        }
-    }
-
-    const fn slot(&self, slot: Slot) -> Option<&Item> {
-        match slot {
-            Slot::Utility1 => self.utility1(),
-            Slot::Utility2 => self.utility2(),
-            _ => None,
-        }
-    }
-
-    const fn utility1(&self) -> Option<&Item> {
-        self.utilities[0].as_ref()
-    }
-
-    const fn utility2(&self) -> Option<&Item> {
-        self.utilities[1].as_ref()
-    }
-}
-
-fn item_cmp(a: Option<&Item>, b: Option<&Item>) -> Ordering {
-    if a == b {
-        return Ordering::Equal;
-    }
-    let Some(a) = a else { return Ordering::Greater };
-    let Some(b) = b else { return Ordering::Less };
-    a.code().cmp(b.code())
-}
-
-#[derive(Clone, Copy)]
-pub enum GearPurpose<'a> {
-    Combat(&'a Monster),
-    Crafting(&'a Item),
-    Gathering(&'a Resource),
 }
 
 #[cfg(test)]
