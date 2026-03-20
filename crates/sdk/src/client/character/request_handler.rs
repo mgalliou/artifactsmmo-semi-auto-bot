@@ -23,7 +23,7 @@ use openapi::models::{
     SkillDataSchema, SkillInfoSchema, SkillResponseSchema, TaskResponseSchema, TaskSchema,
     TaskTradeResponseSchema, TaskTradeSchema, TaskType,
 };
-use std::{cmp::Ordering, thread::sleep, time::Duration};
+use std::{cmp::Ordering, sync::Arc, thread::sleep, time::Duration};
 
 /// First layer of abstraction around the character API.
 /// It is responsible for handling the character action requests responce and errors
@@ -32,13 +32,12 @@ use std::{cmp::Ordering, thread::sleep, time::Duration};
 pub struct CharacterRequestHandler {
     api: ArtifactApi,
     data: CharacterDataHandle,
-    name: String,
     account: AccountClient,
     server: ServerClient,
 }
 
 impl CharacterRequestHandler {
-    pub fn new(
+    pub const fn new(
         api: ArtifactApi,
         data: CharacterDataHandle,
         account: AccountClient,
@@ -46,7 +45,6 @@ impl CharacterRequestHandler {
     ) -> Self {
         Self {
             api,
-            name: data.read().name().to_string(),
             data,
             account,
             server,
@@ -75,7 +73,7 @@ impl CharacterRequestHandler {
         //             .expect("bank_details to be writable"),
         //     );
         // }
-        match action.send(self.name(), &self.api) {
+        match action.send(&self.name(), &self.api) {
             Ok(res) => {
                 info!("{}", res.to_string());
                 if let Some(res) = res.downcast_ref::<CharacterFightResponseSchema>() {
@@ -508,7 +506,7 @@ impl HandleCharacterData for CharacterRequestHandler {
     }
 
     fn refresh_data(&self) {
-        let Ok(res) = self.api.character.get(self.data.read().name()) else {
+        let Ok(res) = self.api.character.get(&self.name()) else {
             return;
         };
         self.data.update(RawCharacter::from(*res.data));
@@ -526,8 +524,8 @@ impl Level for CharacterRequestHandler {
 }
 
 impl Character for CharacterRequestHandler {
-    fn name(&self) -> &str {
-        &self.name
+    fn name(&self) -> Arc<str> {
+        self.data().name()
     }
 
     fn position(&self) -> (MapLayer, i32, i32) {
@@ -558,7 +556,7 @@ impl Character for CharacterRequestHandler {
         self.data().missing_hp()
     }
 
-    fn task(&self) -> String {
+    fn task(&self) -> Arc<str> {
         self.data().task()
     }
 
@@ -582,7 +580,7 @@ impl Character for CharacterRequestHandler {
         self.data().task_finished()
     }
 
-    fn inventory_items(&self) -> Option<Vec<InventorySlot>> {
+    fn inventory_items(&self) -> Arc<Option<Vec<InventorySlot>>> {
         self.data().inventory_items()
     }
 

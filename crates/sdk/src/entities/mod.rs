@@ -1,5 +1,5 @@
-mod active_event;
 mod account_achievement;
+mod active_event;
 mod character;
 mod event;
 mod item;
@@ -11,12 +11,14 @@ mod resource;
 mod task;
 mod task_reward;
 
-pub use active_event::*;
 pub use account_achievement::*;
-pub use character::*;
+pub use active_event::*;
+pub(crate) use character::CharacterDataHandle;
+pub use character::{Character, RawCharacter};
 pub use event::*;
 pub use item::*;
-pub use map::*;
+pub use map::Map;
+pub(crate) use map::MapDataHandle;
 pub use monster::*;
 pub use npc::*;
 pub use npc_item::*;

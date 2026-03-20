@@ -302,11 +302,11 @@ pub enum OrderError {
 
 #[derive(Debug, PartialEq, Eq, Clone, EnumIs, EnumIter)]
 pub enum Purpose {
-    Food { char: String },
+    Food { char: Arc<str> },
     Cli,
-    Gear { char: String, item_code: String },
-    Task { char: String },
-    Leveling { char: String, skill: Skill },
+    Gear { char: Arc<str>, item_code: String },
+    Task { char: Arc<str> },
+    Leveling { char: Arc<str>, skill: Skill },
 }
 
 impl Display for Purpose {

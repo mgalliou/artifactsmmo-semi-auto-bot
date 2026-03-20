@@ -64,7 +64,6 @@ use std::{
 use strum::IntoEnumIterator;
 
 pub struct CharacterController {
-    name: String,
     client: CharacterClient,
     bot_config: BotConfig,
     pub inventory: Arc<InventoryController>,
@@ -94,7 +93,6 @@ impl CharacterController {
     ) -> Self {
         let (tx, rx) = channel();
         Self {
-            name: char_client.name().to_string(),
             client: char_client.clone(),
             bot_config: bot_cfg,
             inventory: Arc::new(InventoryController::new(char_client, client.items.clone())),
@@ -174,9 +172,9 @@ impl CharacterController {
                         .add(
                             &item,
                             quantity,
-                            Some(self.name()),
+                            Some(&self.name()),
                             Purpose::Task {
-                                char: self.name().to_owned(),
+                                char: self.name().clone(),
                             },
                         )
                         .is_ok()
@@ -267,7 +265,7 @@ impl CharacterController {
                     &missing_mats,
                     None,
                     &Purpose::Leveling {
-                        char: self.name().to_owned(),
+                        char: self.name(),
                         skill,
                     },
                 )?)
@@ -463,7 +461,7 @@ impl CharacterController {
                 TaskTradeCommandError::MissingItems { item, quantity },
             )) => {
                 self.order_board
-                    .add(&item, quantity, Some(self.name()), order.purpose.clone())?;
+                    .add(&item, quantity, Some(&self.name()), order.purpose.clone())?;
                 Ok(0)
             }
             Err(e) => Err(e),
@@ -566,7 +564,7 @@ impl CharacterController {
             .saturating_sub(self.has_in_bank_or_inv(&self.task()));
         if missing_quantity > 0 {
             return Err(TaskTradeCommandError::MissingItems {
-                item: self.task(),
+                item: self.task().to_string(),
                 quantity: missing_quantity,
             });
         }
@@ -615,7 +613,7 @@ impl CharacterController {
         self.can_exchange_tasks_coins()?;
         let mut quantity = min(
             self.inventory.max_items() / 2,
-            self.bank.has_available(TASKS_COIN, self.name()),
+            self.bank.has_available(TASKS_COIN, &self.name()),
         );
         quantity = quantity.saturating_sub(quantity % TASK_EXCHANGE_PRICE);
         if self.inventory.total_of(TASKS_COIN) < TASK_EXCHANGE_PRICE {
@@ -629,7 +627,7 @@ impl CharacterController {
     }
 
     fn cancel_task(&self) -> Result<(), TaskCancellationCommandError> {
-        if self.bank.has_available(TASKS_COIN, self.name()) < TASK_CANCEL_PRICE + MIN_COIN_THRESHOLD
+        if self.bank.has_available(TASKS_COIN, &self.name()) < TASK_CANCEL_PRICE + MIN_COIN_THRESHOLD
         {
             return Err(TaskCancellationCommandError::MissingCoins);
         }
@@ -829,7 +827,7 @@ impl CharacterController {
         );
         let mats = self.items.mats_for(item.code(), quantity);
         let missing_mats = self.inventory.missing_among(&mats);
-        self.bank.reserv_items(&missing_mats, self.name())?;
+        self.bank.reserv_items(&missing_mats, &self.name())?;
         self.equip_gear_for(GearPurpose::Crafting(&item))?;
         if !self.inventory.has_room_for_multiple(&missing_mats) {
             self.deposit_all_but_multiple(&mats)?;
@@ -964,7 +962,7 @@ impl CharacterController {
         }
         let missing = quantity.saturating_sub(in_inventory);
         if missing > 0 {
-            self.bank.reserv_item(item, missing, self.name())?;
+            self.bank.reserv_item(item, missing, &self.name())?;
             if !self.inventory.has_room_for(item, missing) {
                 self.deposit_all_but(item)?;
             }
@@ -1093,7 +1091,7 @@ impl CharacterController {
         // TODO: defined food quantity depending on the monster drop rate and damages
         let quantity = min(
             ((self.inventory.max_items() as f32) * 0.90) as u32,
-            self.bank.has_available(food.code(), self.name()),
+            self.bank.has_available(food.code(), &self.name()),
         );
         self.lock_in_inventory(food.code(), quantity)
     }
@@ -1116,7 +1114,7 @@ impl CharacterController {
         if items.is_empty() {
             return Ok(());
         }
-        if !self.bank.has_multiple_available(items, self.name()) {
+        if !self.bank.has_multiple_available(items, &self.name()) {
             return Err(WithdrawItemCommandError::InsufficientQuantity);
         }
         if !self.inventory.has_room_for_multiple(items) {
@@ -1130,7 +1128,7 @@ impl CharacterController {
         self.move_to_closest_map_of_type(MapContentType::Bank)?;
         let result = self.client.withdraw_item(items);
         if result.is_ok() {
-            self.bank.dec_reservations(items, self.name());
+            self.bank.dec_reservations(items, &self.name());
             if let Err(e) = self.inventory.reserv_items(items) {
                 error!("{}: failed reserving withdrawed item: {e}", self.name());
             }
@@ -1503,7 +1501,7 @@ impl CharacterController {
                 self.account.fisher_max_items(),
                 None,
                 Purpose::Food {
-                    char: self.name().to_owned(),
+                    char: self.name(),
                 },
             )?;
         }
@@ -1523,7 +1521,7 @@ impl CharacterController {
             self.sell_item(
                 &item.code,
                 min(
-                    self.bank.has_available(&item.code, self.name()),
+                    self.bank.has_available(&item.code, &self.name()),
                     self.inventory.max_items(),
                 ),
             )
@@ -1604,7 +1602,7 @@ impl CharacterController {
                 missing_quantity,
                 None,
                 Purpose::Gear {
-                    char: self.name().to_owned(),
+                    char: self.name(),
                     item_code: item.to_owned(),
                 },
             )
@@ -1646,7 +1644,7 @@ impl CharacterController {
         let missing_quantity =
             quantity.saturating_sub(self.inventory.total_of(item) + self.has_equiped(item));
         if missing_quantity > 0 && self.equiped_in(slot) != item {
-            self.bank.reserv_item(item, missing_quantity, self.name())?;
+            self.bank.reserv_item(item, missing_quantity, &self.name())?;
         }
         Ok(())
     }
@@ -1726,7 +1724,7 @@ impl CharacterController {
     /// Returns the amount of the given item `code` available in bank and inventory.
     //TODO: maybe use `inventory.has_available`
     fn has_in_bank_or_inv(&self, item: &str) -> u32 {
-        self.inventory.total_of(item) + self.bank.has_available(item, self.name())
+        self.inventory.total_of(item) + self.bank.has_available(item, &self.name())
     }
 
     fn missing_mats_for(&self, item_code: &str, quantity: u32) -> Vec<SimpleItemSchema> {
@@ -1895,8 +1893,8 @@ impl HandleCharacterData for CharacterController {
 }
 
 impl Character for CharacterController {
-    fn name(&self) -> &str {
-        &self.name
+    fn name(&self) -> Arc<str> {
+        self.data().name()
     }
 
     fn position(&self) -> (MapLayer, i32, i32) {
@@ -1927,7 +1925,7 @@ impl Character for CharacterController {
         self.data().missing_hp()
     }
 
-    fn task(&self) -> String {
+    fn task(&self) -> Arc<str> {
         self.data().task()
     }
 
@@ -1951,7 +1949,7 @@ impl Character for CharacterController {
         self.data().task_finished()
     }
 
-    fn inventory_items(&self) -> Option<Vec<InventorySlot>> {
+    fn inventory_items(&self) -> Arc<Option<Vec<InventorySlot>>> {
         self.data().inventory_items()
     }
 

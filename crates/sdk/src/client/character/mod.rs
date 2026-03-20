@@ -2,7 +2,6 @@ use crate::{
     AccountClient, Code, CollectionClient, GOLD, Gear, HasConditions, ItemContainer, Level,
     LimitedContainer, SlotLimited, SpaceLimited, TASK_EXCHANGE_PRICE, TASKS_COIN, TasksClient,
     character::{
-        data_handle::CharacterDataHandle,
         error::{
             GeBuyOrderError, GeCancelOrderError, GeCreateOrderError, GiveGoldError, GiveItemError,
             TransitionError,
@@ -28,7 +27,7 @@ use crate::{
         resources::ResourcesClient,
         server::ServerClient,
     },
-    entities::{AccountAchievement, Character, Map, RawCharacter},
+    entities::{AccountAchievement, Character, CharacterDataHandle, Map, RawCharacter},
     gear::Slot,
     grand_exchange::GrandExchangeClient,
     simulator::HasEffects,
@@ -60,7 +59,6 @@ pub struct CharacterClient(Arc<CharacterClientInner>);
 #[derive(Default, Debug)]
 pub struct CharacterClientInner {
     pub id: usize,
-    name: String,
     handler: CharacterRequestHandler,
     account: AccountClient,
     bank: BankClient,
@@ -91,7 +89,6 @@ impl CharacterClient {
     ) -> Self {
         Self(Arc::new(CharacterClientInner {
             id,
-            name: data.read().name().to_string(),
             handler: CharacterRequestHandler::new(api, data, account.clone(), server),
             bank: account.bank(),
             account,
@@ -519,7 +516,7 @@ impl CharacterClient {
         if self.0.items.get(item_code).is_none() {
             return Err(TaskTradeError::ItemNotFound);
         }
-        if item_code != self.task() {
+        if *item_code != *self.task() {
             return Err(TaskTradeError::WrongTask);
         }
         if self.inventory().total_of(item_code) < quantity {
@@ -883,8 +880,8 @@ pub trait MeetsConditionsFor: Character {
 }
 
 impl Character for CharacterClient {
-    fn name(&self) -> &str {
-        &self.0.name
+    fn name(&self) -> Arc<str> {
+        self.data().name()
     }
 
     fn position(&self) -> (MapLayer, i32, i32) {
@@ -915,7 +912,7 @@ impl Character for CharacterClient {
         self.data().missing_hp()
     }
 
-    fn task(&self) -> String {
+    fn task(&self) -> Arc<str> {
         self.data().task()
     }
 
@@ -939,7 +936,7 @@ impl Character for CharacterClient {
         self.data().task_finished()
     }
 
-    fn inventory_items(&self) -> Option<Vec<InventorySlot>> {
+    fn inventory_items(&self) -> Arc<Option<Vec<InventorySlot>>> {
         self.data().inventory_items()
     }
 

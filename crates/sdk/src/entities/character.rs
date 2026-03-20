@@ -2,11 +2,11 @@ use crate::{Level, Skill, Slot};
 use chrono::{DateTime, Utc};
 use openapi::models::{CharacterSchema, InventorySlot, MapLayer, TaskType};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use strum::IntoEnumIterator;
 
 pub trait Character: Level {
-    fn name(&self) -> &str;
+    fn name(&self) -> Arc<str>;
     fn position(&self) -> (MapLayer, i32, i32);
     fn skill_level(&self, skill: Skill) -> u32;
     fn skill_xp(&self, skill: Skill) -> i32;
@@ -14,13 +14,13 @@ pub trait Character: Level {
     fn hp(&self) -> i32;
     fn max_hp(&self) -> i32;
     fn missing_hp(&self) -> i32;
-    fn task(&self) -> String;
+    fn task(&self) -> Arc<str>;
     fn task_type(&self) -> Option<TaskType>;
     fn task_progress(&self) -> u32;
     fn task_total(&self) -> u32;
     fn task_missing(&self) -> u32;
     fn task_finished(&self) -> bool;
-    fn inventory_items(&self) -> Option<Vec<InventorySlot>>;
+    fn inventory_items(&self) -> Arc<Option<Vec<InventorySlot>>>;
     fn inventory_max_items(&self) -> i32;
     fn gold(&self) -> u32;
     fn equiped_in(&self, slot: Slot) -> String;
@@ -29,20 +29,50 @@ pub trait Character: Level {
     fn cooldown_expiration(&self) -> Option<DateTime<Utc>>;
 }
 
+#[derive(Default, Debug)]
+pub struct CharacterDataHandle(Arc<RwLock<RawCharacter>>);
+
+impl CharacterDataHandle {
+    pub fn read(&self) -> RawCharacter {
+        self.0.read().unwrap().clone()
+    }
+
+    pub(crate) fn update(&self, data: RawCharacter) {
+        *self.0.write().unwrap() = data;
+    }
+}
+
+impl From<CharacterSchema> for CharacterDataHandle {
+    fn from(value: CharacterSchema) -> Self {
+        Self(Arc::new(RwLock::new(value.into())))
+    }
+}
+
+impl From<&CharacterSchema> for CharacterDataHandle {
+    fn from(value: &CharacterSchema) -> Self {
+        value.clone().into()
+    }
+}
+
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
-pub struct RawCharacter(Arc<CharacterSchema>);
+pub struct RawCharacter {
+    schema: Arc<CharacterSchema>,
+    name: Arc<str>,
+    task: Arc<str>,
+    inventory: Arc<Option<Vec<InventorySlot>>>,
+}
 
 impl Character for RawCharacter {
-    fn name(&self) -> &str {
-        &self.0.name
+    fn name(&self) -> Arc<str> {
+        self.name.clone()
     }
 
     fn position(&self) -> (MapLayer, i32, i32) {
-        (self.0.layer, self.0.x, self.0.y)
+        (self.schema.layer, self.schema.x, self.schema.y)
     }
 
     fn skill_level(&self, skill: Skill) -> u32 {
-        let inner = &self.0;
+        let inner = &self.schema;
         (match skill {
             Skill::Combat => inner.level,
             Skill::Mining => inner.mining_level,
@@ -57,7 +87,7 @@ impl Character for RawCharacter {
     }
 
     fn skill_xp(&self, skill: Skill) -> i32 {
-        let inner = &self.0;
+        let inner = &self.schema;
         match skill {
             Skill::Combat => inner.xp,
             Skill::Mining => inner.mining_xp,
@@ -72,7 +102,7 @@ impl Character for RawCharacter {
     }
 
     fn skill_max_xp(&self, skill: Skill) -> i32 {
-        let inner = &self.0;
+        let inner = &self.schema;
         match skill {
             Skill::Combat => inner.max_xp,
             Skill::Mining => inner.mining_max_xp,
@@ -87,11 +117,11 @@ impl Character for RawCharacter {
     }
 
     fn hp(&self) -> i32 {
-        self.0.hp
+        self.schema.hp
     }
 
     fn max_hp(&self) -> i32 {
-        self.0.max_hp
+        self.schema.max_hp
     }
 
     fn missing_hp(&self) -> i32 {
@@ -99,15 +129,15 @@ impl Character for RawCharacter {
     }
 
     fn gold(&self) -> u32 {
-        self.0.gold as u32
+        self.schema.gold as u32
     }
 
-    fn task(&self) -> String {
-        self.0.task.clone()
+    fn task(&self) -> Arc<str> {
+        self.task.clone()
     }
 
     fn task_type(&self) -> Option<TaskType> {
-        match self.0.task_type.as_str() {
+        match self.schema.task_type.as_str() {
             "monsters" => Some(TaskType::Monsters),
             "items" => Some(TaskType::Items),
             _ => None,
@@ -115,11 +145,11 @@ impl Character for RawCharacter {
     }
 
     fn task_progress(&self) -> u32 {
-        self.0.task_progress as u32
+        self.schema.task_progress as u32
     }
 
     fn task_total(&self) -> u32 {
-        self.0.task_total as u32
+        self.schema.task_total as u32
     }
 
     fn task_missing(&self) -> u32 {
@@ -132,14 +162,14 @@ impl Character for RawCharacter {
 
     /// Returns the cooldown expiration timestamp of the `Character`.
     fn cooldown_expiration(&self) -> Option<DateTime<Utc>> {
-        self.0
+        self.schema
             .cooldown_expiration
             .as_ref()
             .map(|cd| DateTime::parse_from_rfc3339(cd).ok().map(|dt| dt.to_utc()))?
     }
 
     fn equiped_in(&self, slot: Slot) -> String {
-        let inner = &self.0;
+        let inner = &self.schema;
         match slot {
             Slot::Weapon => &inner.weapon_slot,
             Slot::Shield => &inner.shield_slot,
@@ -169,8 +199,8 @@ impl Character for RawCharacter {
 
     fn quantity_in_slot(&self, slot: Slot) -> u32 {
         match slot {
-            Slot::Utility1 => self.0.utility1_slot_quantity,
-            Slot::Utility2 => self.0.utility2_slot_quantity,
+            Slot::Utility1 => self.schema.utility1_slot_quantity,
+            Slot::Utility2 => self.schema.utility2_slot_quantity,
             Slot::Weapon
             | Slot::Shield
             | Slot::Helmet
@@ -188,18 +218,23 @@ impl Character for RawCharacter {
         }
     }
 
-    fn inventory_items(&self) -> Option<Vec<InventorySlot>> {
-        self.0.inventory.clone()
+    fn inventory_items(&self) -> Arc<Option<Vec<InventorySlot>>> {
+        self.inventory.clone()
     }
 
     fn inventory_max_items(&self) -> i32 {
-        self.0.inventory_max_items
+        self.schema.inventory_max_items
     }
 }
 
 impl From<CharacterSchema> for RawCharacter {
     fn from(value: CharacterSchema) -> Self {
-        Self(value.into())
+        Self {
+            name: value.name.clone().into(),
+            task: value.task.clone().into(),
+            inventory: value.inventory.clone().into(),
+            schema: value.into(),
+        }
     }
 }
 
@@ -211,6 +246,6 @@ impl From<&CharacterSchema> for RawCharacter {
 
 impl Level for RawCharacter {
     fn level(&self) -> u32 {
-        self.0.level as u32
+        self.schema.level as u32
     }
 }

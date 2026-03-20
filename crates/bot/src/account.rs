@@ -98,7 +98,7 @@ impl AccountController {
     }
 
     pub fn get_character_by_name(&self, name: &str) -> Option<Arc<CharacterController>> {
-        self.characters().iter().find(|c| c.name() == name).cloned()
+        self.characters().iter().find(|c| *c.name() == *name).cloned()
     }
 
     pub fn available_in_inventories(&self, item: &str) -> u32 {

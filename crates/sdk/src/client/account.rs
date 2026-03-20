@@ -110,7 +110,10 @@ impl AccountClient {
     }
 
     pub fn get_character(&self, name: &str) -> Option<CharacterClient> {
-        self.characters().iter().find(|c| c.name() == name).cloned()
+        self.characters()
+            .iter()
+            .find(|c| *c.name() == *name)
+            .cloned()
     }
 
     pub fn achievements(&self) -> Vec<AccountAchievement> {
