@@ -875,7 +875,6 @@ impl HandleCharacterData for CharacterClient {
 
 pub trait MeetsConditionsFor: Character {
     fn account(&self) -> AccountClient;
-
     fn inventory(&self) -> InventoryClient;
 }
 

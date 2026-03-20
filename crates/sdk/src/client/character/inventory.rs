@@ -1,5 +1,6 @@
 use crate::{
-    Code, DropsItems, container::{ItemContainer, LimitedContainer, SlotLimited, SpaceLimited},
+    Code, DropsItems,
+    container::{ItemContainer, LimitedContainer, SlotLimited, SpaceLimited},
     entities::{Character, Item, RawCharacter},
 };
 use itertools::Itertools;
@@ -18,18 +19,20 @@ impl InventoryClient {
 }
 
 pub trait Inventory: SlotLimited + SpaceLimited {
-    /// Checks their is enough room to craft `item`, considering the materials
-    /// required are present.
-    /// Returns `true` if `item` is not craftable
+    /// Checks there is enough room to craft `item`.
+    /// Returns `false` if `item` is not craftable or mats required are missing.
     fn has_room_to_craft(&self, item: &Item) -> bool {
-        if !item.is_craftable()
-            || self.free_slots() < 1
-                && item
-                    .mats()
-                    .iter()
-                    .all(|i| self.total_of(&i.code) > i.quantity)
-                && self.total_of(item.code()) > 0
-        {
+        if !item.is_craftable() || !self.contains_multiple(&item.mats()) {
+            return false;
+        }
+        let free_slot = self.free_slots();
+        let slot_freed = item
+            .mats()
+            .iter()
+            .filter(|i| self.total_of(&i.code) <= i.quantity)
+            .count() as i32;
+        let slot_taken = i32::from(self.total_of(item.code()) == 0);
+        if free_slot < 1 && slot_freed < slot_taken {
             return false;
         }
         self.free_space() >= item.craft_quantity().saturating_sub(item.mats_quantity())
