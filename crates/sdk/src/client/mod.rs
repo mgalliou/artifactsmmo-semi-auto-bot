@@ -1,11 +1,13 @@
+use crate::Persist;
 use api::ArtifactApi;
+use itertools::Itertools;
 use std::{
+    collections::HashMap,
     ops::Deref,
-    sync::Arc,
+    sync::{Arc, RwLockReadGuard},
     thread::{self},
 };
 
-use crate::Persist;
 pub use crate::client::{
     account::AccountClient, bank::BankClient, character::CharacterClient, error::ClientError,
     events::EventsClient, grand_exchange::GrandExchangeClient, items::ItemsClient,
@@ -140,4 +142,30 @@ impl Client {
         self.npcs.items().refresh();
         self.server.update_status();
     }
+}
+
+#[allow(private_bounds)]
+pub trait CollectionClient: Data {
+    fn get(&self, code: &str) -> Option<Self::Entity> {
+        self.data().get(code).cloned()
+    }
+
+    fn all(&self) -> Vec<Self::Entity> {
+        self.data().values().cloned().collect_vec()
+    }
+
+    fn filtered<F>(&self, f: F) -> Vec<Self::Entity>
+    where
+        F: FnMut(&Self::Entity) -> bool,
+    {
+        self.all().into_iter().filter(f).collect_vec()
+    }
+}
+
+pub(crate) trait Data: DataEntity {
+    fn data(&self) -> RwLockReadGuard<'_, HashMap<String, Self::Entity>>;
+}
+
+pub trait DataEntity {
+    type Entity: Clone;
 }

@@ -1,12 +1,11 @@
 use fs_extra::file::{read_to_string, write_all};
-use itertools::Itertools;
 use log::error;
 use openapi::models::{
     AccessSchema, CharacterFightSchema, ConditionSchema, DropRateSchema, DropSchema, InventorySlot,
     RewardsSchema, SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TransitionSchema,
 };
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fmt, path::Path, sync::RwLockReadGuard};
+use std::{fmt, path::Path};
 
 pub use openapi::models;
 pub use sdk_derive::CollectionClient;
@@ -54,32 +53,6 @@ pub(crate) trait Persist<D: for<'a> Deserialize<'a> + Serialize> {
     }
 
     fn refresh(&self);
-}
-
-#[allow(private_bounds)]
-pub trait CollectionClient: Data {
-    fn get(&self, code: &str) -> Option<Self::Entity> {
-        self.data().get(code).cloned()
-    }
-
-    fn all(&self) -> Vec<Self::Entity> {
-        self.data().values().cloned().collect_vec()
-    }
-
-    fn filtered<F>(&self, f: F) -> Vec<Self::Entity>
-    where
-        F: FnMut(&Self::Entity) -> bool,
-    {
-        self.all().into_iter().filter(f).collect_vec()
-    }
-}
-
-pub(crate) trait Data: DataEntity {
-    fn data(&self) -> RwLockReadGuard<'_, HashMap<String, Self::Entity>>;
-}
-
-pub trait DataEntity {
-    type Entity: Clone;
 }
 
 pub trait Code {

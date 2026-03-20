@@ -38,8 +38,8 @@ impl MapsClient {
         self.0.events.clone()
     }
 
-    pub fn get(&self, position: (MapLayer, i32, i32)) -> Option<Map> {
-        Some(self.0.data.get(&position)?.read().unwrap().clone())
+    pub fn get(&self, position: &(MapLayer, i32, i32)) -> Option<Map> {
+        Some(self.0.data.get(position)?.read().unwrap().clone())
     }
 
     pub fn all(&self) -> Vec<Map> {

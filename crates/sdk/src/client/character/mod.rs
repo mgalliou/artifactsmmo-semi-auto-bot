@@ -128,7 +128,7 @@ impl CharacterClient {
         if position == (layer, x, y) {
             return Err(MoveError::AlreadyOnMap);
         }
-        let Some(map) = self.0.maps.get((layer, x, y)) else {
+        let Some(map) = self.0.maps.get(&(layer, x, y)) else {
             return Err(MoveError::MapNotFound);
         };
         if map.is_blocked() || !self.meets_conditions_for(map.access()) {
@@ -852,7 +852,7 @@ impl CharacterClient {
     }
 
     pub fn current_map(&self) -> Map {
-        self.0.maps.get(self.position()).unwrap()
+        self.0.maps.get(&self.position()).unwrap()
     }
 }
 

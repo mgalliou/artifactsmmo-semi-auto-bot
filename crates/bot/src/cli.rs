@@ -317,7 +317,7 @@ fn respond(
             let Some(char) = character else {
                 bail!("no character selected");
             };
-            println!("{:?}", bot.client.maps.get(char.position()).unwrap());
+            println!("{:?}", bot.client.maps.get(&char.position()).unwrap());
         }
         Commands::Task => {
             let Some(char) = character else {
