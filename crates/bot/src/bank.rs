@@ -286,7 +286,7 @@ pub struct BankReservation {
 }
 
 impl Reservation for BankReservation {
-    fn quantity_atomic(&self) -> &AtomicU32 {
+    fn quantity_mut(&self) -> &AtomicU32 {
         &self.quantity
     }
 }

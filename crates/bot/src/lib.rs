@@ -79,15 +79,15 @@ trait HasReservation: ItemContainer {
 
 pub trait Reservation: Code + Quantity {
     fn inc_quantity(&self, n: u32) {
-        self.quantity_atomic().fetch_add(n, SeqCst);
+        self.quantity_mut().fetch_add(n, SeqCst);
     }
 
     fn dec_quantity(&self, n: u32) {
         let new = self.quantity().saturating_sub(n);
-        self.quantity_atomic().store(new, SeqCst);
+        self.quantity_mut().store(new, SeqCst);
     }
 
-    fn quantity_atomic(&self) -> &AtomicU32;
+    fn quantity_mut(&self) -> &AtomicU32;
 }
 
 #[derive(PartialEq, Eq)]

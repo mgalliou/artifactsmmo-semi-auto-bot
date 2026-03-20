@@ -256,8 +256,14 @@ impl PartialEq for InventoryReservation {
 }
 
 impl Reservation for InventoryReservation {
-    fn quantity_atomic(&self) -> &AtomicU32 {
+    fn quantity_mut(&self) -> &AtomicU32 {
         &self.quantity
+    }
+}
+
+impl Code for InventoryReservation {
+    fn code(&self) -> &str {
+        &self.item
     }
 }
 
@@ -267,8 +273,3 @@ impl Quantity for InventoryReservation {
     }
 }
 
-impl Code for InventoryReservation {
-    fn code(&self) -> &str {
-        &self.item
-    }
-}
