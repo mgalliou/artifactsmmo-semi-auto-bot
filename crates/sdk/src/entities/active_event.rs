@@ -1,6 +1,8 @@
-use openapi::models::{ActiveEventSchema, MapSchema};
+use openapi::models::ActiveEventSchema;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::{ops::Deref, sync::Arc};
+
+use crate::entities::Map;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ActiveEvent(Arc<ActiveEventSchema>);
@@ -13,11 +15,11 @@ impl ActiveEvent {
         &self.0.expiration
     }
 
-    pub fn map(&self) -> &MapSchema {
-        &self.0.map
+    pub fn map(&self) -> Map {
+        self.0.map.deref().into()
     }
 
-    pub fn previous_map(&self) -> &MapSchema {
-        &self.0.previous_map
+    pub fn previous_map(&self) -> Map {
+        self.0.map.deref().into()
     }
 }

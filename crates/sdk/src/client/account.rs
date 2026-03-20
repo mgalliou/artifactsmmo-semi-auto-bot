@@ -1,7 +1,6 @@
 use crate::{
     ClientError, Code, ItemsClient, MapsClient, MonstersClient, NpcsClient, ResourcesClient,
     ServerClient, TasksClient,
-    character::data_handle::CharacterDataHandle,
     client::{bank::BankClient, character::CharacterClient},
     entities::{AccountAchievement, Character},
     grand_exchange::GrandExchangeClient,
@@ -76,7 +75,7 @@ impl AccountClient {
             .map(|(id, data)| {
                 CharacterClient::new(
                     id,
-                    CharacterDataHandle::new(data),
+                    data.into(),
                     self.clone(),
                     items.clone(),
                     resources.clone(),

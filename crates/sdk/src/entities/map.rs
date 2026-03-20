@@ -1,18 +1,53 @@
 use crate::MapsClient;
 use core::fmt;
 use openapi::models::{
-    AccessSchema, InteractionSchema, MapAccessType, MapContentSchema, MapContentType, MapSchema,
-    TaskType, TransitionSchema,
+    AccessSchema, InteractionSchema, MapAccessType, MapContentSchema, MapContentType, MapLayer,
+    MapSchema, TaskType, TransitionSchema,
 };
 use serde::{Deserialize, Serialize};
-use std::{convert::AsRef, sync::Arc};
+use std::{
+    convert::AsRef, sync::{Arc, RwLock}
+};
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct MapDataHandle(Arc<RwLock<Map>>);
+
+impl MapDataHandle {
+    pub fn read(&self) -> Map {
+        self.0.read().unwrap().clone()
+    }
+
+    pub fn update(&self, data: Map) {
+        *self.0.write().unwrap() = data;
+    }
+}
+
+impl From<MapSchema> for MapDataHandle {
+    fn from(value: MapSchema) -> Self {
+        Self(Arc::new(RwLock::new(value.into())))
+    }
+}
+
+impl From<&MapSchema> for MapDataHandle {
+    fn from(value: &MapSchema) -> Self {
+        value.clone().into()
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Map(Arc<MapSchema>);
 
 impl Map {
-    pub(crate) fn new(schema: MapSchema) -> Self {
-        Self(schema.into())
+    pub fn id(&self) -> i32 {
+        self.0.map_id
+    }
+
+    pub fn position(&self) -> (MapLayer, i32, i32) {
+        (self.layer(), self.x(), self.y())
+    }
+
+    pub fn layer(&self) -> MapLayer {
+        self.0.layer
     }
 
     pub fn x(&self) -> i32 {
@@ -23,8 +58,8 @@ impl Map {
         self.0.y
     }
 
-    pub fn id(&self) -> i32 {
-        self.0.map_id
+    pub fn name(&self) -> &str {
+        &self.0.name
     }
 
     pub fn content(&self) -> Option<&MapContentSchema> {
@@ -73,16 +108,31 @@ impl Map {
     }
 }
 
+impl From<MapSchema> for Map {
+    fn from(value: MapSchema) -> Self {
+        Self(value.into())
+    }
+}
+
+impl From<&MapSchema> for Map {
+    fn from(value: &MapSchema) -> Self {
+        value.clone().into()
+    }
+}
+
 impl fmt::Display for Map {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(content) = self.content() {
             write!(
                 f,
-                "{} ({},{} [{}])",
-                self.0.name, self.0.x, self.0.y, content.code
+                "{} ({}, {} [{}])",
+                self.name(),
+                self.x(),
+                self.y(),
+                content.code
             )
         } else {
-            write!(f, "{} ({},{})", self.0.name, self.0.x, self.0.y)
+            write!(f, "{} ({}, {})", self.name(), self.x(), self.y())
         }
     }
 }

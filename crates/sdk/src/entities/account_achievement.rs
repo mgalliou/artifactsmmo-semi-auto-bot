@@ -1,9 +1,8 @@
+use crate::Code;
 use chrono::{DateTime, FixedOffset};
 use openapi::models::AccountAchievementSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-
-use crate::Code;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct AccountAchievement(Arc<AccountAchievementSchema>);

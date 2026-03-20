@@ -1,3 +1,4 @@
+use crate::{ItemList, entities::Map};
 use downcast_rs::{Downcast, impl_downcast};
 use itertools::Itertools;
 use openapi::models::{
@@ -12,8 +13,6 @@ use openapi::models::{
     UseItemResponseSchema,
 };
 
-use crate::{ItemList, entities::Map};
-
 pub trait ResponseSchema: Downcast {
     fn character(&self) -> &CharacterSchema;
     fn to_string(&self) -> String;
@@ -25,7 +24,7 @@ impl ResponseSchema for CharacterMovementResponseSchema {
         format!(
             "{}: moved to {}. {}s",
             self.data.character.name,
-            Map::new(*self.data.destination.clone()),
+            Map::from(*self.data.destination.clone()),
             self.data.cooldown.remaining_seconds
         )
     }
@@ -40,7 +39,7 @@ impl ResponseSchema for CharacterTransitionResponseSchema {
         format!(
             "{}: transitioned to {}. {}s",
             self.data.character.name,
-            Map::new(*self.data.destination.clone()),
+            Map::from(*self.data.destination.clone()),
             self.data.cooldown.remaining_seconds
         )
     }

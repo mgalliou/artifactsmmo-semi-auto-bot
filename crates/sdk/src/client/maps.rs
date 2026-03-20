@@ -1,19 +1,20 @@
-use crate::{client::events::EventsClient, entities::Map, skill::Skill};
+use crate::{
+    client::events::EventsClient,
+    entities::{Map, MapDataHandle},
+    skill::Skill,
+};
 use api::ArtifactApi;
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use openapi::models::{MapContentSchema, MapContentType, MapLayer, TaskType};
-use std::{
-    collections::HashMap,
-    sync::{Arc, RwLock},
-};
+use std::{collections::HashMap, sync::Arc};
 
 #[derive(Default, Debug, Clone)]
 pub struct MapsClient(Arc<MapsClientInner>);
 
 #[derive(Default, Debug)]
 struct MapsClientInner {
-    data: HashMap<(MapLayer, i32, i32), RwLock<Map>>,
+    data: HashMap<(MapLayer, i32, i32), MapDataHandle>,
     events: EventsClient,
 }
 
@@ -26,7 +27,7 @@ impl MapsClient {
                     .get_all()
                     .unwrap()
                     .into_iter()
-                    .map(|m| ((m.layer, m.x, m.y), RwLock::new(Map::new(m))))
+                    .map(|m| ((m.layer, m.x, m.y), m.into()))
                     .collect(),
                 events,
             }
@@ -39,31 +40,27 @@ impl MapsClient {
     }
 
     pub fn get(&self, position: &(MapLayer, i32, i32)) -> Option<Map> {
-        Some(self.0.data.get(position)?.read().unwrap().clone())
+        Some(self.0.data.get(position)?.read())
     }
 
     pub fn all(&self) -> Vec<Map> {
-        self.0
-            .data
-            .values()
-            .map(|m| m.read().unwrap().clone())
-            .collect_vec()
+        self.0.data.values().map(MapDataHandle::read).collect_vec()
     }
 
     pub fn refresh_from_events(&self) {
         self.events().active().iter().for_each(|e| {
             if DateTime::parse_from_rfc3339(e.expiration()).is_ok_and(|e| e < Utc::now())
-                && let Some(map) = self.0.data.get(&(e.map().layer, e.map().x, e.map().y))
+                && let Some(map) = self.0.data.get(&e.map().position())
             {
-                *map.write().unwrap() = Map::new(e.previous_map().clone());
+                map.update(e.previous_map());
             }
         });
         self.events().refresh_active();
         self.events().active().iter().for_each(|e| {
             if DateTime::parse_from_rfc3339(e.expiration()).is_ok_and(|e| e > Utc::now())
-                && let Some(map) = self.0.data.get(&(e.map().layer, e.map().x, e.map().y))
+                && let Some(map) = self.0.data.get(&e.map().position())
             {
-                *map.write().unwrap() = Map::new(e.map().clone());
+                map.update(e.map());
             }
         });
     }

@@ -203,7 +203,7 @@ impl CharacterRequestHandler {
                 r.downcast::<CharacterMovementResponseSchema>()
                     .map_err(|_| RequestError::DowncastError)
             })
-            .map(|s| Map::new(*s.data.destination))
+            .map(|s| Map::from(*s.data.destination))
     }
 
     pub fn request_transition(&self) -> Result<Map, RequestError> {
@@ -212,7 +212,7 @@ impl CharacterRequestHandler {
                 r.downcast::<CharacterTransitionResponseSchema>()
                     .map_err(|_| RequestError::DowncastError)
             })
-            .map(|s| Map::new(*s.data.destination))
+            .map(|s| Map::from(*s.data.destination))
     }
 
     pub fn request_fight(
@@ -511,11 +511,11 @@ impl HandleCharacterData for CharacterRequestHandler {
         let Ok(res) = self.api.character.get(self.data.read().name()) else {
             return;
         };
-        self.data.update(RawCharacter::new(*res.data));
+        self.data.update(RawCharacter::from(*res.data));
     }
 
     fn update_data(&self, schema: CharacterSchema) {
-        self.data.update(RawCharacter::new(schema));
+        self.data.update(RawCharacter::from(schema));
     }
 }
 

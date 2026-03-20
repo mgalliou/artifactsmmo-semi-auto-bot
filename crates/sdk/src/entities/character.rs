@@ -32,12 +32,6 @@ pub trait Character: Level {
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RawCharacter(Arc<CharacterSchema>);
 
-impl RawCharacter {
-    pub(crate) fn new(schema: CharacterSchema) -> Self {
-        Self(schema.into())
-    }
-}
-
 impl Character for RawCharacter {
     fn name(&self) -> &str {
         &self.0.name
@@ -200,6 +194,18 @@ impl Character for RawCharacter {
 
     fn inventory_max_items(&self) -> i32 {
         self.0.inventory_max_items
+    }
+}
+
+impl From<CharacterSchema> for RawCharacter {
+    fn from(value: CharacterSchema) -> Self {
+        Self(value.into())
+    }
+}
+
+impl From<&CharacterSchema> for RawCharacter {
+    fn from(value: &CharacterSchema) -> Self {
+        value.clone().into()
     }
 }
 
