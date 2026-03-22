@@ -29,7 +29,7 @@ pub trait Character: Level {
     fn cooldown_expiration(&self) -> Option<DateTime<Utc>>;
 }
 
-#[derive(Default, Debug)]
+#[derive(Debug, Default, Clone)]
 pub struct CharacterDataHandle(Arc<RwLock<RawCharacter>>);
 
 impl CharacterDataHandle {

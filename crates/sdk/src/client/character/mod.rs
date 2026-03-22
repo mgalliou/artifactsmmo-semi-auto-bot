@@ -60,6 +60,7 @@ pub struct CharacterClient(Arc<CharacterClientInner>);
 pub struct CharacterClientInner {
     pub id: usize,
     handler: CharacterRequestHandler,
+    inventory: InventoryClient,
     account: AccountClient,
     bank: BankClient,
     items: ItemsClient,
@@ -89,7 +90,8 @@ impl CharacterClient {
     ) -> Self {
         Self(Arc::new(CharacterClientInner {
             id,
-            handler: CharacterRequestHandler::new(api, data, account.clone(), server),
+            handler: CharacterRequestHandler::new(api, data.clone(), account.clone(), server),
+            inventory: InventoryClient::new(data),
             bank: account.bank(),
             account,
             items,
@@ -110,8 +112,8 @@ impl CharacterClient {
         &self.0.handler
     }
 
-    pub fn inventory(&self) -> InventoryClient {
-        InventoryClient::new(self.data())
+    pub fn inventory(&self) -> &InventoryClient {
+        &self.0.inventory
     }
 
     pub fn r#move(&self, x: i32, y: i32) -> Result<Map, MoveError> {
@@ -614,10 +616,8 @@ impl CharacterClient {
         let Some(buy_price) = item.buy_price() else {
             return Err(BuyNpcError::ItemNotBuyable);
         };
-        if item.currency() == GOLD {
-            if self.gold() < buy_price * quantity {
-                return Err(BuyNpcError::InsufficientGold);
-            }
+        if item.currency() == GOLD && self.gold() < buy_price * quantity {
+            return Err(BuyNpcError::InsufficientGold);
         } else if self.inventory().total_of(item.currency()) < buy_price * quantity {
             return Err(BuyNpcError::InsufficientQuantity);
         }
@@ -637,7 +637,10 @@ impl CharacterClient {
         if self.0.items.get(item_code).is_none() {
             return Err(SellNpcError::ItemNotFound);
         }
-        if !self.0.items.is_salable(item_code) {
+        let Some(npc_item) = self.0.npcs.items().get(item_code) else {
+            return Err(SellNpcError::ItemNotSalable);
+        };
+        if !npc_item.is_salable() {
             return Err(SellNpcError::ItemNotSalable);
         }
         if self.inventory().total_of(item_code) < quantity {
