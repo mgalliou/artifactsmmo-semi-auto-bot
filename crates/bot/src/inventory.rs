@@ -272,4 +272,3 @@ impl Quantity for InventoryReservation {
         self.quantity.load(SeqCst)
     }
 }
-

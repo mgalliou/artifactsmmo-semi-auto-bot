@@ -17,10 +17,13 @@ pub struct NpcsItemsClientInner {
 
 impl NpcsItemsClient {
     pub(crate) fn new(api: ArtifactApi) -> Self {
-        let npcs_items = Self(NpcsItemsClientInner {
-            api,
-            data: RwLock::default(),
-        }.into());
+        let npcs_items = Self(
+            NpcsItemsClientInner {
+                api,
+                data: RwLock::default(),
+            }
+            .into(),
+        );
         *npcs_items.0.data.write().unwrap() = npcs_items.load();
         npcs_items
     }
@@ -30,7 +33,8 @@ impl Persist<HashMap<String, NpcItem>> for NpcsItemsClient {
     const PATH: &'static str = ".cache/npcs_items.json";
 
     fn load_from_api(&self) -> HashMap<String, NpcItem> {
-        self.0.api
+        self.0
+            .api
             .npcs
             .get_items()
             .unwrap()

@@ -1,7 +1,7 @@
 use anyhow::{Result, bail};
-use bot::{CharacterCommand, HasReservation};
 use bot::gear_finder::{Filter, GearPurpose};
 use bot::{Bot, character::CharacterController, orderboard::Purpose};
+use bot::{CharacterCommand, HasReservation};
 use clap::{Parser, Subcommand, value_parser};
 use rustyline::{DefaultEditor, error::ReadlineError};
 use sdk::{

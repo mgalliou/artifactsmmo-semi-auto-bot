@@ -6,7 +6,8 @@ use openapi::models::{
 };
 use serde::{Deserialize, Serialize};
 use std::{
-    convert::AsRef, sync::{Arc, RwLock}
+    convert::AsRef,
+    sync::{Arc, RwLock},
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

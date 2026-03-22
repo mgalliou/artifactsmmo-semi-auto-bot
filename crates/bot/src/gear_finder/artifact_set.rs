@@ -1,6 +1,6 @@
-use std::cmp::Ordering;
-use sdk::{Slot, entities::Item};
 use crate::gear_finder::item_wrapper::item_cmp;
+use sdk::{Slot, entities::Item};
+use std::cmp::Ordering;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ArtifactSet {

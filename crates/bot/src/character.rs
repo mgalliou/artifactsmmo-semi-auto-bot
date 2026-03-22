@@ -627,7 +627,8 @@ impl CharacterController {
     }
 
     fn cancel_task(&self) -> Result<(), TaskCancellationCommandError> {
-        if self.bank.has_available(TASKS_COIN, &self.name()) < TASK_CANCEL_PRICE + MIN_COIN_THRESHOLD
+        if self.bank.has_available(TASKS_COIN, &self.name())
+            < TASK_CANCEL_PRICE + MIN_COIN_THRESHOLD
         {
             return Err(TaskCancellationCommandError::MissingCoins);
         }
@@ -1500,9 +1501,7 @@ impl CharacterController {
                 best_food.code(),
                 self.account.fisher_max_items(),
                 None,
-                Purpose::Food {
-                    char: self.name(),
-                },
+                Purpose::Food { char: self.name() },
             )?;
         }
         Ok(())
@@ -1644,7 +1643,8 @@ impl CharacterController {
         let missing_quantity =
             quantity.saturating_sub(self.inventory.total_of(item) + self.has_equiped(item));
         if missing_quantity > 0 && self.equiped_in(slot) != item {
-            self.bank.reserv_item(item, missing_quantity, &self.name())?;
+            self.bank
+                .reserv_item(item, missing_quantity, &self.name())?;
         }
         Ok(())
     }
