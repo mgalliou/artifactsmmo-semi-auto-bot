@@ -2,13 +2,14 @@
 resolver = "2"
 members = [
   #
-  "crates/api",
-  "crates/bot",
   "crates/openapi",
+  "crates/api",
   "crates/sdk",
   "crates/sdk_derive",
+  "crates/bot",
+  "crates/repl",
 ]
-default-members = ["crates/bot"]
+default-members = ["crates/repl"]
 
 [workspace.package]
 publish = false
@@ -17,11 +18,12 @@ edition = "2024"
 [workspace.dependencies]
 
 # member 
-sdk = { path = "crates/sdk" }
 openapi = { path = "crates/openapi" }
 api = { path = "crates/api" }
-bot = { path = "crates/bot" }
+sdk = { path = "crates/sdk" }
 sdk_derive = { path = "crates/sdk_derive" }
+bot = { path = "crates/bot" }
+repl = { path = "crates/repl" }
 
 # external
 anyhow = "1.0"

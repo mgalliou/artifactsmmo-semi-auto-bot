@@ -1,8 +1,10 @@
 use anyhow::Result;
-use bot::{bot::Bot, cli, orderboard::Purpose};
+use bot::{Bot, orderboard::Purpose};
 use log::LevelFilter;
 use sdk::Client;
 use std::{env, sync::Arc};
+
+mod cli;
 
 fn main() -> Result<()> {
     simple_logging::log_to_file("artifactsmmo.log", LevelFilter::Info)?;

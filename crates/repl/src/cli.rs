@@ -1,11 +1,7 @@
-use crate::{
-    CharacterCommand, HasReservation,
-    bot::Bot,
-    character::CharacterController,
-    gear_finder::{Filter, GearPurpose},
-    orderboard::Purpose,
-};
 use anyhow::{Result, bail};
+use bot::{CharacterCommand, HasReservation};
+use bot::gear_finder::{Filter, GearPurpose};
+use bot::{Bot, character::CharacterController, orderboard::Purpose};
 use clap::{Parser, Subcommand, value_parser};
 use rustyline::{DefaultEditor, error::ReadlineError};
 use sdk::{
@@ -24,7 +20,8 @@ pub fn run(bot: &Arc<Bot>) -> Result<()> {
             format!(
                 "{} >> ",
                 chars
-                    .as_ref().map_or_else(|| "none".to_string(), |c| c.name().to_string())
+                    .as_ref()
+                    .map_or_else(|| "none".to_string(), |c| c.name().to_string())
             )
             .as_str(),
         );
@@ -83,10 +80,7 @@ fn respond(
         Commands::Bank { action } => match action {
             BankAction::Reservations => {
                 println!("reservations:");
-                bot.bank
-                    .reservations()
-                    .iter()
-                    .for_each(|r| println!("{r}"));
+                bot.bank.reservations().iter().for_each(|r| println!("{r}"));
             }
             BankAction::List => {
                 bot.bank
