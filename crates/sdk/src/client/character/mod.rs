@@ -44,7 +44,6 @@ pub use inventory::{Inventory, InventoryClient};
 mod request_handler;
 
 pub mod action_request;
-pub mod data_handle;
 pub mod error;
 pub mod inventory;
 pub mod responses;
