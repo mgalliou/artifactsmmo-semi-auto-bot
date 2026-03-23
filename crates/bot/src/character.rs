@@ -353,9 +353,7 @@ impl CharacterController {
 
             ItemSource::TaskReward => order.in_progress() == 0,
             ItemSource::Task => true,
-            ItemSource::Npc(_) => {
-                self.config().is_trader() && self.can_buy_item(&order.item, order.missing()).is_ok()
-            }
+            ItemSource::Npc(_) => self.can_buy_item(&order.item, order.missing()).is_ok(),
         })
     }
 

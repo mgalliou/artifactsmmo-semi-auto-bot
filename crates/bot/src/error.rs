@@ -301,6 +301,8 @@ pub enum UseItemCommandError {
 
 #[derive(Debug, Error)]
 pub enum BuyNpcCommandError {
+    #[error("character not allowed to buy items")]
+    NotAllowed,
     #[error("item not found: {0}")]
     ItemNotFound(String),
     #[error("item not purchasable")]

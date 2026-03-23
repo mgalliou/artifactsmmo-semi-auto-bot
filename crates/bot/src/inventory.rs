@@ -1,16 +1,15 @@
 use crate::{FOOD_CONSUMPTION_BLACKLIST, HasReservation, InventoryDiscriminant, Reservation};
-use core::fmt;
 use itertools::Itertools;
 use log::debug;
 use sdk::{
     CharacterClient, Code, CollectionClient, DropsItems, ItemContainer, ItemsClient, Level,
     LimitedContainer, Quantity, SlotLimited, SpaceLimited,
-    character::inventory::Inventory,
+    character::Inventory,
     entities::{Character, Item},
     models::{InventorySlot, SimpleItemSchema},
 };
 use std::{
-    fmt::{Display, Formatter},
+    fmt,
     sync::{
         Arc, RwLock,
         atomic::{AtomicU32, Ordering::SeqCst},
@@ -37,10 +36,11 @@ impl InventoryController {
     pub fn simple_content(&self) -> Vec<SimpleItemSchema> {
         self.content()
             .iter()
-            .filter(|i| !i.code.is_empty())
-            .map(|s| SimpleItemSchema {
-                code: s.code.clone(),
-                quantity: s.quantity(),
+            .filter_map(|i| {
+                (!i.code.is_empty()).then_some(SimpleItemSchema {
+                    code: i.code.clone(),
+                    quantity: i.quantity(),
+                })
             })
             .collect_vec()
     }
@@ -104,11 +104,11 @@ impl InventoryController {
         item: &str,
         quantity: u32,
     ) -> Result<(), InventoryReservationError> {
-        if let Some(res) = self.get_reservation(item.into()) {
+        if let Some(reservation) = self.get_reservation(item.into()) {
             if quantity > self.quantity_reservable(item) {
                 return Err(InventoryReservationError::QuantityUnavailable(quantity));
             }
-            res.inc_quantity(quantity);
+            reservation.inc_quantity(quantity);
         } else {
             self.add_reservation(item, quantity)?;
         }
@@ -128,16 +128,16 @@ impl InventoryController {
 
     /// Decrease the reserved quantity of `item`
     pub fn decrease_reservation(&self, item: &str, quantity: u32) {
-        let Some(res) = self.get_reservation(item.into()) else {
+        let Some(reservation) = self.get_reservation(item.into()) else {
             return;
         };
-        res.dec_quantity(quantity);
+        reservation.dec_quantity(quantity);
         debug!(
             "{}: decreased '{item}' inventory reservation by {quantity}",
             self.client.name(),
         );
-        if res.quantity() < 1 {
-            self.remove_reservation(&res);
+        if reservation.quantity() < 1 {
+            self.remove_reservation(&reservation);
         }
     }
 
@@ -145,12 +145,12 @@ impl InventoryController {
         if quantity > self.quantity_reservable(item) {
             return Err(InventoryReservationError::QuantityUnavailable(quantity));
         }
-        let res = Arc::new(InventoryReservation {
+        let reservation = Arc::new(InventoryReservation {
             item: item.to_owned(),
             quantity: AtomicU32::new(quantity),
         });
-        self.reservations.write().unwrap().push(res.clone());
-        debug!("{}: added inventory reservation: {res}", self.client.name(),);
+        self.reservations.write().unwrap().push(reservation.clone());
+        debug!("{}: added inventory reservation: {reservation}", self.client.name());
         Ok(())
     }
 
@@ -243,8 +243,8 @@ impl InventoryReservation {
     }
 }
 
-impl Display for InventoryReservation {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+impl fmt::Display for InventoryReservation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "'{}'x{}", self.item, self.quantity())
     }
 }

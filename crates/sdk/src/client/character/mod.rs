@@ -1,12 +1,9 @@
 use crate::{
     AccountClient, Code, CollectionClient, GOLD, Gear, HasConditions, ItemContainer, Level,
     LimitedContainer, SlotLimited, SpaceLimited, TASK_EXCHANGE_PRICE, TASKS_COIN, TasksClient,
-    character::{
-        error::{
-            GeBuyOrderError, GeCancelOrderError, GeCreateOrderError, GiveGoldError, GiveItemError,
-            TransitionError,
-        },
-        inventory::Inventory,
+    character::error::{
+        GeBuyOrderError, GeCancelOrderError, GeCreateOrderError, GiveGoldError, GiveItemError,
+        TransitionError,
     },
     client::{
         bank::{Bank, BankClient},
@@ -38,12 +35,11 @@ use chrono::{DateTime, Utc};
 use openapi::models::{
     CharacterFightSchema, CharacterSchema, ConditionOperator, GeOrderType, GeTransactionSchema,
     InventorySlot, MapContentType, MapLayer, NpcItemTransactionSchema, RecyclingItemsSchema,
-    RewardsSchema, SimpleItemSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema,
-    TaskType,
+    RewardsSchema, SimpleItemSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
 };
 use std::{str::FromStr, sync::Arc, time::Duration};
 
-pub use inventory::InventoryClient;
+pub use inventory::{Inventory, InventoryClient};
 
 mod request_handler;
 
