@@ -144,7 +144,7 @@ impl ResponseSchema for BankItemTransactionResponseSchema {
     fn to_string(&self) -> String {
         if self.data.cooldown.reason == ActionType::WithdrawItem {
             format!(
-                "{}: withdrawed [{}] from the bank. {}s",
+                "{}: withdrew [{}] from the bank. {}s",
                 self.data.character.name,
                 ItemList(&self.data.items),
                 self.data.cooldown.remaining_seconds
@@ -168,7 +168,7 @@ impl ResponseSchema for BankGoldTransactionResponseSchema {
     fn to_string(&self) -> String {
         if self.data.cooldown.reason == ActionType::WithdrawGold {
             format!(
-                "{}: withdrawed gold from the bank. {}s",
+                "{}: withdrew gold from the bank. {}s",
                 self.data.character.name, self.data.cooldown.remaining_seconds
             )
         } else {
@@ -187,7 +187,7 @@ impl ResponseSchema for BankGoldTransactionResponseSchema {
 impl ResponseSchema for BankExtensionTransactionResponseSchema {
     fn to_string(&self) -> String {
         format!(
-            "{}: bought bank expansion for {} golds. {}s",
+            "{}: bought bank expansion for {} gold. {}s",
             self.data.character.name,
             self.data.transaction.price,
             self.data.cooldown.remaining_seconds
@@ -218,7 +218,7 @@ impl ResponseSchema for EquipmentResponseSchema {
     fn to_string(&self) -> String {
         if self.data.cooldown.reason == ActionType::Equip {
             format!(
-                "{}: equiped '{}' in the '{}' slot. {}s",
+                "{}: equipped '{}' in the '{}' slot. {}s",
                 &self.data.character.name,
                 &self.data.item.code,
                 &self.data.slot,
@@ -226,7 +226,7 @@ impl ResponseSchema for EquipmentResponseSchema {
             )
         } else {
             format!(
-                "{}: unequiped '{}' from the '{}' slot. {}s",
+                "{}: unequipped '{}' from the '{}' slot. {}s",
                 &self.data.character.name,
                 &self.data.item.code,
                 &self.data.slot,

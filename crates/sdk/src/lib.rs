@@ -2,7 +2,7 @@ use fs_extra::file::{read_to_string, write_all};
 use log::error;
 use openapi::models::{
     AccessSchema, CharacterFightSchema, ConditionSchema, DropRateSchema, DropSchema, InventorySlot,
-    RewardsSchema, SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TransitionSchema,
+    RewardsSchema, SimpleItemSchema, SkillInfoSchema, TransitionSchema,
 };
 use serde::{Deserialize, Serialize};
 use std::{fmt, path::Path};
@@ -114,16 +114,6 @@ impl HasDrops for CharacterFightSchema {
                     .map_or(0, Quantity::quantity)
             })
             .sum()
-    }
-}
-
-impl HasDrops for SkillDataSchema {
-    fn amount_of(&self, item_code: &str) -> u32 {
-        self.details
-            .items
-            .iter()
-            .find(|i| i.code == item_code)
-            .map_or(0, Quantity::quantity)
     }
 }
 

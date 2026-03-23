@@ -38,7 +38,7 @@ use chrono::{DateTime, Utc};
 use openapi::models::{
     CharacterFightSchema, CharacterSchema, ConditionOperator, GeOrderType, GeTransactionSchema,
     InventorySlot, MapContentType, MapLayer, NpcItemTransactionSchema, RecyclingItemsSchema,
-    RewardsSchema, SimpleItemSchema, SkillDataSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema,
+    RewardsSchema, SimpleItemSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema,
     TaskType,
 };
 use std::{str::FromStr, sync::Arc, time::Duration};
@@ -191,7 +191,7 @@ impl CharacterClient {
         Ok(())
     }
 
-    pub fn gather(&self) -> Result<SkillDataSchema, GatherError> {
+    pub fn gather(&self) -> Result<SkillInfoSchema, GatherError> {
         self.can_gather()?;
         Ok(self.handler().request_gather()?)
     }

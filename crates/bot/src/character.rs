@@ -41,8 +41,8 @@ use sdk::{
     items::ItemSource,
     models::{
         CharacterFightSchema, CharacterSchema, DropSchema, InventorySlot, MapContentType, MapLayer,
-        RecyclingItemsSchema, RewardsSchema, SimpleItemSchema, SkillDataSchema, SkillInfoSchema,
-        TaskSchema, TaskTradeSchema, TaskType,
+        RecyclingItemsSchema, RewardsSchema, SimpleItemSchema, SkillInfoSchema, TaskSchema,
+        TaskTradeSchema, TaskType,
     },
     simulator::{FightParams, HasEffects, Participant, Simulator, gather_cd, time_to_rest},
     skill::Skill,
@@ -703,11 +703,11 @@ impl CharacterController {
     /// Checks if the character is able to gather the given `resource`. If it
     /// can, equips the best available appropriate tool, then move the `Character`
     /// to the given map or the closest containing the `resource` and gather it.  
-    fn gather_resource(&self, resource: &Resource) -> Result<SkillDataSchema, GatherCommandError> {
+    fn gather_resource(&self, resource: &Resource) -> Result<SkillInfoSchema, GatherCommandError> {
         self.can_gather_now(resource)?;
         if self.order_best_gear_for(GearPurpose::Gathering(resource)) {
             // TODO: should not return this
-            return Ok(SkillDataSchema::default());
+            return Ok(SkillInfoSchema::default());
         }
         self.equip_gear_for(GearPurpose::Gathering(resource))?;
         if !self.inventory.has_room_for_drops_from(resource) {
