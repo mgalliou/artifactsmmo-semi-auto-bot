@@ -3,6 +3,6 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum ClientError {
-    #[error("API Error: {0}")]
+    #[error("api error: {0}")]
     Api(#[from] Box<dyn StdError + Send + Sync>),
 }

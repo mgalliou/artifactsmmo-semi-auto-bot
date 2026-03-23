@@ -88,13 +88,13 @@ pub struct ApiErrorSchema {
 #[try_from(repr)]
 #[repr(isize)]
 pub enum FightError {
-    #[error("Insufficient inventory space")]
+    #[error("insufficient inventory space")]
     InsufficientInventorySpace = INVENTORY_FULL,
-    #[error("Monster is not a boss")]
+    #[error("monster is not a boss")]
     MonsterIsNotABoss = ACTION_ALREADY_IN_PROGRESS,
-    #[error("No monster on map")]
+    #[error("no monster on map")]
     NoMonsterOnMap = ENTITY_NOT_FOUND_ON_MAP,
-    #[error("Character not found")]
+    #[error("character not found")]
     CharacterNotFound = CHARACTER_NOT_FOUND,
     #[error(transparent)]
     UnhandledError(#[from] RequestError),
@@ -104,11 +104,11 @@ pub enum FightError {
 #[try_from(repr)]
 #[repr(isize)]
 pub enum GatherError {
-    #[error("Insufficient inventory space")]
+    #[error("insufficient inventory space")]
     InsufficientInventorySpace = INVENTORY_FULL,
-    #[error("No resource on map")]
+    #[error("no resource on map")]
     NoResourceOnMap = ENTITY_NOT_FOUND_ON_MAP,
-    #[error("Insufficient skill level")]
+    #[error("insufficient skill level")]
     SkillLevelInsufficient = SKILL_LEVEL_INSUFFICIENT,
     #[error(transparent)]
     UnhandledError(#[from] RequestError),
@@ -118,13 +118,13 @@ pub enum GatherError {
 #[try_from(repr)]
 #[repr(isize)]
 pub enum MoveError {
-    #[error("Map not found")]
+    #[error("map not found")]
     MapNotFound = ENTITY_NOT_FOUND,
-    #[error("Already on map")]
+    #[error("already on map")]
     AlreadyOnMap = ALREADY_ON_MAP,
-    #[error("Conditions are not met")]
+    #[error("conditions are not met")]
     ConditionsNotMet = CONDITIONS_NOT_MET,
-    #[error("No path available")]
+    #[error("no path available")]
     NoPathAvailable = NO_PATH_AVAILABLE,
     #[error(transparent)]
     UnhandledError(#[from] RequestError),
@@ -134,13 +134,13 @@ pub enum MoveError {
 #[try_from(repr)]
 #[repr(isize)]
 pub enum TransitionError {
-    #[error("Transition not found")]
+    #[error("transition not found")]
     TransitionNotFound = ENTITY_NOT_FOUND,
-    #[error("Missing required item(s)")]
+    #[error("missing required item(s)")]
     MissingItem = MISSING_ITEM_OR_INSUFFICIENT_QUANTITY,
-    #[error("Insufficient gold on character")]
+    #[error("insufficient gold on character")]
     InsufficientGold = CHARACTER_GOLD_INSUFFICIENT,
-    #[error("Conditions are not met")]
+    #[error("conditions are not met")]
     ConditionsNotMet = CONDITIONS_NOT_MET,
     #[error(transparent)]
     UnhandledError(#[from] RequestError),
@@ -158,13 +158,13 @@ pub enum RestError {
 #[try_from(repr)]
 #[repr(isize)]
 pub enum UseError {
-    #[error("Item not found")]
+    #[error("item not found")]
     ItemNotFound = ENTITY_NOT_FOUND,
-    #[error("Item not equipped")]
+    #[error("item not consumable")]
     ItemNotConsumable = ITEM_NOT_CONSUMABLE,
-    #[error("Insufficient quantity")]
+    #[error("insufficient quantity")]
     InsufficientQuantity = MISSING_ITEM_OR_INSUFFICIENT_QUANTITY,
-    #[error("Insufficient character level")]
+    #[error("insufficient character level")]
     InsufficientCharacterLevel = CONDITIONS_NOT_MET,
     #[error(transparent)]
     UnhandledError(#[from] RequestError),
@@ -174,17 +174,17 @@ pub enum UseError {
 #[try_from(repr)]
 #[repr(isize)]
 pub enum CraftError {
-    #[error("Item not found")]
+    #[error("item not found")]
     ItemNotFound,
-    #[error("Item not craftable")]
+    #[error("item not craftable")]
     ItemNotCraftable = ENTITY_NOT_FOUND,
-    #[error("Insufficient materials")]
+    #[error("insufficient materials")]
     InsufficientMaterials = MISSING_ITEM_OR_INSUFFICIENT_QUANTITY,
-    #[error("Insufficient skill level")]
+    #[error("insufficient skill level")]
     InsufficientSkillLevel = SKILL_LEVEL_INSUFFICIENT,
-    #[error("Insufficient inventory space")]
+    #[error("insufficient inventory space")]
     InsufficientInventorySpace = INVENTORY_FULL,
-    #[error("Required workshop not on map")]
+    #[error("required workshop not on map")]
     NoWorkshopOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(#[from] RequestError),
@@ -194,17 +194,17 @@ pub enum CraftError {
 #[try_from(repr)]
 #[repr(isize)]
 pub enum RecycleError {
-    #[error("Item not found")]
+    #[error("item not found")]
     ItemNotFound = ENTITY_NOT_FOUND,
-    #[error("Item not recyclable")]
+    #[error("item not recyclable")]
     ItemNotRecyclable = ITEM_NOT_RECYCLABLE,
-    #[error("Insufficient quantity")]
+    #[error("insufficient quantity")]
     InsufficientQuantity = MISSING_ITEM_OR_INSUFFICIENT_QUANTITY,
-    #[error("Insufficient inventory space")]
+    #[error("insufficient inventory space")]
     InsufficientInventorySpace = INVENTORY_FULL,
-    #[error("Insufficient skill level")]
+    #[error("insufficient skill level")]
     InsufficientSkillLevel = SKILL_LEVEL_INSUFFICIENT,
-    #[error("Required workshop not on map")]
+    #[error("required workshop not on map")]
     NoWorkshopOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(#[from] RequestError),
@@ -214,9 +214,9 @@ pub enum RecycleError {
 #[try_from(repr)]
 #[repr(isize)]
 pub enum DeleteError {
-    #[error("Item not found")]
+    #[error("item not found")]
     ItemNotFound = ENTITY_NOT_FOUND,
-    #[error("Insufficient quantity")]
+    #[error("insufficient quantity")]
     InsufficientQuantity = MISSING_ITEM_OR_INSUFFICIENT_QUANTITY,
     #[error(transparent)]
     UnhandledError(#[from] RequestError),
@@ -226,13 +226,13 @@ pub enum DeleteError {
 #[try_from(repr)]
 #[repr(isize)]
 pub enum WithdrawError {
-    #[error("Item not found")]
+    #[error("item not found")]
     ItemNotFound = ENTITY_NOT_FOUND,
-    #[error("Insufficient quantity")]
+    #[error("insufficient quantity")]
     InsufficientQuantity = MISSING_ITEM_OR_INSUFFICIENT_QUANTITY,
-    #[error("Insufficient inventory space")]
+    #[error("insufficient inventory space")]
     InsufficientInventorySpace = INVENTORY_FULL,
-    #[error("No bank on map")]
+    #[error("no bank on map")]
     NoBankOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(#[from] RequestError),
@@ -242,13 +242,13 @@ pub enum WithdrawError {
 #[try_from(repr)]
 #[repr(isize)]
 pub enum DepositError {
-    #[error("Item not found")]
+    #[error("item not found")]
     ItemNotFound = ENTITY_NOT_FOUND,
-    #[error("Insufficient quantity")]
+    #[error("insufficient quantity")]
     InsufficientQuantity = MISSING_ITEM_OR_INSUFFICIENT_QUANTITY,
-    #[error("Insufficient bank space")]
+    #[error("insufficient bank space")]
     InsufficientBankSpace = BANK_FULL,
-    #[error("No bank on map")]
+    #[error("no bank on map")]
     NoBankOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(#[from] RequestError),
@@ -258,9 +258,9 @@ pub enum DepositError {
 #[try_from(repr)]
 #[repr(isize)]
 pub enum GoldWithdrawError {
-    #[error("Insufficient gold in bank")]
+    #[error("insufficient gold in bank")]
     InsufficientGold = BANK_GOLD_INSUFFICIENT,
-    #[error("No bank on map")]
+    #[error("no bank on map")]
     NoBankOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(#[from] RequestError),
@@ -270,9 +270,9 @@ pub enum GoldWithdrawError {
 #[try_from(repr)]
 #[repr(isize)]
 pub enum GoldDepositError {
-    #[error("Insufficient gold on character")]
+    #[error("insufficient gold on character")]
     InsufficientGold = CHARACTER_GOLD_INSUFFICIENT,
-    #[error("No bank on map")]
+    #[error("no bank on map")]
     NoBankOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(#[from] RequestError),
@@ -282,9 +282,9 @@ pub enum GoldDepositError {
 #[try_from(repr)]
 #[repr(isize)]
 pub enum BankExpansionError {
-    #[error("Insufficient gold on character")]
+    #[error("insufficient gold on character")]
     InsufficientGold = CHARACTER_GOLD_INSUFFICIENT,
-    #[error("No bank on map")]
+    #[error("no bank on map")]
     NoBankOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(#[from] RequestError),
@@ -294,19 +294,19 @@ pub enum BankExpansionError {
 #[try_from(repr)]
 #[repr(isize)]
 pub enum EquipError {
-    #[error("Item not found")]
+    #[error("item not found")]
     ItemNotFound = ENTITY_NOT_FOUND,
-    #[error("Insufficient quantity")]
+    #[error("insufficient quantity")]
     InsufficientQuantity = MISSING_ITEM_OR_INSUFFICIENT_QUANTITY,
-    #[error("Item already equiped")]
+    #[error("item already equipped")]
     ItemAlreadyEquiped = ITEM_ALREADY_EQUIPED,
-    #[error("Quantity greater than slot max quantity")]
+    #[error("quantity greater than slot maximum")]
     QuantityGreaterThanSlotMaxixum = SUPERFLOUS_UTILITY_QUANTITY,
-    #[error("Slot not empty")]
+    #[error("slot not empty")]
     SlotNotEmpty = INVALID_SLOT_STATE,
-    #[error("Conditions not met")]
+    #[error("conditions not met")]
     ConditionsNotMet = CONDITIONS_NOT_MET,
-    #[error("Insufficient inventory space")]
+    #[error("insufficient inventory space")]
     InsufficientInventorySpace = INVENTORY_FULL,
     #[error(transparent)]
     UnhandledError(#[from] RequestError),
@@ -316,13 +316,13 @@ pub enum EquipError {
 #[try_from(repr)]
 #[repr(isize)]
 pub enum UnequipError {
-    #[error("Insufficient quantity")]
+    #[error("insufficient quantity")]
     InsufficientQuantity = MISSING_ITEM_OR_INSUFFICIENT_QUANTITY,
-    #[error("Insufficient health")]
+    #[error("insufficient health")]
     InsufficientHealth = INSUFFICIENT_HEALTH,
-    #[error("Slot is empty")]
+    #[error("slot is empty")]
     SlotEmpty = INVALID_SLOT_STATE,
-    #[error("Insufficient inventory space")]
+    #[error("insufficient inventory space")]
     InsufficientInventorySpace = INVENTORY_FULL,
     #[error(transparent)]
     UnhandledError(#[from] RequestError),
@@ -332,9 +332,9 @@ pub enum UnequipError {
 #[try_from(repr)]
 #[repr(isize)]
 pub enum TaskAcceptationError {
-    #[error("Task already in progress")]
+    #[error("task already in progress")]
     TaskAlreadyInProgress = TASK_ALREADY_IN_PROGRESS,
-    #[error("No tasks master on map")]
+    #[error("no tasks master on map")]
     NoTasksMasterOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(#[from] RequestError),
@@ -344,15 +344,15 @@ pub enum TaskAcceptationError {
 #[try_from(repr)]
 #[repr(isize)]
 pub enum TaskTradeError {
-    #[error("Item not found")]
+    #[error("item not found")]
     ItemNotFound = ENTITY_NOT_FOUND,
-    #[error("WrongTask")]
+    #[error("wrong task")]
     WrongTask = WRONG_TASK,
-    #[error("Superfluous quantity")]
+    #[error("superfluous quantity")]
     SuperfluousQuantity = TASK_ALREADY_COMPLETED_OR_TOO_MANY_ITEM_TRADED,
-    #[error("InsufficientQuantity")]
+    #[error("insufficient quantity")]
     InsufficientQuantity = MISSING_ITEM_OR_INSUFFICIENT_QUANTITY,
-    #[error("Wrong or no tasks master on map")]
+    #[error("wrong or no tasks master on map")]
     WrongOrNoTasksMasterOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(#[from] RequestError),
@@ -362,13 +362,13 @@ pub enum TaskTradeError {
 #[try_from(repr)]
 #[repr(isize)]
 pub enum TaskCompletionError {
-    #[error("No current task")]
+    #[error("no current task")]
     NoCurrentTask = NO_TASK,
-    #[error("Task not fullfilled")]
+    #[error("task not fulfilled")]
     TaskNotFullfilled = TASK_NOT_COMPLETED,
-    #[error("Insufficient inventory space")]
+    #[error("insufficient inventory space")]
     InsufficientInventorySpace = INVENTORY_FULL,
-    #[error("Wrong or no tasks master on map")]
+    #[error("wrong or no tasks master on map")]
     WrongOrNoTasksMasterOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(#[from] RequestError),
@@ -378,11 +378,11 @@ pub enum TaskCompletionError {
 #[try_from(repr)]
 #[repr(isize)]
 pub enum TaskCancellationError {
-    #[error("No current task")]
+    #[error("no current task")]
     NoCurrentTask = NO_TASK,
-    #[error("Insufficient tasks coin quantity")]
+    #[error("insufficient tasks coin quantity")]
     InsufficientTasksCoinQuantity = MISSING_ITEM_OR_INSUFFICIENT_QUANTITY,
-    #[error("Wrong or no tasks master on map")]
+    #[error("wrong or no tasks master on map")]
     WrongOrNoTasksMasterOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(#[from] RequestError),
@@ -392,11 +392,11 @@ pub enum TaskCancellationError {
 #[try_from(repr)]
 #[repr(isize)]
 pub enum TasksCoinExchangeError {
-    #[error("Insufficient tasks coin quantity")]
+    #[error("insufficient tasks coin quantity")]
     InsufficientTasksCoinQuantity = MISSING_ITEM_OR_INSUFFICIENT_QUANTITY,
-    #[error("Insufficient inventory space")]
+    #[error("insufficient inventory space")]
     InsufficientInventorySpace = INVENTORY_FULL,
-    #[error("No tasks master on map")]
+    #[error("no tasks master on map")]
     NoTasksMasterOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(#[from] RequestError),
@@ -406,17 +406,17 @@ pub enum TasksCoinExchangeError {
 #[try_from(repr)]
 #[repr(isize)]
 pub enum BuyNpcError {
-    #[error("Item not found")]
+    #[error("item not found")]
     ItemNotFound = ENTITY_NOT_FOUND,
-    #[error("This item cannot be bought")]
+    #[error("this item cannot be bought")]
     ItemNotBuyable = ITEM_NOT_BUYABLE,
-    #[error("Missing item of insufficient quantity")]
+    #[error("missing item or insufficient quantity")]
     InsufficientQuantity = MISSING_ITEM_OR_INSUFFICIENT_QUANTITY,
-    #[error("Insufficient gold on character")]
+    #[error("insufficient gold on character")]
     InsufficientGold = CHARACTER_GOLD_INSUFFICIENT,
-    #[error("Insufficient inventory space")]
+    #[error("insufficient inventory space")]
     InsufficientInventorySpace = INVENTORY_FULL,
-    #[error("Npc not found on map")]
+    #[error("NPC not found on map")]
     NpcNotFound = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(#[from] RequestError),
@@ -426,15 +426,15 @@ pub enum BuyNpcError {
 #[try_from(repr)]
 #[repr(isize)]
 pub enum SellNpcError {
-    #[error("Item not found")]
+    #[error("item not found")]
     ItemNotFound = ENTITY_NOT_FOUND,
-    #[error("This item cannot be sold")]
+    #[error("this item cannot be sold")]
     ItemNotSalable = ITEM_NOT_SALABLE,
-    #[error("Missing item or insufficient quantity")]
+    #[error("missing item or insufficient quantity")]
     InsufficientQuantity = MISSING_ITEM_OR_INSUFFICIENT_QUANTITY,
-    #[error("Insufficient inventory space")]
+    #[error("insufficient inventory space")]
     InsufficientInventorySpace = INVENTORY_FULL,
-    #[error("Npc not found on map")]
+    #[error("NPC not found on map")]
     NpcNotFound = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(#[from] RequestError),
@@ -444,13 +444,13 @@ pub enum SellNpcError {
 #[try_from(repr)]
 #[repr(isize)]
 pub enum GiveItemError {
-    #[error("Item not found")]
+    #[error("item not found")]
     ItemNotFound = ENTITY_NOT_FOUND,
-    #[error("Missing item or insufficient quantity")]
+    #[error("missing item or insufficient quantity")]
     InsufficientQuantity = MISSING_ITEM_OR_INSUFFICIENT_QUANTITY,
-    #[error("Insufficient inventory space")]
+    #[error("insufficient inventory space")]
     InsufficientInventorySpace = INVENTORY_FULL,
-    #[error("Character not found")]
+    #[error("character not found")]
     CharacterNotFound = CHARACTER_NOT_FOUND,
     #[error(transparent)]
     UnhandledError(#[from] RequestError),
@@ -460,11 +460,11 @@ pub enum GiveItemError {
 #[try_from(repr)]
 #[repr(isize)]
 pub enum GiveGoldError {
-    #[error("Item not found")]
+    #[error("item not found")]
     ItemNotFound = ENTITY_NOT_FOUND,
-    #[error("Insufficient gold on character")]
+    #[error("insufficient gold on character")]
     InsufficientGold = CHARACTER_GOLD_INSUFFICIENT,
-    #[error("Character not found")]
+    #[error("character not found")]
     CharacterNotFound = CHARACTER_NOT_FOUND,
     #[error(transparent)]
     UnhandledError(#[from] RequestError),
@@ -474,17 +474,17 @@ pub enum GiveGoldError {
 #[try_from(repr)]
 #[repr(isize)]
 pub enum GeBuyOrderError {
-    #[error("Order not found")]
+    #[error("order not found")]
     OrderNotFound = ENTITY_NOT_FOUND,
-    #[error("Insufficient order quantity")]
+    #[error("insufficient order quantity")]
     InsufficientQuantity = INSUFFICIENT_ORDER_QUANTITY,
-    #[error("Cannot trade with self")]
+    #[error("cannot trade with self")]
     CannotTradeWithSelf = CANNOT_TRADE_WITH_SELF,
-    #[error("Insufficient gold")]
+    #[error("insufficient gold")]
     InsufficientGold = CHARACTER_GOLD_INSUFFICIENT,
-    #[error("Insufficient inventory spcae")]
+    #[error("insufficient inventory space")]
     InsufficientInventorySpace = INVENTORY_FULL,
-    #[error("No grand exchange on map")]
+    #[error("no grand exchange on map")]
     NoGrandExchangeOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(#[from] RequestError),
@@ -494,17 +494,17 @@ pub enum GeBuyOrderError {
 #[try_from(repr)]
 #[repr(isize)]
 pub enum GeCreateOrderError {
-    #[error("Item not found")]
+    #[error("item not found")]
     ItemNotFound = ENTITY_NOT_FOUND,
-    #[error("Maximum order created")]
+    #[error("maximum order created")]
     MaximumOrdersCreated = MAXIMUM_ORDERS_CREATED,
-    #[error("Item cannot be sold")]
+    #[error("item cannot be sold")]
     ItemNotSalable = GE_ITEM_NOT_SALABLE,
-    #[error("Missing item or insufficient quantity")]
+    #[error("missing item or insufficient quantity")]
     InsufficientQuantity = MISSING_ITEM_OR_INSUFFICIENT_QUANTITY,
-    #[error("Insufficient gold")]
+    #[error("insufficient gold")]
     InsufficientGold = CHARACTER_GOLD_INSUFFICIENT,
-    #[error("No grand exchange on map")]
+    #[error("no grand exchange on map")]
     NoGrandExchangeOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(#[from] RequestError),
@@ -514,13 +514,13 @@ pub enum GeCreateOrderError {
 #[try_from(repr)]
 #[repr(isize)]
 pub enum GeCancelOrderError {
-    #[error("Order not found")]
+    #[error("order not found")]
     OrderNotFound = ENTITY_NOT_FOUND,
-    #[error("Order not owned")]
+    #[error("order not owned")]
     OrderNotOwned = ORDER_NOT_OWNED,
-    #[error("Insufficient inventory spcae")]
+    #[error("insufficient inventory space")]
     InsufficientInventorySpace = INVENTORY_FULL,
-    #[error("No grand exchange on map")]
+    #[error("no grand exchange on map")]
     NoGrandExchangeOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error(transparent)]
     UnhandledError(#[from] RequestError),

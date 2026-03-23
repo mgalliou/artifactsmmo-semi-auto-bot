@@ -49,11 +49,7 @@ pub fn run(bot: &Bot) -> Result<()> {
 }
 
 #[allow(clippy::too_many_lines)]
-fn respond(
-    line: &str,
-    bot: &Bot,
-    character: &mut Option<Arc<CharacterController>>,
-) -> Result<()> {
+fn respond(line: &str, bot: &Bot, character: &mut Option<Arc<CharacterController>>) -> Result<()> {
     match Cli::try_parse_from(line.split_whitespace())?.command {
         Commands::Orderboard { action } => match action {
             OrderboardAction::Add { item, quantity } => {
