@@ -273,7 +273,7 @@ impl HasReservation for BankController {
             .collect_vec()
     }
 
-    fn discriminate(reservation: &Self::Reservation) -> Self::Discriminant {
+    fn get_reservation_discriminant(reservation: &Self::Reservation) -> Self::Discriminant {
         (reservation.item.as_str(), reservation.owner.as_str()).into()
     }
 }

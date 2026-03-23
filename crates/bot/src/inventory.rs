@@ -215,7 +215,7 @@ impl HasReservation for InventoryController {
             .collect_vec()
     }
 
-    fn discriminate(reservation: &InventoryReservation) -> InventoryDiscriminant {
+    fn get_reservation_discriminant(reservation: &InventoryReservation) -> InventoryDiscriminant {
         reservation.item.as_str().into()
     }
 }

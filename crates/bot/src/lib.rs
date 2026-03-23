@@ -1,3 +1,7 @@
+use crate::{
+    account::AccountController, bank::BankController, bot_config::BotConfig,
+    gear_finder::GearFinder, leveling_helper::LevelingHelper, orderboard::OrderBoard,
+};
 use chrono::{DateTime, Utc};
 use log::error;
 use sdk::{
@@ -15,11 +19,6 @@ use std::{
     },
     thread::{Builder, sleep},
     time::Duration,
-};
-
-use crate::{
-    account::AccountController, bank::BankController, bot_config::BotConfig,
-    gear_finder::GearFinder, leveling_helper::LevelingHelper, orderboard::OrderBoard,
 };
 
 pub mod account;
@@ -76,11 +75,11 @@ pub trait HasReservation: ItemContainer {
     fn get_reservation(&self, discriminant: Self::Discriminant) -> Option<Arc<Self::Reservation>> {
         self.reservations()
             .iter()
-            .find(|r| Self::discriminate(r) == discriminant)
+            .find(|r| Self::get_reservation_discriminant(r) == discriminant)
             .cloned()
     }
 
-    fn discriminate(reservation: &Self::Reservation) -> Self::Discriminant;
+    fn get_reservation_discriminant(reservation: &Self::Reservation) -> Self::Discriminant;
 }
 
 pub trait Reservation: Code + Quantity {
@@ -124,7 +123,7 @@ impl From<(&str, &str)> for BankDiscriminant {
     fn from(value: (&str, &str)) -> Self {
         Self {
             item: value.0.to_string(),
-            owner: value.0.to_string(),
+            owner: value.1.to_string(),
         }
     }
 }
