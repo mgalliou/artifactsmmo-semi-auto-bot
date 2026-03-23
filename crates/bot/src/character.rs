@@ -77,7 +77,7 @@ impl Deref for CharacterController {
 pub struct CharacterControllerInner {
     client: CharacterClient,
     bot_config: BotConfig,
-    pub inventory: Arc<InventoryController>,
+    pub inventory: InventoryController,
     bank: BankController,
     account: AccountController,
     maps: MapsClient,
@@ -107,7 +107,7 @@ impl CharacterController {
             CharacterControllerInner {
                 client: char_client.clone(),
                 bot_config: bot_cfg,
-                inventory: Arc::new(InventoryController::new(char_client, client.items.clone())),
+                inventory: InventoryController::new(char_client, client.items.clone()),
                 bank: account.bank(),
                 account,
                 maps: client.maps.clone(),

@@ -17,19 +17,19 @@ use std::{
 };
 use thiserror::Error;
 
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 pub struct InventoryController {
     items: ItemsClient,
     client: CharacterClient,
-    reservations: RwLock<Vec<Arc<InventoryReservation>>>,
+    reservations: Arc<RwLock<Vec<Arc<InventoryReservation>>>>,
 }
 
 impl InventoryController {
-    pub const fn new(client: CharacterClient, items: ItemsClient) -> Self {
+    pub fn new(client: CharacterClient, items: ItemsClient) -> Self {
         Self {
             client,
             items,
-            reservations: RwLock::new(vec![]),
+            reservations: RwLock::new(vec![]).into(),
         }
     }
 
@@ -150,7 +150,10 @@ impl InventoryController {
             quantity: AtomicU32::new(quantity),
         });
         self.reservations.write().unwrap().push(reservation.clone());
-        debug!("{}: added inventory reservation: {reservation}", self.client.name());
+        debug!(
+            "{}: added inventory reservation: {reservation}",
+            self.client.name()
+        );
         Ok(())
     }
 
