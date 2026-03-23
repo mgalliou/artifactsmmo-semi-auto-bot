@@ -13,7 +13,7 @@ fn main() -> Result<()> {
         "podJio".into(),
         env::var("ARTIFACTSMMO_TOKEN").unwrap_or_default(),
     )?;
-    let bot = Arc::new(Bot::new(&Arc::new(client)));
+    let bot = Bot::new(client);
     bot.order_board
         .add("lizard_skin", 1000, None, Purpose::Cli)?;
     bot.order_board

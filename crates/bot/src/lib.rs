@@ -141,7 +141,7 @@ pub struct Bot {
 }
 
 impl Bot {
-    pub fn new(client: &Client) -> Self {
+    pub fn new(client: Client) -> Self {
         let config = BotConfig::from_file();
         let bank = BankController::new(client.account.bank(), client.items.clone());
         let account = AccountController::new(
@@ -229,7 +229,7 @@ impl CommandQueue {
         self.commands
             .write()
             .unwrap()
-            .retain(|c| c.creation != other.creation && c.command == other.command);
+            .retain(|c| c.creation == other.creation && c.command == other.command);
     }
 
     pub fn commands(&self) -> Vec<CommandWrapper> {

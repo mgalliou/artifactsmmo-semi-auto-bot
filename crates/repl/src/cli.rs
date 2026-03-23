@@ -12,7 +12,7 @@ use sdk::{
 };
 use std::{process::exit, sync::Arc};
 
-pub fn run(bot: &Arc<Bot>) -> Result<()> {
+pub fn run(bot: &Bot) -> Result<()> {
     let mut rl = DefaultEditor::new()?;
     let mut chars: Option<Arc<CharacterController>> = None;
     loop {
@@ -51,7 +51,7 @@ pub fn run(bot: &Arc<Bot>) -> Result<()> {
 #[allow(clippy::too_many_lines)]
 fn respond(
     line: &str,
-    bot: &Arc<Bot>,
+    bot: &Bot,
     character: &mut Option<Arc<CharacterController>>,
 ) -> Result<()> {
     match Cli::try_parse_from(line.split_whitespace())?.command {
