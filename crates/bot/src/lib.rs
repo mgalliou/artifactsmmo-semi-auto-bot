@@ -24,7 +24,6 @@ use crate::{
 
 pub mod account;
 pub mod bank;
-pub mod bot;
 pub mod bot_config;
 pub mod character;
 pub mod error;
@@ -153,7 +152,6 @@ impl Bot {
         );
         Self {
             config,
-            client: client.clone(),
             order_board: OrderBoard::new(client.items.clone(), account.clone()),
             gear_finder: GearFinder::new(client.items.clone(), account.clone()),
             leveling_helper: LevelingHelper::new(
@@ -166,6 +164,7 @@ impl Bot {
             ),
             account,
             bank,
+            client,
         }
     }
 

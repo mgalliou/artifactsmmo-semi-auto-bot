@@ -2,7 +2,7 @@ use anyhow::Result;
 use bot::{Bot, orderboard::Purpose};
 use log::LevelFilter;
 use sdk::Client;
-use std::{env, sync::Arc};
+use std::env;
 
 mod cli;
 

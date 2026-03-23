@@ -50,6 +50,7 @@ use sdk::{
 use std::{
     cmp::min,
     convert::Into,
+    ops::Deref,
     option::Option,
     sync::{
         Arc, Mutex,
@@ -63,7 +64,17 @@ use std::{
 };
 use strum::IntoEnumIterator;
 
-pub struct CharacterController {
+pub struct CharacterController(Arc<CharacterControllerInner>);
+
+impl Deref for CharacterController {
+    type Target = CharacterControllerInner;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+pub struct CharacterControllerInner {
     client: CharacterClient,
     bot_config: BotConfig,
     pub inventory: Arc<InventoryController>,
@@ -92,23 +103,26 @@ impl CharacterController {
         leveling_helper: LevelingHelper,
     ) -> Self {
         let (tx, rx) = channel();
-        Self {
-            client: char_client.clone(),
-            bot_config: bot_cfg,
-            inventory: Arc::new(InventoryController::new(char_client, client.items.clone())),
-            bank: account.bank(),
-            account,
-            maps: client.maps.clone(),
-            items: client.items.clone(),
-            monsters: client.monsters.clone(),
-            tasks: client.tasks.clone(),
-            npcs: client.npcs.clone(),
-            order_board: order_board.clone(),
-            gear_finder,
-            leveling_helper,
-            commands_sendr: Arc::new(tx),
-            commands_recvr: Arc::new(Mutex::new(rx)),
-        }
+        Self(
+            CharacterControllerInner {
+                client: char_client.clone(),
+                bot_config: bot_cfg,
+                inventory: Arc::new(InventoryController::new(char_client, client.items.clone())),
+                bank: account.bank(),
+                account,
+                maps: client.maps.clone(),
+                items: client.items.clone(),
+                monsters: client.monsters.clone(),
+                tasks: client.tasks.clone(),
+                npcs: client.npcs.clone(),
+                order_board: order_board.clone(),
+                gear_finder,
+                leveling_helper,
+                commands_sendr: Arc::new(tx),
+                commands_recvr: Arc::new(Mutex::new(rx)),
+            }
+            .into(),
+        )
     }
 
     pub fn run_loop(&self) {
