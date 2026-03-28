@@ -162,8 +162,8 @@ impl Level for Item {
 }
 
 impl HasConditions for Item {
-    fn conditions(&self) -> &Option<Vec<ConditionSchema>> {
-        &self.0.conditions
+    fn conditions(&self) -> Option<&Vec<ConditionSchema>> {
+        self.0.conditions.as_ref()
     }
 }
 

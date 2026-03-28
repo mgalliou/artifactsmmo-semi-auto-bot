@@ -194,18 +194,18 @@ pub trait DropsItems {
 }
 
 pub trait HasConditions {
-    fn conditions(&self) -> &Option<Vec<ConditionSchema>>;
+    fn conditions(&self) -> Option<&Vec<ConditionSchema>>;
 }
 
 impl HasConditions for AccessSchema {
-    fn conditions(&self) -> &Option<Vec<ConditionSchema>> {
-        &self.conditions
+    fn conditions(&self) -> Option<&Vec<ConditionSchema>> {
+        self.conditions.as_ref()
     }
 }
 
 impl HasConditions for &TransitionSchema {
-    fn conditions(&self) -> &Option<Vec<ConditionSchema>> {
-        &self.conditions
+    fn conditions(&self) -> Option<&Vec<ConditionSchema>> {
+        self.conditions.as_ref()
     }
 }
 

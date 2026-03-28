@@ -809,7 +809,10 @@ impl CharacterClient {
     }
 
     pub fn meets_conditions_for(&self, entity: &impl HasConditions) -> bool {
-        entity.conditions().iter().flatten().all(|condition| {
+        entity.conditions()
+            .into_iter()
+            .flatten()
+            .all(|condition| {
             let value = condition.value as u32;
             // TODO: simplify this
             match condition.operator {
