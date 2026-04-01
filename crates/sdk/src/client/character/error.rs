@@ -51,6 +51,8 @@ pub enum RequestError {
     ResponseError(ApiErrorResponseSchema),
     #[error("downcast error")]
     DowncastError,
+    #[error("request canceled")]
+    Canceled,
 }
 
 impl<T> From<Error<T>> for RequestError {

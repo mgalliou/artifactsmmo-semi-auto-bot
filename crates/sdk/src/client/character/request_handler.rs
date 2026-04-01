@@ -23,7 +23,48 @@ use openapi::models::{
     SkillInfoSchema, SkillResponseSchema, TaskResponseSchema, TaskSchema, TaskTradeResponseSchema,
     TaskTradeSchema, TaskType,
 };
-use std::{sync::Arc, thread::sleep, time::Duration};
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread::sleep;
+use std::time::Duration;
+
+#[derive(Default, Debug)]
+struct PauseState {
+    paused: Mutex<bool>,
+    canceled: Mutex<bool>,
+    cv: Condvar,
+}
+
+impl PauseState {
+    const fn new() -> Self {
+        Self {
+            paused: Mutex::new(false),
+            canceled: Mutex::new(false),
+            cv: Condvar::new(),
+        }
+    }
+
+    fn pause(&self) {
+        *self.paused.lock().unwrap() = true;
+    }
+
+    fn resume(&self) {
+        *self.paused.lock().unwrap() = false;
+        self.cv.notify_all();
+    }
+
+    fn cancel(&self) {
+        *self.canceled.lock().unwrap() = true;
+        self.cv.notify_all();
+    }
+
+    fn is_paused(&self) -> bool {
+        *self.paused.lock().unwrap()
+    }
+
+    fn is_canceled(&self) -> bool {
+        *self.canceled.lock().unwrap()
+    }
+}
 
 /// First layer of abstraction around the character API.
 /// It is responsible for handling the character action requests responce and errors
@@ -34,6 +75,7 @@ pub struct CharacterRequestHandler {
     data: CharacterDataHandle,
     account: AccountClient,
     server: ServerClient,
+    pause_state: Arc<PauseState>,
 }
 
 fn downcast_response<T: ResponseSchema + 'static>(
@@ -45,7 +87,7 @@ fn downcast_response<T: ResponseSchema + 'static>(
 }
 
 impl CharacterRequestHandler {
-    pub const fn new(
+    pub fn new(
         api: ArtifactApi,
         data: CharacterDataHandle,
         account: AccountClient,
@@ -56,14 +98,37 @@ impl CharacterRequestHandler {
             data,
             account,
             server,
+            pause_state: Arc::new(PauseState::new()),
         }
+    }
+
+    pub fn pause(&self) {
+        info!("{}: paused", self.name());
+        self.pause_state.pause();
+    }
+
+    pub fn resume(&self) {
+        info!("{}: resumed", self.name());
+        self.pause_state.resume();
+    }
+
+    pub fn cancel(&self) {
+        info!("{}: request canceled", self.name());
+        self.pause_state.cancel();
+    }
+
+    pub fn is_paused(&self) -> bool {
+        self.pause_state.is_paused()
     }
 
     fn request_action(
         &self,
         action: ActionRequest,
     ) -> Result<Box<dyn ResponseSchema>, RequestError> {
-        self.wait_for_cooldown();
+        if !self.wait_for_ready() {
+            *self.pause_state.canceled.lock().unwrap() = false;
+            return Err(RequestError::Canceled);
+        }
         // if action.is_deposit_item() || action.is_withdraw_item() {
         //     bank_content = Some(
         //         self.account.bank()
@@ -169,28 +234,46 @@ impl CharacterRequestHandler {
                 warn!("{}: refreshing data", self.name());
                 self.refresh_data();
             }
+            RequestError::Canceled => return Err(RequestError::Canceled),
         }
         Err(error)
     }
 
-    fn wait_for_cooldown(&self) {
+    fn wait_for_ready(&self) -> bool {
         if let Some(expiration) = self.cooldown_expiration() {
             let late = Utc::now() - expiration;
             if late.num_seconds() > 1 {
                 warn!("{}: is late by {}s", self.name(), late.num_seconds());
             }
         }
-        let s = self.remaining_cooldown();
-        if s.is_zero() {
-            return;
-        }
+        let cooldown = self.remaining_cooldown();
         debug!(
             "{}: cooling down for {}.{} secondes.",
             self.name(),
-            s.as_secs(),
-            s.subsec_millis()
+            cooldown.as_secs(),
+            cooldown.subsec_millis()
         );
-        sleep(s);
+        while !self.pause_state.is_canceled()
+            && (self.pause_state.is_paused() || !self.remaining_cooldown().is_zero())
+        {
+            let _paused = if self.pause_state.is_paused() {
+                self.pause_state
+                    .cv
+                    .wait_while(self.pause_state.paused.lock().unwrap(), |p| *p)
+                    .unwrap()
+            } else {
+                self.pause_state
+                    .cv
+                    .wait_timeout_while(
+                        self.pause_state.paused.lock().unwrap(),
+                        self.remaining_cooldown(),
+                        |p| *p,
+                    )
+                    .unwrap()
+                    .0
+            };
+        }
+        !self.pause_state.is_canceled()
     }
 
     pub fn remaining_cooldown(&self) -> Duration {

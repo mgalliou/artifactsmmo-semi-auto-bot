@@ -324,6 +324,24 @@ fn respond(line: &str, bot: &Bot, character: &mut Option<Arc<CharacterController
         Commands::Config { action } => match action {
             ConfigAction::Reload => bot.config.reload(),
         },
+        Commands::Pause => {
+            let Some(char) = character else {
+                bail!("no character selected");
+            };
+            char.pause();
+        }
+        Commands::Resume => {
+            let Some(char) = character else {
+                bail!("no character selected");
+            };
+            char.resume();
+        }
+        Commands::Cancel => {
+            let Some(char) = character else {
+                bail!("no character selected");
+            };
+            char.cancel();
+        }
     }
     Ok(())
 }
@@ -370,6 +388,9 @@ enum Commands {
     Task,
     Status,
     Idle,
+    Pause,
+    Resume,
+    Cancel,
     Craft {
         item: String,
         #[arg(default_value_t = 1)]

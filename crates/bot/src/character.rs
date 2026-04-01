@@ -125,6 +125,22 @@ impl CharacterController {
         )
     }
 
+    pub fn pause(&self) {
+        self.client.pause();
+    }
+
+    pub fn resume(&self) {
+        self.client.resume();
+    }
+
+    pub fn cancel(&self) {
+        self.client.cancel();
+    }
+
+    pub fn is_paused(&self) -> bool {
+        self.client.is_paused()
+    }
+
     pub fn run_loop(&self) {
         info!("{}: started !", self.name());
         loop {

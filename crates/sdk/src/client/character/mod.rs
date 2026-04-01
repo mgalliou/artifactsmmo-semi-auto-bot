@@ -107,6 +107,22 @@ impl CharacterClient {
         &self.0.handler
     }
 
+    pub fn pause(&self) {
+        self.handler().pause();
+    }
+
+    pub fn resume(&self) {
+        self.handler().resume();
+    }
+
+    pub fn cancel(&self) {
+        self.handler().cancel();
+    }
+
+    pub fn is_paused(&self) -> bool {
+        self.handler().is_paused()
+    }
+
     pub fn inventory(&self) -> &InventoryClient {
         &self.0.inventory
     }
@@ -809,10 +825,7 @@ impl CharacterClient {
     }
 
     pub fn meets_conditions_for(&self, entity: &impl HasConditions) -> bool {
-        entity.conditions()
-            .into_iter()
-            .flatten()
-            .all(|condition| {
+        entity.conditions().into_iter().flatten().all(|condition| {
             let value = condition.value as u32;
             // TODO: simplify this
             match condition.operator {
