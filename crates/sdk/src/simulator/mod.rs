@@ -57,7 +57,7 @@ impl Simulator {
         }
         let mut remaining_fighters = fighters.clone();
         let mut turn = 1;
-        while turn <= MAX_TURN && monster.is_alive() && chars.iter().all(SimulationEntity::is_alive)
+        while turn <= MAX_TURN && monster.is_alive() && chars.iter().any(SimulationEntity::is_alive)
         {
             if remaining_fighters.is_empty() {
                 remaining_fighters.clone_from(&fighters);
@@ -81,10 +81,10 @@ impl Simulator {
             hp: char.current_health(),
             monster_hp: monster.current_health(),
             hp_lost: char.starting_hp() - char.current_health(),
-            result: if char.is_dead() || (turn > MAX_TURN && monster.is_alive()) {
-                FightResult::Loss
-            } else {
+            result: if monster.is_dead() {
                 FightResult::Win
+            } else {
+                FightResult::Loss
             },
             cd: fight_cd(char.haste(), turn),
         }
@@ -226,12 +226,12 @@ fn dmg_multiplier(dmg_increase: i32) -> f32 {
 }
 
 fn res_multiplier(target_res: i32) -> f32 {
-    if target_res > 100 {
+    (if target_res > 100 {
         100.0
     } else {
         target_res as f32
-    }
-    .mul_add(0.01, -1.0)
+    })
+    .mul_add(-0.01, 1.0)
 }
 
 pub fn time_to_rest(health: u32) -> u32 {
@@ -259,7 +259,7 @@ pub fn gather_cd(resource_level: u32, cooldown_reduction: i32) -> u32 {
 
 #[cfg(test)]
 mod tests {
-    use crate::simulator::gather_cd;
+    use crate::simulator::{average_dmg, gather_cd};
 
     //TODO: rewrite tests
     // use crate::{ITEMS, MONSTERS};
@@ -325,5 +325,44 @@ mod tests {
     #[test]
     fn check_gather_cd() {
         assert_eq!(gather_cd(1, -10), 27);
+    }
+
+    #[test]
+    fn test_resistance_multiplier() {
+        let dmg_no_res = average_dmg(100, 0, 0, 0);
+        assert!(
+            (dmg_no_res - 100.0).abs() < 0.1,
+            "Expected ~100 damage with 0% resistance, got {dmg_no_res}"
+        );
+
+        let dmg_half_res = average_dmg(100, 0, 0, 50);
+        assert!(
+            (dmg_half_res - 50.0).abs() < 0.1,
+            "Expected ~50 damage with 50% resistance, got {dmg_half_res}"
+        );
+
+        let dmg_full_res = average_dmg(100, 0, 0, 100);
+        assert!(
+            (dmg_full_res).abs() < 0.1,
+            "Expected ~0 damage with 100% resistance, got {dmg_full_res}"
+        );
+
+        let dmg_over_res = average_dmg(100, 0, 0, 110);
+        assert!(
+            (dmg_over_res).abs() < 0.1,
+            "Expected ~0 damage with 110% resistance, got {dmg_over_res}"
+        );
+
+        let dmg_with_increase = average_dmg(100, 10, 0, 0);
+        assert!(
+            (dmg_with_increase - 110.0).abs() < 0.1,
+            "Expected ~110 damage with 10% damage increase, got {dmg_with_increase}"
+        );
+
+        let dmg_combined = average_dmg(100, 50, 0, 50);
+        assert!(
+            (dmg_combined - 75.0).abs() < 0.1,
+            "Expected ~75 damage with 50% increase and 50% resistance, got {dmg_combined}"
+        );
     }
 }

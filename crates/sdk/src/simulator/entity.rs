@@ -157,7 +157,7 @@ pub struct BaseSimulationCharacter {
     gear: Gear,
     pub(super) starting_hp: i32,
     max_hp: i32,
-    inititive: i32,
+    initiative: i32,
 
     current_turn: u32,
     pub(super) current_health: i32,
@@ -190,7 +190,7 @@ impl BaseSimulationCharacter {
             name,
             max_hp,
             starting_hp,
-            inititive: BASE_INITIATIVE + gear.initiative(),
+            initiative: BASE_INITIATIVE + gear.initiative(),
             current_health: starting_hp,
             current_turn: 1,
             fire_res: gear.res(DamageType::Fire),
@@ -315,7 +315,7 @@ impl HasEffects for SimulationCharacter {
     }
 
     fn initiative(&self) -> i32 {
-        self.0.borrow().inititive
+        self.0.borrow().initiative
     }
 
     fn effect_value(&self, effect: &str) -> i32 {
