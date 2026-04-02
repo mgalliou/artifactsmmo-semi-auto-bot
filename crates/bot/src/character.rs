@@ -64,6 +64,7 @@ use std::{
 };
 use strum::IntoEnumIterator;
 
+#[derive(Clone)]
 pub struct CharacterController(Arc<CharacterControllerInner>);
 
 impl Deref for CharacterController {
@@ -225,10 +226,13 @@ impl CharacterController {
 
     fn handle_goals(&self) -> bool {
         self.config().goals.iter().any(|g| match g {
-            Goal::Events => false,
             Goal::Orders => self.handle_orderboard(),
             Goal::ReachSkillLevel { skill, level } => {
-                self.skill_level(*skill) < *level && self.level_skill_up(*skill).is_ok()
+                self.skill_level(*skill) < *level
+                    && self
+                        .level_skill_up(*skill)
+                        .map_err(|e| debug!("{}: failed to level skill up: {e}", self.name()))
+                        .is_ok()
             }
             Goal::FollowMaxSkillLevel {
                 skill,
@@ -239,7 +243,10 @@ impl CharacterController {
                         1 + self.account.max_skill_level(*skill_to_follow),
                         MAX_LEVEL,
                     )
-                    && self.level_skill_up(*skill).is_ok()
+                    && self
+                        .level_skill_up(*skill)
+                        .map_err(|e| debug!("{}: failed to level skill up: {e}", self.name()))
+                        .is_ok()
             }
         })
     }
