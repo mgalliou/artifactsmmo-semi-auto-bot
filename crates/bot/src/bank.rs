@@ -73,12 +73,12 @@ impl BankController {
     pub fn missing_among(&self, items: &[SimpleItemSchema], owner: &str) -> Vec<SimpleItemSchema> {
         items
             .iter()
-            .filter_map(|m| {
-                let missing = m
+            .filter_map(|item| {
+                let missing = item
                     .quantity
-                    .saturating_sub(self.has_available(&m.code, owner));
+                    .saturating_sub(self.has_available(&item.code, owner));
                 (missing > 0).then_some(SimpleItemSchema {
-                    code: m.code.clone(),
+                    code: item.code.clone(),
                     quantity: missing,
                 })
             })
