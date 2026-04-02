@@ -21,7 +21,7 @@ pub struct AccountControllerInner {
     items: ItemsClient,
     npcs: NpcsClient,
     pub bank: BankController,
-    pub characters: RwLock<Vec<Arc<CharacterController>>>,
+    pub characters: RwLock<Vec<CharacterController>>,
 }
 
 impl AccountController {
@@ -70,7 +70,7 @@ impl AccountController {
             .characters()
             .iter()
             .map(|char_client| {
-                Arc::new(CharacterController::new(
+                CharacterController::new(
                     char_client.clone(),
                     self.0.config.clone(),
                     client,
@@ -78,12 +78,12 @@ impl AccountController {
                     order_board,
                     gear_finder.clone(),
                     leveling_helper.clone(),
-                ))
+                )
             })
             .collect_vec();
     }
 
-    pub fn characters(&self) -> Vec<Arc<CharacterController>> {
+    pub fn characters(&self) -> Vec<CharacterController> {
         self.0
             .characters
             .read()
@@ -93,11 +93,11 @@ impl AccountController {
             .collect_vec()
     }
 
-    pub fn get_character(&self, index: usize) -> Option<Arc<CharacterController>> {
+    pub fn get_character(&self, index: usize) -> Option<CharacterController> {
         self.characters().get(index).cloned()
     }
 
-    pub fn get_character_by_name(&self, name: &str) -> Option<Arc<CharacterController>> {
+    pub fn get_character_by_name(&self, name: &str) -> Option<CharacterController> {
         self.characters()
             .iter()
             .find(|c| *c.name() == *name)

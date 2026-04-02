@@ -10,11 +10,11 @@ use sdk::{
     simulator::{FightParams, Participant, Simulator},
     skill::Skill,
 };
-use std::{process::exit, sync::Arc};
+use std::process::exit;
 
 pub fn run(bot: &Bot) -> Result<()> {
     let mut rl = DefaultEditor::new()?;
-    let mut chars: Option<Arc<CharacterController>> = None;
+    let mut chars: Option<CharacterController> = None;
     loop {
         let readline = rl.readline(
             format!(
@@ -49,7 +49,7 @@ pub fn run(bot: &Bot) -> Result<()> {
 }
 
 #[allow(clippy::too_many_lines)]
-fn respond(line: &str, bot: &Bot, character: &mut Option<Arc<CharacterController>>) -> Result<()> {
+fn respond(line: &str, bot: &Bot, character: &mut Option<CharacterController>) -> Result<()> {
     match Cli::try_parse_from(line.split_whitespace())?.command {
         Commands::Orderboard { action } => match action {
             OrderboardAction::Add { item, quantity } => {
