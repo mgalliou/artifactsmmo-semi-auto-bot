@@ -2,8 +2,8 @@ use crate::{
     Gear,
     entities::{Item, Monster},
     simulator::{
-        BASE_HP, BASE_INITIATIVE, BURN_MULTIPLIER, HP_PER_LEVEL, HasEffects, Participant,
-        damage_type::DamageType,
+        BASE_HP, BASE_INITIATIVE, BURN_MULTIPLIER, HEAL_INTERVAL, HP_PER_LEVEL, HasEffects,
+        Participant, damage_type::DamageType,
     },
 };
 use dyn_clone::DynClone;
@@ -18,7 +18,7 @@ pub(super) trait SimulationEntity: HasEffects + DynClone {
         if self.current_health() < self.max_hp() / 2 {
             self.consume_restore_utilities();
         }
-        if self.current_turn().is_multiple_of(3) {
+        if self.current_turn().is_multiple_of(HEAL_INTERVAL) {
             self.receive_healing();
         }
         if self.burning() > 0 {

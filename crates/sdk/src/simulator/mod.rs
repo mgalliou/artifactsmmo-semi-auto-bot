@@ -33,6 +33,9 @@ const REST_HP_PER_SEC: u32 = 5;
 const CRIT_MULTIPLIER: f32 = 0.5;
 const BURN_MULTIPLIER: f32 = 0.90;
 
+const THREAT_TARGET_CHANCE: u32 = 90;
+const HEAL_INTERVAL: u32 = 3;
+
 pub struct Simulator {}
 
 impl Simulator {
@@ -55,7 +58,8 @@ impl Simulator {
         for c in &chars {
             fighters.push(Box::new(c.clone()));
         }
-        let mut remaining_fighters = fighters.clone();
+        let mut remaining_fighters = Vec::with_capacity(fighters.len());
+        remaining_fighters.clone_from(&fighters);
         let mut turn = 1;
         while turn <= MAX_TURN && monster.is_alive() && chars.iter().any(SimulationEntity::is_alive)
         {
@@ -103,11 +107,18 @@ fn get_next_fighter(fighters: &[Box<dyn SimulationEntity>]) -> Option<Box<dyn Si
 }
 
 fn pick_monster_target(chars: &[SimulationCharacter]) -> Option<SimulationCharacter> {
-    let chars_alive = chars.iter().filter(|c| c.is_alive());
-    let targets = if rand::random_range(1..=100) <= 90 {
-        chars_alive.max_set_by_key(HasEffects::threat)
+    let chars_alive = chars.iter().filter(|c| c.is_alive()).collect_vec();
+    if chars_alive.is_empty() {
+        return None;
+    }
+    let use_threat = rand::random_ratio(THREAT_TARGET_CHANCE, 100);
+    let targets = if use_threat {
+        chars_alive
+            .iter()
+            .copied()
+            .max_set_by_key(HasEffects::threat)
     } else {
-        chars_alive.collect_vec()
+        chars_alive
     };
     targets
         .iter()
@@ -226,11 +237,11 @@ fn dmg_multiplier(dmg_increase: i32) -> f32 {
 }
 
 fn res_multiplier(target_res: i32) -> f32 {
-    (if target_res > 100 {
+    if target_res > 100 {
         100.0
     } else {
         target_res as f32
-    })
+    }
     .mul_add(-0.01, 1.0)
 }
 
@@ -259,110 +270,74 @@ pub fn gather_cd(resource_level: u32, cooldown_reduction: i32) -> u32 {
 
 #[cfg(test)]
 mod tests {
-    use crate::simulator::{average_dmg, gather_cd};
+    use super::*;
 
-    //TODO: rewrite tests
-    // use crate::{ITEMS, MONSTERS};
-    //
-    // use super::*;
-    //
-    // #[test]
-    // fn gather() {
-    //     assert_eq!(Simulator::gather(17, 1, -10,), 21);
-    // }
-    //
-    // #[test]
-    // fn kill_deathnight() {
-    //     let gear = Gear {
-    //         weapon: ITEMS.get("skull_staff"),
-    //         shield: ITEMS.get("steel_shield"),
-    //         helmet: ITEMS.get("piggy_helmet"),
-    //         body_armor: ITEMS.get("bandit_armor"),
-    //         leg_armor: ITEMS.get("piggy_pants"),
-    //         boots: ITEMS.get("adventurer_boots"),
-    //         ring1: ITEMS.get("skull_ring"),
-    //         ring2: ITEMS.get("skull_ring"),
-    //         amulet: ITEMS.get("ruby_amulet"),
-    //         artifact1: None,
-    //         artifact2: None,
-    //         artifact3: None,
-    //         utility1: None,
-    //         utility2: None,
-    //     };
-    //     let fight = Simulator::fight(30, 0, &gear, &MONSTERS.get("death_knight").unwrap(), false);
-    //     println!("{:?}", fight);
-    //     assert_eq!(fight.result, FightResult::Win);
-    // }
-    //
-    // #[test]
-    // fn kill_cultist_emperor() {
-    //     let gear = Gear {
-    //         weapon: ITEMS.get("magic_bow"),
-    //         shield: ITEMS.get("gold_shield"),
-    //         helmet: ITEMS.get("strangold_helmet"),
-    //         body_armor: ITEMS.get("serpent_skin_armor"),
-    //         leg_armor: ITEMS.get("strangold_legs_armor"),
-    //         boots: ITEMS.get("gold_boots"),
-    //         ring1: ITEMS.get("emerald_ring"),
-    //         ring2: ITEMS.get("emerald_ring"),
-    //         amulet: ITEMS.get("ancestral_talisman"),
-    //         artifact1: ITEMS.get("christmas_star"),
-    //         artifact2: None,
-    //         artifact3: None,
-    //         utility1: None,
-    //         utility2: None,
-    //     };
-    //     let fight = Simulator::fight(
-    //         40,
-    //         0,
-    //         &gear,
-    //         &MONSTERS.get("cultist_emperor").unwrap(),
-    //         false,
-    //     );
-    //     println!("{:?}", fight);
-    //     assert_eq!(fight.result, FightResult::Win);
-    // }
     #[test]
     fn check_gather_cd() {
         assert_eq!(gather_cd(1, -10), 27);
     }
 
     #[test]
-    fn test_resistance_multiplier() {
-        let dmg_no_res = average_dmg(100, 0, 0, 0);
-        assert!(
-            (dmg_no_res - 100.0).abs() < 0.1,
-            "Expected ~100 damage with 0% resistance, got {dmg_no_res}"
-        );
+    fn gather_cd_zero_reduction() {
+        assert_eq!(gather_cd(1, 0), 31);
+    }
 
-        let dmg_half_res = average_dmg(100, 0, 0, 50);
-        assert!(
-            (dmg_half_res - 50.0).abs() < 0.1,
-            "Expected ~50 damage with 50% resistance, got {dmg_half_res}"
-        );
+    #[test]
+    fn gather_cd_high_level() {
+        assert_eq!(gather_cd(10, 0), 35);
+    }
 
-        let dmg_full_res = average_dmg(100, 0, 0, 100);
-        assert!(
-            (dmg_full_res).abs() < 0.1,
-            "Expected ~0 damage with 100% resistance, got {dmg_full_res}"
-        );
+    #[test]
+    fn gather_cd_positive_reduction() {
+        assert_eq!(gather_cd(10, 50), 53);
+    }
 
-        let dmg_over_res = average_dmg(100, 0, 0, 110);
-        assert!(
-            (dmg_over_res).abs() < 0.1,
-            "Expected ~0 damage with 110% resistance, got {dmg_over_res}"
-        );
+    #[test]
+    fn fight_cd_min() {
+        assert_eq!(fight_cd(0, 1), MIN_FIGHT_CD);
+    }
 
-        let dmg_with_increase = average_dmg(100, 10, 0, 0);
-        assert!(
-            (dmg_with_increase - 110.0).abs() < 0.1,
-            "Expected ~110 damage with 10% damage increase, got {dmg_with_increase}"
-        );
+    #[test]
+    fn fight_cd_no_haste() {
+        assert_eq!(fight_cd(0, 10), 20);
+    }
 
-        let dmg_combined = average_dmg(100, 50, 0, 50);
-        assert!(
-            (dmg_combined - 75.0).abs() < 0.1,
-            "Expected ~75 damage with 50% increase and 50% resistance, got {dmg_combined}"
-        );
+    #[test]
+    fn fight_cd_with_haste() {
+        assert_eq!(fight_cd(10, 10), 18);
+    }
+
+    #[test]
+    fn fight_cd_negative_haste() {
+        assert_eq!(fight_cd(-10, 10), 22);
+    }
+
+    #[test]
+    fn average_dmg_zero() {
+        assert_eq!(average_dmg(0, 0, 0, 0), 0.0);
+    }
+
+    #[test]
+    fn average_dmg_with_increase() {
+        let dmg = average_dmg(10, 50, 0, 0);
+        assert!((dmg - 15.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn average_dmg_with_crit() {
+        let dmg = average_dmg(10, 0, 100, 0);
+        assert!((dmg - 15.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn average_dmg_with_resistance() {
+        let dmg = average_dmg(10, 0, 0, 50);
+        assert!((dmg - 5.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn average_dmg_full_calculation() {
+        let dmg = average_dmg(10, 50, 100, 50);
+        assert!((dmg - 11.25).abs() < 0.001);
     }
 }
