@@ -682,7 +682,7 @@ impl CharacterClient {
                 return Err(GiveItemError::InsufficientQuantity);
             }
         }
-        let Some(character) = self.0.account.get_character(character) else {
+        let Some(character) = self.account().get_character(character) else {
             return Err(GiveItemError::CharacterNotFound);
         };
         if character.position() != self.position() {
@@ -753,8 +753,7 @@ impl CharacterClient {
     ) -> Result<(), GeCreateOrderError> {
         self.can_ge_create_order(item_code, quantity, price)?;
         Ok(self
-            .0
-            .handler
+            .handler()
             .request_ge_create_order(item_code, quantity, price)?)
     }
 

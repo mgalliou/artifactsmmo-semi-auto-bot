@@ -234,7 +234,7 @@ impl CharacterRequestHandler {
                 warn!("{}: refreshing data", self.name());
                 self.refresh_data();
             }
-            RequestError::Canceled => return Err(RequestError::Canceled),
+            RequestError::Canceled => return Err(error),
         }
         Err(error)
     }
@@ -259,15 +259,14 @@ impl CharacterRequestHandler {
             let _paused = if self.pause_state.is_paused() {
                 self.pause_state
                     .cv
-                    .wait_while(self.pause_state.paused.lock().unwrap(), |p| *p)
+                    .wait(self.pause_state.paused.lock().unwrap())
                     .unwrap()
             } else {
                 self.pause_state
                     .cv
-                    .wait_timeout_while(
+                    .wait_timeout(
                         self.pause_state.paused.lock().unwrap(),
                         self.remaining_cooldown(),
-                        |p| *p,
                     )
                     .unwrap()
                     .0
