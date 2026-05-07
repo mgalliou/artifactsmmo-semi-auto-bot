@@ -125,7 +125,6 @@ pub enum Goal {
         skill: Skill,
         skill_to_follow: Skill,
     },
-    Events,
 }
 
 impl Display for Goal {
@@ -143,7 +142,6 @@ impl Display for Goal {
             } => {
                 write!(f, "follow_max_skill_level: {skill},{skill_to_follow}")
             }
-            Self::Events => write!(f, "handle events"),
         }
     }
 }

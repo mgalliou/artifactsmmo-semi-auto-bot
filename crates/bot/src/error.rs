@@ -420,6 +420,14 @@ pub enum TasksCoinExchangeOrderProgressionError {
 }
 
 #[derive(Debug, Error)]
+pub enum GoalProgressError {
+    #[error("Failed to progress orders")]
+    OrderBoardProgressError,
+    #[error("failed to level skill: {0}")]
+    SkillLevelingError(#[from] SkillLevelingError),
+}
+
+#[derive(Debug, Error)]
 pub enum SkillLevelingError {
     #[error("skill is already at max level")]
     SkillAlreadyMaxed,
