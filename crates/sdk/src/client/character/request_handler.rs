@@ -9,7 +9,7 @@ use crate::{
     gear::Slot,
 };
 use api::ArtifactApi;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset, Utc};
 use log::{debug, error, info, warn};
 use openapi::models::{
     BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema,
@@ -241,7 +241,7 @@ impl CharacterRequestHandler {
 
     fn wait_for_ready(&self) -> bool {
         if let Some(expiration) = self.cooldown_expiration() {
-            let late = Utc::now() - expiration;
+            let late = Utc::now().fixed_offset() - expiration;
             if late.num_seconds() > 1 {
                 warn!("{}: is late by {}s", self.name(), late.num_seconds());
             }
@@ -628,7 +628,7 @@ impl Character for CharacterRequestHandler {
         self.data().quantity_in_slot(slot)
     }
 
-    fn cooldown_expiration(&self) -> Option<DateTime<Utc>> {
+    fn cooldown_expiration(&self) -> Option<DateTime<FixedOffset>> {
         self.data().cooldown_expiration()
     }
 }

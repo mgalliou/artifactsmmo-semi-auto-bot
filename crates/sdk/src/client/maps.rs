@@ -4,7 +4,7 @@ use crate::{
     skill::Skill,
 };
 use api::ArtifactApi;
-use chrono::{DateTime, Utc};
+use chrono::{Utc};
 use itertools::Itertools;
 use openapi::models::{MapContentSchema, MapContentType, MapLayer, TaskType};
 use std::{collections::HashMap, sync::Arc};
@@ -49,7 +49,7 @@ impl MapsClient {
 
     pub fn refresh_from_events(&self) {
         self.events().active().iter().for_each(|e| {
-            if DateTime::parse_from_rfc3339(e.expiration()).is_ok_and(|e| e < Utc::now())
+            if e.expiration() < Utc::now()
                 && let Some(map) = self.0.data.get(&e.map().position())
             {
                 map.update(e.previous_map());
@@ -57,7 +57,7 @@ impl MapsClient {
         });
         self.events().refresh_active();
         self.events().active().iter().for_each(|e| {
-            if DateTime::parse_from_rfc3339(e.expiration()).is_ok_and(|e| e > Utc::now())
+            if e.expiration() > Utc::now()
                 && let Some(map) = self.0.data.get(&e.map().position())
             {
                 map.update(e.map());

@@ -31,7 +31,7 @@ use crate::{
     skill::Skill,
 };
 use api::ArtifactApi;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset};
 use openapi::models::{
     CharacterFightSchema, CharacterSchema, ConditionOperator, GeOrderType, GeTransactionSchema,
     InventorySlot, MapContentType, MapLayer, NpcItemTransactionSchema, RecyclingItemsSchema,
@@ -725,7 +725,7 @@ impl CharacterClient {
         let Some(order) = self.0.grand_exchange.get_order_by_id(id) else {
             return Err(GeBuyOrderError::OrderNotFound);
         };
-        if order.r#type.is_some_and(|t| t == GeOrderType::Buy)
+        if order.r#type == GeOrderType::Buy
             && order.account.is_some_and(|a| a == self.account().name())
         {
             return Err(GeBuyOrderError::CannotTradeWithSelf);
@@ -972,7 +972,7 @@ impl Character for CharacterClient {
         self.data().quantity_in_slot(slot)
     }
 
-    fn cooldown_expiration(&self) -> Option<DateTime<Utc>> {
+    fn cooldown_expiration(&self) -> Option<DateTime<FixedOffset>> {
         self.data().cooldown_expiration()
     }
 }

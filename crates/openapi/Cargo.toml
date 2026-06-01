@@ -1,6 +1,6 @@
 [package]
 name = "openapi"
-version = "7.0.3"
+version = "7.0.4"
 authors = ["OpenAPI Generator team and contributors"]
 description = "Artifacts is an API-based MMO game where you can manage 5 characters to explore, fight, gather resources, craft items and much more.  Website: https://artifactsmmo.com/  Documentation: https://docs.artifactsmmo.com/  OpenAPI Spec: https://api.artifactsmmo.com/openapi.json"
 # Override this license by providing a License Object in the OpenAPI.
@@ -9,11 +9,12 @@ edition.workspace = true
 publish.workspace = true
 
 [dependencies]
+chrono.workspace = true
+reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 serde_repr.workspace = true
 url.workspace = true
-reqwest.workspace = true
 
 [features]
 default = ["native-tls"]

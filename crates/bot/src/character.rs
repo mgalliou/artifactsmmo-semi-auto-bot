@@ -22,7 +22,7 @@ use crate::{
     orderboard::{Order, OrderBoard, Purpose},
 };
 use anyhow::Result;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset};
 use itertools::{Either, Itertools};
 use log::{debug, error, info, warn};
 use ordered_float::OrderedFloat;
@@ -2008,7 +2008,7 @@ impl Character for CharacterController {
         self.data().quantity_in_slot(slot)
     }
 
-    fn cooldown_expiration(&self) -> Option<DateTime<Utc>> {
+    fn cooldown_expiration(&self) -> Option<DateTime<FixedOffset>> {
         self.data().cooldown_expiration()
     }
 }

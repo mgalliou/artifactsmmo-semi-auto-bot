@@ -1,5 +1,5 @@
 use crate::{Level, Skill, Slot};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset};
 use openapi::models::{CharacterSchema, InventorySlot, MapLayer, TaskType};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, RwLock};
@@ -26,7 +26,7 @@ pub trait Character: Level {
     fn equiped_in(&self, slot: Slot) -> String;
     fn has_equiped(&self, item_code: &str) -> u32;
     fn quantity_in_slot(&self, slot: Slot) -> u32;
-    fn cooldown_expiration(&self) -> Option<DateTime<Utc>>;
+    fn cooldown_expiration(&self) -> Option<DateTime<FixedOffset>>;
 }
 
 #[derive(Debug, Default, Clone)]
@@ -161,11 +161,8 @@ impl Character for RawCharacter {
     }
 
     /// Returns the cooldown expiration timestamp of the `Character`.
-    fn cooldown_expiration(&self) -> Option<DateTime<Utc>> {
-        self.schema
-            .cooldown_expiration
-            .as_ref()
-            .map(|cd| DateTime::parse_from_rfc3339(cd).ok().map(|dt| dt.to_utc()))?
+    fn cooldown_expiration(&self) -> Option<DateTime<FixedOffset>> {
+        self.schema.cooldown_expiration
     }
 
     fn equiped_in(&self, slot: Slot) -> String {
@@ -187,7 +184,8 @@ impl Character for RawCharacter {
             Slot::Utility2 => &inner.utility2_slot,
             Slot::Bag => &inner.bag_slot,
             Slot::Rune => &inner.rune_slot,
-        }.clone()
+        }
+        .clone()
     }
 
     fn has_equiped(&self, item_code: &str) -> u32 {

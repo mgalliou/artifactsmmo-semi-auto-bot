@@ -1,6 +1,6 @@
 use api::ArtifactApi;
-use chrono::{DateTime, TimeDelta, Utc};
-use log::{debug, error};
+use chrono::{DateTime, FixedOffset, TimeDelta, Utc};
+use log::debug;
 use openapi::models::StatusSchema;
 use std::sync::{Arc, RwLock};
 
@@ -36,24 +36,16 @@ impl ServerClient {
         *self.0.time_offset.read().unwrap()
     }
 
-    fn server_time(&self) -> Option<DateTime<Utc>> {
-        let time_str = &self.0.status.read().unwrap().server_time;
-        let Ok(time) = DateTime::parse_from_rfc3339(time_str) else {
-            return None;
-        };
-        Some(time.to_utc())
+    fn server_time(&self) -> DateTime<FixedOffset> {
+        self.0.status.read().unwrap().server_time
     }
 
     pub fn update_offset(&self) {
-        let now = Utc::now();
+        let now = Utc::now().fixed_offset();
         self.update_status();
-        let Some(server_time) = self.server_time() else {
-            error!("failed to update time offset");
-            return;
-        };
-        *self.0.time_offset.write().unwrap() = now - server_time;
+        *self.0.time_offset.write().unwrap() = now - self.server_time();
         debug!("system time: {now}");
-        debug!("server time: {server_time}");
+        debug!("server time: {}", self.server_time());
         debug!(
             "time offset: {}s and {}ms",
             self.0.time_offset.read().unwrap().num_seconds(),

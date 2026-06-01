@@ -17,8 +17,7 @@ impl AccountAchievement {
     }
 
     pub fn completed_at(&self) -> Option<DateTime<FixedOffset>> {
-        let date_string = self.0.completed_at.as_ref()?;
-        DateTime::parse_from_rfc3339(date_string).ok()
+        self.0.completed_at
     }
 }
 

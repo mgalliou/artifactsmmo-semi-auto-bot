@@ -1,3 +1,4 @@
+use chrono::prelude::{DateTime, FixedOffset};
 use openapi::models::ActiveEventSchema;
 use serde::{Deserialize, Serialize};
 use std::{ops::Deref, sync::Arc};
@@ -11,8 +12,8 @@ impl ActiveEvent {
     pub(crate) fn new(schema: ActiveEventSchema) -> Self {
         Self(schema.into())
     }
-    pub fn expiration(&self) -> &str {
-        &self.0.expiration
+    pub fn expiration(&self) -> DateTime<FixedOffset> {
+        self.0.expiration
     }
 
     pub fn map(&self) -> Map {
