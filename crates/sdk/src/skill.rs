@@ -33,6 +33,7 @@ pub enum Skill {
 }
 
 impl Skill {
+    #[must_use] 
     pub const fn is_gathering(&self) -> bool {
         matches!(
             self,

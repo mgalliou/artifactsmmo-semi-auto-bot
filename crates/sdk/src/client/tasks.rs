@@ -30,6 +30,7 @@ impl TasksClient {
         tasks
     }
 
+    #[must_use] 
     pub fn rewards(&self) -> TasksRewardsClient {
         self.0.rewards.clone()
     }

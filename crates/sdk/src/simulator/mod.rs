@@ -137,6 +137,7 @@ pub struct Participant {
 }
 
 impl Participant {
+    #[must_use] 
     pub const fn new(
         name: String,
         level: u32,
@@ -200,16 +201,19 @@ pub struct Fight {
 }
 
 impl Fight {
+    #[must_use] 
     pub const fn is_winning(&self) -> bool {
         matches!(self.result, FightResult::Win)
     }
 
+    #[must_use] 
     pub const fn is_losing(&self) -> bool {
         matches!(self.result, FightResult::Loss)
     }
 }
 
 /// Compute the average damage an attack will do against the given `target_resistance`.
+#[must_use] 
 pub fn average_dmg(
     attack_dmg: i32,
     dmg_increase: i32,
@@ -245,6 +249,7 @@ const fn res_multiplier(target_res: i32) -> f32 {
     .mul_add(-0.01, 1.0)
 }
 
+#[must_use] 
 pub fn time_to_rest(health: u32) -> u32 {
     health / REST_HP_PER_SEC + u32::from(!health.is_multiple_of(REST_HP_PER_SEC))
 }
@@ -261,6 +266,7 @@ fn fight_cd(haste: i32, turns: u32) -> u32 {
     )
 }
 
+#[must_use] 
 pub fn gather_cd(resource_level: u32, cooldown_reduction: i32) -> u32 {
     let level = resource_level as f32;
     let reduction = cooldown_reduction as f32;

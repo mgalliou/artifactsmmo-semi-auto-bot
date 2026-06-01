@@ -12,10 +12,12 @@ impl TaskReward {
         Self(schema.into())
     }
 
+    #[must_use] 
     pub fn max_quantity(&self) -> u32 {
         self.0.max_quantity
     }
 
+    #[must_use] 
     pub fn min_quantity(&self) -> u32 {
         self.0.min_quantity
     }

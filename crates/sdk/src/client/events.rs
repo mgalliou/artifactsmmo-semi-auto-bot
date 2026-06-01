@@ -36,6 +36,7 @@ impl EventsClient {
         events
     }
 
+    #[must_use] 
     pub fn active(&self) -> Vec<ActiveEvent> {
         self.0.active.read().unwrap().iter().cloned().collect_vec()
     }
@@ -62,6 +63,7 @@ impl EventsClient {
             .clone_from(&now);
     }
 
+    #[must_use] 
     pub fn last_refresh(&self) -> DateTime<Utc> {
         *self
             .0

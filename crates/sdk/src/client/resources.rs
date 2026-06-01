@@ -33,6 +33,7 @@ impl ResourcesClient {
         resources
     }
 
+    #[must_use] 
     pub fn dropping(&self, item_code: &str) -> Vec<Resource> {
         self.all()
             .into_iter()
@@ -40,6 +41,7 @@ impl ResourcesClient {
             .collect_vec()
     }
 
+    #[must_use] 
     pub fn is_event(&self, code: &str) -> bool {
         self.0.events.all().iter().any(|e| e.content().code == code)
     }

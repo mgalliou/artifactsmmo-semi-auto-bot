@@ -12,14 +12,17 @@ impl ActiveEvent {
     pub(crate) fn new(schema: ActiveEventSchema) -> Self {
         Self(schema.into())
     }
+    #[must_use] 
     pub fn expiration(&self) -> DateTime<FixedOffset> {
         self.0.expiration
     }
 
+    #[must_use] 
     pub fn map(&self) -> Map {
         self.0.map.deref().into()
     }
 
+    #[must_use] 
     pub fn previous_map(&self) -> Map {
         self.0.map.deref().into()
     }

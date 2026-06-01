@@ -28,6 +28,7 @@ pub struct Gear {
 impl Gear {
     #[allow(clippy::too_many_arguments)]
     //TODO: return result with invalid gear errors
+    #[must_use] 
     pub fn new(
         weapon: Option<Item>,
         helmet: Option<Item>,
@@ -70,6 +71,7 @@ impl Gear {
             })
     }
 
+    #[must_use] 
     pub fn item_in(&self, slot: Slot) -> Option<Item> {
         match slot {
             Slot::Weapon => self.weapon.clone(),
@@ -192,18 +194,22 @@ pub enum Slot {
 }
 
 impl Slot {
+    #[must_use] 
     pub const fn max_quantity(&self) -> u32 {
         if self.is_utility() { 100 } else { 1 }
     }
 
+    #[must_use] 
     pub const fn is_ring(&self) -> bool {
         self.is_ring_1() || self.is_ring_2()
     }
 
+    #[must_use] 
     pub const fn is_artifact(&self) -> bool {
         self.is_artifact_1() || self.is_artifact_2() || self.is_artifact_3()
     }
 
+    #[must_use] 
     pub const fn is_utility(&self) -> bool {
         self.is_utility_1() || self.is_utility_2()
     }

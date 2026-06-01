@@ -32,10 +32,12 @@ impl NpcsClient {
         npcs
     }
 
+    #[must_use] 
     pub fn items(&self) -> NpcsItemsClient {
         self.0.items.clone()
     }
 
+    #[must_use] 
     pub fn selling(&self, code: &str) -> Vec<Npc> {
         self.0
             .items

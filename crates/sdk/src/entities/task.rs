@@ -12,18 +12,22 @@ impl Task {
         Self(schema.into())
     }
 
+    #[must_use] 
     pub fn r#type(&self) -> TaskType {
         self.0.r#type
     }
 
+    #[must_use] 
     pub fn rewards_quantity(&self) -> u32 {
         self.rewards().items.iter().map(|i| i.quantity).sum()
     }
 
+    #[must_use] 
     pub fn rewards_slots(&self) -> u32 {
         self.rewards().items.len() as u32
     }
 
+    #[must_use] 
     pub fn rewards(&self) -> &RewardsSchema {
         self.0.rewards.as_ref()
     }

@@ -11,6 +11,7 @@ impl Event {
         Self(schema.into())
     }
 
+    #[must_use] 
     pub fn content(&self) -> &EventContentSchema {
         &self.0.content
     }

@@ -32,6 +32,7 @@ impl ServerClient {
         *self.0.status.write().unwrap() = *status.data;
     }
 
+    #[must_use] 
     pub fn time_offset(&self) -> TimeDelta {
         *self.0.time_offset.read().unwrap()
     }

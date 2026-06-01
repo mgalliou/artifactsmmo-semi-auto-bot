@@ -7,6 +7,7 @@ pub struct Hit {
 }
 
 impl Hit {
+    #[must_use] 
     pub fn new(
         attack_dmg: i32,
         dmg_increase: i32,
@@ -28,6 +29,7 @@ impl Hit {
         }
     }
 
+    #[must_use] 
     pub fn averaged(
         attack_dmg: i32,
         dmg_increase: i32,

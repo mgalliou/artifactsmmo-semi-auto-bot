@@ -43,10 +43,12 @@ impl AccountClient {
         )
     }
 
+    #[must_use] 
     pub fn name(&self) -> &str {
         &self.0.name
     }
 
+    #[must_use] 
     pub fn bank(&self) -> BankClient {
         self.0.bank.clone()
     }
@@ -105,10 +107,12 @@ impl AccountClient {
         Ok(())
     }
 
+    #[must_use] 
     pub fn characters(&self) -> Vec<CharacterClient> {
         self.0.characters.read().unwrap().iter().cloned().collect()
     }
 
+    #[must_use] 
     pub fn get_character(&self, name: &str) -> Option<CharacterClient> {
         self.characters()
             .iter()
@@ -116,6 +120,7 @@ impl AccountClient {
             .cloned()
     }
 
+    #[must_use] 
     pub fn achievements(&self) -> Vec<AccountAchievement> {
         self.0
             .achievements
@@ -126,6 +131,7 @@ impl AccountClient {
             .collect_vec()
     }
 
+    #[must_use] 
     pub fn get_achievement(&self, code: &str) -> Option<AccountAchievement> {
         self.achievements()
             .iter()

@@ -12,10 +12,12 @@ impl GrandExchangeClient {
         Self { api }
     }
 
+    #[must_use] 
     pub fn sell_history(&self, item_code: &str) -> Option<Vec<GeOrderHistorySchema>> {
         self.api.grand_exchange.sell_history(item_code).ok()
     }
 
+    #[must_use] 
     pub fn sell_orders(&self) -> Vec<GeOrderSchema> {
         self.api
             .grand_exchange
@@ -25,6 +27,7 @@ impl GrandExchangeClient {
             .collect_vec()
     }
 
+    #[must_use] 
     pub fn get_order_by_id(&self, id: &str) -> Option<GeOrderSchema> {
         self.api
             .grand_exchange

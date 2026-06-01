@@ -33,6 +33,7 @@ impl MonstersClient {
         monsters
     }
 
+    #[must_use] 
     pub fn dropping(&self, item_code: &str) -> Vec<Monster> {
         self.all()
             .into_iter()
@@ -54,6 +55,7 @@ impl MonstersClient {
             .max_by_key(Level::level)
     }
 
+    #[must_use] 
     pub fn is_event(&self, code: &str) -> bool {
         self.0.events.all().iter().any(|e| e.content().code == code)
     }

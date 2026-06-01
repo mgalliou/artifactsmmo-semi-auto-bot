@@ -10,6 +10,7 @@ pub enum DamageType {
 }
 
 impl DamageType {
+    #[must_use] 
     pub const fn into_attack(&self) -> &'static str {
         match self {
             Self::Fire => "attack_fire",
@@ -19,6 +20,7 @@ impl DamageType {
         }
     }
 
+    #[must_use] 
     pub const fn into_dmg(&self) -> &'static str {
         match self {
             Self::Fire => "dmg_fire",
@@ -28,6 +30,7 @@ impl DamageType {
         }
     }
 
+    #[must_use] 
     pub const fn into_boost_dmg(&self) -> &'static str {
         match self {
             Self::Fire => "boost_dmg_fire",
@@ -37,6 +40,7 @@ impl DamageType {
         }
     }
 
+    #[must_use] 
     pub const fn into_res(&self) -> &'static str {
         match self {
             Self::Fire => "res_fire",

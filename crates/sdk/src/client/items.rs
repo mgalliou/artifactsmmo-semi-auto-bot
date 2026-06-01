@@ -62,6 +62,7 @@ impl ItemsClient {
         self.get(code).iter().flat_map(Item::mats).collect_vec()
     }
 
+    #[must_use] 
     pub fn mats_for(&self, code: &str, quantity: u32) -> Vec<SimpleItemSchema> {
         self.mats_of(code)
             .into_iter()
@@ -71,6 +72,7 @@ impl ItemsClient {
 
     /// Takes an item `code` and returns the mats down to the raw materials
     /// required to craft it.
+    #[must_use] 
     pub fn base_mats_of(&self, code: &str) -> Vec<SimpleItemSchema> {
         self.mats_of(code)
             .iter()
@@ -95,6 +97,7 @@ impl ItemsClient {
 
     /// Takes an `resource` code and returns the items that can be crafted
     /// from the base mats it drops.
+    #[must_use] 
     pub fn crafted_from_resource(&self, resource_code: &str) -> Vec<Item> {
         self.0
             .resources
@@ -111,10 +114,12 @@ impl ItemsClient {
     }
 
     /// Takes an item `code` and returns the items directly crafted with it.
+    #[must_use] 
     pub fn crafted_with(&self, code: &str) -> Vec<Item> {
         self.filtered(|i| i.is_crafted_with(code))
     }
 
+    #[must_use] 
     pub fn require_task_reward(&self, code: &str) -> bool {
         self.base_mats_of(code)
             .iter()
@@ -123,6 +128,7 @@ impl ItemsClient {
 
     /// Takes an item `code` and returns the only item it can be crafted in, or
     /// `None` otherwise.
+    #[must_use] 
     pub fn unique_craft(&self, code: &str) -> Option<Item> {
         let crafts = self.crafted_with(code);
         (crafts.len() == 1)
@@ -131,12 +137,14 @@ impl ItemsClient {
     }
 
     /// Takes an item `code` and returns the items crafted with it as base mat.
+    #[must_use] 
     pub fn crafted_with_base_mat(&self, code: &str) -> Vec<Item> {
         self.filtered(|i| self.is_crafted_with_base_mat(i.code(), code))
     }
 
     /// Takes an item `code` and checks if it is crafted with `mat` as a base
     /// material.
+    #[must_use] 
     pub fn is_crafted_with_base_mat(&self, code: &str, mat: &str) -> bool {
         self.base_mats_of(code).iter().any(|m| m.code == mat)
     }
@@ -164,19 +172,23 @@ impl ItemsClient {
 
     /// Takes an item `code` and returns the amount of inventory space the mats
     /// required to craft it are taking.
+    #[must_use] 
     pub fn mats_quantity_for(&self, code: &str) -> u32 {
         self.mats_of(code).iter().map(|mat| mat.quantity).sum()
     }
 
+    #[must_use] 
     pub fn recycled_quantity_for(&self, code: &str) -> u32 {
         let mats_quantity_for = self.mats_quantity_for(code);
         mats_quantity_for / 5 + u32::from(!mats_quantity_for.is_multiple_of(5))
     }
 
+    #[must_use] 
     pub fn restoring_utilities(&self, level: u32) -> Vec<Item> {
         self.filtered(|i| i.r#type().is_utility() && i.restore() > 0 && i.level() >= level)
     }
 
+    #[must_use] 
     pub fn upgrades_of(&self, item_code: &str) -> Vec<Item> {
         let Some(item) = self.get(item_code) else {
             return vec![];
@@ -235,6 +247,7 @@ impl ItemsClient {
         sources
     }
 
+    #[must_use] 
     pub fn is_from_event(&self, code: &str) -> bool {
         self.get(code).is_some_and(|i| {
             self.sources_of(i.code()).iter().any(|s| match s {
@@ -246,6 +259,7 @@ impl ItemsClient {
         })
     }
 
+    #[must_use] 
     pub fn is_buyable(&self, item_code: &str) -> bool {
         self.0
             .npcs
@@ -254,6 +268,7 @@ impl ItemsClient {
             .is_some_and(|i| i.is_buyable())
     }
 
+    #[must_use] 
     pub fn is_salable(&self, item_code: &str) -> bool {
         self.0
             .npcs

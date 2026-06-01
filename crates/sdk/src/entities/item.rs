@@ -19,14 +19,17 @@ impl Item {
         Self(schema.into())
     }
 
+    #[must_use] 
     pub fn is_crafted_with(&self, item_code: &str) -> bool {
         self.mats().iter().any(|m| m.code == item_code)
     }
 
+    #[must_use] 
     pub fn mats_quantity(&self) -> u32 {
         self.mats().iter().map(|m| m.quantity).sum()
     }
 
+    #[must_use] 
     pub fn mats(&self) -> Vec<SimpleItemSchema> {
         self.craft_schema()
             .iter()
@@ -35,6 +38,7 @@ impl Item {
             .collect_vec()
     }
 
+    #[must_use] 
     pub fn mats_for(&self, quantity: u32) -> Vec<SimpleItemSchema> {
         self.craft_schema()
             .iter()
@@ -44,6 +48,7 @@ impl Item {
             .collect_vec()
     }
 
+    #[must_use] 
     pub fn recycled_quantity(&self) -> u32 {
         let q = self.mats_quantity();
         q / 5 + u32::from(!q.is_multiple_of(5))
@@ -55,39 +60,47 @@ impl Item {
             .map(Skill::from)
     }
 
+    #[must_use] 
     pub fn skill_to_craft_is(&self, skill: Skill) -> bool {
         self.skill_to_craft().is_some_and(|s| s == skill)
     }
 
+    #[must_use] 
     pub fn is_crafted_from_task(&self) -> bool {
         TASKS_REWARDS_SPECIFICS
             .iter()
             .any(|i| self.is_crafted_with(i))
     }
 
+    #[must_use] 
     pub fn is_craftable(&self) -> bool {
         self.craft_schema().is_some()
     }
 
+    #[must_use] 
     pub fn craft_quantity(&self) -> u32 {
         self.craft_schema()
             .and_then(|s| s.quantity.map(|q| q as u32))
             .unwrap_or(0)
     }
 
+    #[must_use] 
     pub fn is_tradable(&self) -> bool {
         self.0.tradeable
     }
 
+    #[must_use] 
     pub fn is_recyclable(&self) -> bool {
         self.skill_to_craft()
             .is_some_and(|s| s.is_weaponcrafting() || s.is_gearcrafting() || s.is_jewelrycrafting())
     }
 
+    #[must_use] 
     pub fn craft_schema(&self) -> Option<&CraftSchema> {
         self.0.craft.as_deref()
     }
 
+    #[must_use] 
     pub fn is_equipable(&self) -> bool {
         match self.r#type() {
             Type::BodyArmor
@@ -106,38 +119,47 @@ impl Item {
         }
     }
 
+    #[must_use] 
     pub fn is_tool(&self) -> bool {
         self.subtype_is(SubType::Tool)
     }
 
+    #[must_use] 
     pub fn is_consumable(&self) -> bool {
         self.type_is(Type::Consumable)
     }
 
+    #[must_use] 
     pub fn is_food(&self) -> bool {
         self.is_consumable() && self.subtype_is(SubType::Food)
     }
 
+    #[must_use] 
     pub fn is_gold_bag(&self) -> bool {
         self.is_consumable() && self.subtype_is(SubType::Bag)
     }
 
+    #[must_use] 
     pub fn type_is(&self, r#type: Type) -> bool {
         self.0.r#type == r#type
     }
 
+    #[must_use] 
     pub fn r#type(&self) -> Type {
         Type::from_str(&self.0.r#type).expect("type to be valid")
     }
 
+    #[must_use] 
     pub fn subtype_is(&self, subtype: SubType) -> bool {
         self.subtype().is_some_and(|st| st == subtype)
     }
 
+    #[must_use] 
     pub fn subtype(&self) -> Option<SubType> {
         SubType::from_str(&self.0.subtype).ok()
     }
 
+    #[must_use] 
     pub fn name(&self) -> &str {
         &self.0.name
     }

@@ -11,10 +11,12 @@ impl Resource {
         Self(schema.into())
     }
 
+    #[must_use] 
     pub fn name(&self) -> &str {
         &self.0.name
     }
 
+    #[must_use] 
     pub fn skill(&self) -> Skill {
         self.0.skill.into()
     }
