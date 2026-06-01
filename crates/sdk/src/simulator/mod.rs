@@ -90,7 +90,7 @@ impl Simulator {
             } else {
                 FightResult::Loss
             },
-            cd: fight_cd(char.haste(), turn),
+            cd: compute_fight_cd(char.haste(), turn),
         }
     }
 }
@@ -137,7 +137,7 @@ pub struct Participant {
 }
 
 impl Participant {
-    #[must_use] 
+    #[must_use]
     pub const fn new(
         name: String,
         level: u32,
@@ -201,20 +201,21 @@ pub struct Fight {
 }
 
 impl Fight {
-    #[must_use] 
+    #[must_use]
     pub const fn is_winning(&self) -> bool {
         matches!(self.result, FightResult::Win)
     }
 
-    #[must_use] 
+    #[must_use]
     pub const fn is_losing(&self) -> bool {
         matches!(self.result, FightResult::Loss)
     }
 }
 
 /// Compute the average damage an attack will do against the given `target_resistance`.
-#[must_use] 
-pub fn average_dmg(
+#[inline]
+#[must_use]
+pub const fn average_dmg(
     attack_dmg: i32,
     dmg_increase: i32,
     critical_strike: i32,
@@ -223,16 +224,16 @@ pub fn average_dmg(
     attack_dmg as f32 * average_multiplier(dmg_increase, critical_strike, target_res)
 }
 
-fn average_multiplier(dmg_increase: i32, critical_strike: i32, target_res: i32) -> f32 {
+const fn average_multiplier(dmg_increase: i32, critical_strike: i32, target_res: i32) -> f32 {
     critless_multiplier(dmg_increase, target_res)
         * (critical_strike as f32 * 0.01).mul_add(CRIT_MULTIPLIER, 1.0)
 }
 
-fn critless_multiplier(dmg_increase: i32, target_res: i32) -> f32 {
+const fn critless_multiplier(dmg_increase: i32, target_res: i32) -> f32 {
     dmg_multiplier(dmg_increase) * res_multiplier(target_res)
 }
 
-fn crit_multiplier(dmg_increase: i32, target_res: i32) -> f32 {
+const fn crit_multiplier(dmg_increase: i32, target_res: i32) -> f32 {
     critless_multiplier(dmg_increase, target_res) * (1.0 + CRIT_MULTIPLIER)
 }
 
@@ -249,12 +250,13 @@ const fn res_multiplier(target_res: i32) -> f32 {
     .mul_add(-0.01, 1.0)
 }
 
-#[must_use] 
+#[must_use]
 pub fn time_to_rest(health: u32) -> u32 {
     health / REST_HP_PER_SEC + u32::from(!health.is_multiple_of(REST_HP_PER_SEC))
 }
 
-fn fight_cd(haste: i32, turns: u32) -> u32 {
+#[must_use]
+pub fn compute_fight_cd(haste: i32, turns: u32) -> u32 {
     max(
         MIN_FIGHT_CD,
         (haste as f32 * 0.01)
@@ -266,8 +268,8 @@ fn fight_cd(haste: i32, turns: u32) -> u32 {
     )
 }
 
-#[must_use] 
-pub fn gather_cd(resource_level: u32, cooldown_reduction: i32) -> u32 {
+#[must_use]
+pub fn compute_gathering_cd(resource_level: u32, cooldown_reduction: i32) -> u32 {
     let level = resource_level as f32;
     let reduction = cooldown_reduction as f32;
 
@@ -280,42 +282,42 @@ mod tests {
 
     #[test]
     fn check_gather_cd() {
-        assert_eq!(gather_cd(1, -10), 27);
+        assert_eq!(compute_gathering_cd(1, -10), 27);
     }
 
     #[test]
     fn gather_cd_zero_reduction() {
-        assert_eq!(gather_cd(1, 0), 31);
+        assert_eq!(compute_gathering_cd(1, 0), 31);
     }
 
     #[test]
     fn gather_cd_high_level() {
-        assert_eq!(gather_cd(10, 0), 35);
+        assert_eq!(compute_gathering_cd(10, 0), 35);
     }
 
     #[test]
     fn gather_cd_positive_reduction() {
-        assert_eq!(gather_cd(10, 50), 53);
+        assert_eq!(compute_gathering_cd(10, 50), 53);
     }
 
     #[test]
     fn fight_cd_min() {
-        assert_eq!(fight_cd(0, 1), MIN_FIGHT_CD);
+        assert_eq!(compute_fight_cd(0, 1), MIN_FIGHT_CD);
     }
 
     #[test]
     fn fight_cd_no_haste() {
-        assert_eq!(fight_cd(0, 10), 20);
+        assert_eq!(compute_fight_cd(0, 10), 20);
     }
 
     #[test]
     fn fight_cd_with_haste() {
-        assert_eq!(fight_cd(10, 10), 18);
+        assert_eq!(compute_fight_cd(10, 10), 18);
     }
 
     #[test]
     fn fight_cd_negative_haste() {
-        assert_eq!(fight_cd(-10, 10), 22);
+        assert_eq!(compute_fight_cd(-10, 10), 22);
     }
 
     #[test]

@@ -44,7 +44,7 @@ use sdk::{
         RecyclingItemsSchema, RewardsSchema, SimpleItemSchema, SkillInfoSchema, TaskSchema,
         TaskTradeSchema, TaskType,
     },
-    simulator::{FightParams, HasEffects, Participant, Simulator, gather_cd, time_to_rest},
+    simulator::{FightParams, HasEffects, Participant, Simulator, compute_gathering_cd, time_to_rest},
     skill::Skill,
 };
 use std::{
@@ -1727,7 +1727,7 @@ impl CharacterController {
                     .map(|w| w.skill_cooldown_reduction(resource.skill()))
             })
             .unwrap_or(0);
-        Some(gather_cd(resource.level(), reduction))
+        Some(compute_gathering_cd(resource.level(), reduction))
     }
 
     /// Calculates the maximum number of items that can be crafted in one go based on
