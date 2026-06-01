@@ -232,11 +232,11 @@ fn crit_multiplier(dmg_increase: i32, target_res: i32) -> f32 {
     critless_multiplier(dmg_increase, target_res) * (1.0 + CRIT_MULTIPLIER)
 }
 
-fn dmg_multiplier(dmg_increase: i32) -> f32 {
+const fn dmg_multiplier(dmg_increase: i32) -> f32 {
     (dmg_increase as f32).mul_add(0.01, 1.0)
 }
 
-fn res_multiplier(target_res: i32) -> f32 {
+const fn res_multiplier(target_res: i32) -> f32 {
     if target_res > 100 {
         100.0
     } else {
@@ -314,7 +314,7 @@ mod tests {
 
     #[test]
     fn average_dmg_zero() {
-        assert_eq!(average_dmg(0, 0, 0, 0), 0.0);
+        assert!((average_dmg(0, 0, 0, 0).abs() < 0.001));
     }
 
     #[test]

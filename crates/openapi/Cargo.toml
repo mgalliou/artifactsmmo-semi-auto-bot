@@ -24,3 +24,4 @@ rustls = ["reqwest/rustls"]
 needless_return = { level = "allow" }
 empty_docs = { level = "allow" }
 to_string_in_format_args = { level = "allow" }
+derivable_impls = { level = "allow" }

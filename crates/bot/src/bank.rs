@@ -154,7 +154,7 @@ impl BankController {
         } else {
             self.add_reservation(item, quantity, owner)?;
         }
-        debug!("bank: increased '{item}' reservation by '{quantity}' for '{owner}'",);
+        debug!("bank: increased '{item}' reservation by '{quantity}' for '{owner}'");
         Ok(())
     }
 
@@ -169,7 +169,7 @@ impl BankController {
             return;
         };
         res.dec_quantity(quantity);
-        debug!("bank: decreased '{item}' reservation by '{quantity}' for '{owner}'",);
+        debug!("bank: decreased '{item}' reservation by '{quantity}' for '{owner}'");
         if res.quantity() < 1 {
             self.remove_reservation(&res);
         }

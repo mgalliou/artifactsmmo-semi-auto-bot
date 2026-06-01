@@ -52,7 +52,7 @@ impl ResponseSchema for CharacterTransitionResponseSchema {
 impl ResponseSchema for CharacterFightResponseSchema {
     fn to_string(&self) -> String {
         let chars = &self.data.fight.characters;
-        let names = chars.iter().map(|c| c.character_name.to_string()).join(",");
+        let names = chars.iter().map(|c| c.character_name.clone()).join(",");
         let drops = chars.iter().flat_map(|c| c.drops.clone()).collect_vec();
         let xp = chars.iter().map(|c| c.xp).join("/");
         let gold = chars.iter().map(|c| c.gold).join("/");

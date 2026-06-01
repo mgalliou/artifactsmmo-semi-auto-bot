@@ -187,8 +187,7 @@ impl Character for RawCharacter {
             Slot::Utility2 => &inner.utility2_slot,
             Slot::Bag => &inner.bag_slot,
             Slot::Rune => &inner.rune_slot,
-        }
-        .to_string()
+        }.clone()
     }
 
     fn has_equiped(&self, item_code: &str) -> u32 {

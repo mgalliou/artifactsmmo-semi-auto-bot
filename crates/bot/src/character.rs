@@ -216,7 +216,7 @@ impl CharacterController {
                 Err(e) => error!("{}: failed to progress task as fallback: {e}", self.name()),
             }
             warn!("{}: nothing to do, sleeping...", self.name());
-            sleep(Duration::from_secs(60));
+            sleep(Duration::from_mins(1));
         }
     }
 
@@ -359,7 +359,7 @@ impl CharacterController {
                 Ok(progress)
             }
             Err(e) => {
-                debug!("{}: no progress done on order ({order}): {e}", self.name(),);
+                debug!("{}: no progress done on order ({order}): {e}", self.name());
                 Err(e)
             }
         }
@@ -1513,7 +1513,7 @@ impl CharacterController {
                 .inventory
                 .reserv_item(f.code(), self.inventory.total_of(f.code()))
             {
-                error!("{} failed reserving food in inventory: {e}", self.name(),);
+                error!("{} failed reserving food in inventory: {e}", self.name());
             }
         });
         let Some(best_food) = self
