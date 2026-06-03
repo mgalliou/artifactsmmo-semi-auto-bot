@@ -28,7 +28,7 @@ pub struct Gear {
 impl Gear {
     #[allow(clippy::too_many_arguments)]
     //TODO: return result with invalid gear errors
-    #[must_use] 
+    #[must_use]
     pub fn new(
         weapon: Option<Item>,
         helmet: Option<Item>,
@@ -51,7 +51,7 @@ impl Gear {
             || artifact1.is_some() && artifact1 == artifact2
             || artifact2.is_some() && artifact2 == artifact3
             || artifact1.is_some() && artifact1 == artifact3))
-            .then_some(Self {
+            .then(|| Self {
                 weapon,
                 helmet,
                 shield,
@@ -71,7 +71,7 @@ impl Gear {
             })
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn item_in(&self, slot: Slot) -> Option<Item> {
         match slot {
             Slot::Weapon => self.weapon.clone(),
@@ -143,7 +143,7 @@ impl From<Gear> for Vec<SimpleItemSchema> {
         let mut items = Slot::iter()
             .filter_map(|slot| {
                 value.item_in(slot).and_then(|i| {
-                    (!slot.is_ring()).then_some(SimpleItemSchema {
+                    (!slot.is_ring()).then(|| SimpleItemSchema {
                         code: i.code().to_owned(),
                         quantity: slot.max_quantity(),
                     })
@@ -194,22 +194,22 @@ pub enum Slot {
 }
 
 impl Slot {
-    #[must_use] 
+    #[must_use]
     pub const fn max_quantity(&self) -> u32 {
         if self.is_utility() { 100 } else { 1 }
     }
 
-    #[must_use] 
+    #[must_use]
     pub const fn is_ring(&self) -> bool {
         self.is_ring_1() || self.is_ring_2()
     }
 
-    #[must_use] 
+    #[must_use]
     pub const fn is_artifact(&self) -> bool {
         self.is_artifact_1() || self.is_artifact_2() || self.is_artifact_3()
     }
 
-    #[must_use] 
+    #[must_use]
     pub const fn is_utility(&self) -> bool {
         self.is_utility_1() || self.is_utility_2()
     }

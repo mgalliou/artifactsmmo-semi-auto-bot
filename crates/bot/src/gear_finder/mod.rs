@@ -133,12 +133,12 @@ impl GearFinder {
         .iter()
         .filter_map(|&item_type| {
             let armors = self.best_combat_armors(char, monster, &weapon, item_type, filter, &[]);
-            (!armors.is_empty()).then_some(
+            (!armors.is_empty()).then(|| {
                 armors
                     .iter()
                     .map(|i| ItemWrapper::Armor(i.clone()))
-                    .collect_vec(),
-            )
+                    .collect_vec()
+            })
         })
         .collect_vec();
 
@@ -355,12 +355,12 @@ impl GearFinder {
             .filter_map(|&item_type| {
                 let armors =
                     self.best_skill_armors(char, skill, skill_level, item_type, filter, &[]);
-                (!armors.is_empty()).then_some(
+                (!armors.is_empty()).then(|| {
                     armors
                         .iter()
                         .map(|i| ItemWrapper::Armor(i.clone()))
-                        .collect_vec(),
-                )
+                        .collect_vec()
+                })
             })
             .collect_vec();
         let ring_sets = self.gen_skill_rings_sets(char, skill, skill_level, filter);
@@ -372,7 +372,7 @@ impl GearFinder {
             items.push(artifact_sets);
         }
         let tool = with_tool
-            .then_some(self.best_tool(char, skill, filter))
+            .then(|| self.best_tool(char, skill, filter))
             .flatten();
         if let Some(bag) = self.best_bag(char, filter) {
             items.push(vec![ItemWrapper::from(&bag)]);
@@ -498,7 +498,7 @@ impl GearFinder {
                 ItemWrapper::Artifacts(set) => set.slot(slot),
                 ItemWrapper::Utility(set) => set.slot(slot),
             }
-            .and_then(|i| i.type_is(slot.into()).then_some(i.clone()))
+            .and_then(|i| i.type_is(slot.into()).then(|| i.clone()))
         })
     }
 

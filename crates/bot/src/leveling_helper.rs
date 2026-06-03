@@ -74,16 +74,15 @@ impl LevelingHelper {
                     .par_bridge()
                     .map(|m| (m.clone(), self.account.time_to_get(&m.code)))
                     .collect::<Vec<_>>();
-                mats_with_ttg
-                    .iter()
-                    .all(|(_, ttg)| ttg.is_some())
-                    .then_some((
+                mats_with_ttg.iter().all(|(_, ttg)| ttg.is_some()).then(|| {
+                    (
                         i,
                         mats_with_ttg
                             .iter()
                             .filter_map(|(m, ttg)| ttg.as_ref().map(|ttg| ttg * m.quantity))
                             .sum::<u32>(),
-                    ))
+                    )
+                })
             })
             .min_by_key(|(_, ttg)| *ttg)
             .map(|(i, _)| i)

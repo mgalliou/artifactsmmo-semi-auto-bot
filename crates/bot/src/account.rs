@@ -142,10 +142,8 @@ impl AccountController {
     pub fn fisher_max_items(&self) -> u32 {
         self.characters()
             .iter()
-            .filter_map(|c| {
-                c.skill_enabled(Skill::Fishing)
-                    .then_some(c.inventory.max_items())
-            })
+            .filter(|&c| c.skill_enabled(Skill::Fishing))
+            .map(|c| c.inventory.max_items())
             .min()
             .unwrap_or(0)
     }

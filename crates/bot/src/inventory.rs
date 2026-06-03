@@ -36,11 +36,10 @@ impl InventoryController {
     pub fn simple_content(&self) -> Vec<SimpleItemSchema> {
         self.content()
             .iter()
-            .filter_map(|i| {
-                (!i.code.is_empty()).then_some(SimpleItemSchema {
-                    code: i.code.clone(),
-                    quantity: i.quantity(),
-                })
+            .filter(|&i| !i.code.is_empty())
+            .map(|i| SimpleItemSchema {
+                code: i.code.clone(),
+                quantity: i.quantity(),
             })
             .collect_vec()
     }
@@ -50,7 +49,7 @@ impl InventoryController {
             .iter()
             .filter_map(|m| {
                 let missing = m.quantity.saturating_sub(self.has_available(&m.code));
-                (missing > 0).then_some(SimpleItemSchema {
+                (missing > 0).then(|| SimpleItemSchema {
                     code: m.code.clone(),
                     quantity: missing,
                 })

@@ -77,7 +77,7 @@ impl BankController {
                 let missing = item
                     .quantity
                     .saturating_sub(self.has_available(&item.code, owner));
-                (missing > 0).then_some(SimpleItemSchema {
+                (missing > 0).then(|| SimpleItemSchema {
                     code: item.code.clone(),
                     quantity: missing,
                 })

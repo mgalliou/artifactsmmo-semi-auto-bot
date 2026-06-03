@@ -190,7 +190,8 @@ impl Character for RawCharacter {
 
     fn has_equiped(&self, item_code: &str) -> u32 {
         Slot::iter()
-            .filter_map(|s| (self.equiped_in(s) == item_code).then_some(self.quantity_in_slot(s)))
+            .filter(|&s| self.equiped_in(s) == item_code)
+            .map(|s| self.quantity_in_slot(s))
             .sum()
     }
 

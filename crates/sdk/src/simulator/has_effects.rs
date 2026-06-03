@@ -124,7 +124,7 @@ pub trait HasEffects {
         DamageType::iter()
             .filter_map(|t| {
                 let attack_dmg = self.attack_dmg(t);
-                (attack_dmg > 0).then_some(if averaged {
+                (attack_dmg > 0).then(|| if averaged {
                     Hit::averaged(
                         attack_dmg,
                         self.dmg_increase(t),

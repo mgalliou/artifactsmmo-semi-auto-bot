@@ -59,7 +59,8 @@ pub trait HasReservation: ItemContainer {
     fn quantity_reserved(&self, item: &str) -> u32 {
         self.reservations()
             .iter()
-            .filter_map(|r| (r.code() == item).then_some(r.quantity()))
+            .filter(|&r| r.code() == item)
+            .map(|r| r.quantity())
             .sum()
     }
 
