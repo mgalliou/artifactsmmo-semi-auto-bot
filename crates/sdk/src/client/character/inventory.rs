@@ -13,7 +13,7 @@ pub struct InventoryClient {
 }
 
 impl InventoryClient {
-    #[must_use] 
+    #[must_use]
     pub const fn new(data: CharacterDataHandle) -> Self {
         Self { data }
     }

@@ -7,27 +7,27 @@ use std::sync::Arc;
 pub struct Npc(Arc<NpcSchema>);
 
 impl Npc {
-    #[must_use] 
+    #[must_use]
     pub fn new(schema: NpcSchema) -> Self {
         Self(schema.into())
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn name(&self) -> &str {
         &self.0.name
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn r#type(&self) -> NpcType {
         self.0.r#type
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn is_merchant(&self) -> bool {
         self.r#type() == NpcType::Merchant
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn is_trader(&self) -> bool {
         self.r#type() == NpcType::Trader
     }

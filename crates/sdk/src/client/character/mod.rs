@@ -99,7 +99,7 @@ impl CharacterClient {
         }))
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn id(&self) -> usize {
         self.0.id
     }
@@ -120,12 +120,12 @@ impl CharacterClient {
         self.handler().cancel();
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn is_paused(&self) -> bool {
         self.handler().is_paused()
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn inventory(&self) -> &InventoryClient {
         &self.0.inventory
     }
@@ -805,7 +805,7 @@ impl CharacterClient {
         Ok(())
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn gear(&self) -> Gear {
         Gear {
             weapon: self.0.items.get(&self.equiped_in(Slot::Weapon)),
@@ -857,17 +857,17 @@ impl CharacterClient {
         })
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn account(&self) -> AccountClient {
         self.0.account.clone()
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn remaining_cooldown(&self) -> Duration {
         self.handler().remaining_cooldown()
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn current_map(&self) -> Map {
         self.0.maps.get(&self.position()).unwrap()
     }

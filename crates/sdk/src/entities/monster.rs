@@ -15,12 +15,12 @@ impl Monster {
         Self(schema.into())
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn name(&self) -> &str {
         &self.0.name
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn is_boss(&self) -> bool {
         self.0.r#type == MonsterType::Boss
     }

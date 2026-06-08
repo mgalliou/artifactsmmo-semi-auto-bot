@@ -44,7 +44,9 @@ use sdk::{
         RecyclingItemsSchema, RewardsSchema, SimpleItemSchema, SkillInfoSchema, TaskSchema,
         TaskTradeSchema, TaskType,
     },
-    simulator::{FightParams, HasEffects, Participant, Simulator, compute_gathering_cd, time_to_rest},
+    simulator::{
+        FightParams, HasEffects, Participant, Simulator, compute_gathering_cd, time_to_rest,
+    },
     skill::Skill,
 };
 use std::{

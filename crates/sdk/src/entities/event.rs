@@ -1,4 +1,4 @@
-use chrono::{Utc};
+use chrono::Utc;
 use openapi::models::{ActiveEventSchema, EventContentSchema, EventSchema};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -11,7 +11,7 @@ impl Event {
         Self(schema.into())
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn content(&self) -> &EventContentSchema {
         &self.0.content
     }

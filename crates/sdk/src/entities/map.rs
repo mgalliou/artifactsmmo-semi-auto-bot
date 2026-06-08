@@ -39,32 +39,32 @@ impl From<&MapSchema> for MapDataHandle {
 pub struct Map(Arc<MapSchema>);
 
 impl Map {
-    #[must_use] 
+    #[must_use]
     pub fn id(&self) -> i32 {
         self.0.map_id
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn position(&self) -> (MapLayer, i32, i32) {
         (self.layer(), self.x(), self.y())
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn layer(&self) -> MapLayer {
         self.0.layer
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn x(&self) -> i32 {
         self.0.x
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn y(&self) -> i32 {
         self.0.y
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn name(&self) -> &str {
         &self.0.name
     }
@@ -73,52 +73,52 @@ impl Map {
         self.0.interactions.content.as_ref().map(AsRef::as_ref)
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn content_is(&self, content: &MapContentSchema) -> bool {
         self.content().is_some_and(|c| c == content)
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn content_code_is(&self, code: &str) -> bool {
         self.content().is_some_and(|c| c.code == code)
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn content_type_is(&self, r#type: MapContentType) -> bool {
         self.content().is_some_and(|c| c.r#type == r#type)
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn access(&self) -> &AccessSchema {
         &self.0.access
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn interactions(&self) -> &InteractionSchema {
         &self.0.interactions
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn transition(&self) -> Option<&TransitionSchema> {
         self.interactions().transition.as_deref()
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn is_blocked(&self) -> bool {
         self.0.access.r#type == MapAccessType::Blocked
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn content_code(&self) -> Option<&str> {
         Some(&self.content()?.code)
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn closest_among(&self, others: &[Self]) -> Option<Self> {
         MapsClient::closest_from_amoung(self.0.x, self.0.y, others)
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn is_tasksmaster(&self, task_type: Option<TaskType>) -> bool {
         self.content_type_is(MapContentType::TasksMaster)
             && task_type.is_none_or(|tt| self.content_code_is(&tt.to_string()))

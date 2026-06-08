@@ -12,12 +12,12 @@ impl AccountAchievement {
         Self(schema.into())
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn is_completed(self) -> bool {
         self.completed_at().is_some()
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn completed_at(&self) -> Option<DateTime<FixedOffset>> {
         self.0.completed_at
     }

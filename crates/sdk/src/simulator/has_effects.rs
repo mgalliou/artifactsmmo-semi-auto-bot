@@ -124,16 +124,18 @@ pub trait HasEffects {
         DamageType::iter()
             .filter_map(|t| {
                 let attack_dmg = self.attack_dmg(t);
-                (attack_dmg > 0).then(|| if averaged {
-                    Hit::averaged(
-                        attack_dmg,
-                        self.dmg_increase(t),
-                        self.critical_strike(),
-                        target.res(t),
-                        t,
-                    )
-                } else {
-                    Hit::new(attack_dmg, self.dmg_increase(t), target.res(t), t, is_crit)
+                (attack_dmg > 0).then(|| {
+                    if averaged {
+                        Hit::averaged(
+                            attack_dmg,
+                            self.dmg_increase(t),
+                            self.critical_strike(),
+                            target.res(t),
+                            t,
+                        )
+                    } else {
+                        Hit::new(attack_dmg, self.dmg_increase(t), target.res(t), t, is_crit)
+                    }
                 })
             })
             .collect_vec()
