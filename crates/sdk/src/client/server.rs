@@ -1,6 +1,6 @@
 use api::ArtifactApi;
 use chrono::{DateTime, FixedOffset, TimeDelta, Utc};
-use log::debug;
+use log::{debug, info};
 use openapi::models::StatusSchema;
 use std::sync::{Arc, RwLock};
 
@@ -15,14 +15,17 @@ pub struct ServerClientInner {
 }
 
 impl ServerClient {
-    pub(crate) fn new(api: ArtifactApi) -> Self {
-        let server = Self(Arc::new(ServerClientInner {
-            api,
+    pub(crate) fn new(api: &ArtifactApi) -> Self {
+        Self(Arc::new(ServerClientInner {
+            api: api.clone(),
             status: RwLock::default(),
             time_offset: RwLock::default(),
-        }));
-        server.update_offset();
-        server
+        }))
+    }
+
+    pub fn init(&self) {
+        self.update_offset();
+        info!("Server client initilized");
     }
 
     pub fn update_status(&self) {
@@ -32,7 +35,7 @@ impl ServerClient {
         *self.0.status.write().unwrap() = *status.data;
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn time_offset(&self) -> TimeDelta {
         *self.0.time_offset.read().unwrap()
     }

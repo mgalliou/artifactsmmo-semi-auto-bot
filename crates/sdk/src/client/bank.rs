@@ -13,14 +13,21 @@ pub struct BankClient(Arc<BankClientInner>);
 pub struct BankClientInner {
     pub details: RwLock<Arc<BankSchema>>,
     pub content: RwLock<Arc<Vec<SimpleItemSchema>>>,
+    api: ArtifactApi,
 }
 
 impl BankClient {
     pub(crate) fn new(api: &ArtifactApi) -> Self {
         Self(Arc::new(BankClientInner {
-            details: RwLock::new(api.bank.get_details().unwrap().into()),
-            content: RwLock::new(api.bank.get_items().unwrap().into()),
+            details: RwLock::default(),
+            content: RwLock::default(),
+            api: api.clone(),
         }))
+    }
+
+    pub(crate) fn init(&self) {
+        self.update_details(self.0.api.bank.get_details().unwrap());
+        self.update_content(self.0.api.bank.get_items().unwrap());
     }
 
     pub(crate) fn update_gold(&self, gold: u32) {

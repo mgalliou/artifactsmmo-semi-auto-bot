@@ -3,6 +3,7 @@ use crate::{
 };
 use api::ArtifactApi;
 use itertools::Itertools;
+use log::info;
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
@@ -20,24 +21,27 @@ pub struct NpcsClientInner {
 
 impl NpcsClient {
     pub(crate) fn new(api: ArtifactApi, items: NpcsItemsClient) -> Self {
-        let npcs = Self(
+        Self(
             NpcsClientInner {
                 api,
                 data: RwLock::default(),
                 items,
             }
             .into(),
-        );
-        *npcs.0.data.write().unwrap() = npcs.load();
-        npcs
+        )
     }
 
-    #[must_use] 
+    pub fn init(&self) {
+        *self.0.data.write().unwrap() = self.load();
+        info!("Npcs client initilized");
+    }
+
+    #[must_use]
     pub fn items(&self) -> NpcsItemsClient {
         self.0.items.clone()
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn selling(&self, code: &str) -> Vec<Npc> {
         self.0
             .items

@@ -1,5 +1,6 @@
 use crate::{CollectionClient, DataEntity, Persist, entities::TaskReward};
 use api::ArtifactApi;
+use log::info;
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
@@ -16,15 +17,18 @@ pub struct TasksRewardsClientInner {
 
 impl TasksRewardsClient {
     pub(crate) fn new(api: ArtifactApi) -> Self {
-        let rewards = Self(
+        Self(
             TasksRewardsClientInner {
                 api,
                 data: RwLock::default(),
             }
             .into(),
-        );
-        *rewards.0.data.write().unwrap() = rewards.load();
-        rewards
+        )
+    }
+
+    pub fn init(&self) {
+        *self.0.data.write().unwrap() = self.load();
+        info!("Tasks rewards client initilized");
     }
 
     pub fn max_quantity(&self) -> u32 {

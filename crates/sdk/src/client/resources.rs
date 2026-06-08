@@ -4,6 +4,7 @@ use crate::{
 };
 use api::ArtifactApi;
 use itertools::Itertools;
+use log::info;
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
@@ -20,20 +21,23 @@ pub struct ResourcesClientInner {
 }
 
 impl ResourcesClient {
-    pub(crate) fn new(api: ArtifactApi, events: EventsClient) -> Self {
-        let resources = Self(
+    pub(crate) fn new(api: &ArtifactApi, events: &EventsClient) -> Self {
+        Self(
             ResourcesClientInner {
-                api,
+                api: api.clone(),
                 data: RwLock::default(),
-                events,
+                events: events.clone(),
             }
             .into(),
-        );
-        *resources.0.data.write().unwrap() = resources.load();
-        resources
+        )
     }
 
-    #[must_use] 
+    pub fn init(&self) {
+        *self.0.data.write().unwrap() = self.load();
+        info!("Resource client initilized");
+    }
+
+    #[must_use]
     pub fn dropping(&self, item_code: &str) -> Vec<Resource> {
         self.all()
             .into_iter()
@@ -41,7 +45,7 @@ impl ResourcesClient {
             .collect_vec()
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn is_event(&self, code: &str) -> bool {
         self.0.events.all().iter().any(|e| e.content().code == code)
     }

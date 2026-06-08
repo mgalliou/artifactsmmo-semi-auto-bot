@@ -58,62 +58,29 @@ pub struct ClientInner {
 }
 
 impl Client {
-    pub fn new(url: String, account_name: String, token: String) -> Result<Self, ClientError> {
+    #[must_use]
+    pub fn new(url: String, account_name: String, token: String) -> Self {
         let api = ArtifactApi::new(url, token);
-        let (bank, events, server, tasks, npcs) = thread::scope(|s| {
-            let bank_handle = s.spawn(|| BankClient::new(&api));
-            let events_handle = s.spawn(|| EventsClient::new(api.clone()));
-            let server_handle = s.spawn(|| ServerClient::new(api.clone()));
-            let tasks_handle =
-                s.spawn(|| TasksClient::new(api.clone(), TasksRewardsClient::new(api.clone())));
-
-            let npcs_handle =
-                s.spawn(|| NpcsClient::new(api.clone(), NpcsItemsClient::new(api.clone())));
-
-            (
-                bank_handle.join().unwrap(),
-                events_handle.join().unwrap(),
-                server_handle.join().unwrap(),
-                tasks_handle.join().unwrap(),
-                npcs_handle.join().unwrap(),
-            )
-        });
-        let (resources, monsters, maps) = thread::scope(|s| {
-            let resources_handle = s.spawn(|| ResourcesClient::new(api.clone(), events.clone()));
-
-            let monsters_handle = s.spawn(|| MonstersClient::new(api.clone(), events.clone()));
-
-            let maps_handle = s.spawn(|| MapsClient::new(&api.clone(), events.clone()));
-
-            (
-                resources_handle.join().unwrap(),
-                monsters_handle.join().unwrap(),
-                maps_handle.join().unwrap(),
-            )
-        });
-
+        let bank = BankClient::new(&api);
+        let account = AccountClient::new(account_name, bank, &api);
+        let server = ServerClient::new(&api);
+        let events = EventsClient::new(&api);
+        let resources = ResourcesClient::new(&api, &events);
+        let monsters = MonstersClient::new(api.clone(), events.clone());
+        let tasks_rewards = TasksRewardsClient::new(api.clone());
+        let tasks = TasksClient::new(api.clone(), tasks_rewards.clone());
+        let npcs_items = NpcsItemsClient::new(api.clone());
+        let npcs = NpcsClient::new(api.clone(), npcs_items);
+        let maps = MapsClient::new(api.clone(), events.clone());
         let items = ItemsClient::new(
             api.clone(),
             resources.clone(),
             monsters.clone(),
-            tasks.rewards(),
+            tasks_rewards,
             npcs.clone(),
         );
-
-        let account = AccountClient::new(account_name, bank, &api);
         let grand_exchange = GrandExchangeClient::new(api);
-        account.load_characters(
-            &items,
-            &resources,
-            &monsters,
-            &maps,
-            &npcs,
-            &tasks,
-            &server,
-            &grand_exchange,
-        )?;
-
-        Ok(Self(
+        Self(
             ClientInner {
                 account,
                 server,
@@ -127,20 +94,52 @@ impl Client {
                 grand_exchange,
             }
             .into(),
-        ))
+        )
+    }
+
+    pub fn init(&self) {
+        thread::scope(|s| {
+            s.spawn(|| self.server.init());
+            s.spawn(|| self.account.init());
+            s.spawn(|| self.account.bank().init());
+            s.spawn(|| {
+                self.account.load_characters(
+                    &self.items,
+                    &self.resources,
+                    &self.monsters,
+                    &self.maps,
+                    &self.npcs,
+                    &self.tasks,
+                    &self.server,
+                    &self.grand_exchange,
+                )
+            });
+            s.spawn(|| self.maps.init());
+            s.spawn(|| self.items.init());
+            s.spawn(|| self.resources.init());
+            s.spawn(|| self.monsters.init());
+            s.spawn(|| self.npcs.init());
+            s.spawn(|| self.npcs.items().init());
+            s.spawn(|| self.tasks.init());
+            s.spawn(|| self.tasks.rewards().init());
+            s.spawn(|| self.events.init());
+        });
     }
 
     pub fn refresh_data(&self) {
+        self.server.update_status();
+        // self.account.refresh();
+        // self.account.bank().refresh();
+        // self.account.characters().refresh();
+        // self.maps.refresh();
         self.items.refresh();
+        self.resources.refresh();
         self.monsters.refresh();
-        self.events.refresh();
-        // TODO: implement this
-        //self.maps.refresh();
-        self.tasks.refresh();
-        self.tasks.rewards().refresh();
         self.npcs.refresh();
         self.npcs.items().refresh();
-        self.server.update_status();
+        self.tasks.refresh();
+        self.tasks.rewards().refresh();
+        self.events.refresh();
     }
 }
 

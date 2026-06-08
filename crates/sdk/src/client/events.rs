@@ -5,11 +5,12 @@ use crate::{
 use api::ArtifactApi;
 use chrono::{DateTime, Duration, Utc};
 use itertools::Itertools;
-use log::debug;
+use log::{debug, info};
 use sdk_derive::CollectionClient;
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
+    thread,
 };
 
 #[derive(Default, Debug, Clone, CollectionClient)]
@@ -24,19 +25,24 @@ pub struct EventsClientInner {
 }
 
 impl EventsClient {
-    pub(crate) fn new(api: ArtifactApi) -> Self {
-        let events = Self(Arc::new(EventsClientInner {
-            api,
+    pub(crate) fn new(api: &ArtifactApi) -> Self {
+        Self(Arc::new(EventsClientInner {
+            api: api.clone(),
             data: RwLock::default(),
             active: RwLock::default(),
             last_refresh: RwLock::default(),
-        }));
-        *events.0.data.write().unwrap() = events.load();
-        events.refresh_active();
-        events
+        }))
     }
 
-    #[must_use] 
+    pub fn init(&self) {
+        let () = thread::scope(|s| {
+            let _ = s.spawn(|| *self.0.data.write().unwrap() = self.load());
+            let _ = s.spawn(|| self.refresh_active());
+        });
+        info!("Event client initilized");
+    }
+
+    #[must_use]
     pub fn active(&self) -> Vec<ActiveEvent> {
         self.0.active.read().unwrap().iter().cloned().collect_vec()
     }
@@ -63,7 +69,7 @@ impl EventsClient {
             .clone_from(&now);
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn last_refresh(&self) -> DateTime<Utc> {
         *self
             .0

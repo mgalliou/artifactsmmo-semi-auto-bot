@@ -1,5 +1,6 @@
 use crate::{DataEntity, Persist, entities::NpcItem};
 use api::ArtifactApi;
+use log::info;
 use sdk_derive::CollectionClient;
 use std::{
     collections::HashMap,
@@ -17,15 +18,18 @@ pub struct NpcsItemsClientInner {
 
 impl NpcsItemsClient {
     pub(crate) fn new(api: ArtifactApi) -> Self {
-        let npcs_items = Self(
+        Self(
             NpcsItemsClientInner {
                 api,
                 data: RwLock::default(),
             }
             .into(),
-        );
-        *npcs_items.0.data.write().unwrap() = npcs_items.load();
-        npcs_items
+        )
+    }
+
+    pub fn init(&self) {
+        *self.0.data.write().unwrap() = self.load();
+        info!("Npcs Items client initilized");
     }
 }
 

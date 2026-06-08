@@ -4,6 +4,7 @@ use crate::{
 };
 use api::ArtifactApi;
 use itertools::Itertools;
+use log::info;
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
@@ -21,16 +22,19 @@ pub struct MonstersClientInner {
 
 impl MonstersClient {
     pub(crate) fn new(api: ArtifactApi, events: EventsClient) -> Self {
-        let monsters = Self(
+        Self(
             MonstersClientInner {
                 api,
                 data: RwLock::default(),
                 events,
             }
             .into(),
-        );
-        *monsters.0.data.write().unwrap() = monsters.load();
-        monsters
+        )
+    }
+
+    pub fn init(&self) {
+        *self.0.data.write().unwrap() = self.load();
+        info!("Monster client initilized");
     }
 
     #[must_use] 

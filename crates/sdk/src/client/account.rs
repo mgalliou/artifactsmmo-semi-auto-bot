@@ -7,6 +7,7 @@ use crate::{
 };
 use api::ArtifactApi;
 use itertools::Itertools;
+use log::info;
 use std::sync::{Arc, RwLock};
 
 #[derive(Default, Debug, Clone)]
@@ -29,26 +30,24 @@ impl AccountClient {
                 api: api.clone(),
                 bank,
                 characters: RwLock::default(),
-                achievements: RwLock::new(
-                    api.account
-                        .achievements(&name)
-                        .unwrap()
-                        .into_iter()
-                        .map(AccountAchievement::new)
-                        .collect_vec(),
-                ),
+                achievements: RwLock::default(),
                 name,
             }
             .into(),
         )
     }
 
-    #[must_use] 
+    pub fn init(&self) {
+        let _ = self.load_achievements();
+        info!("Account achievements initilized");
+    }
+
+    #[must_use]
     pub fn name(&self) -> &str {
         &self.0.name
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn bank(&self) -> BankClient {
         self.0.bank.clone()
     }
@@ -91,6 +90,7 @@ impl AccountClient {
                 )
             })
             .collect_vec();
+        info!("Account character loaded");
         Ok(())
     }
 
@@ -107,12 +107,12 @@ impl AccountClient {
         Ok(())
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn characters(&self) -> Vec<CharacterClient> {
         self.0.characters.read().unwrap().iter().cloned().collect()
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn get_character(&self, name: &str) -> Option<CharacterClient> {
         self.characters()
             .iter()
@@ -120,7 +120,7 @@ impl AccountClient {
             .cloned()
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn achievements(&self) -> Vec<AccountAchievement> {
         self.0
             .achievements
@@ -131,7 +131,7 @@ impl AccountClient {
             .collect_vec()
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn get_achievement(&self, code: &str) -> Option<AccountAchievement> {
         self.achievements()
             .iter()

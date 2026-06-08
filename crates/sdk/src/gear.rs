@@ -47,11 +47,14 @@ impl Gear {
         rune: Option<Item>,
         bag: Option<Item>,
     ) -> Option<Self> {
-        (!(utility1.is_some() && utility1 == utility2
+        if utility1.is_some() && utility1 == utility2
             || artifact1.is_some() && artifact1 == artifact2
             || artifact2.is_some() && artifact2 == artifact3
-            || artifact1.is_some() && artifact1 == artifact3))
-            .then(|| Self {
+            || artifact1.is_some() && artifact1 == artifact3
+        {
+            None
+        } else {
+            Some(Self {
                 weapon,
                 helmet,
                 shield,
@@ -69,6 +72,7 @@ impl Gear {
                 rune,
                 bag,
             })
+        }
     }
 
     #[must_use]

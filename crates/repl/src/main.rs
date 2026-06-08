@@ -12,7 +12,8 @@ fn main() -> Result<()> {
         "https://api.artifactsmmo.com".into(),
         "podJio".into(),
         env::var("ARTIFACTSMMO_TOKEN").unwrap_or_default(),
-    )?;
+    );
+    client.init();
     let bot = Bot::new(client);
     bot.order_board
         .add("lizard_skin", 1000, None, Purpose::Cli)?;

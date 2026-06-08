@@ -1,5 +1,9 @@
 use openapi::apis::{Error, configuration::Configuration};
-use std::{ops::Deref, sync::Arc};
+use std::{
+    ops::Deref,
+    sync::Arc,
+    thread::{self},
+};
 
 pub use account::AccountApi;
 pub use bank::BankApi;
@@ -95,25 +99,36 @@ pub trait Paginate {
     type Page: DataPage<Self::Data>;
     type Error;
 
-    fn send(&self) -> Result<Vec<Self::Data>, Error<Self::Error>> {
-        let mut npcs: Vec<Self::Data> = vec![];
-        let mut current_page = 1;
-        let mut finished = false;
-        while !finished {
-            let resp = self.request_page(current_page)?;
-            if let Some(pages) = resp.pages() {
-                if current_page >= pages {
-                    finished = true;
+    fn send(&self) -> Result<Vec<Self::Data>, Error<Self::Error>>
+    where
+        Self: std::marker::Sync,
+        <Self as Paginate>::Page: std::marker::Send,
+        <Self as Paginate>::Error: std::marker::Send,
+    {
+        let mut data: Vec<Self::Data> = vec![];
+        let response = self.request_page(1)?;
+        let pages = response.pages();
+
+        data.extend(response.data());
+        if let Some(pages) = pages
+            && pages > 1
+        {
+            thread::scope(|s| {
+                let mut handles = vec![];
+                for p in 2..pages {
+                    handles.push(s.spawn(move || self.request_page(p)));
                 }
-                current_page += 1;
-            } else {
-                // No pagination information, assume single page
-                finished = true;
-            }
-            npcs.extend(resp.data());
+                for h in handles {
+                    let Ok(resp) = h.join().unwrap() else {
+                        continue;
+                    };
+                    data.extend(resp.data());
+                }
+            });
         }
-        Ok(npcs)
+        Ok(data)
     }
+
     fn request_page(&self, current_page: u32) -> Result<Self::Page, Error<Self::Error>>;
 }
 

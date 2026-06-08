@@ -12,6 +12,7 @@ use crate::{
 };
 use api::ArtifactApi;
 use itertools::Itertools;
+use log::info;
 use openapi::models::SimpleItemSchema;
 use std::{
     collections::HashMap,
@@ -26,12 +27,12 @@ pub struct ItemsClient(Arc<ItemsClientInner>);
 
 #[derive(Default, Debug)]
 pub struct ItemsClientInner {
-    api: ArtifactApi,
     data: RwLock<HashMap<String, Item>>,
     resources: ResourcesClient,
     monsters: MonstersClient,
     tasks_rewards: TasksRewardsClient,
     npcs: NpcsClient,
+    api: ArtifactApi,
 }
 
 impl ItemsClient {
@@ -42,7 +43,7 @@ impl ItemsClient {
         tasks_rewards: TasksRewardsClient,
         npcs: NpcsClient,
     ) -> Self {
-        let items = Self(
+        Self(
             ItemsClientInner {
                 api,
                 data: RwLock::default(),
@@ -52,9 +53,12 @@ impl ItemsClient {
                 npcs,
             }
             .into(),
-        );
-        *items.0.data.write().unwrap() = items.load();
-        items
+        )
+    }
+
+    pub fn init(&self) {
+        *self.0.data.write().unwrap() = self.load();
+        info!("Items client initilized");
     }
 
     /// Takes an item `code` and return the mats required to craft it.
