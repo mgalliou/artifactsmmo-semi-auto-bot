@@ -32,6 +32,7 @@ use crate::{
 };
 use api::ArtifactApi;
 use chrono::{DateTime, FixedOffset};
+use derive_more::Deref;
 use openapi::models::{
     CharacterFightSchema, CharacterSchema, ConditionOperator, GeOrderType, GeTransactionSchema,
     InventorySlot, MapContentType, MapLayer, NpcItemTransactionSchema, RecyclingItemsSchema,
@@ -48,7 +49,8 @@ pub mod error;
 pub mod inventory;
 pub mod responses;
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Deref)]
+#[deref(forward)]
 pub struct CharacterClient(Arc<CharacterClientInner>);
 
 #[derive(Default, Debug)]
@@ -101,11 +103,11 @@ impl CharacterClient {
 
     #[must_use]
     pub fn id(&self) -> usize {
-        self.0.id
+        self.id
     }
 
     pub(crate) fn handler(&self) -> &CharacterRequestHandler {
-        &self.0.handler
+        &self.handler
     }
 
     pub fn pause(&self) {
@@ -127,7 +129,7 @@ impl CharacterClient {
 
     #[must_use]
     pub fn inventory(&self) -> &InventoryClient {
-        &self.0.inventory
+        &self.inventory
     }
 
     pub fn r#move(&self, x: i32, y: i32) -> Result<Map, MoveError> {
@@ -141,7 +143,7 @@ impl CharacterClient {
         if position == (layer, x, y) {
             return Err(MoveError::AlreadyOnMap);
         }
-        let Some(map) = self.0.maps.get(&(layer, x, y)) else {
+        let Some(map) = self.maps.get(&(layer, x, y)) else {
             return Err(MoveError::MapNotFound);
         };
         if map.is_blocked() || !self.meets_conditions_for(map.access()) {
@@ -178,7 +180,7 @@ impl CharacterClient {
         let Some(monster) = self
             .current_map()
             .content_code()
-            .and_then(|code| self.0.monsters.get(code))
+            .and_then(|code| self.monsters.get(code))
         else {
             return Err(FightError::NoMonsterOnMap);
         };
@@ -192,7 +194,7 @@ impl CharacterClient {
             return Err(FightError::MonsterIsNotABoss);
         }
         for name in participants {
-            let Some(char) = self.0.account.get_character(name) else {
+            let Some(char) = self.account.get_character(name) else {
                 return Err(FightError::CharacterNotFound);
             };
             if char.position() != self.position() {
@@ -214,7 +216,7 @@ impl CharacterClient {
         let Some(resource) = self
             .current_map()
             .content_code()
-            .and_then(|code| self.0.resources.get(code))
+            .and_then(|code| self.resources.get(code))
         else {
             return Err(GatherError::NoResourceOnMap);
         };
@@ -240,7 +242,7 @@ impl CharacterClient {
     }
 
     pub fn can_craft(&self, item_code: &str, quantity: u32) -> Result<(), CraftError> {
-        let Some(item) = self.0.items.get(item_code) else {
+        let Some(item) = self.items.get(item_code) else {
             return Err(CraftError::ItemNotFound);
         };
         let Some(skill) = item.skill_to_craft() else {
@@ -271,7 +273,7 @@ impl CharacterClient {
     }
 
     pub fn can_recycle(&self, item_code: &str, quantity: u32) -> Result<(), RecycleError> {
-        let Some(item) = self.0.items.get(item_code) else {
+        let Some(item) = self.items.get(item_code) else {
             return Err(RecycleError::ItemNotFound);
         };
         let Some(skill) = item.skill_to_craft() else {
@@ -301,7 +303,7 @@ impl CharacterClient {
     }
 
     pub fn can_delete(&self, item_code: &str, quantity: u32) -> Result<(), DeleteError> {
-        if self.0.items.get(item_code).is_none() {
+        if self.items.get(item_code).is_none() {
             return Err(DeleteError::ItemNotFound);
         }
         if self.inventory().total_of(item_code) < quantity {
@@ -317,14 +319,14 @@ impl CharacterClient {
 
     pub fn can_deposit_items(&self, items: &[SimpleItemSchema]) -> Result<(), DepositError> {
         for item in items {
-            if self.0.items.get(&item.code).is_none() {
+            if self.items.get(&item.code).is_none() {
                 return Err(DepositError::ItemNotFound);
             }
             if self.inventory().total_of(&item.code) < item.quantity {
                 return Err(DepositError::InsufficientQuantity);
             }
         }
-        if !self.0.bank.has_room_for_multiple(items) {
+        if !self.bank.has_room_for_multiple(items) {
             return Err(DepositError::InsufficientBankSpace);
         }
         if !self.current_map().content_type_is(MapContentType::Bank) {
@@ -341,7 +343,7 @@ impl CharacterClient {
     pub fn can_withdraw_items(&self, items: &[SimpleItemSchema]) -> Result<(), WithdrawError> {
         if items
             .iter()
-            .any(|i| self.0.bank.total_of(&i.code) < i.quantity)
+            .any(|i| self.bank.total_of(&i.code) < i.quantity)
         {
             return Err(WithdrawError::InsufficientQuantity);
         }
@@ -375,7 +377,7 @@ impl CharacterClient {
     }
 
     pub fn can_withdraw_gold(&self, quantity: u32) -> Result<(), GoldWithdrawError> {
-        if self.0.bank.gold() < quantity {
+        if self.bank.gold() < quantity {
             return Err(GoldWithdrawError::InsufficientGold);
         }
         if !self.current_map().content_type_is(MapContentType::Bank) {
@@ -390,7 +392,7 @@ impl CharacterClient {
     }
 
     pub fn can_expand_bank(&self) -> Result<(), BankExpansionError> {
-        if self.gold() < self.0.bank.next_expansion_cost() {
+        if self.gold() < self.bank.next_expansion_cost() {
             return Err(BankExpansionError::InsufficientGold);
         }
         if !self.current_map().content_type_is(MapContentType::Bank) {
@@ -405,13 +407,13 @@ impl CharacterClient {
     }
 
     pub fn can_equip(&self, item_code: &str, slot: Slot, quantity: u32) -> Result<(), EquipError> {
-        let Some(item) = self.0.items.get(item_code) else {
+        let Some(item) = self.items.get(item_code) else {
             return Err(EquipError::ItemNotFound);
         };
         if self.inventory().total_of(item_code) < quantity {
             return Err(EquipError::InsufficientQuantity);
         }
-        if let Some(equiped) = self.0.items.get(&self.equiped_in(slot)) {
+        if let Some(equiped) = self.items.get(&self.equiped_in(slot)) {
             if equiped.code() != item_code {
                 return Err(EquipError::SlotNotEmpty);
             }
@@ -436,7 +438,7 @@ impl CharacterClient {
     }
 
     pub fn can_unequip(&self, slot: Slot, quantity: u32) -> Result<(), UnequipError> {
-        let Some(equiped) = self.0.items.get(&self.equiped_in(slot)) else {
+        let Some(equiped) = self.items.get(&self.equiped_in(slot)) else {
             return Err(UnequipError::SlotEmpty);
         };
         if self.hp() <= equiped.health() {
@@ -457,7 +459,7 @@ impl CharacterClient {
     }
 
     pub fn can_use_item(&self, item_code: &str, quantity: u32) -> Result<(), UseError> {
-        let Some(item) = self.0.items.get(item_code) else {
+        let Some(item) = self.items.get(item_code) else {
             return Err(UseError::ItemNotFound);
         };
         if !item.is_consumable() {
@@ -518,10 +520,7 @@ impl CharacterClient {
         quantity: u32,
     ) -> Result<TaskTradeSchema, TaskTradeError> {
         self.can_trade_task_item(item_code, quantity)?;
-        Ok(self
-            .0
-            .handler
-            .request_trade_task_item(item_code, quantity)?)
+        Ok(self.handler.request_trade_task_item(item_code, quantity)?)
     }
 
     pub fn can_trade_task_item(
@@ -529,7 +528,7 @@ impl CharacterClient {
         item_code: &str,
         quantity: u32,
     ) -> Result<(), TaskTradeError> {
-        if self.0.items.get(item_code).is_none() {
+        if self.items.get(item_code).is_none() {
             return Err(TaskTradeError::ItemNotFound);
         }
         if *item_code != *self.task() {
@@ -557,7 +556,7 @@ impl CharacterClient {
     }
 
     pub fn can_complete_task(&self) -> Result<(), TaskCompletionError> {
-        let Some(task) = self.0.tasks.get(&self.task()) else {
+        let Some(task) = self.tasks.get(&self.task()) else {
             return Err(TaskCompletionError::NoCurrentTask);
         };
         if !self.task_finished() {
@@ -592,7 +591,6 @@ impl CharacterClient {
             return Err(TasksCoinExchangeError::InsufficientTasksCoinQuantity);
         }
         let extra_quantity = self
-            .0
             .tasks
             .rewards()
             .max_quantity()
@@ -621,10 +619,10 @@ impl CharacterClient {
     }
 
     fn can_npc_buy(&self, item_code: &str, quantity: u32) -> Result<(), BuyNpcError> {
-        if self.0.items.get(item_code).is_none() {
+        if self.items.get(item_code).is_none() {
             return Err(BuyNpcError::ItemNotFound);
         }
-        let Some(item) = self.0.npcs.items().get(item_code) else {
+        let Some(item) = self.npcs.items().get(item_code) else {
             return Err(BuyNpcError::ItemNotBuyable);
         };
         let Some(buy_price) = item.buy_price() else {
@@ -648,10 +646,10 @@ impl CharacterClient {
     }
 
     fn can_npc_sell(&self, item_code: &str, quantity: u32) -> Result<(), SellNpcError> {
-        if self.0.items.get(item_code).is_none() {
+        if self.items.get(item_code).is_none() {
             return Err(SellNpcError::ItemNotFound);
         }
-        let Some(npc_item) = self.0.npcs.items().get(item_code) else {
+        let Some(npc_item) = self.npcs.items().get(item_code) else {
             return Err(SellNpcError::ItemNotSalable);
         };
         if !npc_item.is_salable() {
@@ -678,7 +676,7 @@ impl CharacterClient {
         character: &str,
     ) -> Result<(), GiveItemError> {
         for item in items {
-            if self.0.items.get(&item.code).is_none() {
+            if self.items.get(&item.code).is_none() {
                 return Err(GiveItemError::ItemNotFound);
             }
             if self.inventory().total_of(&item.code) < item.quantity {
@@ -706,7 +704,7 @@ impl CharacterClient {
         if self.gold() < quantity {
             return Err(GiveGoldError::InsufficientGold);
         }
-        let Some(character) = self.0.account.get_character(character) else {
+        let Some(character) = self.account.get_character(character) else {
             return Err(GiveGoldError::CharacterNotFound);
         };
         if character.position() != self.position() {
@@ -725,7 +723,7 @@ impl CharacterClient {
     }
 
     pub fn can_ge_buy_order(&self, id: &str, quantity: u32) -> Result<(), GeBuyOrderError> {
-        let Some(order) = self.0.grand_exchange.get_order_by_id(id) else {
+        let Some(order) = self.grand_exchange.get_order_by_id(id) else {
             return Err(GeBuyOrderError::OrderNotFound);
         };
         if order.r#type == GeOrderType::Buy
@@ -766,7 +764,7 @@ impl CharacterClient {
         quantity: u32,
         price: u32,
     ) -> Result<(), GeCreateOrderError> {
-        let Some(item) = self.0.items.get(item_code) else {
+        let Some(item) = self.items.get(item_code) else {
             return Err(GeCreateOrderError::ItemNotFound);
         };
         if !item.is_tradable() {
@@ -790,7 +788,7 @@ impl CharacterClient {
     }
 
     pub fn can_ge_cancel_order(&self, id: &str) -> Result<(), GeCancelOrderError> {
-        let Some(order) = self.0.grand_exchange.get_order_by_id(id) else {
+        let Some(order) = self.grand_exchange.get_order_by_id(id) else {
             return Err(GeCancelOrderError::OrderNotFound);
         };
         if order.account.is_some_and(|a| a != self.account().name()) {
@@ -808,22 +806,22 @@ impl CharacterClient {
     #[must_use]
     pub fn gear(&self) -> Gear {
         Gear {
-            weapon: self.0.items.get(&self.equiped_in(Slot::Weapon)),
-            shield: self.0.items.get(&self.equiped_in(Slot::Shield)),
-            helmet: self.0.items.get(&self.equiped_in(Slot::Helmet)),
-            body_armor: self.0.items.get(&self.equiped_in(Slot::BodyArmor)),
-            leg_armor: self.0.items.get(&self.equiped_in(Slot::LegArmor)),
-            boots: self.0.items.get(&self.equiped_in(Slot::Boots)),
-            ring1: self.0.items.get(&self.equiped_in(Slot::Ring1)),
-            ring2: self.0.items.get(&self.equiped_in(Slot::Ring2)),
-            amulet: self.0.items.get(&self.equiped_in(Slot::Amulet)),
-            artifact1: self.0.items.get(&self.equiped_in(Slot::Artifact1)),
-            artifact2: self.0.items.get(&self.equiped_in(Slot::Artifact2)),
-            artifact3: self.0.items.get(&self.equiped_in(Slot::Artifact3)),
-            utility1: self.0.items.get(&self.equiped_in(Slot::Utility1)),
-            utility2: self.0.items.get(&self.equiped_in(Slot::Utility1)),
-            rune: self.0.items.get(&self.equiped_in(Slot::Rune)),
-            bag: self.0.items.get(&self.equiped_in(Slot::Bag)),
+            weapon: self.items.get(&self.equiped_in(Slot::Weapon)),
+            shield: self.items.get(&self.equiped_in(Slot::Shield)),
+            helmet: self.items.get(&self.equiped_in(Slot::Helmet)),
+            body_armor: self.items.get(&self.equiped_in(Slot::BodyArmor)),
+            leg_armor: self.items.get(&self.equiped_in(Slot::LegArmor)),
+            boots: self.items.get(&self.equiped_in(Slot::Boots)),
+            ring1: self.items.get(&self.equiped_in(Slot::Ring1)),
+            ring2: self.items.get(&self.equiped_in(Slot::Ring2)),
+            amulet: self.items.get(&self.equiped_in(Slot::Amulet)),
+            artifact1: self.items.get(&self.equiped_in(Slot::Artifact1)),
+            artifact2: self.items.get(&self.equiped_in(Slot::Artifact2)),
+            artifact3: self.items.get(&self.equiped_in(Slot::Artifact3)),
+            utility1: self.items.get(&self.equiped_in(Slot::Utility1)),
+            utility2: self.items.get(&self.equiped_in(Slot::Utility1)),
+            rune: self.items.get(&self.equiped_in(Slot::Rune)),
+            bag: self.items.get(&self.equiped_in(Slot::Bag)),
         }
     }
 
@@ -841,7 +839,6 @@ impl CharacterClient {
                 }
                 ConditionOperator::HasItem => self.has_equiped(&condition.code) >= value,
                 ConditionOperator::AchievementUnlocked => self
-                    .0
                     .account
                     .get_achievement(&condition.code)
                     .is_some_and(AccountAchievement::is_completed),
@@ -859,7 +856,7 @@ impl CharacterClient {
 
     #[must_use]
     pub fn account(&self) -> AccountClient {
-        self.0.account.clone()
+        self.account.clone()
     }
 
     #[must_use]
@@ -869,7 +866,7 @@ impl CharacterClient {
 
     #[must_use]
     pub fn current_map(&self) -> Map {
-        self.0.maps.get(&self.position()).unwrap()
+        self.maps.get(&self.position()).unwrap()
     }
 }
 

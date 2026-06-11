@@ -5,19 +5,21 @@ use crate::{
 };
 use api::ArtifactApi;
 use chrono::Utc;
+use derive_more::Deref;
 use itertools::Itertools;
 use log::info;
 use openapi::models::{MapContentSchema, MapContentType, MapLayer, TaskType};
 use std::{
     collections::HashMap,
-    sync::{Arc, RwLock},
+    sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Deref)]
+#[deref(forward)]
 pub struct MapsClient(Arc<MapsClientInner>);
 
 #[derive(Default, Debug)]
-struct MapsClientInner {
+pub struct MapsClientInner {
     data: RwLock<HashMap<(MapLayer, i32, i32), MapDataHandle>>,
     events: EventsClient,
     api: ArtifactApi,
@@ -35,9 +37,16 @@ impl MapsClient {
         )
     }
 
+    fn data(&self) -> RwLockReadGuard<'_, HashMap<(MapLayer, i32, i32), MapDataHandle>> {
+        self.data.read().unwrap()
+    }
+
+    fn data_mut(&self) -> RwLockWriteGuard<'_, HashMap<(MapLayer, i32, i32), MapDataHandle>> {
+        self.data.write().unwrap()
+    }
+
     pub(crate) fn init(&self) {
-        *self.0.data.write().unwrap() = self
-            .0
+        *self.data_mut() = self
             .api
             .maps
             .get_all()
@@ -49,28 +58,22 @@ impl MapsClient {
     }
 
     fn events(&self) -> EventsClient {
-        self.0.events.clone()
+        self.events.clone()
     }
 
     #[must_use]
     pub fn get(&self, position: &(MapLayer, i32, i32)) -> Option<Map> {
-        Some(self.0.data.read().unwrap().get(position)?.read())
+        Some(self.data().get(position)?.read())
     }
 
     pub fn all(&self) -> Vec<Map> {
-        self.0
-            .data
-            .read()
-            .unwrap()
-            .values()
-            .map(MapDataHandle::read)
-            .collect_vec()
+        self.data().values().map(MapDataHandle::read).collect_vec()
     }
 
     pub fn refresh_from_events(&self) {
         self.events().active().iter().for_each(|e| {
             if e.expiration() < Utc::now()
-                && let Some(map) = self.0.data.read().unwrap().get(&e.map().position())
+                && let Some(map) = self.data_mut().get(&e.map().position())
             {
                 map.update(e.previous_map());
             }
@@ -78,7 +81,7 @@ impl MapsClient {
         self.events().refresh_active();
         self.events().active().iter().for_each(|e| {
             if e.expiration() > Utc::now()
-                && let Some(map) = self.0.data.read().unwrap().get(&e.map().position())
+                && let Some(map) = self.data_mut().get(&e.map().position())
             {
                 map.update(e.map());
             }

@@ -1,8 +1,9 @@
 use crate::{
-    CanProvideXp, CollectionClient, DataEntity, DropsItems, Level, Persist,
+    CanProvideXp, CollectionClient, Data, DataEntity, DropsItems, Level, Persist,
     client::events::EventsClient, entities::Monster,
 };
 use api::ArtifactApi;
+use derive_more::Deref;
 use itertools::Itertools;
 use log::info;
 use std::{
@@ -10,7 +11,8 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-#[derive(Default, Debug, Clone, CollectionClient)]
+#[derive(Default, Debug, Clone, Deref, CollectionClient)]
+#[deref(forward)]
 pub struct MonstersClient(Arc<MonstersClientInner>);
 
 #[derive(Default, Debug)]
@@ -33,7 +35,7 @@ impl MonstersClient {
     }
 
     pub fn init(&self) {
-        *self.0.data.write().unwrap() = self.load();
+        *self.data_mut() = self.load();
         info!("Monster client initilized");
     }
 
@@ -61,7 +63,7 @@ impl MonstersClient {
 
     #[must_use]
     pub fn is_event(&self, code: &str) -> bool {
-        self.0.events.all().iter().any(|e| e.content().code == code)
+        self.events.all().iter().any(|e| e.content().code == code)
     }
 }
 
@@ -69,8 +71,7 @@ impl Persist<HashMap<String, Monster>> for MonstersClient {
     const PATH: &'static str = ".cache/monsters.json";
 
     fn load_from_api(&self) -> HashMap<String, Monster> {
-        self.0
-            .api
+        self.api
             .monsters
             .get_all()
             .unwrap()
@@ -80,7 +81,7 @@ impl Persist<HashMap<String, Monster>> for MonstersClient {
     }
 
     fn refresh(&self) {
-        *self.0.data.write().unwrap() = self.load_from_api();
+        *self.data_mut() = self.load_from_api();
     }
 }
 

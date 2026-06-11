@@ -1,5 +1,6 @@
-use crate::{DataEntity, Persist, TasksRewardsClient, entities::Task};
+use crate::{Data, DataEntity, Persist, TasksRewardsClient, entities::Task};
 use api::ArtifactApi;
+use derive_more::Deref;
 use log::info;
 use sdk_derive::CollectionClient;
 use std::{
@@ -8,7 +9,8 @@ use std::{
     thread,
 };
 
-#[derive(Default, Debug, Clone, CollectionClient)]
+#[derive(Default, Debug, Clone, Deref, CollectionClient)]
+#[deref(forward)]
 pub struct TasksClient(Arc<TasksClientInner>);
 
 #[derive(Default, Debug)]
@@ -32,7 +34,7 @@ impl TasksClient {
 
     pub fn init(&self) {
         let () = thread::scope(|s| {
-            let _ = s.spawn(|| *self.0.data.write().unwrap() = self.load());
+            let _ = s.spawn(|| *self.data_mut() = self.load());
             let _ = s.spawn(|| self.rewards().init());
         });
         info!("Tasks client initilized");
@@ -40,7 +42,7 @@ impl TasksClient {
 
     #[must_use]
     pub fn rewards(&self) -> TasksRewardsClient {
-        self.0.rewards.clone()
+        self.rewards.clone()
     }
 }
 
@@ -48,8 +50,7 @@ impl Persist<HashMap<String, Task>> for TasksClient {
     const PATH: &'static str = ".cache/tasks.json";
 
     fn load_from_api(&self) -> HashMap<String, Task> {
-        self.0
-            .api
+        self.api
             .tasks
             .get_all()
             .unwrap()
@@ -59,7 +60,7 @@ impl Persist<HashMap<String, Task>> for TasksClient {
     }
 
     fn refresh(&self) {
-        *self.0.data.write().unwrap() = self.load_from_api();
+        *self.data_mut() = self.load_from_api();
     }
 }
 

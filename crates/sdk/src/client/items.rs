@@ -1,5 +1,5 @@
 use crate::{
-    Code, CollectionClient, DataEntity, DropsItems, Level, Persist,
+    Code, CollectionClient, Data, DataEntity, DropsItems, Level, Persist, Quantity,
     client::{
         monsters::MonstersClient, npcs::NpcsClient, resources::ResourcesClient,
         tasks_rewards::TasksRewardsClient,
@@ -11,6 +11,7 @@ use crate::{
     skill::Skill,
 };
 use api::ArtifactApi;
+use derive_more::Deref;
 use itertools::Itertools;
 use log::info;
 use openapi::models::SimpleItemSchema;
@@ -22,17 +23,18 @@ use std::{
 };
 use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
 
-#[derive(Default, Debug, Clone, CollectionClient)]
+#[derive(Default, Debug, Clone, Deref, CollectionClient)]
+#[deref(forward)]
 pub struct ItemsClient(Arc<ItemsClientInner>);
 
 #[derive(Default, Debug)]
 pub struct ItemsClientInner {
     data: RwLock<HashMap<String, Item>>,
+    api: ArtifactApi,
     resources: ResourcesClient,
     monsters: MonstersClient,
     tasks_rewards: TasksRewardsClient,
     npcs: NpcsClient,
-    api: ArtifactApi,
 }
 
 impl ItemsClient {
@@ -45,8 +47,8 @@ impl ItemsClient {
     ) -> Self {
         Self(
             ItemsClientInner {
-                api,
                 data: RwLock::default(),
+                api,
                 resources,
                 monsters,
                 tasks_rewards,
@@ -57,7 +59,7 @@ impl ItemsClient {
     }
 
     pub fn init(&self) {
-        *self.0.data.write().unwrap() = self.load();
+        *self.data_mut() = self.load();
         info!("Items client initilized");
     }
 
@@ -103,8 +105,7 @@ impl ItemsClient {
     /// from the base mats it drops.
     #[must_use]
     pub fn crafted_from_resource(&self, resource_code: &str) -> Vec<Item> {
-        self.0
-            .resources
+        self.resources
             .get(resource_code)
             .iter()
             .flat_map(|r| {
@@ -178,7 +179,7 @@ impl ItemsClient {
     /// required to craft it are taking.
     #[must_use]
     pub fn mats_quantity_for(&self, code: &str) -> u32 {
-        self.mats_of(code).iter().map(|mat| mat.quantity).sum()
+        self.mats_of(code).iter().map(Quantity::quantity).sum()
     }
 
     #[must_use]
@@ -220,15 +221,13 @@ impl ItemsClient {
             return vec![ItemSource::Task];
         }
         let mut sources = self
-            .0
             .resources
             .dropping(code)
             .into_iter()
             .map(ItemSource::Resource)
             .collect_vec();
         sources.extend(
-            self.0
-                .monsters
+            self.monsters
                 .dropping(code)
                 .into_iter()
                 .map(ItemSource::Monster)
@@ -237,12 +236,11 @@ impl ItemsClient {
         if self.get(code).is_some_and(|i| i.is_craftable()) {
             sources.push(ItemSource::Craft);
         }
-        if self.0.tasks_rewards.all().iter().any(|r| r.code() == code) {
+        if self.tasks_rewards.all().iter().any(|r| r.code() == code) {
             sources.push(ItemSource::TaskReward);
         }
         sources.extend(
-            self.0
-                .npcs
+            self.npcs
                 .selling(code)
                 .into_iter()
                 .map(ItemSource::Npc)
@@ -255,8 +253,8 @@ impl ItemsClient {
     pub fn is_from_event(&self, code: &str) -> bool {
         self.get(code).is_some_and(|i| {
             self.sources_of(i.code()).iter().any(|s| match s {
-                ItemSource::Resource(resource) => self.0.resources.is_event(resource.code()),
-                ItemSource::Monster(monster) => self.0.monsters.is_event(monster.code()),
+                ItemSource::Resource(resource) => self.resources.is_event(resource.code()),
+                ItemSource::Monster(monster) => self.monsters.is_event(monster.code()),
                 ItemSource::Npc(npc) => npc.is_merchant(),
                 ItemSource::Craft | ItemSource::TaskReward | ItemSource::Task => false,
             })
@@ -265,8 +263,7 @@ impl ItemsClient {
 
     #[must_use]
     pub fn is_buyable(&self, item_code: &str) -> bool {
-        self.0
-            .npcs
+        self.npcs
             .items()
             .get(item_code)
             .is_some_and(|i| i.is_buyable())
@@ -274,8 +271,7 @@ impl ItemsClient {
 
     #[must_use]
     pub fn is_salable(&self, item_code: &str) -> bool {
-        self.0
-            .npcs
+        self.npcs
             .items()
             .get(item_code)
             .is_some_and(|i| i.is_salable())
@@ -286,8 +282,7 @@ impl Persist<HashMap<String, Item>> for ItemsClient {
     const PATH: &'static str = ".cache/items.json";
 
     fn load_from_api(&self) -> HashMap<String, Item> {
-        self.0
-            .api
+        self.api
             .items
             .get_all()
             .unwrap()
@@ -297,7 +292,7 @@ impl Persist<HashMap<String, Item>> for ItemsClient {
     }
 
     fn refresh(&self) {
-        *self.0.data.write().unwrap() = self.load_from_api();
+        *self.data_mut() = self.load_from_api();
     }
 }
 

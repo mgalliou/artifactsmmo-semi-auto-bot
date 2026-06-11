@@ -6,16 +6,18 @@ use crate::{
     grand_exchange::GrandExchangeClient,
 };
 use api::ArtifactApi;
+use derive_more::Deref;
 use itertools::Itertools;
 use log::info;
 use std::sync::{Arc, RwLock};
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Deref)]
+#[deref(forward)]
 pub struct AccountClient(Arc<AccountClientInner>);
 
 /// Hold and manage data related to a specific account
 #[derive(Default, Debug)]
-struct AccountClientInner {
+pub struct AccountClientInner {
     api: ArtifactApi,
     name: String,
     bank: BankClient,
@@ -24,10 +26,10 @@ struct AccountClientInner {
 }
 
 impl AccountClient {
-    pub(crate) fn new(name: String, bank: BankClient, api: &ArtifactApi) -> Self {
+    pub(crate) fn new(name: String, bank: BankClient, api: ArtifactApi) -> Self {
         Self(
             AccountClientInner {
-                api: api.clone(),
+                api,
                 bank,
                 characters: RwLock::default(),
                 achievements: RwLock::default(),
@@ -44,12 +46,12 @@ impl AccountClient {
 
     #[must_use]
     pub fn name(&self) -> &str {
-        &self.0.name
+        &self.name
     }
 
     #[must_use]
     pub fn bank(&self) -> BankClient {
-        self.0.bank.clone()
+        self.bank.clone()
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -64,8 +66,7 @@ impl AccountClient {
         server: &ServerClient,
         grand_exchange: &GrandExchangeClient,
     ) -> Result<(), ClientError> {
-        *self.0.characters.write().unwrap() = self
-            .0
+        *self.characters.write().unwrap() = self
             .api
             .account
             .characters(self.name())
@@ -86,7 +87,7 @@ impl AccountClient {
                     tasks.clone(),
                     grand_exchange.clone(),
                     server.clone(),
-                    self.0.api.clone(),
+                    self.api.clone(),
                 )
             })
             .collect_vec();
@@ -95,8 +96,7 @@ impl AccountClient {
     }
 
     pub fn load_achievements(&self) -> Result<(), ClientError> {
-        *self.0.achievements.write().unwrap() = self
-            .0
+        *self.achievements.write().unwrap() = self
             .api
             .account
             .achievements(self.name())
@@ -109,7 +109,7 @@ impl AccountClient {
 
     #[must_use]
     pub fn characters(&self) -> Vec<CharacterClient> {
-        self.0.characters.read().unwrap().iter().cloned().collect()
+        self.characters.read().unwrap().iter().cloned().collect()
     }
 
     #[must_use]
@@ -122,8 +122,7 @@ impl AccountClient {
 
     #[must_use]
     pub fn achievements(&self) -> Vec<AccountAchievement> {
-        self.0
-            .achievements
+        self.achievements
             .read()
             .unwrap()
             .iter()

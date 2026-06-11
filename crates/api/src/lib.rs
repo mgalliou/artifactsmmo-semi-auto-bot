@@ -1,6 +1,6 @@
+use derive_more::Deref;
 use openapi::apis::{Error, configuration::Configuration};
 use std::{
-    ops::Deref,
     sync::Arc,
     thread::{self},
 };
@@ -33,7 +33,8 @@ pub mod resources;
 pub mod server;
 pub mod tasks;
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Deref)]
+#[deref(forward)]
 pub struct ArtifactApi(Arc<ArtifactApiInner>);
 
 #[derive(Default, Debug)]
@@ -51,14 +52,6 @@ pub struct ArtifactApiInner {
     pub resources: ResourcesApi,
     pub server: ServerApi,
     pub tasks: TasksApi,
-}
-
-impl Deref for ArtifactApi {
-    type Target = ArtifactApiInner;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
 }
 
 impl ArtifactApi {

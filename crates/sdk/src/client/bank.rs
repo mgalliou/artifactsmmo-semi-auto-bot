@@ -1,12 +1,14 @@
 use crate::{BANK_EXTENSION_SIZE, ItemContainer, LimitedContainer, SlotLimited};
 use api::ArtifactApi;
+use derive_more::Deref;
 use openapi::models::{BankSchema, SimpleItemSchema};
 use std::{
     ops::Deref,
     sync::{Arc, RwLock},
 };
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Deref)]
+#[deref(forward)]
 pub struct BankClient(Arc<BankClientInner>);
 
 #[derive(Default, Debug)]
@@ -17,17 +19,17 @@ pub struct BankClientInner {
 }
 
 impl BankClient {
-    pub(crate) fn new(api: &ArtifactApi) -> Self {
+    pub(crate) fn new(api: ArtifactApi) -> Self {
         Self(Arc::new(BankClientInner {
             details: RwLock::default(),
             content: RwLock::default(),
-            api: api.clone(),
+            api,
         }))
     }
 
     pub(crate) fn init(&self) {
-        self.update_details(self.0.api.bank.get_details().unwrap());
-        self.update_content(self.0.api.bank.get_items().unwrap());
+        self.update_details(self.api.bank.get_details().unwrap());
+        self.update_content(self.api.bank.get_items().unwrap());
     }
 
     pub(crate) fn update_gold(&self, gold: u32) {
@@ -43,11 +45,11 @@ impl BankClient {
     }
 
     pub(crate) fn update_details(&self, details: BankSchema) {
-        *self.0.details.write().unwrap() = Arc::new(details);
+        *self.details.write().unwrap() = Arc::new(details);
     }
 
     pub(crate) fn update_content(&self, content: Vec<SimpleItemSchema>) {
-        *self.0.content.write().unwrap() = Arc::new(content);
+        *self.content.write().unwrap() = Arc::new(content);
     }
 }
 
@@ -73,7 +75,7 @@ pub trait Bank: SlotLimited {
 
 impl Bank for BankClient {
     fn details(&self) -> Arc<BankSchema> {
-        self.0.details.read().unwrap().clone()
+        self.details.read().unwrap().clone()
     }
 }
 
@@ -81,7 +83,7 @@ impl ItemContainer for BankClient {
     type Slot = SimpleItemSchema;
 
     fn content(&self) -> Arc<Vec<SimpleItemSchema>> {
-        self.0.content.read().unwrap().clone()
+        self.content.read().unwrap().clone()
     }
 }
 

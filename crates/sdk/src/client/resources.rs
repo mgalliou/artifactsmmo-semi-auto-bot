@@ -1,8 +1,9 @@
 use crate::{
-    CollectionClient, DataEntity, DropsItems, Persist, client::events::EventsClient,
+    CollectionClient, Data, DataEntity, DropsItems, Persist, client::events::EventsClient,
     entities::Resource,
 };
 use api::ArtifactApi;
+use derive_more::Deref;
 use itertools::Itertools;
 use log::info;
 use std::{
@@ -10,7 +11,8 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-#[derive(Default, Debug, Clone, CollectionClient)]
+#[derive(Default, Debug, Clone, Deref, CollectionClient)]
+#[deref(forward)]
 pub struct ResourcesClient(Arc<ResourcesClientInner>);
 
 #[derive(Default, Debug)]
@@ -21,19 +23,19 @@ pub struct ResourcesClientInner {
 }
 
 impl ResourcesClient {
-    pub(crate) fn new(api: &ArtifactApi, events: &EventsClient) -> Self {
+    pub(crate) fn new(api: ArtifactApi, events: EventsClient) -> Self {
         Self(
             ResourcesClientInner {
-                api: api.clone(),
+                api,
                 data: RwLock::default(),
-                events: events.clone(),
+                events,
             }
             .into(),
         )
     }
 
     pub fn init(&self) {
-        *self.0.data.write().unwrap() = self.load();
+        *self.data_mut() = self.load();
         info!("Resource client initilized");
     }
 
@@ -47,7 +49,7 @@ impl ResourcesClient {
 
     #[must_use]
     pub fn is_event(&self, code: &str) -> bool {
-        self.0.events.all().iter().any(|e| e.content().code == code)
+        self.events.all().iter().any(|e| e.content().code == code)
     }
 }
 
@@ -55,7 +57,7 @@ impl Persist<HashMap<String, Resource>> for ResourcesClient {
     const PATH: &'static str = ".cache/resources.json";
 
     fn load_from_api(&self) -> HashMap<String, Resource> {
-        self.0
+        self
             .api
             .resources
             .get_all()
@@ -66,7 +68,7 @@ impl Persist<HashMap<String, Resource>> for ResourcesClient {
     }
 
     fn refresh(&self) {
-        *self.0.data.write().unwrap() = self.load_from_api();
+        *self.data_mut() = self.load_from_api();
     }
 }
 

@@ -15,6 +15,10 @@ pub fn collection_client_derive(input: TokenStream) -> TokenStream {
                     fn data(&self) -> std::sync::RwLockReadGuard<'_, HashMap<String, Self::Entity>> {
                         self.0.data.read().unwrap()
                     }
+
+                    fn data_mut(&self) -> std::sync::RwLockWriteGuard<'_, HashMap<String, Self::Entity>> {
+                        self.0.data.write().unwrap()
+                    }
                 }
             };
             expanded.into()

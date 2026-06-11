@@ -1,7 +1,9 @@
 use crate::{
-    Code, CollectionClient, DataEntity, Persist, client::npcs_items::NpcsItemsClient, entities::Npc,
+    Code, CollectionClient, Data, DataEntity, Persist, client::npcs_items::NpcsItemsClient,
+    entities::Npc,
 };
 use api::ArtifactApi;
+use derive_more::Deref;
 use itertools::Itertools;
 use log::info;
 use std::{
@@ -9,7 +11,8 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-#[derive(Default, Debug, Clone, CollectionClient)]
+#[derive(Default, Debug, Clone, Deref, CollectionClient)]
+#[deref(forward)]
 pub struct NpcsClient(Arc<NpcsClientInner>);
 
 #[derive(Default, Debug)]
@@ -32,19 +35,18 @@ impl NpcsClient {
     }
 
     pub fn init(&self) {
-        *self.0.data.write().unwrap() = self.load();
+        *self.data_mut() = self.load();
         info!("Npcs client initilized");
     }
 
     #[must_use]
     pub fn items(&self) -> NpcsItemsClient {
-        self.0.items.clone()
+        self.items.clone()
     }
 
     #[must_use]
     pub fn selling(&self, code: &str) -> Vec<Npc> {
-        self.0
-            .items
+        self.items
             .all()
             .iter()
             .filter_map(|i| {
@@ -62,8 +64,7 @@ impl Persist<HashMap<String, Npc>> for NpcsClient {
     const PATH: &'static str = ".cache/npcs.json";
 
     fn load_from_api(&self) -> HashMap<String, Npc> {
-        self.0
-            .api
+        self.api
             .npcs
             .get_all()
             .unwrap()
@@ -73,7 +74,7 @@ impl Persist<HashMap<String, Npc>> for NpcsClient {
     }
 
     fn refresh(&self) {
-        *self.0.data.write().unwrap() = self.load_from_api();
+        *self.data_mut() = self.load_from_api();
     }
 }
 

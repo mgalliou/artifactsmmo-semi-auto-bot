@@ -1,10 +1,10 @@
 use crate::Persist;
 use api::ArtifactApi;
+use derive_more::Deref;
 use itertools::Itertools;
 use std::{
     collections::HashMap,
-    ops::Deref,
-    sync::{Arc, RwLockReadGuard},
+    sync::{Arc, RwLockReadGuard, RwLockWriteGuard},
     thread::{self},
 };
 
@@ -32,16 +32,9 @@ pub mod server;
 pub mod tasks;
 pub mod tasks_rewards;
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Deref)]
+#[deref(forward)]
 pub struct Client(Arc<ClientInner>);
-
-impl Deref for Client {
-    type Target = ClientInner;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
 
 #[derive(Default, Debug)]
 pub struct ClientInner {
@@ -59,19 +52,18 @@ pub struct ClientInner {
 
 impl Client {
     #[must_use]
-    pub fn new(url: String, account_name: String, token: String) -> Self {
+    pub fn new(url: String, token: String, account_name: String) -> Self {
         let api = ArtifactApi::new(url, token);
-        let bank = BankClient::new(&api);
-        let account = AccountClient::new(account_name, bank, &api);
-        let server = ServerClient::new(&api);
-        let events = EventsClient::new(&api);
-        let resources = ResourcesClient::new(&api, &events);
+        let bank = BankClient::new(api.clone());
+        let account = AccountClient::new(account_name, bank, api.clone());
+        let server = ServerClient::new(api.clone());
+        let events = EventsClient::new(api.clone());
+        let resources = ResourcesClient::new(api.clone(), events.clone());
         let monsters = MonstersClient::new(api.clone(), events.clone());
         let tasks_rewards = TasksRewardsClient::new(api.clone());
         let tasks = TasksClient::new(api.clone(), tasks_rewards.clone());
         let npcs_items = NpcsItemsClient::new(api.clone());
         let npcs = NpcsClient::new(api.clone(), npcs_items);
-        let maps = MapsClient::new(api.clone(), events.clone());
         let items = ItemsClient::new(
             api.clone(),
             resources.clone(),
@@ -79,6 +71,7 @@ impl Client {
             tasks_rewards,
             npcs.clone(),
         );
+        let maps = MapsClient::new(api.clone(), events.clone());
         let grand_exchange = GrandExchangeClient::new(api);
         Self(
             ClientInner {
@@ -163,6 +156,7 @@ pub trait CollectionClient: Data {
 
 pub(crate) trait Data: DataEntity {
     fn data(&self) -> RwLockReadGuard<'_, HashMap<String, Self::Entity>>;
+    fn data_mut(&self) -> RwLockWriteGuard<'_, HashMap<String, Self::Entity>>;
 }
 
 pub trait DataEntity {

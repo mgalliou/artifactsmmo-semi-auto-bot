@@ -10,8 +10,8 @@ fn main() -> Result<()> {
     simple_logging::log_to_file("artifactsmmo.log", LevelFilter::Info)?;
     let client = Client::new(
         "https://api.artifactsmmo.com".into(),
-        "podJio".into(),
         env::var("ARTIFACTSMMO_TOKEN").unwrap_or_default(),
+        "podJio".into(),
     );
     client.init();
     let bot = Bot::new(client);
