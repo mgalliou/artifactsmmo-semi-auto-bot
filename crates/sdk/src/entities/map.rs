@@ -1,6 +1,5 @@
 use crate::MapsClient;
 use core::fmt;
-use derive_more::Deref;
 use openapi::models::{
     AccessSchema, InteractionSchema, MapAccessType, MapContentSchema, MapContentType, MapLayer,
     MapSchema, TaskType, TransitionSchema,
@@ -36,19 +35,18 @@ impl From<&MapSchema> for MapDataHandle {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Deref, Serialize, Deserialize)]
-#[deref(forward)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Map(Arc<MapSchema>);
 
 impl Map {
     #[must_use]
     pub fn id(&self) -> i32 {
-        self.map_id
+        self.0.map_id
     }
 
     #[must_use]
     pub fn name(&self) -> &str {
-        &self.name
+        &self.0.name
     }
 
     #[must_use]
@@ -58,17 +56,17 @@ impl Map {
 
     #[must_use]
     pub fn layer(&self) -> MapLayer {
-        self.layer
+        self.0.layer
     }
 
     #[must_use]
     pub fn x(&self) -> i32 {
-        self.x
+        self.0.x
     }
 
     #[must_use]
     pub fn y(&self) -> i32 {
-        self.y
+        self.0.y
     }
 
     #[must_use]
@@ -108,17 +106,7 @@ impl Map {
     }
 
     pub fn content(&self) -> Option<&MapContentSchema> {
-        self.interactions.content.as_ref().map(AsRef::as_ref)
-    }
-
-    #[must_use]
-    pub fn is_blocked(&self) -> bool {
-        self.access().r#type == MapAccessType::Blocked
-    }
-
-    #[must_use]
-    pub fn access(&self) -> &AccessSchema {
-        &self.access
+        self.interactions().content.as_ref().map(AsRef::as_ref)
     }
 
     #[must_use]
@@ -128,8 +116,20 @@ impl Map {
 
     #[must_use]
     pub fn interactions(&self) -> &InteractionSchema {
-        &self.interactions
+        &self.0.interactions
     }
+
+    #[must_use]
+    pub fn is_blocked(&self) -> bool {
+        self.access().r#type == MapAccessType::Blocked
+    }
+
+
+    #[must_use]
+    pub fn access(&self) -> &AccessSchema {
+        &self.0.access
+    }
+
 }
 
 impl From<MapSchema> for Map {
