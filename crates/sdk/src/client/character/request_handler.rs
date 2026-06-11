@@ -5,7 +5,7 @@ use crate::{
         character::{HandleCharacterData, action_request::ActionRequest, error::RequestError},
         server::ServerClient,
     },
-    entities::{Character, RawMap, RawCharacter},
+    entities::{Character, RawCharacter, RawMap},
     gear::Slot,
 };
 use api::ArtifactApi;
@@ -98,7 +98,7 @@ impl CharacterRequestHandler {
             data,
             account,
             server,
-            pause_state: Arc::new(PauseState::new()),
+            pause_state: PauseState::new().into(),
         }
     }
 

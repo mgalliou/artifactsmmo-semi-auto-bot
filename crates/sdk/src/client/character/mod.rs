@@ -329,7 +329,7 @@ impl CharacterClient {
         if !self.bank.has_room_for_multiple(items) {
             return Err(DepositError::InsufficientBankSpace);
         }
-        if !self.current_map().content_type_is(MapContentType::Bank) {
+        if !self.current_map().is_bank() {
             return Err(DepositError::NoBankOnMap);
         }
         Ok(())
@@ -350,7 +350,7 @@ impl CharacterClient {
         if !self.inventory().has_room_for_multiple(items) {
             return Err(WithdrawError::InsufficientInventorySpace);
         }
-        if !self.current_map().content_type_is(MapContentType::Bank) {
+        if !self.current_map().is_bank() {
             return Err(WithdrawError::NoBankOnMap);
         }
         Ok(())
@@ -365,7 +365,7 @@ impl CharacterClient {
         if self.gold() < quantity {
             return Err(GoldDepositError::InsufficientGold);
         }
-        if !self.current_map().content_type_is(MapContentType::Bank) {
+        if !self.current_map().is_bank() {
             return Err(GoldDepositError::NoBankOnMap);
         }
         Ok(())
@@ -380,7 +380,7 @@ impl CharacterClient {
         if self.bank.gold() < quantity {
             return Err(GoldWithdrawError::InsufficientGold);
         }
-        if !self.current_map().content_type_is(MapContentType::Bank) {
+        if !self.current_map().is_bank() {
             return Err(GoldWithdrawError::NoBankOnMap);
         }
         Ok(())
@@ -395,7 +395,7 @@ impl CharacterClient {
         if self.gold() < self.bank.next_expansion_cost() {
             return Err(BankExpansionError::InsufficientGold);
         }
-        if !self.current_map().content_type_is(MapContentType::Bank) {
+        if !self.current_map().is_bank() {
             return Err(BankExpansionError::NoBankOnMap);
         }
         Ok(())
@@ -740,7 +740,7 @@ impl CharacterClient {
         if !self.inventory().has_room_for(&order.code, quantity) {
             return Err(GeBuyOrderError::InsufficientInventorySpace);
         }
-        if !self.current_map().content_type_is(MapContentType::Bank) {
+        if !self.current_map().is_bank() {
             return Err(GeBuyOrderError::NoGrandExchangeOnMap);
         }
         Ok(())
@@ -776,7 +776,7 @@ impl CharacterClient {
         if !self.gold() < ((price * quantity) as f32 * 0.03) as u32 {
             return Err(GeCreateOrderError::InsufficientGold);
         }
-        if !self.current_map().content_type_is(MapContentType::Bank) {
+        if !self.current_map().is_bank() {
             return Err(GeCreateOrderError::NoGrandExchangeOnMap);
         }
         Ok(())
@@ -797,7 +797,7 @@ impl CharacterClient {
         if !self.inventory().has_room_for(&order.code, order.quantity) {
             return Err(GeCancelOrderError::InsufficientInventorySpace);
         }
-        if !self.current_map().content_type_is(MapContentType::Bank) {
+        if !self.current_map().is_bank() {
             return Err(GeCancelOrderError::NoGrandExchangeOnMap);
         }
         Ok(())
