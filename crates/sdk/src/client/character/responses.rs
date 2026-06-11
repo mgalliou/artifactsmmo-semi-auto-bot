@@ -1,4 +1,4 @@
-use crate::{ItemList, entities::Map};
+use crate::{ItemList, entities::RawMap};
 use downcast_rs::{Downcast, impl_downcast};
 use itertools::Itertools;
 use openapi::models::{
@@ -24,7 +24,7 @@ impl ResponseSchema for CharacterMovementResponseSchema {
         format!(
             "{}: moved to {}. {}s",
             self.data.character.name,
-            Map::from(*self.data.destination.clone()),
+            RawMap::from(*self.data.destination.clone()),
             self.data.cooldown.remaining_seconds
         )
     }
@@ -39,7 +39,7 @@ impl ResponseSchema for CharacterTransitionResponseSchema {
         format!(
             "{}: transitioned to {}. {}s",
             self.data.character.name,
-            Map::from(*self.data.destination.clone()),
+            RawMap::from(*self.data.destination.clone()),
             self.data.cooldown.remaining_seconds
         )
     }

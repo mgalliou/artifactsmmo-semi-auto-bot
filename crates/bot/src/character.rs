@@ -36,7 +36,7 @@ use sdk::{
         BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, GOLDEN_EGG, GOLDEN_SHRIMP, MAX_LEVEL,
         TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE, TASKS_COIN,
     },
-    entities::{Character, Item, Map, Monster, NpcItem, RawCharacter, Resource},
+    entities::{Character, Item, RawMap, Map, Monster, NpcItem, RawCharacter, Resource},
     gear::{Gear, Slot},
     items::ItemSource,
     models::{
@@ -1324,7 +1324,7 @@ impl CharacterController {
     fn move_to_closest_taskmaster(
         &self,
         task_type: Option<TaskType>,
-    ) -> Result<Map, MoveCommandError> {
+    ) -> Result<RawMap, MoveCommandError> {
         let current_map = self.current_map();
         if self.current_map().is_tasksmaster(task_type) {
             return Ok(current_map);
@@ -1338,7 +1338,7 @@ impl CharacterController {
         self.r#move(&Either::Left((map.x(), map.y())))
     }
 
-    fn move_to_closest_map_of_type(&self, r#type: MapContentType) -> Result<Map, MoveCommandError> {
+    fn move_to_closest_map_of_type(&self, r#type: MapContentType) -> Result<RawMap, MoveCommandError> {
         let current_map = self.current_map();
         if current_map.content_type_is(r#type) {
             return Ok(current_map);
@@ -1349,7 +1349,7 @@ impl CharacterController {
         self.r#move(&Either::Left((map.x(), map.y())))
     }
 
-    fn move_to_closest_map_with_content_code(&self, code: &str) -> Result<Map, MoveCommandError> {
+    fn move_to_closest_map_with_content_code(&self, code: &str) -> Result<RawMap, MoveCommandError> {
         let current_map = self.current_map();
         if current_map.content_code_is(code) {
             return Ok(current_map);
@@ -1363,7 +1363,7 @@ impl CharacterController {
         self.r#move(&Either::Left((map.x(), map.y())))
     }
 
-    fn r#move(&self, destination: &Either<(i32, i32), i32>) -> Result<Map, MoveCommandError> {
+    fn r#move(&self, destination: &Either<(i32, i32), i32>) -> Result<RawMap, MoveCommandError> {
         match destination {
             Either::Left((x, y)) => {
                 if self.position() == (self.position().0, *x, *y) {
@@ -1822,7 +1822,7 @@ impl CharacterController {
         self.client.gear()
     }
 
-    pub fn current_map(&self) -> Map {
+    pub fn current_map(&self) -> RawMap {
         self.client.current_map()
     }
 

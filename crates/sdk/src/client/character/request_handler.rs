@@ -5,7 +5,7 @@ use crate::{
         character::{HandleCharacterData, action_request::ActionRequest, error::RequestError},
         server::ServerClient,
     },
-    entities::{Character, Map, RawCharacter},
+    entities::{Character, RawMap, RawCharacter},
     gear::Slot,
 };
 use api::ArtifactApi;
@@ -285,16 +285,16 @@ impl CharacterRequestHandler {
             .unwrap_or_default()
     }
 
-    pub fn request_move(&self, x: i32, y: i32) -> Result<Map, RequestError> {
+    pub fn request_move(&self, x: i32, y: i32) -> Result<RawMap, RequestError> {
         self.request_action(ActionRequest::Move { x, y })
             .and_then(downcast_response::<CharacterMovementResponseSchema>)
-            .map(|s| Map::from(*s.data.destination))
+            .map(|s| RawMap::from(*s.data.destination))
     }
 
-    pub fn request_transition(&self) -> Result<Map, RequestError> {
+    pub fn request_transition(&self) -> Result<RawMap, RequestError> {
         self.request_action(ActionRequest::Transition)
             .and_then(downcast_response::<CharacterTransitionResponseSchema>)
-            .map(|s| Map::from(*s.data.destination))
+            .map(|s| RawMap::from(*s.data.destination))
     }
 
     pub fn request_fight(

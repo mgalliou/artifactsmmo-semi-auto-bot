@@ -1,4 +1,3 @@
-use crate::MapsClient;
 use core::fmt;
 use openapi::models::{
     AccessSchema, InteractionSchema, MapAccessType, MapContentSchema, MapContentType, MapLayer,
@@ -10,15 +9,76 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+pub trait Map {
+    fn position(&self) -> (MapLayer, i32, i32) {
+        (self.layer(), self.x(), self.y())
+    }
+
+    fn closest_among(&self, others: &[Self]) -> Option<Self>
+    where
+        Self: std::marker::Sized + std::clone::Clone,
+    {
+        others
+            .iter()
+            .min_by_key(|m| i32::abs(self.x() - m.x()) + i32::abs(self.y() - m.y()))
+            .cloned()
+    }
+
+    fn content_code_is(&self, code: &str) -> bool {
+        self.content_code().is_some_and(|c| c == code)
+    }
+
+    fn content_code(&self) -> Option<&str> {
+        Some(&self.content()?.code)
+    }
+
+    fn is_tasksmaster(&self, task_type: Option<TaskType>) -> bool {
+        self.content_type_is(MapContentType::TasksMaster)
+            && task_type.is_none_or(|tt| self.content_code_is(&tt.to_string()))
+    }
+
+    fn content_type_is(&self, r#type: MapContentType) -> bool {
+        self.content_type().is_some_and(|t| *t == r#type)
+    }
+
+    fn content_type(&self) -> Option<&MapContentType> {
+        Some(&self.content()?.r#type)
+    }
+
+    fn content_is(&self, content: &MapContentSchema) -> bool {
+        self.content().is_some_and(|c| c == content)
+    }
+
+    fn content(&self) -> Option<&MapContentSchema> {
+        self.interactions().content.as_ref().map(AsRef::as_ref)
+    }
+
+    fn transition(&self) -> Option<&TransitionSchema> {
+        self.interactions().transition.as_deref()
+    }
+
+    fn is_blocked(&self) -> bool {
+        self.access().r#type == MapAccessType::Blocked
+    }
+
+    fn id(&self) -> i32;
+    fn name(&self) -> &str;
+    fn layer(&self) -> MapLayer;
+    fn x(&self) -> i32;
+    fn y(&self) -> i32;
+    fn interactions(&self) -> &InteractionSchema;
+    fn access(&self) -> &AccessSchema;
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct MapDataHandle(Arc<RwLock<Map>>);
+pub struct MapDataHandle(Arc<RwLock<RawMap>>);
 
 impl MapDataHandle {
-    pub fn read(&self) -> Map {
+    pub fn read(&self) -> RawMap {
         self.0.read().unwrap().clone()
     }
 
-    pub fn update(&self, data: Map) {
+    pub fn update(&self, data: RawMap) {
         *self.0.write().unwrap() = data;
     }
 }
@@ -36,115 +96,51 @@ impl From<&MapSchema> for MapDataHandle {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Map(Arc<MapSchema>);
+pub struct RawMap(Arc<MapSchema>);
 
-impl Map {
-    #[must_use]
-    pub fn id(&self) -> i32 {
+impl Map for RawMap {
+    fn id(&self) -> i32 {
         self.0.map_id
     }
 
-    #[must_use]
-    pub fn name(&self) -> &str {
+    fn name(&self) -> &str {
         &self.0.name
     }
 
-    #[must_use]
-    pub fn position(&self) -> (MapLayer, i32, i32) {
-        (self.layer(), self.x(), self.y())
-    }
-
-    #[must_use]
-    pub fn layer(&self) -> MapLayer {
+    fn layer(&self) -> MapLayer {
         self.0.layer
     }
 
-    #[must_use]
-    pub fn x(&self) -> i32 {
+    fn x(&self) -> i32 {
         self.0.x
     }
 
-    #[must_use]
-    pub fn y(&self) -> i32 {
+    fn y(&self) -> i32 {
         self.0.y
     }
 
-    #[must_use]
-    pub fn closest_among(&self, others: &[Self]) -> Option<Self> {
-        MapsClient::closest_from_amoung(self.x(), self.y(), others)
-    }
-
-    #[must_use]
-    pub fn content_code_is(&self, code: &str) -> bool {
-        self.content_code().is_some_and(|c| c == code)
-    }
-
-    #[must_use]
-    pub fn content_code(&self) -> Option<&str> {
-        Some(&self.content()?.code)
-    }
-
-    #[must_use]
-    pub fn is_tasksmaster(&self, task_type: Option<TaskType>) -> bool {
-        self.content_type_is(MapContentType::TasksMaster)
-            && task_type.is_none_or(|tt| self.content_code_is(&tt.to_string()))
-    }
-
-    #[must_use]
-    pub fn content_type_is(&self, r#type: MapContentType) -> bool {
-        self.content_type().is_some_and(|t| *t == r#type)
-    }
-
-    #[must_use]
-    pub fn content_type(&self) -> Option<&MapContentType> {
-        Some(&self.content()?.r#type)
-    }
-
-    #[must_use]
-    pub fn content_is(&self, content: &MapContentSchema) -> bool {
-        self.content().is_some_and(|c| c == content)
-    }
-
-    pub fn content(&self) -> Option<&MapContentSchema> {
-        self.interactions().content.as_ref().map(AsRef::as_ref)
-    }
-
-    #[must_use]
-    pub fn transition(&self) -> Option<&TransitionSchema> {
-        self.interactions().transition.as_deref()
-    }
-
-    #[must_use]
-    pub fn interactions(&self) -> &InteractionSchema {
+    fn interactions(&self) -> &InteractionSchema {
         &self.0.interactions
     }
 
-    #[must_use]
-    pub fn is_blocked(&self) -> bool {
-        self.access().r#type == MapAccessType::Blocked
-    }
-
-
-    #[must_use]
-    pub fn access(&self) -> &AccessSchema {
+    fn access(&self) -> &AccessSchema {
         &self.0.access
     }
-
 }
 
-impl From<MapSchema> for Map {
+impl From<MapSchema> for RawMap {
     fn from(value: MapSchema) -> Self {
         Self(value.into())
     }
 }
 
-impl From<&MapSchema> for Map {
+impl From<&MapSchema> for RawMap {
     fn from(value: &MapSchema) -> Self {
         value.clone().into()
     }
 }
 
-impl fmt::Display for Map {
+impl fmt::Display for RawMap {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(content) = self.content() {
             write!(

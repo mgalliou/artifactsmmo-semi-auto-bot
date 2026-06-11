@@ -24,7 +24,7 @@ use crate::{
         resources::ResourcesClient,
         server::ServerClient,
     },
-    entities::{AccountAchievement, Character, CharacterDataHandle, Map, RawCharacter},
+    entities::{AccountAchievement, Character, CharacterDataHandle, RawMap, Map, RawCharacter},
     gear::Slot,
     grand_exchange::GrandExchangeClient,
     simulator::HasEffects,
@@ -132,7 +132,7 @@ impl CharacterClient {
         &self.inventory
     }
 
-    pub fn r#move(&self, x: i32, y: i32) -> Result<Map, MoveError> {
+    pub fn r#move(&self, x: i32, y: i32) -> Result<RawMap, MoveError> {
         self.can_move(x, y)?;
         Ok(self.handler().request_move(x, y)?)
     }
@@ -152,7 +152,7 @@ impl CharacterClient {
         Ok(())
     }
 
-    pub fn transition(&self) -> Result<Map, TransitionError> {
+    pub fn transition(&self) -> Result<RawMap, TransitionError> {
         self.can_transition()?;
         Ok(self.handler().request_transition()?)
     }
@@ -865,7 +865,7 @@ impl CharacterClient {
     }
 
     #[must_use]
-    pub fn current_map(&self) -> Map {
+    pub fn current_map(&self) -> RawMap {
         self.maps.get(&self.position()).unwrap()
     }
 }

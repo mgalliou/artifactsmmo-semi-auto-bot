@@ -44,7 +44,7 @@ impl CharacterDataHandle {
 
 impl From<CharacterSchema> for CharacterDataHandle {
     fn from(value: CharacterSchema) -> Self {
-        Self(Arc::new(RwLock::new(value.into())))
+        Self(RwLock::new(value.into()).into())
     }
 }
 

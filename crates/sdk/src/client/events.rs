@@ -50,17 +50,18 @@ impl EventsClient {
     }
 
     pub fn refresh_active(&self) {
+        // keep `events` locked before updating last refresh
+        let mut events = self.active.write().unwrap();
         let now = Utc::now();
-        if Utc::now() - self.last_refresh() <= Duration::seconds(30) {
+        if now - self.last_refresh() <= Duration::seconds(30) {
             return;
         }
-        // NOTE: keep `events` locked before updating last refresh
-        let mut events = self.active.write().unwrap();
         self.update_last_refresh(now);
-        if let Ok(new) = self.api.events.get_active() {
-            *events = new.into_iter().map(ActiveEvent::new).collect_vec();
-            debug!("events refreshed.");
-        }
+        let Ok(new_schemas) = self.api.events.get_active() else {
+            return;
+        };
+        *events = new_schemas.into_iter().map(ActiveEvent::new).collect_vec();
+        debug!("events refreshed.");
     }
 
     fn update_last_refresh(&self, now: DateTime<Utc>) {

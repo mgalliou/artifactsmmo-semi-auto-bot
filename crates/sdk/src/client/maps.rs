@@ -1,6 +1,7 @@
+use crate::entities::Map;
 use crate::{
     client::events::EventsClient,
-    entities::{Map, MapDataHandle},
+    entities::{MapDataHandle, RawMap},
     skill::Skill,
 };
 use api::ArtifactApi;
@@ -62,18 +63,23 @@ impl MapsClient {
     }
 
     #[must_use]
-    pub fn get(&self, position: &(MapLayer, i32, i32)) -> Option<Map> {
+    pub fn get(&self, position: &(MapLayer, i32, i32)) -> Option<RawMap> {
         Some(self.data().get(position)?.read())
     }
 
-    pub fn all(&self) -> Vec<Map> {
+    #[must_use]
+    pub fn get_mut(&self, position: &(MapLayer, i32, i32)) -> Option<MapDataHandle> {
+        self.data().get(position).cloned()
+    }
+
+    pub fn all(&self) -> Vec<RawMap> {
         self.data().values().map(MapDataHandle::read).collect_vec()
     }
 
     pub fn refresh_from_events(&self) {
         self.events().active().iter().for_each(|e| {
             if e.expiration() < Utc::now()
-                && let Some(map) = self.data_mut().get(&e.map().position())
+                && let Some(map) = self.get_mut(&e.map().position())
             {
                 map.update(e.previous_map());
             }
@@ -81,7 +87,7 @@ impl MapsClient {
         self.events().refresh_active();
         self.events().active().iter().for_each(|e| {
             if e.expiration() > Utc::now()
-                && let Some(map) = self.data_mut().get(&e.map().position())
+                && let Some(map) = self.get_mut(&e.map().position())
             {
                 map.update(e.map());
             }
@@ -90,14 +96,14 @@ impl MapsClient {
 
     //TODO: handle layer
     #[must_use]
-    pub fn closest_from_amoung(x: i32, y: i32, maps: &[Map]) -> Option<Map> {
+    pub fn closest_from_amoung(x: i32, y: i32, maps: &[RawMap]) -> Option<RawMap> {
         maps.iter()
             .min_by_key(|m| i32::abs(x - m.x()) + i32::abs(y - m.y()))
             .cloned()
     }
 
     #[must_use]
-    pub fn of_type(&self, r#type: MapContentType) -> Vec<Map> {
+    pub fn of_type(&self, r#type: MapContentType) -> Vec<RawMap> {
         self.all()
             .into_iter()
             .filter_map(|m| m.content_type_is(r#type).then_some(m))
@@ -105,7 +111,7 @@ impl MapsClient {
     }
 
     #[must_use]
-    pub fn with_content_code(&self, code: &str) -> Vec<Map> {
+    pub fn with_content_code(&self, code: &str) -> Vec<RawMap> {
         self.all()
             .into_iter()
             .filter_map(|m| m.content_code_is(code).then_some(m))
@@ -113,7 +119,7 @@ impl MapsClient {
     }
 
     #[must_use]
-    pub fn with_content(&self, content: &MapContentSchema) -> Vec<Map> {
+    pub fn with_content(&self, content: &MapContentSchema) -> Vec<RawMap> {
         self.all()
             .into_iter()
             .filter_map(|m| m.content_is(content).then_some(m))
@@ -121,7 +127,7 @@ impl MapsClient {
     }
 
     #[must_use]
-    pub fn with_workshop_for(&self, skill: Skill) -> Option<Map> {
+    pub fn with_workshop_for(&self, skill: Skill) -> Option<RawMap> {
         match skill {
             Skill::Weaponcrafting
             | Skill::Gearcrafting
@@ -135,33 +141,32 @@ impl MapsClient {
     }
 
     #[must_use]
-    pub fn closest_with_content_code_from(&self, map: &Map, code: &str) -> Option<Map> {
+    pub fn closest_with_content_code_from(&self, map: &RawMap, code: &str) -> Option<RawMap> {
         let maps = self.with_content_code(code);
-        if maps.is_empty() {
-            return None;
-        }
         map.closest_among(&maps)
     }
 
-    fn closest_with_content_from(&self, map: &Map, content: &MapContentSchema) -> Option<Map> {
+    fn closest_with_content_from(
+        &self,
+        map: &RawMap,
+        content: &MapContentSchema,
+    ) -> Option<RawMap> {
         let maps = self.with_content(content);
-        if maps.is_empty() {
-            return None;
-        }
         map.closest_among(&maps)
     }
 
     #[must_use]
-    pub fn closest_of_type_from(&self, map: &Map, r#type: MapContentType) -> Option<Map> {
+    pub fn closest_of_type_from(&self, map: &RawMap, r#type: MapContentType) -> Option<RawMap> {
         let maps = self.of_type(r#type);
-        if maps.is_empty() {
-            return None;
-        }
         map.closest_among(&maps)
     }
 
     #[must_use]
-    pub fn closest_tasksmaster_from(&self, map: &Map, r#type: Option<TaskType>) -> Option<Map> {
+    pub fn closest_tasksmaster_from(
+        &self,
+        map: &RawMap,
+        r#type: Option<TaskType>,
+    ) -> Option<RawMap> {
         r#type.map_or_else(
             || self.closest_of_type_from(map, MapContentType::TasksMaster),
             |r#type| {
