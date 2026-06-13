@@ -7,7 +7,7 @@ use std::env;
 mod cli;
 
 fn main() -> Result<()> {
-    simple_logging::log_to_file("artifactsmmo.log", LevelFilter::Info)?;
+    simple_logging::log_to_file("artifactsmmo.log", LevelFilter::Debug)?;
     let client = Client::new(
         "https://api.artifactsmmo.com".into(),
         env::var("ARTIFACTSMMO_TOKEN").unwrap_or_default(),

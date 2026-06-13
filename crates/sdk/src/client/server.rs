@@ -47,17 +47,25 @@ impl ServerClient {
     }
 
     pub fn update_offset(&self) {
-        let now = Utc::now().fixed_offset();
+        let send = Utc::now().fixed_offset();
         self.update_status();
-        *self.time_offset.write().unwrap() = now - self.server_time();
-        debug!("system time: {now}");
-        debug!("server time: {}", self.server_time());
+        let recv = Utc::now().fixed_offset();
+        let rtt = recv - send;
+        *self.time_offset.write().unwrap() = self.server_time() + (rtt / 2) - recv;
+        debug!("send sys time: {send}");
+        debug!("server time  : {}", self.server_time());
+        debug!("recv sys tim : {recv}");
+        debug!(
+            "round trip time : {}.{}s",
+            rtt.num_seconds(),
+            rtt.subsec_millis()
+        );
         let offset = self.time_offset();
         debug!(
-            "server time offset: {}s and {}ms",
+            "server time offset: {}.{}s",
             offset.num_seconds(),
-            offset / 1_000_000
+            offset.subsec_millis()
         );
-        debug!("synced time: {}", now - offset);
+        debug!("synced time: {}", recv + offset);
     }
 }
