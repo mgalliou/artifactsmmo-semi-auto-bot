@@ -533,11 +533,11 @@ impl HandleCharacterData for CharacterRequestHandler {
         let Ok(res) = self.api.character.get(&self.name()) else {
             return;
         };
-        self.data.update(RawCharacter::from(*res.data));
+        self.data.update((*res.data).into());
     }
 
     fn update_data(&self, schema: CharacterSchema) {
-        self.data.update(RawCharacter::from(schema));
+        self.data.update(schema.into());
     }
 }
 
