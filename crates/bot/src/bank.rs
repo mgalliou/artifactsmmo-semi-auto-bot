@@ -1,4 +1,5 @@
 use crate::{BankDiscriminant, FOOD_CONSUMPTION_BLACKLIST, HasReservation, Reservation};
+use derive_more::Deref;
 use itertools::Itertools;
 use log::debug;
 use sdk::{
@@ -17,7 +18,8 @@ use std::{
 };
 use thiserror::Error;
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Deref)]
+#[deref(forward)]
 pub struct BankController(Arc<BankControllerInner>);
 
 #[derive(Default)]
@@ -61,11 +63,11 @@ impl BankController {
     pub fn expension_lock(
         &self,
     ) -> Result<RwLockWriteGuard<'_, ()>, TryLockError<RwLockWriteGuard<'_, ()>>> {
-        self.0.being_expanded.try_write()
+        self.being_expanded.try_write()
     }
 
     pub fn browse_lock(&self) -> RwLockWriteGuard<'_, ()> {
-        self.0.browsed.write().unwrap()
+        self.browsed.write().unwrap()
     }
 
     /// Returns the quantity of each of the missing materials required to craft the `quantity` of the  item `code`
@@ -89,7 +91,7 @@ impl BankController {
         self.content()
             .iter()
             .filter_map(|i| {
-                self.0.items.get(&i.code).filter(|i| {
+                self.items.get(&i.code).filter(|i| {
                     i.is_food()
                         && i.level() <= level
                         && !FOOD_CONSUMPTION_BLACKLIST.contains(&i.code())
@@ -189,13 +191,12 @@ impl BankController {
             quantity: AtomicU32::new(quantity),
             owner: owner.to_owned(),
         });
-        self.0.reservations.write().unwrap().push(res);
+        self.reservations.write().unwrap().push(res);
         Ok(())
     }
 
     fn remove_reservation(&self, reservation: &BankReservation) {
-        self.0
-            .reservations
+        self.reservations
             .write()
             .unwrap()
             .retain(|r| **r != *reservation);
@@ -221,7 +222,7 @@ impl BankController {
 
 impl Bank for BankController {
     fn details(&self) -> Arc<BankSchema> {
-        self.0.client.details()
+        self.client.details()
     }
 }
 
@@ -229,27 +230,27 @@ impl ItemContainer for BankController {
     type Slot = SimpleItemSchema;
 
     fn content(&self) -> Arc<Vec<SimpleItemSchema>> {
-        self.0.client.content()
+        self.client.content()
     }
 }
 
 impl LimitedContainer for BankController {
     fn is_full(&self) -> bool {
-        self.0.client.is_full()
+        self.client.is_full()
     }
 
     fn has_room_for_multiple(&self, items: &[SimpleItemSchema]) -> bool {
-        self.0.client.has_room_for_multiple(items)
+        self.client.has_room_for_multiple(items)
     }
 
     fn has_room_for_drops_from<H: DropsItems>(&self, entity: &H) -> bool {
-        self.0.client.has_room_for_drops_from(entity)
+        self.client.has_room_for_drops_from(entity)
     }
 }
 
 impl SlotLimited for BankController {
     fn free_slots(&self) -> u32 {
-        self.0.client.free_slots()
+        self.client.free_slots()
     }
 }
 
@@ -264,8 +265,7 @@ impl HasReservation for BankController {
     type Discriminant = BankDiscriminant;
 
     fn reservations(&self) -> Vec<Arc<Self::Reservation>> {
-        self.0
-            .reservations
+        self.reservations
             .read()
             .unwrap()
             .iter()

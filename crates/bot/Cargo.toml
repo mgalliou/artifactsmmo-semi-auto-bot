@@ -6,15 +6,16 @@ publish.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-sdk.workspace = true
 chrono.workspace = true
 clap.workspace = true
+derive_more.workspace = true
 figment.workspace = true
 itertools.workspace = true
 log.workspace = true
 ordered-float.workspace = true
 rayon.workspace = true
 rustyline.workspace = true
+sdk.workspace = true
 serde.workspace = true
 simple-logging.workspace = true
 strum.workspace = true

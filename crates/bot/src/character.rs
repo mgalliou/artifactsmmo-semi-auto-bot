@@ -23,6 +23,7 @@ use crate::{
 };
 use anyhow::Result;
 use chrono::{DateTime, FixedOffset};
+use derive_more::Deref;
 use itertools::{Either, Itertools};
 use log::{debug, error, info, warn};
 use ordered_float::OrderedFloat;
@@ -52,7 +53,6 @@ use sdk::{
 use std::{
     cmp::min,
     convert::Into,
-    ops::Deref,
     option::Option,
     sync::{
         Arc, Mutex,
@@ -66,16 +66,10 @@ use std::{
 };
 use strum::IntoEnumIterator;
 
-#[derive(Clone)]
+#[derive(Clone, Deref)]
+#[deref(forward)]
 pub struct CharacterController(Arc<CharacterControllerInner>);
 
-impl Deref for CharacterController {
-    type Target = CharacterControllerInner;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
 
 pub struct CharacterControllerInner {
     client: CharacterClient,

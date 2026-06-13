@@ -137,6 +137,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "clap",
+ "derive_more",
  "figment",
  "itertools",
  "log",

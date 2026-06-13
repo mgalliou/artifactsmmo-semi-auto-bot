@@ -2,6 +2,7 @@ use crate::{
     bank::BankController, bot_config::BotConfig, character::CharacterController,
     gear_finder::GearFinder, leveling_helper::LevelingHelper, orderboard::OrderBoard,
 };
+use derive_more::Deref;
 use itertools::Itertools;
 use sdk::{
     AccountClient, Client, Code, CollectionClient, ItemContainer, ItemsClient, NpcsClient, Skill,
@@ -11,7 +12,8 @@ use sdk::{
 };
 use std::sync::{Arc, RwLock};
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Deref)]
+#[deref(forward)]
 pub struct AccountController(Arc<AccountControllerInner>);
 
 #[derive(Default)]
@@ -46,11 +48,11 @@ impl AccountController {
     }
 
     pub fn client(&self) -> AccountClient {
-        self.0.client.clone()
+        self.client.clone()
     }
 
     pub fn bank(&self) -> BankController {
-        self.0.bank.clone()
+        self.bank.clone()
     }
 
     pub fn init_characters(
@@ -61,7 +63,7 @@ impl AccountController {
         gear_finder: &GearFinder,
         leveling_helper: &LevelingHelper,
     ) {
-        let Ok(mut chars) = self.0.characters.write() else {
+        let Ok(mut chars) = self.characters.write() else {
             return;
         };
         *chars = self
@@ -72,7 +74,7 @@ impl AccountController {
             .map(|char_client| {
                 CharacterController::new(
                     char_client.clone(),
-                    self.0.config.clone(),
+                    self.config.clone(),
                     client,
                     account.clone(),
                     order_board,
@@ -84,8 +86,7 @@ impl AccountController {
     }
 
     pub fn characters(&self) -> Vec<CharacterController> {
-        self.0
-            .characters
+        self.characters
             .read()
             .unwrap()
             .iter()
@@ -112,7 +113,7 @@ impl AccountController {
     }
 
     pub fn total_of(&self, item: &str) -> u32 {
-        self.0.bank.total_of(item)
+        self.bank.total_of(item)
             + self
                 .characters()
                 .iter()
@@ -149,7 +150,7 @@ impl AccountController {
     }
 
     pub fn time_to_get(&self, code: &str) -> Option<u32> {
-        let item = self.0.items.get(code)?;
+        let item = self.items.get(code)?;
         let (source, mut time) = self
             .characters()
             .iter()
@@ -158,7 +159,7 @@ impl AccountController {
 
         match source {
             ItemSource::Npc(npc) => {
-                if let Some(npc_item) = self.0.npcs.items().get(item.code())
+                if let Some(npc_item) = self.npcs.items().get(item.code())
                     && npc_item.npc_code() == npc.code()
                 {
                     time += self.time_to_get(npc_item.currency())? * npc_item.buy_price()?;
