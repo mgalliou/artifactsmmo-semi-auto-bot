@@ -71,8 +71,7 @@ impl InventoryController {
 
     /// Returns the amount not reserved of the given item `code` in the `Character` inventory.
     pub fn has_available(&self, item: &str) -> u32 {
-        self.total_of(item)
-            .saturating_sub(self.reserved(item))
+        self.total_of(item).saturating_sub(self.reserved(item))
     }
 
     pub fn reserve_all(&self, items: &[SimpleItemSchema]) -> Result<(), ReservationError> {

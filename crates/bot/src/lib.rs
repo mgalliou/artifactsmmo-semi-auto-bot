@@ -5,16 +5,15 @@ use crate::{
 use chrono::{DateTime, Utc};
 use log::error;
 use sdk::{
-    Client, consts::{
+    Client,
+    consts::{
         APPLE, APPLE_PIE, CARROT, COOKED_HELLHOUND_MEAT, FISH_SOUP, MAPLE_SYRUP, MUSHROOM_SOUP,
     },
     entities::{Character, Monster, Resource},
 };
 use std::{
     collections::VecDeque,
-    sync::
-        RwLock
-    ,
+    sync::RwLock,
     thread::{Builder, sleep},
     time::Duration,
 };

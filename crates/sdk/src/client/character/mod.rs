@@ -24,7 +24,10 @@ use crate::{
         resources::ResourcesClient,
         server::ServerClient,
     },
-    entities::{AccountAchievement, Character, CharacterDataHandle, RawMap, Map, RawCharacter},
+    entities::{
+        AccountAchievement, Character, CharacterDataHandle, CharacterName, Map, RawCharacter,
+        RawMap,
+    },
     gear::Slot,
     grand_exchange::GrandExchangeClient,
     simulator::HasEffects,
@@ -896,7 +899,7 @@ pub trait MeetsConditionsFor: Character {
 }
 
 impl Character for CharacterClient {
-    fn name(&self) -> Arc<str> {
+    fn name(&self) -> CharacterName {
         self.data().name()
     }
 

@@ -80,7 +80,10 @@ fn respond(line: &str, bot: &Bot, character: &mut Option<CharacterController>) -
         Commands::Bank { action } => match action {
             BankAction::Reservations => {
                 println!("reservations:");
-                bot.bank.reservations().iter().for_each(|(d, q)| println!("{d:?}: {q}"));
+                bot.bank
+                    .reservations()
+                    .iter()
+                    .for_each(|(d, q)| println!("{d:?}: {q}"));
             }
             BankAction::List => {
                 bot.bank

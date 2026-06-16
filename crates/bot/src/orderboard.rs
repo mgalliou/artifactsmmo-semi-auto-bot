@@ -2,7 +2,9 @@ use crate::{account::AccountController, reservable::Reservable};
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use log::{debug, error, info};
-use sdk::{CollectionClient, ItemsClient, models::SimpleItemSchema, skill::Skill};
+use sdk::{
+    CollectionClient, ItemsClient, entities::CharacterName, models::SimpleItemSchema, skill::Skill,
+};
 use std::{
     borrow::ToOwned,
     cmp::min,
@@ -302,11 +304,21 @@ pub enum OrderError {
 
 #[derive(Debug, PartialEq, Eq, Clone, EnumIs, EnumIter)]
 pub enum Purpose {
-    Food { char: Arc<str> },
+    Food {
+        char: CharacterName,
+    },
     Cli,
-    Gear { char: Arc<str>, item_code: String },
-    Task { char: Arc<str> },
-    Leveling { char: Arc<str>, skill: Skill },
+    Gear {
+        char: CharacterName,
+        item_code: String,
+    },
+    Task {
+        char: CharacterName,
+    },
+    Leveling {
+        char: CharacterName,
+        skill: Skill,
+    },
 }
 
 impl Display for Purpose {

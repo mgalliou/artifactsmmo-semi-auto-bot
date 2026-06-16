@@ -5,7 +5,7 @@ use crate::{
         character::{HandleCharacterData, action_request::ActionRequest, error::RequestError},
         server::ServerClient,
     },
-    entities::{Character, RawCharacter, RawMap},
+    entities::{Character, CharacterName, RawCharacter, RawMap},
     gear::Slot,
 };
 use api::ArtifactApi;
@@ -548,7 +548,7 @@ impl Level for CharacterRequestHandler {
 }
 
 impl Character for CharacterRequestHandler {
-    fn name(&self) -> Arc<str> {
+    fn name(&self) -> CharacterName {
         self.data().name()
     }
 

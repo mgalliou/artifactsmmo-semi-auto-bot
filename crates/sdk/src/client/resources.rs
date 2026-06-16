@@ -57,8 +57,7 @@ impl Persist<HashMap<String, Resource>> for ResourcesClient {
     const PATH: &'static str = ".cache/resources.json";
 
     fn load_from_api(&self) -> HashMap<String, Resource> {
-        self
-            .api
+        self.api
             .resources
             .get_all()
             .unwrap()

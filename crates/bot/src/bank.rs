@@ -8,7 +8,7 @@ use sdk::{
     BankClient, Code, CollectionClient, DropsItems, ItemContainer, ItemsClient, Level,
     LimitedContainer, SlotLimited,
     bank::Bank,
-    entities::Item,
+    entities::{CharacterName, Item},
     models::{BankSchema, SimpleItemSchema},
 };
 use std::{
@@ -70,13 +70,13 @@ impl BankController {
 
     /// Returns the quantity of each of the missing materials required to craft the `quantity` of the  item `code`
     /// for the given `owner`.
-    pub fn missing_among(&self, items: &[SimpleItemSchema], owner: &str) -> Vec<SimpleItemSchema> {
+    pub fn missing_among(&self, items: &[SimpleItemSchema], owner: &CharacterName) -> Vec<SimpleItemSchema> {
         items
             .iter()
             .filter_map(|item| {
                 let missing = item
                     .quantity
-                    .saturating_sub(self.has_available(&(item.code.as_str(), owner).into()));
+                    .saturating_sub(self.has_available(&(&item.code, owner).into()));
                 (missing > 0).then(|| SimpleItemSchema {
                     code: item.code.clone(),
                     quantity: missing,
@@ -116,7 +116,7 @@ impl BankController {
         owner: &str,
     ) -> Result<(), ReservationError> {
         for item in items {
-            self.reserve((item.code.as_str(), owner), item.quantity)?;
+            self.reserve((&item.code, owner), item.quantity)?;
         }
         Ok(())
     }

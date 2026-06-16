@@ -2,11 +2,67 @@ use crate::{Level, Skill, Slot};
 use chrono::{DateTime, FixedOffset};
 use openapi::models::{CharacterSchema, InventorySlot, MapLayer, TaskType};
 use serde::{Deserialize, Serialize};
+use std::fmt;
+use std::ops::Deref;
 use std::sync::{Arc, RwLock};
 use strum::IntoEnumIterator;
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct CharacterName(Arc<str>);
+
+impl CharacterName {
+    pub fn new(name: impl Into<Arc<str>>) -> Self {
+        Self(name.into())
+    }
+}
+
+impl Default for CharacterName {
+    fn default() -> Self {
+        Self("".into())
+    }
+}
+
+impl fmt::Display for CharacterName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl Deref for CharacterName {
+    type Target = str;
+
+    fn deref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl AsRef<str> for CharacterName {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<String> for CharacterName {
+    fn from(name: String) -> Self {
+        Self(name.into())
+    }
+}
+
+impl From<&str> for CharacterName {
+    fn from(name: &str) -> Self {
+        Self(name.into())
+    }
+}
+
+impl From<Arc<str>> for CharacterName {
+    fn from(name: Arc<str>) -> Self {
+        Self(name)
+    }
+}
+
 pub trait Character: Level {
-    fn name(&self) -> Arc<str>;
+    fn name(&self) -> CharacterName;
     fn position(&self) -> (MapLayer, i32, i32);
     fn skill_level(&self, skill: Skill) -> u32;
     fn skill_xp(&self, skill: Skill) -> i32;
@@ -57,13 +113,13 @@ impl From<&CharacterSchema> for CharacterDataHandle {
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RawCharacter {
     schema: Arc<CharacterSchema>,
-    name: Arc<str>,
+    name: CharacterName,
     task: Arc<str>,
     inventory: Arc<Option<Vec<InventorySlot>>>,
 }
 
 impl Character for RawCharacter {
-    fn name(&self) -> Arc<str> {
+    fn name(&self) -> CharacterName {
         self.name.clone()
     }
 
@@ -228,7 +284,7 @@ impl Character for RawCharacter {
 impl From<CharacterSchema> for RawCharacter {
     fn from(value: CharacterSchema) -> Self {
         Self {
-            name: value.name.clone().into(),
+            name: CharacterName::new(value.name.clone()),
             task: value.task.clone().into(),
             inventory: value.inventory.clone().into(),
             schema: value.into(),

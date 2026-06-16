@@ -39,7 +39,9 @@ use sdk::{
         BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, GOLDEN_EGG, GOLDEN_SHRIMP, MAX_LEVEL,
         TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE, TASKS_COIN,
     },
-    entities::{Character, Item, Map, Monster, NpcItem, RawCharacter, RawMap, Resource},
+    entities::{
+        Character, CharacterName, Item, Map, Monster, NpcItem, RawCharacter, RawMap, Resource,
+    },
     gear::{Gear, Slot},
     items::ItemSource,
     models::{
@@ -573,8 +575,7 @@ impl CharacterController {
         self.lock_in_inventory(&self.task(), quantity)?;
         self.move_to_closest_taskmaster(self.task_type())?;
         let res = self.client.trade_task_item(&self.task(), quantity);
-        self.inventory
-            .release(self.task(), quantity);
+        self.inventory.release(self.task(), quantity);
         Ok(res?)
     }
 
@@ -651,8 +652,7 @@ impl CharacterController {
         }
         self.move_to_closest_taskmaster(self.task_type())?;
         let result = self.client.exchange_tasks_coins().map_err(Into::into);
-        self.inventory
-            .release(TASKS_COIN, TASK_EXCHANGE_PRICE);
+        self.inventory.release(TASKS_COIN, TASK_EXCHANGE_PRICE);
         result
     }
 
@@ -665,8 +665,7 @@ impl CharacterController {
         self.lock_in_inventory(TASKS_COIN, TASK_CANCEL_PRICE)?;
         self.move_to_closest_taskmaster(self.task_type())?;
         let result = self.client.cancel_task().map_err(Into::into);
-        self.inventory
-            .release(TASKS_COIN, TASK_CANCEL_PRICE);
+        self.inventory.release(TASKS_COIN, TASK_CANCEL_PRICE);
         result
     }
 
@@ -979,9 +978,7 @@ impl CharacterController {
     ) -> Result<(), WithdrawItemCommandError> {
         let in_inventory = self.inventory.total_of(item);
         if in_inventory > 0
-            && let Err(e) = self
-                .inventory
-                .reserve(item, min(in_inventory, quantity))
+            && let Err(e) = self.inventory.reserve(item, min(in_inventory, quantity))
         {
             error!(
                 "{}: failed reserving '{item}' already in inventory: {e}",
@@ -1265,8 +1262,7 @@ impl CharacterController {
             self.deposit_all_but(item.code())?;
         }
         self.client.equip(item.code(), slot, quantity)?;
-        self.inventory
-            .release(item.code(), quantity);
+        self.inventory.release(item.code(), quantity);
         Ok(())
     }
 
@@ -1428,8 +1424,7 @@ impl CharacterController {
         }
         self.move_to_closest_map_with_content_code(npc_item.npc_code())?;
         self.client.npc_buy(item_code, quantity)?;
-        self.inventory
-            .release(npc_item.currency(), total_price);
+        self.inventory.release(npc_item.currency(), total_price);
         Ok(())
     }
 
@@ -1681,8 +1676,7 @@ impl CharacterController {
         let missing_quantity =
             quantity.saturating_sub(self.inventory.total_of(item) + self.has_equiped(item));
         if missing_quantity > 0 && self.equiped_in(slot) != item {
-            self.bank
-                .reserve((item, self.name()), missing_quantity)?;
+            self.bank.reserve((item, self.name()), missing_quantity)?;
         }
         Ok(())
     }
@@ -1931,7 +1925,7 @@ impl HandleCharacterData for CharacterController {
 }
 
 impl Character for CharacterController {
-    fn name(&self) -> Arc<str> {
+    fn name(&self) -> CharacterName {
         self.data().name()
     }
 
