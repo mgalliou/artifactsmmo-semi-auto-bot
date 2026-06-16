@@ -1,4 +1,4 @@
-use crate::account::AccountController;
+use crate::{account::AccountController, reservable::Reservable};
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use log::{debug, error, info};
@@ -156,10 +156,10 @@ impl OrderBoard {
                     let quantity = min(order.quantity(), remaining);
                     order.inc_deposited(quantity);
                     if let Some(ref owner) = order.owner
-                        && let Err(e) =
-                            self.account
-                                .bank()
-                                .inc_reservation(&order.item, quantity, owner)
+                        && let Err(e) = self
+                            .account
+                            .bank()
+                            .inc_reservation((order.item.as_str(), owner.as_str()), quantity)
                     {
                         error!("orderboard: failed reserving deposited item: {e}");
                     }

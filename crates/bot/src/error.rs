@@ -10,7 +10,7 @@ use sdk::{
 };
 use thiserror::Error;
 
-use crate::{bank::BankReservationError, orderboard::OrderError};
+use crate::{orderboard::OrderError, reservable::ReservationError};
 
 #[derive(Debug, Error)]
 pub enum KillMonsterCommandError {
@@ -69,7 +69,7 @@ pub enum CraftCommandError {
     #[error("insufficient materials quantity available: {0:?}")]
     InsufficientMaterials(Vec<SimpleItemSchema>),
     #[error("failed to reserve mats before crafting: {0}")]
-    ReservationError(#[from] BankReservationError),
+    ReservationError(#[from] ReservationError),
     #[error("failed to equip gear: {0}")]
     EquipGearCommandError(#[from] EquipGearCommandError),
     #[error("failed to deposit items: {0}")]
@@ -232,7 +232,7 @@ pub enum WithdrawItemCommandError {
     #[error("insufficient inventory space")]
     InsufficientInventorySpace,
     #[error("failed to reserve item before withdrawing: {0}")]
-    ReservationError(#[from] BankReservationError),
+    ReservationError(#[from] ReservationError),
     #[error("failed to deposit item before withdrawing: {0}")]
     DepositItemCommandError(#[from] DepositItemCommandError),
     #[error("failed to move to bank: {0}")]
@@ -256,7 +256,7 @@ pub enum DepositItemCommandError {
 #[derive(Debug, Error)]
 pub enum EquipGearCommandError {
     #[error("failed to reserve item from bank: {0}")]
-    BankReservationError(#[from] BankReservationError),
+    BankReservationError(#[from] ReservationError),
     #[error("failed to equip an item: {0}")]
     EquipCommandError(#[from] EquipCommandError),
     #[error("failed to unequip an item: {0}")]

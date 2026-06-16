@@ -1,7 +1,11 @@
 use anyhow::{Result, bail};
-use bot::gear_finder::{Filter, GearPurpose};
-use bot::{Bot, character::CharacterController, orderboard::Purpose};
-use bot::{CharacterCommand, HasReservation};
+use bot::{
+    Bot, CharacterCommand,
+    character::CharacterController,
+    gear_finder::{Filter, GearPurpose},
+    orderboard::Purpose,
+    reservable::Reservable,
+};
 use clap::{Parser, Subcommand, value_parser};
 use rustyline::{DefaultEditor, error::ReadlineError};
 use sdk::{
@@ -76,7 +80,7 @@ fn respond(line: &str, bot: &Bot, character: &mut Option<CharacterController>) -
         Commands::Bank { action } => match action {
             BankAction::Reservations => {
                 println!("reservations:");
-                bot.bank.reservations().iter().for_each(|r| println!("{r}"));
+                bot.bank.reservations().iter().for_each(|(d, q)| println!("{d:?}: {q}"));
             }
             BankAction::List => {
                 bot.bank

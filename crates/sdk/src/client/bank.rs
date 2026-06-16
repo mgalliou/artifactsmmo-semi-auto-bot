@@ -13,42 +13,45 @@ pub struct BankClient(Arc<BankClientInner>);
 
 #[derive(Default, Debug)]
 pub struct BankClientInner {
-    pub details: RwLock<Arc<BankSchema>>,
-    pub content: RwLock<Arc<Vec<SimpleItemSchema>>>,
+    details: RwLock<Arc<BankSchema>>,
+    content: RwLock<Arc<Vec<SimpleItemSchema>>>,
     api: ArtifactApi,
 }
 
 impl BankClient {
     pub(crate) fn new(api: ArtifactApi) -> Self {
-        Self(Arc::new(BankClientInner {
-            details: RwLock::default(),
-            content: RwLock::default(),
-            api,
-        }))
+        Self(
+            BankClientInner {
+                details: RwLock::default(),
+                content: RwLock::default(),
+                api,
+            }
+            .into(),
+        )
     }
 
     pub(crate) fn init(&self) {
-        self.update_details(self.api.bank.get_details().unwrap());
-        self.update_content(self.api.bank.get_items().unwrap());
+        self.set_details(self.api.bank.get_details().unwrap());
+        self.set_content(self.api.bank.get_items().unwrap());
     }
 
-    pub(crate) fn update_gold(&self, gold: u32) {
+    pub fn set_gold(&self, gold: u32) {
         let mut new_details = self.details().deref().clone();
         new_details.gold = gold;
-        self.update_details(new_details);
+        self.set_details(new_details);
     }
 
-    pub(crate) fn expand(&self) {
+    pub fn expand(&self) {
         let mut new_details = self.details().deref().clone();
         new_details.slots += BANK_EXTENSION_SIZE;
-        self.update_details(new_details);
+        self.set_details(new_details);
     }
 
-    pub(crate) fn update_details(&self, details: BankSchema) {
+    pub fn set_details(&self, details: BankSchema) {
         *self.details.write().unwrap() = Arc::new(details);
     }
 
-    pub(crate) fn update_content(&self, content: Vec<SimpleItemSchema>) {
+    pub fn set_content(&self, content: Vec<SimpleItemSchema>) {
         *self.content.write().unwrap() = Arc::new(content);
     }
 }
@@ -82,7 +85,7 @@ impl Bank for BankClient {
 impl ItemContainer for BankClient {
     type Slot = SimpleItemSchema;
 
-    fn content(&self) -> Arc<Vec<SimpleItemSchema>> {
+    fn content(&self) -> Arc<Vec<Self::Slot>> {
         self.content.read().unwrap().clone()
     }
 }

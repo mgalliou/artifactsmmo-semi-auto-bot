@@ -159,9 +159,9 @@ impl CharacterRequestHandler {
                     self.update_data(res.character().clone());
                 }
                 if let Some(res) = res.downcast_ref::<BankItemTransactionResponseSchema>() {
-                    self.account.bank().update_content(res.data.bank.clone());
+                    self.account.bank().set_content(res.data.bank.clone());
                 } else if let Some(res) = res.downcast_ref::<BankGoldTransactionResponseSchema>() {
-                    self.account.bank().update_gold(res.data.bank.quantity);
+                    self.account.bank().set_gold(res.data.bank.quantity);
                 } else if res
                     .downcast_ref::<BankExtensionTransactionResponseSchema>()
                     .is_some()

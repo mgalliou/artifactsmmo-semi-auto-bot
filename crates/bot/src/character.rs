@@ -1,7 +1,8 @@
+use crate::reservable::ReservationError;
 use crate::{
-    CharacterCommand, FOOD_ORDER_BLACKLIST, HasReservation, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
+    CharacterCommand, FOOD_ORDER_BLACKLIST, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
     account::AccountController,
-    bank::{BankController, BankReservationError},
+    bank::BankController,
     bot_config::{BotConfig, CharConfig, Goal},
     error::{
         BankCleanupError, BankExpansionCommandError, BuyNpcCommandError,
@@ -20,6 +21,7 @@ use crate::{
     inventory::InventoryController,
     leveling_helper::LevelingHelper,
     orderboard::{Order, OrderBoard, Purpose},
+    reservable::Reservable,
 };
 use anyhow::Result;
 use chrono::{DateTime, FixedOffset};
@@ -571,7 +573,8 @@ impl CharacterController {
         self.lock_in_inventory(&self.task(), quantity)?;
         self.move_to_closest_taskmaster(self.task_type())?;
         let res = self.client.trade_task_item(&self.task(), quantity);
-        self.inventory.decrease_reservation(&self.task(), quantity);
+        self.inventory
+            .release(self.task(), quantity);
         Ok(res?)
     }
 
@@ -640,7 +643,7 @@ impl CharacterController {
         self.can_exchange_tasks_coins()?;
         let mut quantity = min(
             self.inventory.max_items() / 2,
-            self.bank.has_available(TASKS_COIN, &self.name()),
+            self.bank.has_available(&(TASKS_COIN, self.name()).into()),
         );
         quantity = quantity.saturating_sub(quantity % TASK_EXCHANGE_PRICE);
         if self.inventory.total_of(TASKS_COIN) < TASK_EXCHANGE_PRICE {
@@ -649,12 +652,12 @@ impl CharacterController {
         self.move_to_closest_taskmaster(self.task_type())?;
         let result = self.client.exchange_tasks_coins().map_err(Into::into);
         self.inventory
-            .decrease_reservation(TASKS_COIN, TASK_EXCHANGE_PRICE);
+            .release(TASKS_COIN, TASK_EXCHANGE_PRICE);
         result
     }
 
     fn cancel_task(&self) -> Result<(), TaskCancellationCommandError> {
-        if self.bank.has_available(TASKS_COIN, &self.name())
+        if self.bank.has_available(&(TASKS_COIN, &self.name()).into())
             < TASK_CANCEL_PRICE + MIN_COIN_THRESHOLD
         {
             return Err(TaskCancellationCommandError::MissingCoins);
@@ -663,7 +666,7 @@ impl CharacterController {
         self.move_to_closest_taskmaster(self.task_type())?;
         let result = self.client.cancel_task().map_err(Into::into);
         self.inventory
-            .decrease_reservation(TASKS_COIN, TASK_CANCEL_PRICE);
+            .release(TASKS_COIN, TASK_CANCEL_PRICE);
         result
     }
 
@@ -855,7 +858,7 @@ impl CharacterController {
         );
         let mats = self.items.mats_for(item.code(), quantity);
         let missing_mats = self.inventory.missing_among(&mats);
-        self.bank.reserv_items(&missing_mats, &self.name())?;
+        self.bank.reserve_all(&missing_mats, &self.name())?;
         self.equip_gear_for(GearPurpose::Crafting(&item))?;
         if !self.inventory.has_room_for_multiple(&missing_mats) {
             self.deposit_all_but_multiple(&mats)?;
@@ -863,7 +866,7 @@ impl CharacterController {
         self.withdraw_items(&missing_mats)?;
         self.move_to_closest_map_with_content_code(skill.as_ref())?;
         let craft = self.client.craft(item.code(), quantity)?;
-        self.inventory.decrease_reservations(&mats);
+        self.inventory.release_all(&mats);
         Ok(craft)
     }
 
@@ -916,7 +919,7 @@ impl CharacterController {
         self.lock_in_inventory(item, quantity)?;
         self.move_to_closest_map_with_content_code(skill.as_ref())?;
         let result = self.client.recycle(item, quantity);
-        self.inventory.decrease_reservation(item, quantity);
+        self.inventory.release(item, quantity);
         Ok(result?)
     }
 
@@ -965,7 +968,7 @@ impl CharacterController {
         info!("{}: going to delete '{item}'x{quantity}.", self.name());
         self.lock_in_inventory(item, quantity)?;
         let result = self.client.delete(item, quantity);
-        self.inventory.decrease_reservation(item, quantity);
+        self.inventory.release(item, quantity);
         Ok(result?)
     }
 
@@ -978,7 +981,7 @@ impl CharacterController {
         if in_inventory > 0
             && let Err(e) = self
                 .inventory
-                .reserv_item(item, min(in_inventory, quantity))
+                .reserve(item, min(in_inventory, quantity))
         {
             error!(
                 "{}: failed reserving '{item}' already in inventory: {e}",
@@ -990,7 +993,7 @@ impl CharacterController {
         }
         let missing = quantity.saturating_sub(in_inventory);
         if missing > 0 {
-            self.bank.reserv_item(item, missing, &self.name())?;
+            self.bank.reserve((item, self.name()), missing)?;
             if !self.inventory.has_room_for(item, missing) {
                 self.deposit_all_but(item)?;
             }
@@ -1092,7 +1095,7 @@ impl CharacterController {
         match deposit {
             Ok(()) => {
                 self.order_board.register_deposited_items(items);
-                self.inventory.decrease_reservations(items);
+                self.inventory.release_all(items);
             }
             Err(ref e) => error!("{}: failed to deposit items: {e}", self.name()),
         }
@@ -1119,7 +1122,7 @@ impl CharacterController {
         // TODO: defined food quantity depending on the monster drop rate and damages
         let quantity = min(
             ((self.inventory.max_items() as f32) * 0.90) as u32,
-            self.bank.has_available(food.code(), &self.name()),
+            self.bank.has_available(&(food.code(), self.name()).into()),
         );
         self.lock_in_inventory(food.code(), quantity)
     }
@@ -1156,8 +1159,8 @@ impl CharacterController {
         self.move_to_closest_map_of_type(MapContentType::Bank)?;
         let result = self.client.withdraw_item(items);
         if result.is_ok() {
-            self.bank.dec_reservations(items, &self.name());
-            if let Err(e) = self.inventory.reserv_items(items) {
+            self.bank.release_all(items, &self.name());
+            if let Err(e) = self.inventory.reserve_all(items) {
                 error!("{}: failed reserving withdrawed item: {e}", self.name());
             }
         }
@@ -1262,7 +1265,8 @@ impl CharacterController {
             self.deposit_all_but(item.code())?;
         }
         self.client.equip(item.code(), slot, quantity)?;
-        self.inventory.decrease_reservation(item.code(), quantity);
+        self.inventory
+            .release(item.code(), quantity);
         Ok(())
     }
 
@@ -1408,7 +1412,7 @@ impl CharacterController {
             return Err(UseItemCommandError::InsufficientQuantity);
         }
         self.client.use_item(item_code, quantity)?;
-        self.inventory.decrease_reservation(item_code, quantity);
+        self.inventory.release(item_code, quantity);
         Ok(())
     }
 
@@ -1425,7 +1429,7 @@ impl CharacterController {
         self.move_to_closest_map_with_content_code(npc_item.npc_code())?;
         self.client.npc_buy(item_code, quantity)?;
         self.inventory
-            .decrease_reservation(npc_item.currency(), total_price);
+            .release(npc_item.currency(), total_price);
         Ok(())
     }
 
@@ -1471,7 +1475,7 @@ impl CharacterController {
         self.lock_in_inventory(item, quantity)?;
         self.move_to_closest_map_with_content_code(npc_item.npc_code())?;
         self.client.npc_sell(item, quantity)?;
-        self.inventory.decrease_reservation(item, quantity);
+        self.inventory.release(item, quantity);
         Ok(())
     }
 
@@ -1509,7 +1513,7 @@ impl CharacterController {
         self.inventory.consumable_food().iter().for_each(|f| {
             if let Err(e) = self
                 .inventory
-                .reserv_item(f.code(), self.inventory.total_of(f.code()))
+                .reserve(f.code(), self.inventory.total_of(f.code()))
             {
                 error!("{} failed reserving food in inventory: {e}", self.name());
             }
@@ -1553,7 +1557,8 @@ impl CharacterController {
             self.sell_item(
                 &item.code,
                 min(
-                    self.bank.has_available(&item.code, &self.name()),
+                    self.bank
+                        .has_available(&(item.code.as_str(), &*self.name()).into()),
                     self.inventory.max_items(),
                 ),
             )
@@ -1641,7 +1646,7 @@ impl CharacterController {
             .is_ok()
     }
 
-    fn reserv_gear(&self, gear: &mut Gear) -> Result<(), BankReservationError> {
+    fn reserv_gear(&self, gear: &mut Gear) -> Result<(), ReservationError> {
         //TODO: unreserv already reserved items on failure
         gear.align_to(&self.gear());
         for slot in Slot::iter() {
@@ -1672,12 +1677,12 @@ impl CharacterController {
         item: &str,
         quantity: u32,
         slot: Slot,
-    ) -> Result<(), BankReservationError> {
+    ) -> Result<(), ReservationError> {
         let missing_quantity =
             quantity.saturating_sub(self.inventory.total_of(item) + self.has_equiped(item));
         if missing_quantity > 0 && self.equiped_in(slot) != item {
             self.bank
-                .reserv_item(item, missing_quantity, &self.name())?;
+                .reserve((item, self.name()), missing_quantity)?;
         }
         Ok(())
     }
@@ -1757,7 +1762,7 @@ impl CharacterController {
     /// Returns the amount of the given item `code` available in bank and inventory.
     //TODO: maybe use `inventory.has_available`
     fn has_in_bank_or_inv(&self, item: &str) -> u32 {
-        self.inventory.total_of(item) + self.bank.has_available(item, &self.name())
+        self.inventory.total_of(item) + self.bank.has_available(&(item, &*self.name()).into())
     }
 
     fn missing_mats_for(&self, item_code: &str, quantity: u32) -> Vec<SimpleItemSchema> {
@@ -1899,7 +1904,7 @@ impl CharacterController {
     //        );
     //    };
     //    let result = self.inner.request_gift_exchange().map_err(|e| e.into());
-    //    self.inventory.decrease_reservation(GIFT, 1);
+    //    self.inventory.release(GIFT, 1);
     //    result
     //}
 

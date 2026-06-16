@@ -1,22 +1,20 @@
-use crate::{BankDiscriminant, FOOD_CONSUMPTION_BLACKLIST, HasReservation, Reservation};
+use crate::{
+    FOOD_CONSUMPTION_BLACKLIST,
+    reservable::{Key, Reservable, ReservationError},
+};
 use derive_more::Deref;
 use itertools::Itertools;
-use log::debug;
 use sdk::{
     BankClient, Code, CollectionClient, DropsItems, ItemContainer, ItemsClient, Level,
-    LimitedContainer, Quantity, SlotLimited,
+    LimitedContainer, SlotLimited,
     bank::Bank,
     entities::Item,
     models::{BankSchema, SimpleItemSchema},
 };
 use std::{
-    fmt::{self, Display, Formatter},
-    sync::{
-        Arc, RwLock, RwLockWriteGuard, TryLockError,
-        atomic::{AtomicU32, Ordering::SeqCst},
-    },
+    collections::HashMap,
+    sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, TryLockError},
 };
-use thiserror::Error;
 
 #[derive(Default, Clone, Deref)]
 #[deref(forward)]
@@ -26,7 +24,7 @@ pub struct BankController(Arc<BankControllerInner>);
 pub struct BankControllerInner {
     client: BankClient,
     items: ItemsClient,
-    reservations: RwLock<Vec<Arc<BankReservation>>>,
+    reservations: RwLock<HashMap<BankKey, u32>>,
     pub browsed: RwLock<()>,
     pub being_expanded: RwLock<()>,
 }
@@ -37,7 +35,7 @@ impl BankController {
             BankControllerInner {
                 client,
                 items,
-                reservations: RwLock::new(vec![]),
+                reservations: RwLock::new(HashMap::new()),
                 browsed: RwLock::new(()),
                 being_expanded: RwLock::new(()),
             }
@@ -78,7 +76,7 @@ impl BankController {
             .filter_map(|item| {
                 let missing = item
                     .quantity
-                    .saturating_sub(self.has_available(&item.code, owner));
+                    .saturating_sub(self.has_available(&(item.code.as_str(), owner).into()));
                 (missing > 0).then(|| SimpleItemSchema {
                     code: item.code.clone(),
                     quantity: missing,
@@ -103,119 +101,45 @@ impl BankController {
     pub fn has_multiple_available(&self, items: &[SimpleItemSchema], owner: &str) -> bool {
         items
             .iter()
-            .all(|i| self.has_available(&i.code, owner) >= i.quantity)
+            .all(|i| self.has_available(&(i.code(), owner).into()) >= i.quantity)
     }
 
     /// Returns the `quantity` of the given item `code` available to the given `owner`.
     /// If no owner is given returns the quantity not reserved.
-    pub fn has_available(&self, item: &str, owner: &str) -> u32 {
-        self.quantity_allowed(item, owner)
+    pub fn has_available(&self, discriminant: &BankKey) -> u32 {
+        self.quantity_allowed(discriminant)
     }
 
-    pub fn reserv_items(
+    pub fn reserve_all(
         &self,
         items: &[SimpleItemSchema],
         owner: &str,
-    ) -> Result<(), BankReservationError> {
+    ) -> Result<(), ReservationError> {
         for item in items {
-            self.reserv_item(&item.code, item.quantity, owner)?;
+            self.reserve((item.code.as_str(), owner), item.quantity)?;
         }
         Ok(())
     }
 
-    /// Make sure that the `quantity` of `item` is reserved to the `owner`.
-    /// Create the reservation if possible. Increase the reservation quantity if
-    /// necessary and possible.
-    pub fn reserv_item(
-        &self,
-        item: &str,
-        quantity: u32,
-        owner: &str,
-    ) -> Result<(), BankReservationError> {
-        let Some(res) = self.get_reservation((item, owner).into()) else {
-            return self.add_reservation(item, quantity, owner);
-        };
-        let quantity_to_reserv = quantity.saturating_sub(res.quantity());
-        if quantity_to_reserv == 0 {
-            return Ok(());
-        }
-        self.inc_reservation(item, quantity_to_reserv, owner)
-    }
-
-    pub fn inc_reservation(
-        &self,
-        item: &str,
-        quantity: u32,
-        owner: &str,
-    ) -> Result<(), BankReservationError> {
-        if let Some(res) = self.get_reservation((item, owner).into()) {
-            if quantity > self.quantity_reservable(item) {
-                return Err(BankReservationError::QuantityUnavailable(quantity));
-            }
-            res.inc_quantity(quantity);
-        } else {
-            self.add_reservation(item, quantity, owner)?;
-        }
-        debug!("bank: increased '{item}' reservation by '{quantity}' for '{owner}'");
-        Ok(())
-    }
-
-    pub fn dec_reservations(&self, items: &[SimpleItemSchema], owner: &str) {
+    pub fn release_all(&self, items: &[SimpleItemSchema], owner: &str) {
         for item in items {
-            self.dec_reservation(&item.code, item.quantity, owner);
+            self.release((&item.code, owner), item.quantity);
         }
-    }
-
-    pub fn dec_reservation(&self, item: &str, quantity: u32, owner: &str) {
-        let Some(res) = self.get_reservation((item, owner).into()) else {
-            return;
-        };
-        res.dec_quantity(quantity);
-        debug!("bank: decreased '{item}' reservation by '{quantity}' for '{owner}'");
-        if res.quantity() < 1 {
-            self.remove_reservation(&res);
-        }
-    }
-
-    fn add_reservation(
-        &self,
-        item: &str,
-        quantity: u32,
-        owner: &str,
-    ) -> Result<(), BankReservationError> {
-        if quantity > self.has_available(item, owner) {
-            return Err(BankReservationError::QuantityUnavailable(quantity));
-        }
-        let res = Arc::new(BankReservation {
-            item: item.to_owned(),
-            quantity: AtomicU32::new(quantity),
-            owner: owner.to_owned(),
-        });
-        self.reservations.write().unwrap().push(res);
-        Ok(())
-    }
-
-    fn remove_reservation(&self, reservation: &BankReservation) {
-        self.reservations
-            .write()
-            .unwrap()
-            .retain(|r| **r != *reservation);
-        debug!("bank: removed reservation: {reservation}");
     }
 
     /// Returns the quantity the given `owner` can withdraw from the bank.
-    fn quantity_allowed(&self, item: &str, owner: &str) -> u32 {
-        self.total_of(item)
-            .saturating_sub(self.quantity_not_allowed(item, owner))
+    fn quantity_allowed(&self, discriminant: &BankKey) -> u32 {
+        self.total_of(&discriminant.item)
+            .saturating_sub(self.quantity_not_allowed(discriminant))
     }
 
     /// Returns the quantity of the given item `code` that is reserved to a different character
     /// than the given `owner`.
-    fn quantity_not_allowed(&self, item: &str, owner: &str) -> u32 {
+    fn quantity_not_allowed(&self, discriminant: &BankKey) -> u32 {
         self.reservations()
             .iter()
-            .filter(|r| r.owner != owner && r.item == item)
-            .map(|r| r.quantity())
+            .filter(|(d, _)| d.code() == discriminant.item && d.owner != discriminant.owner)
+            .map(|(_, q)| q)
             .sum()
     }
 }
@@ -229,7 +153,7 @@ impl Bank for BankController {
 impl ItemContainer for BankController {
     type Slot = SimpleItemSchema;
 
-    fn content(&self) -> Arc<Vec<SimpleItemSchema>> {
+    fn content(&self) -> Arc<Vec<Self::Slot>> {
         self.client.content()
     }
 }
@@ -254,74 +178,42 @@ impl SlotLimited for BankController {
     }
 }
 
-#[derive(Debug, Error, PartialEq, Eq)]
-pub enum BankReservationError {
-    #[error("Quantity unavailable: {0}")]
-    QuantityUnavailable(u32),
-}
+impl Reservable for BankController {
+    type Key = BankKey;
 
-impl HasReservation for BankController {
-    type Reservation = BankReservation;
-    type Discriminant = BankDiscriminant;
-
-    fn reservations(&self) -> Vec<Arc<Self::Reservation>> {
-        self.reservations
-            .read()
-            .unwrap()
-            .iter()
-            .cloned()
-            .collect_vec()
+    fn reservations(&self) -> RwLockReadGuard<'_, HashMap<Self::Key, u32>> {
+        self.reservations.read().unwrap()
     }
 
-    fn get_reservation_discriminant(reservation: &Self::Reservation) -> Self::Discriminant {
-        (reservation.item.as_str(), reservation.owner.as_str()).into()
+    fn reservations_mut(&self) -> RwLockWriteGuard<'_, HashMap<Self::Key, u32>> {
+        self.reservations.write().unwrap()
     }
 }
 
-#[derive(Debug)]
-pub struct BankReservation {
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub struct BankKey {
     item: String,
-    quantity: AtomicU32,
     owner: String,
 }
 
-impl Reservation for BankReservation {
-    fn quantity_mut(&self) -> &AtomicU32 {
-        &self.quantity
-    }
-}
+impl Key for BankKey {}
 
-impl Code for BankReservation {
-    fn code(&self) -> &str {
-        &self.item
-    }
-}
-
-impl Quantity for BankReservation {
-    fn quantity(&self) -> u32 {
-        self.quantity.load(SeqCst)
-    }
-}
-
-impl Display for BankReservation {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}: '{}'x{}", self.owner, self.item, self.quantity())
-    }
-}
-
-impl Clone for BankReservation {
-    fn clone(&self) -> Self {
+impl<U, V> From<(U, V)> for BankKey
+where
+    U: ToString,
+    V: ToString,
+{
+    fn from(value: (U, V)) -> Self {
         Self {
-            item: self.item.clone(),
-            quantity: AtomicU32::new(self.quantity()),
-            owner: self.owner.clone(),
+            item: value.0.to_string(),
+            owner: value.1.to_string(),
         }
     }
 }
 
-impl PartialEq for BankReservation {
-    fn eq(&self, other: &Self) -> bool {
-        self.item == other.item && self.quantity() == other.quantity() && self.owner == other.owner
+impl Code for BankKey {
+    fn code(&self) -> &str {
+        &self.item
     }
 }
 
@@ -332,32 +224,32 @@ mod tests {
     #[test]
     fn reserv_with_not_item() {
         let bank = BankController::default();
-        let result = bank.inc_reservation("iron_ore", 50, "char1");
-        assert_eq!(Err(BankReservationError::QuantityUnavailable(50)), result);
+        let result = bank.inc_reservation(("iron_ore", "char1"), 50);
+        assert_eq!(Err(ReservationError::QuantityUnavailable(50)), result);
     }
 
-    // #[test]
-    // fn reserv_with_item_available() {
-    //     let bank = BankController::default();
-    //     *bank.client.content.write().unwrap() = Arc::new(vec![SimpleItemSchema {
-    //         code: "copper_ore".to_owned(),
-    //         quantity: 100,
-    //     }]);
-    //     let _ = bank.inc_reservation("copper_ore", 50, "char1");
-    //     let _ = bank.inc_reservation("copper_ore", 50, "char1");
-    //     assert_eq!(100, bank.has_available("copper_ore", "char1"))
-    // }
+    #[test]
+    fn reserv_with_item_available() {
+        let bank = BankController::default();
+        bank.client.set_content(vec![SimpleItemSchema {
+            code: "copper_ore".to_owned(),
+            quantity: 100,
+        }]);
+        let _ = bank.inc_reservation(("copper_ore", "char1"), 50);
+        let _ = bank.inc_reservation(("copper_ore", "char1"), 50);
+        assert_eq!(100, bank.has_available(&("copper_ore", "char1").into()));
+    }
 
-    // #[test]
-    // fn reserv_if_not_with_item_available() {
-    //     let bank = BankController::default();
-    //     *bank.client.content.write().unwrap() = Arc::new(vec![SimpleItemSchema {
-    //         code: "gold_ore".to_owned(),
-    //         quantity: 100,
-    //     }]);
-    //     let _ = bank.reserv_item("gold_ore", 50, "char1");
-    //     let _ = bank.reserv_item("gold_ore", 50, "char1");
-    //     assert_eq!(100, bank.has_available("gold_ore", "char1"));
-    //     assert_eq!(50, bank.quantity_reserved("gold_ore"))
-    // }
+    #[test]
+    fn reserv_if_not_with_item_available() {
+        let bank = BankController::default();
+        bank.client.set_content(vec![SimpleItemSchema {
+            code: "gold_ore".into(),
+            quantity: 100,
+        }]);
+        let _ = bank.reserve(("gold_ore", "char1"), 50);
+        let _ = bank.reserve(("gold_ore", "char1"), 50);
+        assert_eq!(100, bank.has_available(&("gold_ore", "char1").into()));
+        assert_eq!(50, bank.reserved("gold_ore"));
+    }
 }

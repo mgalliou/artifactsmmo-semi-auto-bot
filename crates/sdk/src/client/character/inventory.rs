@@ -46,15 +46,14 @@ impl ItemContainer for InventoryClient {
     type Slot = InventorySlot;
 
     fn content(&self) -> Arc<Vec<Self::Slot>> {
-        Arc::new(
-            self.data
-                .read()
-                .inventory_items()
-                .iter()
-                .flatten()
-                .cloned()
-                .collect_vec(),
-        )
+        self.data
+            .read()
+            .inventory_items()
+            .iter()
+            .flatten()
+            .cloned()
+            .collect_vec()
+            .into()
     }
 }
 

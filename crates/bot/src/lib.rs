@@ -5,18 +5,16 @@ use crate::{
 use chrono::{DateTime, Utc};
 use log::error;
 use sdk::{
-    Client, Code, ItemContainer, Quantity,
-    consts::{
+    Client, consts::{
         APPLE, APPLE_PIE, CARROT, COOKED_HELLHOUND_MEAT, FISH_SOUP, MAPLE_SYRUP, MUSHROOM_SOUP,
     },
     entities::{Character, Monster, Resource},
 };
 use std::{
     collections::VecDeque,
-    sync::{
-        Arc, RwLock,
-        atomic::{AtomicU32, Ordering::SeqCst},
-    },
+    sync::
+        RwLock
+    ,
     thread::{Builder, sleep},
     time::Duration,
 };
@@ -30,6 +28,7 @@ pub mod gear_finder;
 pub mod inventory;
 pub mod leveling_helper;
 pub mod orderboard;
+pub mod reservable;
 
 pub const FOOD_ORDER_BLACKLIST: [&str; 11] = [
     APPLE,
@@ -49,85 +48,6 @@ pub const FOOD_CONSUMPTION_BLACKLIST: [&str; 2] = [APPLE, CARROT];
 
 pub const MIN_COIN_THRESHOLD: u32 = 4;
 pub const MIN_FOOD_THRESHOLD: u32 = 6000;
-
-pub trait HasReservation: ItemContainer {
-    type Reservation: Reservation;
-    type Discriminant: Discriminant;
-
-    fn reservations(&self) -> Vec<Arc<Self::Reservation>>;
-
-    fn quantity_reserved(&self, item: &str) -> u32 {
-        self.reservations()
-            .iter()
-            .filter(|&r| r.code() == item)
-            .map(|r| r.quantity())
-            .sum()
-    }
-
-    fn quantity_reservable(&self, item: &str) -> u32 {
-        self.total_of(item)
-            .saturating_sub(self.quantity_reserved(item))
-    }
-
-    fn is_reserved(&self, item: &str) -> bool {
-        self.quantity_reserved(item) > 0
-    }
-
-    fn get_reservation(&self, discriminant: Self::Discriminant) -> Option<Arc<Self::Reservation>> {
-        self.reservations()
-            .iter()
-            .find(|r| Self::get_reservation_discriminant(r) == discriminant)
-            .cloned()
-    }
-
-    fn get_reservation_discriminant(reservation: &Self::Reservation) -> Self::Discriminant;
-}
-
-pub trait Reservation: Code + Quantity {
-    fn inc_quantity(&self, n: u32) {
-        self.quantity_mut().fetch_add(n, SeqCst);
-    }
-
-    fn dec_quantity(&self, n: u32) {
-        let new = self.quantity().saturating_sub(n);
-        self.quantity_mut().store(new, SeqCst);
-    }
-
-    fn quantity_mut(&self) -> &AtomicU32;
-}
-
-#[derive(PartialEq, Eq)]
-pub struct InventoryDiscriminant {
-    item: String,
-}
-
-#[derive(PartialEq, Eq)]
-pub struct BankDiscriminant {
-    item: String,
-    owner: String,
-}
-
-pub trait Discriminant: PartialEq {}
-
-impl Discriminant for InventoryDiscriminant {}
-impl Discriminant for BankDiscriminant {}
-
-impl From<&str> for InventoryDiscriminant {
-    fn from(value: &str) -> Self {
-        Self {
-            item: value.to_string(),
-        }
-    }
-}
-
-impl From<(&str, &str)> for BankDiscriminant {
-    fn from(value: (&str, &str)) -> Self {
-        Self {
-            item: value.0.to_string(),
-            owner: value.1.to_string(),
-        }
-    }
-}
 
 pub struct Bot {
     pub config: BotConfig,
