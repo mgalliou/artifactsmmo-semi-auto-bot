@@ -1,7 +1,14 @@
-use crate::{Code, entities::Item, simulator::HasEffects};
+use crate::{
+    Code,
+    entities::Item,
+    simulator::{EffectCode, HasEffects},
+};
 use itertools::Itertools;
 use openapi::models::{ItemSlot, SimpleEffectSchema, SimpleItemSchema};
-use std::{fmt::Display, mem::swap};
+use std::{
+    fmt::{self, Display, Formatter},
+    mem::swap,
+};
 use strum::IntoEnumIterator;
 use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
 
@@ -124,12 +131,19 @@ impl HasEffects for Gear {
     }
 
     fn effects(&self) -> Vec<SimpleEffectSchema> {
-        vec![]
+        EffectCode::iter()
+            .filter(|&code| self.effect_value(code.as_ref()) != 0)
+            .map(|code| SimpleEffectSchema {
+                code: code.as_ref().to_owned(),
+                value: self.effect_value(code.as_ref()),
+                description: String::new(),
+            })
+            .collect_vec()
     }
 }
 
 impl Display for Gear {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         for s in Slot::iter() {
             writeln!(
                 f,
