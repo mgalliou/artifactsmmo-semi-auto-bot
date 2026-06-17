@@ -49,7 +49,7 @@ impl BankController {
     //  NOTE: this should maybe return a Option to indicate that the item is not craftable and
     //  return None in this case
     // #[deprecated]
-    // pub fn has_mats_for(&self, item: &str, owner: &str) -> u32 {
+    // pub fn has_mats_for(&self, item: &str, owner: &CharacterName) -> u32 {
     //     self.items
     //         .mats_of(item)
     //         .iter()
@@ -70,7 +70,11 @@ impl BankController {
 
     /// Returns the quantity of each of the missing materials required to craft the `quantity` of the  item `code`
     /// for the given `owner`.
-    pub fn missing_among(&self, items: &[SimpleItemSchema], owner: &CharacterName) -> Vec<SimpleItemSchema> {
+    pub fn missing_among(
+        &self,
+        items: &[SimpleItemSchema],
+        owner: &CharacterName,
+    ) -> Vec<SimpleItemSchema> {
         items
             .iter()
             .filter_map(|item| {
@@ -98,7 +102,11 @@ impl BankController {
             .collect_vec()
     }
 
-    pub fn has_multiple_available(&self, items: &[SimpleItemSchema], owner: &str) -> bool {
+    pub fn has_multiple_available(
+        &self,
+        items: &[SimpleItemSchema],
+        owner: &CharacterName,
+    ) -> bool {
         items
             .iter()
             .all(|i| self.has_available(&(i.code(), owner).into()) >= i.quantity)
@@ -113,7 +121,7 @@ impl BankController {
     pub fn reserve_all(
         &self,
         items: &[SimpleItemSchema],
-        owner: &str,
+        owner: &CharacterName,
     ) -> Result<(), ReservationError> {
         for item in items {
             self.reserve((&item.code, owner), item.quantity)?;
@@ -121,7 +129,7 @@ impl BankController {
         Ok(())
     }
 
-    pub fn release_all(&self, items: &[SimpleItemSchema], owner: &str) {
+    pub fn release_all(&self, items: &[SimpleItemSchema], owner: &CharacterName) {
         for item in items {
             self.release((&item.code, owner), item.quantity);
         }
@@ -193,20 +201,20 @@ impl Reservable for BankController {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct BankKey {
     item: String,
-    owner: String,
+    owner: CharacterName,
 }
 
 impl Key for BankKey {}
 
-impl<U, V> From<(U, V)> for BankKey
+impl<T, U> From<(T, U)> for BankKey
 where
-    U: ToString,
-    V: ToString,
+    T: ToString,
+    U: Into<CharacterName>,
 {
-    fn from(value: (U, V)) -> Self {
+    fn from(value: (T, U)) -> Self {
         Self {
             item: value.0.to_string(),
-            owner: value.1.to_string(),
+            owner: value.1.into(),
         }
     }
 }

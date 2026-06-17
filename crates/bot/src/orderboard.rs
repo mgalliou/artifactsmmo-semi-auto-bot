@@ -8,6 +8,7 @@ use sdk::{
 use std::{
     borrow::ToOwned,
     cmp::min,
+    convert::Into,
     fmt::{self, Display, Formatter},
     mem::discriminant,
     sync::{
@@ -35,12 +36,17 @@ impl OrderBoard {
         }
     }
 
-    pub fn get(&self, item: &str, owner: Option<&str>, purpose: &Purpose) -> Option<Arc<Order>> {
+    pub fn get(
+        &self,
+        item: &str,
+        owner: Option<&CharacterName>,
+        purpose: &Purpose,
+    ) -> Option<Arc<Order>> {
         self.orders
             .read()
             .unwrap()
             .iter()
-            .find(|o| o.owner.as_deref() == owner && o.item == item && o.purpose == *purpose)
+            .find(|o| o.owner.as_ref() == owner && o.item == item && o.purpose == *purpose)
             .cloned()
     }
 
@@ -83,7 +89,7 @@ impl OrderBoard {
     pub fn add_multiple(
         &self,
         items: &[SimpleItemSchema],
-        owner: Option<&str>,
+        owner: Option<&CharacterName>,
         purpose: &Purpose,
     ) -> Result<(), OrderError> {
         let mut ordered: bool = false;
@@ -106,7 +112,7 @@ impl OrderBoard {
         &self,
         item: &str,
         quantity: u32,
-        owner: Option<&str>,
+        owner: Option<&CharacterName>,
         purpose: Purpose,
     ) -> Result<(), OrderError> {
         if self.items.get(item).is_none() {
@@ -129,7 +135,7 @@ impl OrderBoard {
         &self,
         item: &str,
         quantity: u32,
-        owner: Option<&str>,
+        owner: Option<&CharacterName>,
         purpose: Purpose,
     ) -> Result<(), OrderError> {
         if let Some(order) = self.get(item, owner, &purpose) {
@@ -161,7 +167,7 @@ impl OrderBoard {
                         && let Err(e) = self
                             .account
                             .bank()
-                            .inc_reservation((order.item.as_str(), owner.as_str()), quantity)
+                            .inc_reservation((&order.item, owner), quantity)
                     {
                         error!("orderboard: failed reserving deposited item: {e}");
                     }
@@ -204,7 +210,7 @@ impl OrderBoard {
 pub struct Order {
     pub item: String,
     quantity: AtomicU32,
-    pub owner: Option<String>,
+    pub owner: Option<CharacterName>,
     pub purpose: Purpose,
     in_progress: AtomicU32,
     // Number of item deposited into the bank
@@ -214,7 +220,7 @@ pub struct Order {
 
 impl Order {
     pub fn new(
-        owner: Option<&str>,
+        owner: Option<&CharacterName>,
         item: &str,
         quantity: u32,
         purpose: Purpose,
@@ -223,7 +229,7 @@ impl Order {
             return Err(OrderError::InvalidQuantity);
         }
         Ok(Self {
-            owner: owner.map(ToOwned::to_owned),
+            owner: owner.map(Into::into),
             item: item.to_owned(),
             quantity: AtomicU32::new(quantity),
             purpose,

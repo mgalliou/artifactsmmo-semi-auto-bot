@@ -61,6 +61,12 @@ impl From<Arc<str>> for CharacterName {
     }
 }
 
+impl From<&Self> for CharacterName {
+    fn from(name: &Self) -> Self {
+        name.clone()
+    }
+}
+
 pub trait Character: Level {
     fn name(&self) -> CharacterName;
     fn position(&self) -> (MapLayer, i32, i32);
@@ -284,7 +290,7 @@ impl Character for RawCharacter {
 impl From<CharacterSchema> for RawCharacter {
     fn from(value: CharacterSchema) -> Self {
         Self {
-            name: CharacterName::new(value.name.clone()),
+            name: value.name.clone().into(),
             task: value.task.clone().into(),
             inventory: value.inventory.clone().into(),
             schema: value.into(),
