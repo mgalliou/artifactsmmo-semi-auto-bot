@@ -1,63 +1,22 @@
 use crate::{Level, Skill, Slot};
 use chrono::{DateTime, FixedOffset};
+use derive_more::{Deref, Display, From};
 use openapi::models::{CharacterSchema, InventorySlot, MapLayer, TaskType};
 use serde::{Deserialize, Serialize};
-use std::fmt;
-use std::ops::Deref;
 use std::sync::{Arc, RwLock};
 use strum::IntoEnumIterator;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Default, Clone, Hash, PartialEq, Eq, Display, Deref, From, Serialize, Deserialize,
+)]
+#[deref(forward)]
+#[from(forward)]
 #[serde(transparent)]
 pub struct CharacterName(Arc<str>);
 
 impl CharacterName {
-    pub fn new(name: impl Into<Arc<str>>) -> Self {
-        Self(name.into())
-    }
-}
-
-impl Default for CharacterName {
-    fn default() -> Self {
-        Self("".into())
-    }
-}
-
-impl fmt::Display for CharacterName {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl Deref for CharacterName {
-    type Target = str;
-
-    fn deref(&self) -> &str {
-        &self.0
-    }
-}
-
-impl AsRef<str> for CharacterName {
-    fn as_ref(&self) -> &str {
-        &self.0
-    }
-}
-
-impl From<String> for CharacterName {
-    fn from(name: String) -> Self {
-        Self(name.into())
-    }
-}
-
-impl From<&str> for CharacterName {
-    fn from(name: &str) -> Self {
-        Self(name.into())
-    }
-}
-
-impl From<Arc<str>> for CharacterName {
-    fn from(name: Arc<str>) -> Self {
-        Self(name)
+    pub fn new(name: impl Into<Self>) -> Self {
+        name.into()
     }
 }
 

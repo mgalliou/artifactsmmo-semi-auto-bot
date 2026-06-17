@@ -29,7 +29,12 @@ repl = { path = "crates/repl" }
 anyhow = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4.5", features = ["derive"] }
-derive_more = { version = "2.0", features = ["try_from", "deref"] }
+derive_more = { version = "2.0", features = [
+  "deref",
+  "display",
+  "from",
+  "try_from",
+] }
 downcast-rs = "2.0"
 dyn-clone = "1.0"
 figment = { version = "0.10", features = ["toml"] }
