@@ -26,39 +26,39 @@ bot = { path = "crates/bot" }
 repl = { path = "crates/repl" }
 
 # external
-anyhow = "1.0"
-chrono = { version = "0.4", features = ["serde"] }
-clap = { version = "4.5", features = ["derive"] }
-derive_more = { version = "2.0", features = [
+anyhow = "1.0.102"
+chrono = { version = "0.4.45", features = ["serde"] }
+clap = { version = "4.6.1", features = ["derive"] }
+derive_more = { version = "2.1.1", features = [
   "deref",
   "display",
   "from",
   "try_from",
 ] }
-downcast-rs = "2.0"
-dyn-clone = "1.0"
-figment = { version = "0.10", features = ["toml"] }
-fs_extra = "1.3"
-itertools = "0.15"
-log = "0.4"
-ordered-float = "5.0"
-quote = "1.0.40"
-rand = "0.10"
-rayon = "1.11"
-reqwest = { version = "^0.13", default-features = false, features = [
+downcast-rs = "2.0.2"
+dyn-clone = "1.0.20"
+figment = { version = "0.10.19", features = ["toml"] }
+fs_extra = "1.3.0"
+itertools = "0.15.0"
+log = "0.4.32"
+ordered-float = "5.3.0"
+quote = "1.0.45"
+rand = "0.10.1"
+rayon = "1.12.0"
+reqwest = { version = "0.13.4", default-features = false, features = [
   "json",
   "blocking",
   "multipart",
   "query",
   "form",
 ] }
-rustyline = "18.0"
-serde = { version = "1.0", features = ["derive", "rc"] }
-serde_json = "1.0"
-serde_repr = "0.1"
-simple-logging = "2.0"
-strum = "0.28"
-strum_macros = "0.28"
-syn = "2.0.100"
-thiserror = "2.0"
-url = "2.5"
+rustyline = "18.0.0"
+serde = { version = "1.0.228", features = ["derive", "rc"] }
+serde_json = "1.0.150"
+serde_repr = "0.1.20"
+simple-logging = "2.0.2"
+strum = "0.28.0"
+strum_macros = "0.28.0"
+syn = "2.0.118"
+thiserror = "2.0.18"
+url = "2.5.8"
