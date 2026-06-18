@@ -26,6 +26,26 @@ impl From<&Self> for CharacterName {
     }
 }
 
+#[derive(
+    Debug, Default, Clone, Hash, PartialEq, Eq, Display, Deref, From, Serialize, Deserialize,
+)]
+#[deref(forward)]
+#[from(forward)]
+#[serde(transparent)]
+pub struct TaskCode(Arc<str>);
+
+impl TaskCode {
+    pub fn new(name: impl Into<Self>) -> Self {
+        name.into()
+    }
+}
+
+impl From<&Self> for TaskCode {
+    fn from(name: &Self) -> Self {
+        name.clone()
+    }
+}
+
 pub trait Character: Level {
     fn name(&self) -> CharacterName;
     fn position(&self) -> (MapLayer, i32, i32);
@@ -35,13 +55,13 @@ pub trait Character: Level {
     fn hp(&self) -> i32;
     fn max_hp(&self) -> i32;
     fn missing_hp(&self) -> i32;
-    fn task(&self) -> Arc<str>;
+    fn task(&self) -> TaskCode;
     fn task_type(&self) -> Option<TaskType>;
     fn task_progress(&self) -> u32;
     fn task_total(&self) -> u32;
     fn task_missing(&self) -> u32;
     fn task_finished(&self) -> bool;
-    fn inventory_items(&self) -> Arc<Option<Vec<InventorySlot>>>;
+    fn inventory_items(&self) -> Arc<Vec<InventorySlot>>;
     fn inventory_max_items(&self) -> i32;
     fn gold(&self) -> u32;
     fn equiped_in(&self, slot: Slot) -> String;
@@ -79,8 +99,8 @@ impl From<&CharacterSchema> for CharacterDataHandle {
 pub struct RawCharacter {
     schema: Arc<CharacterSchema>,
     name: CharacterName,
-    task: Arc<str>,
-    inventory: Arc<Option<Vec<InventorySlot>>>,
+    task: TaskCode,
+    inventory: Arc<Vec<InventorySlot>>,
 }
 
 impl Character for RawCharacter {
@@ -153,7 +173,7 @@ impl Character for RawCharacter {
         self.schema.gold as u32
     }
 
-    fn task(&self) -> Arc<str> {
+    fn task(&self) -> TaskCode {
         self.task.clone()
     }
 
@@ -237,7 +257,7 @@ impl Character for RawCharacter {
         }
     }
 
-    fn inventory_items(&self) -> Arc<Option<Vec<InventorySlot>>> {
+    fn inventory_items(&self) -> Arc<Vec<InventorySlot>> {
         self.inventory.clone()
     }
 
@@ -251,7 +271,7 @@ impl From<CharacterSchema> for RawCharacter {
         Self {
             name: value.name.clone().into(),
             task: value.task.clone().into(),
-            inventory: value.inventory.clone().into(),
+            inventory: value.inventory.clone().unwrap_or_default().into(),
             schema: value.into(),
         }
     }

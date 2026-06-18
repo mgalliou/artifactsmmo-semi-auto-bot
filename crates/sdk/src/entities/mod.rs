@@ -14,7 +14,7 @@ mod task_reward;
 pub use account_achievement::*;
 pub use active_event::*;
 pub(crate) use character::CharacterDataHandle;
-pub use character::{Character, CharacterName, RawCharacter};
+pub use character::{Character, CharacterName, RawCharacter, TaskCode};
 pub use event::*;
 pub use item::*;
 pub(crate) use map::MapDataHandle;

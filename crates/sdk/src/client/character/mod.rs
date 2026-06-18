@@ -26,7 +26,7 @@ use crate::{
     },
     entities::{
         AccountAchievement, Character, CharacterDataHandle, CharacterName, Map, RawCharacter,
-        RawMap,
+        RawMap, TaskCode,
     },
     gear::Slot,
     grand_exchange::GrandExchangeClient,
@@ -931,7 +931,7 @@ impl Character for CharacterClient {
         self.data().missing_hp()
     }
 
-    fn task(&self) -> Arc<str> {
+    fn task(&self) -> TaskCode {
         self.data().task()
     }
 
@@ -955,7 +955,7 @@ impl Character for CharacterClient {
         self.data().task_finished()
     }
 
-    fn inventory_items(&self) -> Arc<Option<Vec<InventorySlot>>> {
+    fn inventory_items(&self) -> Arc<Vec<InventorySlot>> {
         self.data().inventory_items()
     }
 

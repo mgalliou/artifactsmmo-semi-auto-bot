@@ -29,6 +29,7 @@ use derive_more::Deref;
 use itertools::{Either, Itertools};
 use log::{debug, error, info, warn};
 use ordered_float::OrderedFloat;
+use sdk::entities::TaskCode;
 use sdk::{
     Client, Code, CollectionClient, DropsItems, HasConditions, HasDrops, ItemContainer, ItemList,
     ItemsClient, Level, LimitedContainer, MapsClient, MonstersClient, NpcsClient, SlotLimited,
@@ -1957,7 +1958,7 @@ impl Character for CharacterController {
         self.data().missing_hp()
     }
 
-    fn task(&self) -> Arc<str> {
+    fn task(&self) -> TaskCode {
         self.data().task()
     }
 
@@ -1981,7 +1982,7 @@ impl Character for CharacterController {
         self.data().task_finished()
     }
 
-    fn inventory_items(&self) -> Arc<Option<Vec<InventorySlot>>> {
+    fn inventory_items(&self) -> Arc<Vec<InventorySlot>> {
         self.data().inventory_items()
     }
 

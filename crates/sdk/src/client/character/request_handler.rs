@@ -5,7 +5,7 @@ use crate::{
         character::{HandleCharacterData, action_request::ActionRequest, error::RequestError},
         server::ServerClient,
     },
-    entities::{Character, CharacterName, RawCharacter, RawMap},
+    entities::{Character, CharacterName, RawCharacter, RawMap, TaskCode},
     gear::Slot,
 };
 use api::ArtifactApi;
@@ -580,7 +580,7 @@ impl Character for CharacterRequestHandler {
         self.data().missing_hp()
     }
 
-    fn task(&self) -> Arc<str> {
+    fn task(&self) -> TaskCode {
         self.data().task()
     }
 
@@ -604,7 +604,7 @@ impl Character for CharacterRequestHandler {
         self.data().task_finished()
     }
 
-    fn inventory_items(&self) -> Arc<Option<Vec<InventorySlot>>> {
+    fn inventory_items(&self) -> Arc<Vec<InventorySlot>> {
         self.data().inventory_items()
     }
 

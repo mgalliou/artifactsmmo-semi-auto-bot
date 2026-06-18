@@ -50,7 +50,6 @@ impl ItemContainer for InventoryClient {
             .read()
             .inventory_items()
             .iter()
-            .flatten()
             .cloned()
             .collect_vec()
             .into()
