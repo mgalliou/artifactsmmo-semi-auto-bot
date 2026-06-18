@@ -1,3 +1,5 @@
+use std::fmt::{self, Display, Formatter};
+
 use crate::{ItemList, entities::RawMap};
 use downcast_rs::{Downcast, impl_downcast};
 use itertools::Itertools;
@@ -8,19 +10,36 @@ use openapi::models::{
     CharacterTransitionResponseSchema, DeleteItemResponseSchema, EquipmentResponseSchema,
     FightResult, GeCreateOrderTransactionResponseSchema, GeTransactionResponseSchema,
     GiveGoldResponseSchema, GiveItemResponseSchema, NpcMerchantTransactionResponseSchema,
-    RecyclingResponseSchema, RewardDataResponseSchema, SkillResponseSchema,
+    RecyclingResponseSchema, RewardDataResponseSchema, SimpleItemSchema, SkillResponseSchema,
     TaskCancelledResponseSchema, TaskResponseSchema, TaskTradeResponseSchema,
     UseItemResponseSchema,
 };
 
 pub trait ResponseSchema: Downcast {
+    fn pretty(&self) -> String;
     fn character(&self) -> &CharacterSchema;
-    fn to_string(&self) -> String;
+
+    fn characters(&self) -> Vec<&CharacterSchema> {
+        vec![self.character()]
+    }
+
+    fn bank_content(&self) -> Option<&Vec<SimpleItemSchema>> {
+        None
+    }
+
+    fn bank_gold(&self) -> Option<u32> {
+        None
+    }
+
+    fn extension_price(&self) -> Option<u32> {
+        None
+    }
 }
+
 impl_downcast!(ResponseSchema);
 
 impl ResponseSchema for CharacterMovementResponseSchema {
-    fn to_string(&self) -> String {
+    fn pretty(&self) -> String {
         format!(
             "{}: moved to {}. {}s",
             self.data.character.name,
@@ -35,7 +54,7 @@ impl ResponseSchema for CharacterMovementResponseSchema {
 }
 
 impl ResponseSchema for CharacterTransitionResponseSchema {
-    fn to_string(&self) -> String {
+    fn pretty(&self) -> String {
         format!(
             "{}: transitioned to {}. {}s",
             self.data.character.name,
@@ -50,7 +69,7 @@ impl ResponseSchema for CharacterTransitionResponseSchema {
 }
 
 impl ResponseSchema for CharacterFightResponseSchema {
-    fn to_string(&self) -> String {
+    fn pretty(&self) -> String {
         let chars = &self.data.fight.characters;
         let names = chars.iter().map(|c| c.character_name.clone()).join(",");
         let drops = chars.iter().flat_map(|c| c.drops.clone()).collect_vec();
@@ -78,10 +97,14 @@ impl ResponseSchema for CharacterFightResponseSchema {
     fn character(&self) -> &CharacterSchema {
         self.data.characters.first().unwrap()
     }
+
+    fn characters(&self) -> Vec<&CharacterSchema> {
+        self.data.characters.iter().collect_vec()
+    }
 }
 
 impl ResponseSchema for CharacterRestResponseSchema {
-    fn to_string(&self) -> String {
+    fn pretty(&self) -> String {
         format!(
             "{}: rested and restored {}hp. {}s",
             self.data.character.name, self.data.hp_restored, self.data.cooldown.remaining_seconds
@@ -94,7 +117,7 @@ impl ResponseSchema for CharacterRestResponseSchema {
 }
 
 impl ResponseSchema for UseItemResponseSchema {
-    fn to_string(&self) -> String {
+    fn pretty(&self) -> String {
         format!(
             "{}: used '{}'. {}s",
             self.data.character.name, self.data.item.code, self.data.cooldown.remaining_seconds
@@ -107,7 +130,7 @@ impl ResponseSchema for UseItemResponseSchema {
 }
 
 impl ResponseSchema for SkillResponseSchema {
-    fn to_string(&self) -> String {
+    fn pretty(&self) -> String {
         let reason = if self.data.cooldown.reason == ActionType::Crafting {
             "crafted"
         } else {
@@ -128,7 +151,7 @@ impl ResponseSchema for SkillResponseSchema {
 }
 
 impl ResponseSchema for DeleteItemResponseSchema {
-    fn to_string(&self) -> String {
+    fn pretty(&self) -> String {
         format!(
             "{}: deleted '{}'x{}",
             self.data.character.name, self.data.item.code, self.data.item.quantity
@@ -141,7 +164,7 @@ impl ResponseSchema for DeleteItemResponseSchema {
 }
 
 impl ResponseSchema for BankItemTransactionResponseSchema {
-    fn to_string(&self) -> String {
+    fn pretty(&self) -> String {
         if self.data.cooldown.reason == ActionType::WithdrawItem {
             format!(
                 "{}: withdrew [{}] from the bank. {}s",
@@ -162,19 +185,27 @@ impl ResponseSchema for BankItemTransactionResponseSchema {
     fn character(&self) -> &CharacterSchema {
         &self.data.character
     }
+
+    fn bank_content(&self) -> Option<&Vec<SimpleItemSchema>> {
+        Some(&self.data.bank)
+    }
 }
 
 impl ResponseSchema for BankGoldTransactionResponseSchema {
-    fn to_string(&self) -> String {
+    fn pretty(&self) -> String {
         if self.data.cooldown.reason == ActionType::WithdrawGold {
             format!(
-                "{}: withdrew gold from the bank. {}s",
-                self.data.character.name, self.data.cooldown.remaining_seconds
+                "{}: withdrew {} gold from the bank. {}s",
+                self.data.character.name,
+                self.data.bank.quantity,
+                self.data.cooldown.remaining_seconds
             )
         } else {
             format!(
-                "{}: deposited gold to the bank. {}s",
-                self.data.character.name, self.data.cooldown.remaining_seconds
+                "{}: deposited {} gold to the bank. {}s",
+                self.data.character.name,
+                self.data.bank.quantity,
+                self.data.cooldown.remaining_seconds
             )
         }
     }
@@ -182,10 +213,14 @@ impl ResponseSchema for BankGoldTransactionResponseSchema {
     fn character(&self) -> &CharacterSchema {
         &self.data.character
     }
+
+    fn bank_gold(&self) -> Option<u32> {
+        Some(self.data.bank.quantity)
+    }
 }
 
 impl ResponseSchema for BankExtensionTransactionResponseSchema {
-    fn to_string(&self) -> String {
+    fn pretty(&self) -> String {
         format!(
             "{}: bought bank expansion for {} gold. {}s",
             self.data.character.name,
@@ -197,10 +232,14 @@ impl ResponseSchema for BankExtensionTransactionResponseSchema {
     fn character(&self) -> &CharacterSchema {
         &self.data.character
     }
+
+    fn extension_price(&self) -> Option<u32> {
+        Some(self.data.transaction.price)
+    }
 }
 
 impl ResponseSchema for RecyclingResponseSchema {
-    fn to_string(&self) -> String {
+    fn pretty(&self) -> String {
         format!(
             "{}: recycled and received {}. {}s",
             self.data.character.name,
@@ -215,7 +254,7 @@ impl ResponseSchema for RecyclingResponseSchema {
 }
 
 impl ResponseSchema for EquipmentResponseSchema {
-    fn to_string(&self) -> String {
+    fn pretty(&self) -> String {
         if self.data.cooldown.reason == ActionType::Equip {
             format!(
                 "{}: equipped '{}' in the '{}' slot. {}s",
@@ -241,7 +280,7 @@ impl ResponseSchema for EquipmentResponseSchema {
 }
 
 impl ResponseSchema for TaskResponseSchema {
-    fn to_string(&self) -> String {
+    fn pretty(&self) -> String {
         format!(
             "{}: accepted new [{:?}] task: '{}'x{}. {}s",
             self.data.character.name,
@@ -258,7 +297,7 @@ impl ResponseSchema for TaskResponseSchema {
 }
 
 impl ResponseSchema for RewardDataResponseSchema {
-    fn to_string(&self) -> String {
+    fn pretty(&self) -> String {
         format!(
             "{}: completed task and was rewarded with [{}] and {}g. {}s",
             self.data.character.name,
@@ -274,7 +313,7 @@ impl ResponseSchema for RewardDataResponseSchema {
 }
 
 impl ResponseSchema for TaskCancelledResponseSchema {
-    fn to_string(&self) -> String {
+    fn pretty(&self) -> String {
         format!(
             "{}: cancelled current task. {}s",
             self.data.character.name, self.data.cooldown.remaining_seconds
@@ -287,7 +326,7 @@ impl ResponseSchema for TaskCancelledResponseSchema {
 }
 
 impl ResponseSchema for TaskTradeResponseSchema {
-    fn to_string(&self) -> String {
+    fn pretty(&self) -> String {
         format!(
             "{}: traded '{}'x{} with the taskmaster. {}s",
             self.data.character.name,
@@ -303,7 +342,7 @@ impl ResponseSchema for TaskTradeResponseSchema {
 }
 
 impl ResponseSchema for NpcMerchantTransactionResponseSchema {
-    fn to_string(&self) -> String {
+    fn pretty(&self) -> String {
         format!(
             "{}: traded {} {} for {} {}(s) at {} each. {}s",
             self.data.character.name,
@@ -322,7 +361,7 @@ impl ResponseSchema for NpcMerchantTransactionResponseSchema {
 }
 
 impl ResponseSchema for GiveItemResponseSchema {
-    fn to_string(&self) -> String {
+    fn pretty(&self) -> String {
         format!(
             "{}: gave '{}' to {}. {}s",
             self.data.character.name,
@@ -335,10 +374,14 @@ impl ResponseSchema for GiveItemResponseSchema {
     fn character(&self) -> &CharacterSchema {
         &self.data.character
     }
+
+    fn characters(&self) -> Vec<&CharacterSchema> {
+        vec![&self.character(), &self.data.receiver_character]
+    }
 }
 
 impl ResponseSchema for GiveGoldResponseSchema {
-    fn to_string(&self) -> String {
+    fn pretty(&self) -> String {
         format!(
             "{}: gave {} gold to {}. {}s",
             self.data.character.name,
@@ -351,10 +394,14 @@ impl ResponseSchema for GiveGoldResponseSchema {
     fn character(&self) -> &CharacterSchema {
         &self.data.character
     }
+
+    fn characters(&self) -> Vec<&CharacterSchema> {
+        vec![&self.character(), &self.data.receiver_character]
+    }
 }
 
 impl ResponseSchema for GeTransactionResponseSchema {
-    fn to_string(&self) -> String {
+    fn pretty(&self) -> String {
         if self.data.cooldown.reason == ActionType::BuyGe {
             format!(
                 "{}: bought '{}'x{} for {}g from the grand exchange. {}",
@@ -382,7 +429,7 @@ impl ResponseSchema for GeTransactionResponseSchema {
 }
 
 impl ResponseSchema for GeCreateOrderTransactionResponseSchema {
-    fn to_string(&self) -> String {
+    fn pretty(&self) -> String {
         format!(
             "{}: created order '{}'x{} for {}g at the grand exchange. {}s",
             self.data.character.name,
@@ -401,5 +448,11 @@ impl ResponseSchema for GeCreateOrderTransactionResponseSchema {
 impl<T: ResponseSchema + 'static> From<T> for Box<dyn ResponseSchema> {
     fn from(value: T) -> Self {
         Box::new(value)
+    }
+}
+
+impl Display for dyn ResponseSchema {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.pretty())
     }
 }

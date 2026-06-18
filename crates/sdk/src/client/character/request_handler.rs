@@ -1,5 +1,6 @@
 use crate::{
     AccountClient, Level, Skill,
+    bank::Bank,
     character::{CharacterDataHandle, responses::ResponseSchema},
     client::{
         character::{HandleCharacterData, action_request::ActionRequest, error::RequestError},
@@ -13,11 +14,10 @@ use chrono::{DateTime, FixedOffset, Utc};
 use log::{debug, error, info, warn};
 use openapi::models::{
     BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema,
-    BankItemTransactionResponseSchema, CharacterFightResponseSchema, CharacterFightSchema,
-    CharacterMovementResponseSchema, CharacterRestResponseSchema, CharacterSchema,
-    CharacterTransitionResponseSchema, DeleteItemResponseSchema,
-    GeCreateOrderTransactionResponseSchema, GeTransactionResponseSchema, GeTransactionSchema,
-    GiveGoldResponseSchema, GiveItemResponseSchema, InventorySlot, MapLayer,
+    CharacterFightResponseSchema, CharacterFightSchema, CharacterMovementResponseSchema,
+    CharacterRestResponseSchema, CharacterSchema, CharacterTransitionResponseSchema,
+    DeleteItemResponseSchema, GeCreateOrderTransactionResponseSchema, GeTransactionResponseSchema,
+    GeTransactionSchema, GiveGoldResponseSchema, GiveItemResponseSchema, InventorySlot, MapLayer,
     NpcItemTransactionSchema, NpcMerchantTransactionResponseSchema, RecyclingItemsSchema,
     RecyclingResponseSchema, RewardDataResponseSchema, RewardsSchema, SimpleItemSchema,
     SkillInfoSchema, SkillResponseSchema, TaskResponseSchema, TaskSchema, TaskTradeResponseSchema,
@@ -148,40 +148,7 @@ impl CharacterRequestHandler {
         // }
         match action.send(&self.name(), &self.api) {
             Ok(res) => {
-                info!("{}", res.to_string());
-                if let Some(res) = res.downcast_ref::<CharacterFightResponseSchema>() {
-                    res.data.characters.iter().for_each(|c| {
-                        if let Some(char_client) = self.account.get_character(&c.name) {
-                            char_client.update_data(c.clone());
-                        }
-                    });
-                } else {
-                    self.update_data(res.character().clone());
-                }
-                if let Some(res) = res.downcast_ref::<BankItemTransactionResponseSchema>() {
-                    self.account.bank().set_content(res.data.bank.clone());
-                } else if let Some(res) = res.downcast_ref::<BankGoldTransactionResponseSchema>() {
-                    self.account.bank().set_gold(res.data.bank.quantity);
-                } else if res
-                    .downcast_ref::<BankExtensionTransactionResponseSchema>()
-                    .is_some()
-                {
-                    self.account.bank().expand();
-                }
-                if let Some(res) = res.downcast_ref::<GiveItemResponseSchema>()
-                    && let Some(char) = self
-                        .account
-                        .get_character(&res.data.receiver_character.name)
-                {
-                    char.update_data(*res.data.receiver_character.clone());
-                }
-                if let Some(res) = res.downcast_ref::<GiveGoldResponseSchema>()
-                    && let Some(char) = self
-                        .account
-                        .get_character(&res.data.receiver_character.name)
-                {
-                    char.update_data(*res.data.receiver_character.clone());
-                }
+                self.update_data(&*res);
                 Ok(res)
             }
             Err(e) => {
@@ -189,6 +156,26 @@ impl CharacterRequestHandler {
                 // drop(bank_details);
                 self.handle_request_error(action, e)
             }
+        }
+    }
+
+    fn update_data(&self, res: &(dyn ResponseSchema + 'static)) {
+        info!("{res}");
+        res.characters().into_iter().for_each(|c| {
+            if let Some(char_client) = self.account.get_character(&c.name) {
+                char_client.update_data(c.clone());
+            }
+        });
+        if let Some(content) = res.bank_content() {
+            self.account.bank().set_content(content.clone());
+        }
+        if let Some(gold) = res.bank_gold() {
+            self.account.bank().set_gold(gold);
+        } else if let Some(extension_price) = res.extension_price() {
+            self.account.bank().extend();
+            self.account
+                .bank()
+                .set_gold(self.account.bank().gold() - extension_price);
         }
     }
 

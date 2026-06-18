@@ -1,4 +1,4 @@
-use core::fmt;
+use core::fmt::{self, Display, Formatter};
 use openapi::models::{
     AccessSchema, InteractionSchema, MapAccessType, MapContentSchema, MapContentType, MapLayer,
     MapSchema, TaskType, TransitionSchema,
@@ -144,19 +144,15 @@ impl From<&MapSchema> for RawMap {
     }
 }
 
-impl fmt::Display for RawMap {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(content) = self.content() {
-            write!(
-                f,
-                "{} ({}, {} [{}])",
-                self.name(),
-                self.x(),
-                self.y(),
-                content.code
-            )
-        } else {
-            write!(f, "{} ({}, {})", self.name(), self.x(), self.y())
-        }
+impl Display for RawMap {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} ({}, {} [{}])",
+            self.name(),
+            self.x(),
+            self.y(),
+            self.layer()
+        )
     }
 }

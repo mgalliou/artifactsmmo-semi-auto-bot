@@ -41,7 +41,7 @@ impl BankClient {
         self.set_details(new_details);
     }
 
-    pub fn expand(&self) {
+    pub fn extend(&self) {
         let mut new_details = self.details().deref().clone();
         new_details.slots += BANK_EXTENSION_SIZE;
         self.set_details(new_details);
