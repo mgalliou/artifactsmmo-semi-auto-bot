@@ -86,8 +86,9 @@ impl ResponseSchema for CharacterFightResponseSchema {
                 self.data.cooldown.remaining_seconds
             ),
             FightResult::Loss => format!(
-                "{} lost a fight after {} turns. {}s",
+                "{} lost a fight against {} after {} turns. {}s",
                 self.data.characters.first().unwrap().name,
+                self.data.fight.opponent,
                 self.data.fight.turns,
                 self.data.cooldown.remaining_seconds
             ),

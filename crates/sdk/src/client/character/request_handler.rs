@@ -172,7 +172,7 @@ impl CharacterRequestHandler {
         if let Some(gold) = res.bank_gold() {
             self.account.bank().set_gold(gold);
         } else if let Some(extension_price) = res.extension_price() {
-            self.account.bank().extend();
+            self.account.bank().expend();
             self.account
                 .bank()
                 .set_gold(self.account.bank().gold() - extension_price);

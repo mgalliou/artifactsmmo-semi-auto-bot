@@ -5,7 +5,11 @@ use openapi::models::{
     RewardsSchema, SimpleItemSchema, SkillInfoSchema, TransitionSchema,
 };
 use serde::{Deserialize, Serialize};
-use std::{fmt, path::Path};
+use std::{
+    error::Error,
+    fmt::{self, Display, Formatter},
+    path::Path,
+};
 
 pub use openapi::models;
 pub use sdk_derive::CollectionClient;
@@ -24,7 +28,10 @@ pub mod gear;
 pub mod simulator;
 pub mod skill;
 
-pub(crate) trait Persist<D: for<'a> Deserialize<'a> + Serialize> {
+pub(crate) trait Persist<D>
+where
+    D: for<'a> Deserialize<'a> + Serialize,
+{
     const PATH: &'static str;
 
     fn load(&self) -> D {
@@ -39,13 +46,13 @@ pub(crate) trait Persist<D: for<'a> Deserialize<'a> + Serialize> {
 
     fn load_from_api(&self) -> D;
 
-    fn load_from_file<T: for<'a> Deserialize<'a>>(&self) -> Result<T, Box<dyn std::error::Error>> {
+    fn load_from_file<T: for<'a> Deserialize<'a>>(&self) -> Result<T, Box<dyn Error>> {
         Ok(serde_json::from_str(&read_to_string(Path::new(
             Self::PATH,
         ))?)?)
     }
 
-    fn persist<T: Serialize>(data: T) -> Result<(), Box<dyn std::error::Error>> {
+    fn persist<T: Serialize>(data: T) -> Result<(), Box<dyn Error>> {
         Ok(write_all(
             Path::new(Self::PATH),
             &serde_json::to_string_pretty(&data)?,
@@ -215,7 +222,7 @@ pub trait Level {
 
 pub trait CanProvideXp: Level {
     fn provides_xp_at(&self, level: u32) -> bool {
-        check_lvl_diff(level, self.level())
+        yields_xp(level, self.level())
     }
 }
 
@@ -239,20 +246,15 @@ impl DropRateSchemaExt for DropRateSchema {
     }
 }
 
-/// Checks a character at the `char_level` would receive XP by crafting, killing,
-/// or gathering an entity at the `entity_level`
-#[must_use]
-pub const fn check_lvl_diff(char_level: u32, entity_level: u32) -> bool {
-    char_level >= entity_level && char_level.saturating_sub(entity_level) <= MAX_LEVEL_DIFF
-}
+pub struct ItemList<'a, T>(pub &'a [T])
+where
+    T: Code + Quantity;
 
-pub struct ItemList<'a, T: Code + Quantity>(pub &'a [T]);
-
-impl<T> fmt::Display for ItemList<'_, T>
+impl<T> Display for ItemList<'_, T>
 where
     T: Code + Quantity,
 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let mut empty = true;
         for item in self.0 {
             if !empty {
@@ -263,4 +265,11 @@ where
         }
         Ok(())
     }
+}
+
+/// Checks a character at the `char_level` would receive XP by crafting, killing,
+/// or gathering an entity at `entity_level`
+#[must_use]
+pub const fn yields_xp(char_level: u32, entity_level: u32) -> bool {
+    char_level >= entity_level && char_level.saturating_sub(entity_level) <= MAX_LEVEL_DIFF
 }

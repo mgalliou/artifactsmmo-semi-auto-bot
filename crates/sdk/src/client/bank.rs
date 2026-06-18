@@ -1,4 +1,4 @@
-use crate::{BANK_EXTENSION_SIZE, ItemContainer, LimitedContainer, SlotLimited};
+use crate::{BANK_EXPANSION_SIZE, ItemContainer, LimitedContainer, SlotLimited};
 use api::ArtifactApi;
 use derive_more::Deref;
 use openapi::models::{BankSchema, SimpleItemSchema};
@@ -36,14 +36,15 @@ impl BankClient {
     }
 
     pub fn set_gold(&self, gold: u32) {
-        let mut new_details = self.details().deref().clone();
+        let mut new_details = (*self.details()).clone();
         new_details.gold = gold;
         self.set_details(new_details);
     }
 
-    pub fn extend(&self) {
-        let mut new_details = self.details().deref().clone();
-        new_details.slots += BANK_EXTENSION_SIZE;
+    pub fn expand(&self) {
+        let mut new_details = (*self.details()).clone();
+        new_details.slots += BANK_EXPANSION_SIZE;
+        new_details.expansions += 1;
         self.set_details(new_details);
     }
 

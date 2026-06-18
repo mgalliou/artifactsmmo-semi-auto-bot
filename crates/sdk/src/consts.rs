@@ -47,7 +47,7 @@ pub const COOKED_HELLHOUND_MEAT: &str = "cooked_hellhound_meat";
 pub const MAPLE_SYRUP: &str = "maple_syrup";
 
 pub const BANK_MIN_FREE_SLOT: u32 = 3;
-pub const BANK_EXTENSION_SIZE: u32 = 20;
+pub const BANK_EXPANSION_SIZE: u32 = 20;
 
 pub const BLUE_CANDY: &str = "blue_candy";
 pub const GREEN_CANDY: &str = "green_candy";

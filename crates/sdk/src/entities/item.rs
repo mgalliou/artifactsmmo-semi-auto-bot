@@ -1,7 +1,8 @@
 use crate::{
-    CanProvideXp, Code, HasConditions, Level, Skill, TASKS_REWARDS_SPECIFICS, check_lvl_diff,
+    CanProvideXp, Code, HasConditions, Level, Skill, TASKS_REWARDS_SPECIFICS,
     items::{SubType, Type},
     simulator::HasEffects,
+    yields_xp,
 };
 use core::fmt;
 use itertools::Itertools;
@@ -191,7 +192,7 @@ impl HasConditions for Item {
 
 impl CanProvideXp for Item {
     fn provides_xp_at(&self, level: u32) -> bool {
-        self.is_craftable() && check_lvl_diff(level, self.level())
+        self.is_craftable() && yields_xp(level, self.level())
     }
 }
 
