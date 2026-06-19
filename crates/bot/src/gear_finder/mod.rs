@@ -174,16 +174,9 @@ impl GearFinder {
         weapon: &Item,
         filter: Filter,
     ) -> Vec<ItemWrapper> {
-        let rings = self.best_combat_armors(char, monster, weapon, Type::Ring, filter, &[]);
-        let unique_rings = rings
-            .iter()
-            .flatten()
-            .filter(|i| filter.available_only && char.has_available(i.code()) == 1)
-            .cloned()
-            .collect_vec();
-        let rings2 =
-            self.best_combat_armors(char, monster, weapon, Type::Ring, filter, &unique_rings);
-        gen_ring_sets(rings, rings2)
+        Self::gen_ring_sets_with(char, filter, |unique| {
+            self.best_combat_armors(char, monster, weapon, Type::Ring, filter, unique)
+        })
     }
 
     fn gen_combat_utility_sets(
@@ -431,16 +424,9 @@ impl GearFinder {
         skill_level: u32,
         filter: Filter,
     ) -> Vec<ItemWrapper> {
-        let rings = self.best_skill_armors(char, skill, skill_level, Type::Ring, filter, &[]);
-        let single_rings = rings
-            .iter()
-            .flatten()
-            .filter(|i| filter.available_only && char.has_available(i.code()) <= 1)
-            .cloned()
-            .collect_vec();
-        let rings2 =
-            self.best_skill_armors(char, skill, skill_level, Type::Ring, filter, &single_rings);
-        gen_ring_sets(rings, rings2)
+        Self::gen_ring_sets_with(char, filter, |unique| {
+            self.best_skill_armors(char, skill, skill_level, Type::Ring, filter, unique)
+        })
     }
 
     fn gen_skill_artifacts_set(
@@ -482,6 +468,22 @@ impl GearFinder {
                     Self::item_from_wrappers(&items, Slot::Bag),
                 )
             })
+    }
+
+    fn gen_ring_sets_with(
+        char: &CharacterController,
+        filter: Filter,
+        fetch_armors: impl Fn(&[Item]) -> Vec<Option<Item>>,
+    ) -> Vec<ItemWrapper> {
+        let rings = fetch_armors(&[]);
+        let single_rings = rings
+            .iter()
+            .flatten()
+            .filter(|i| filter.available_only && char.has_available(i.code()) == 1)
+            .cloned()
+            .collect_vec();
+        let rings2 = fetch_armors(&single_rings);
+        gen_ring_sets(rings, rings2)
     }
 
     fn best_bag(&self, char: &CharacterController, filter: Filter) -> Option<Item> {
