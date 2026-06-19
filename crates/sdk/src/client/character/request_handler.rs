@@ -35,14 +35,6 @@ struct PauseState {
 }
 
 impl PauseState {
-    const fn new() -> Self {
-        Self {
-            paused: Mutex::new(false),
-            canceled: Mutex::new(false),
-            cv: Condvar::new(),
-        }
-    }
-
     fn pause(&self) {
         *self.paused.lock().unwrap() = true;
     }
@@ -98,7 +90,7 @@ impl CharacterRequestHandler {
             data,
             account,
             server,
-            pause_state: PauseState::new().into(),
+            pause_state: PauseState::default().into(),
         }
     }
 
@@ -249,23 +241,20 @@ impl CharacterRequestHandler {
                 if remaining.is_zero() {
                     break;
                 }
-                let result = self
-                    .pause_state
-                    .cv
-                    .wait_timeout(paused, remaining)
-                    .unwrap();
+                let result = self.pause_state.cv.wait_timeout(paused, remaining).unwrap();
                 paused = result.0;
             }
         }
+        drop(paused);
         !self.pause_state.is_canceled()
     }
 
+    /// Returns the remaining cooldown duration.
     pub fn remaining_cooldown(&self) -> Duration {
         let Some(expiration_time) = self.cooldown_expiration() else {
-            return Duration::default();
+            return Duration::ZERO;
         };
-        let current_time = Utc::now() - self.server.time_offset();
-        (expiration_time.to_utc() - current_time)
+        (expiration_time.to_utc() - self.server.synced_time())
             .to_std()
             .unwrap_or_default()
     }

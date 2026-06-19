@@ -37,13 +37,18 @@ impl ServerClient {
         *self.status.write().unwrap() = *status.data;
     }
 
+    fn server_time(&self) -> DateTime<FixedOffset> {
+        self.status.read().unwrap().server_time
+    }
+
     #[must_use]
-    pub fn time_offset(&self) -> TimeDelta {
+    fn time_offset(&self) -> TimeDelta {
         *self.time_offset.read().unwrap()
     }
 
-    fn server_time(&self) -> DateTime<FixedOffset> {
-        self.status.read().unwrap().server_time
+    #[must_use]
+    pub fn synced_time(&self) -> DateTime<Utc> {
+        Utc::now() + self.time_offset()
     }
 
     pub fn update_offset(&self) {
