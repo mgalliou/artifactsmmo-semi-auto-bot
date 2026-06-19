@@ -203,7 +203,7 @@ impl CharacterRequestHandler {
                 }
                 if res.error.code == 500 || res.error.code == 520 {
                     error!(
-                        "{}: unknown error ({}), retrying in 10 secondes.",
+                        "{}: unknown error ({}), retrying in 10 seconds.",
                         self.name(),
                         res.error.code
                     );
@@ -235,29 +235,27 @@ impl CharacterRequestHandler {
         }
         let cooldown = self.remaining_cooldown();
         debug!(
-            "{}: cooling down for {}.{} secondes.",
+            "{}: cooling down for {}.{} seconds.",
             self.name(),
             cooldown.as_secs(),
             cooldown.subsec_millis()
         );
-        while !self.pause_state.is_canceled()
-            && (self.pause_state.is_paused() || !self.remaining_cooldown().is_zero())
-        {
-            let _paused = if self.pause_state.is_paused() {
-                self.pause_state
-                    .cv
-                    .wait(self.pause_state.paused.lock().unwrap())
-                    .unwrap()
+        let mut paused = self.pause_state.paused.lock().unwrap();
+        while !self.pause_state.is_canceled() {
+            if *paused {
+                paused = self.pause_state.cv.wait(paused).unwrap();
             } else {
-                self.pause_state
+                let remaining = self.remaining_cooldown();
+                if remaining.is_zero() {
+                    break;
+                }
+                let result = self
+                    .pause_state
                     .cv
-                    .wait_timeout(
-                        self.pause_state.paused.lock().unwrap(),
-                        self.remaining_cooldown(),
-                    )
-                    .unwrap()
-                    .0
-            };
+                    .wait_timeout(paused, remaining)
+                    .unwrap();
+                paused = result.0;
+            }
         }
         !self.pause_state.is_canceled()
     }
