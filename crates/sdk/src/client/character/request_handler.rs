@@ -219,12 +219,8 @@ impl CharacterRequestHandler {
     }
 
     fn wait_for_ready(&self) -> bool {
-        if let Some(expiration) = self.cooldown_expiration() {
-            let late = Utc::now().fixed_offset() - expiration;
-            if late.num_seconds() > 1 {
-                warn!("{}: is late by {}s", self.name(), late.num_seconds());
-            }
-        }
+        self.warn_if_late();
+
         let cooldown = self.remaining_cooldown();
         debug!(
             "{}: cooling down for {}.{} seconds.",
@@ -232,21 +228,34 @@ impl CharacterRequestHandler {
             cooldown.as_secs(),
             cooldown.subsec_millis()
         );
-        let mut paused = self.pause_state.paused.lock().unwrap();
+
+        let mut guard = self.pause_state.paused.lock().unwrap();
         while !self.pause_state.is_canceled() {
-            if *paused {
-                paused = self.pause_state.cv.wait(paused).unwrap();
+            if *guard {
+                guard = self.pause_state.cv.wait(guard).unwrap();
+            } else if !self.remaining_cooldown().is_zero() {
+                guard = self
+                    .pause_state
+                    .cv
+                    .wait_timeout(guard, self.remaining_cooldown())
+                    .unwrap()
+                    .0;
             } else {
-                let remaining = self.remaining_cooldown();
-                if remaining.is_zero() {
-                    break;
-                }
-                let result = self.pause_state.cv.wait_timeout(paused, remaining).unwrap();
-                paused = result.0;
+                break;
             }
         }
-        drop(paused);
+        drop(guard);
         !self.pause_state.is_canceled()
+    }
+
+    fn warn_if_late(&self) {
+        let Some(expiration) = self.cooldown_expiration() else {
+            return;
+        };
+        let late = Utc::now().fixed_offset() - expiration;
+        if late.num_seconds() > 1 {
+            warn!("{}: is late by {}s", self.name(), late.num_seconds());
+        }
     }
 
     /// Returns the remaining cooldown duration.
