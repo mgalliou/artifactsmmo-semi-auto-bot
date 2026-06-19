@@ -10,7 +10,7 @@ use clap::{Parser, Subcommand, value_parser};
 use rustyline::{DefaultEditor, error::ReadlineError};
 use sdk::{
     CollectionClient, ItemContainer, Level,
-    entities::{Character, EventSchemaExt},
+    entities::Character,
     simulator::{FightParams, Participant, Simulator},
     skill::Skill,
 };
@@ -138,18 +138,14 @@ fn respond(line: &str, bot: &Bot, character: &mut Option<CharacterController>) -
         },
         Commands::Events { action } => match action {
             EventsAction::List => {
-                bot.client
-                    .events
-                    .all()
-                    .iter()
-                    .for_each(|e| println!("{}", e.to_string()));
+                bot.client.events.all().iter().for_each(|e| println!("{e}"));
             }
             EventsAction::Active => {
                 bot.client
                     .events
                     .active()
                     .iter()
-                    .for_each(|e| println!("{e:?}"));
+                    .for_each(|e| println!("{e}"));
             }
         },
         Commands::Char { i } => {

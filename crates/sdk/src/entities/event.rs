@@ -1,7 +1,10 @@
 use chrono::Utc;
 use openapi::models::{ActiveEventSchema, EventContentSchema, EventSchema};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::{
+    fmt::{self, Display, Formatter},
+    sync::Arc,
+};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Event(Arc<EventSchema>);
@@ -19,7 +22,7 @@ impl Event {
 
 pub trait EventSchemaExt {
     fn content_code(&self) -> &str;
-    fn to_string(&self) -> String;
+    fn pretty(&self) -> String;
 }
 
 impl EventSchemaExt for Event {
@@ -27,7 +30,7 @@ impl EventSchemaExt for Event {
         &self.0.content.code
     }
 
-    fn to_string(&self) -> String {
+    fn pretty(&self) -> String {
         format!("{}: '{}'", self.0.name, self.content_code())
     }
 }
@@ -42,7 +45,7 @@ impl EventSchemaExt for ActiveEventSchema {
             .expect("event to have content")
     }
 
-    fn to_string(&self) -> String {
+    fn pretty(&self) -> String {
         let remaining = self.expiration.to_utc() - Utc::now();
         format!(
             "{} ({},{}): '{}', duration: {}, created at {}, expires at {}, remaining: {}s",
@@ -55,5 +58,11 @@ impl EventSchemaExt for ActiveEventSchema {
             self.expiration,
             remaining
         )
+    }
+}
+
+impl Display for Event {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.pretty())
     }
 }
