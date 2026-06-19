@@ -197,7 +197,10 @@ impl CharacterClient {
         let Some(participants) = participants else {
             return Ok(());
         };
-        if !participants.is_empty() && monster.is_boss() {
+        if participants.is_empty() {
+            return Ok(());
+        }
+        if !monster.is_boss() {
             return Err(FightError::MonsterIsNotABoss);
         }
         for name in participants {
@@ -734,7 +737,7 @@ impl CharacterClient {
         if !self.inventory().has_room_for(&order.code, quantity) {
             return Err(GeBuyOrderError::InsufficientInventorySpace);
         }
-        if !self.current_map().is_bank() {
+        if !self.current_map().is_grand_exchange() {
             return Err(GeBuyOrderError::NoGrandExchangeOnMap);
         }
         Ok(())
@@ -767,10 +770,10 @@ impl CharacterClient {
         if self.inventory().total_of(item.code()) < quantity {
             return Err(GeCreateOrderError::InsufficientQuantity);
         }
-        if !self.gold() < ((price * quantity) as f32 * 0.03) as u32 {
+        if self.gold() < ((price * quantity) as f32 * 0.03) as u32 {
             return Err(GeCreateOrderError::InsufficientGold);
         }
-        if !self.current_map().is_bank() {
+        if !self.current_map().is_grand_exchange() {
             return Err(GeCreateOrderError::NoGrandExchangeOnMap);
         }
         Ok(())
@@ -791,7 +794,7 @@ impl CharacterClient {
         if !self.inventory().has_room_for(&order.code, order.quantity) {
             return Err(GeCancelOrderError::InsufficientInventorySpace);
         }
-        if !self.current_map().is_bank() {
+        if !self.current_map().is_grand_exchange() {
             return Err(GeCancelOrderError::NoGrandExchangeOnMap);
         }
         Ok(())
@@ -813,7 +816,7 @@ impl CharacterClient {
             artifact2: self.items.get(&self.equiped_in(Slot::Artifact2)),
             artifact3: self.items.get(&self.equiped_in(Slot::Artifact3)),
             utility1: self.items.get(&self.equiped_in(Slot::Utility1)),
-            utility2: self.items.get(&self.equiped_in(Slot::Utility1)),
+            utility2: self.items.get(&self.equiped_in(Slot::Utility2)),
             rune: self.items.get(&self.equiped_in(Slot::Rune)),
             bag: self.items.get(&self.equiped_in(Slot::Bag)),
         }

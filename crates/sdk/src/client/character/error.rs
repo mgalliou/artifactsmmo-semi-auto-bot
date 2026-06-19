@@ -25,6 +25,7 @@ const INSUFFICIENT_HEALTH: isize = 483;
 const SUPERFLOUS_UTILITY_QUANTITY: isize = 484;
 const ITEM_ALREADY_EQUIPED: isize = 485;
 const ACTION_ALREADY_IN_PROGRESS: isize = 486;
+const MONSTER_IS_NOT_A_BOSS: isize = 486;
 const NO_TASK: isize = 487;
 const TASK_NOT_COMPLETED: isize = 488;
 const TASK_ALREADY_IN_PROGRESS: isize = 489;
@@ -93,7 +94,7 @@ pub enum FightError {
     #[error("insufficient inventory space")]
     InsufficientInventorySpace = INVENTORY_FULL,
     #[error("monster is not a boss")]
-    MonsterIsNotABoss = ACTION_ALREADY_IN_PROGRESS,
+    MonsterIsNotABoss = MONSTER_IS_NOT_A_BOSS,
     #[error("no monster on map")]
     NoMonsterOnMap = ENTITY_NOT_FOUND_ON_MAP,
     #[error("character not found")]

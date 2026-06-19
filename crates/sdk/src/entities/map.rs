@@ -36,6 +36,10 @@ pub trait Map {
         self.content_type_is(MapContentType::Bank)
     }
 
+    fn is_grand_exchange(&self) -> bool {
+        self.content_type_is(MapContentType::GrandExchange)
+    }
+
     fn is_tasksmaster(&self, task_type: impl Into<Option<TaskType>>) -> bool {
         self.content_type_is(MapContentType::TasksMaster)
             && task_type
