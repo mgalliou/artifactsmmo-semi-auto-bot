@@ -105,7 +105,7 @@ pub(super) trait SimulationEntity: HasEffects + DynClone {
     }
 
     fn is_dead(&self) -> bool {
-        self.current_health() < 1
+        !self.is_alive()
     }
 
     fn current_health(&self) -> i32;
