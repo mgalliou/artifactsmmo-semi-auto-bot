@@ -22,13 +22,12 @@ impl From<&Item> for ItemWrapper {
     }
 }
 
-impl From<RingSet> for ItemWrapper {
-    fn from(value: RingSet) -> Self {
-        Self::Rings(value)
-    }
-}
-
-pub fn item_cmp(a: Option<&Item>, b: Option<&Item>) -> Ordering {
+pub fn item_cmp<'a, I>(a: I, b: I) -> Ordering
+where
+    I: Into<Option<&'a Item>>,
+{
+    let a = a.into();
+    let b = b.into();
     if a == b {
         return Ordering::Equal;
     }

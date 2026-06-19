@@ -246,7 +246,7 @@ impl GearFinder {
         bests
             .into_iter()
             .map(Some)
-            .sorted_by(|a, b| item_cmp(a.as_ref(), b.as_ref()))
+            .sorted_by(|a, b| item_cmp(a, b))
             .dedup()
             .collect_vec()
     }
@@ -283,7 +283,7 @@ impl GearFinder {
         bests
             .into_iter()
             .map(Some)
-            .sorted_by(|a, b| item_cmp(a.as_ref(), b.as_ref()))
+            .sorted_by(|a, b| item_cmp(a, b))
             .dedup()
             .collect_vec()
     }
@@ -412,7 +412,7 @@ impl GearFinder {
         bests
             .into_iter()
             .map(Some)
-            .sorted_by(|a, b| item_cmp(a.as_ref(), b.as_ref()))
+            .sorted_by(|a, b| item_cmp(a, b))
             .dedup()
             .collect_vec()
     }
@@ -646,7 +646,7 @@ fn gen_ring_sets(mut rings1: Vec<Option<Item>>, mut rings2: Vec<Option<Item>>) -
         .filter_map(RingSet::new)
         .sorted()
         .dedup()
-        .map(ItemWrapper::from)
+        .map(ItemWrapper::Rings)
         .collect_vec()
 }
 
