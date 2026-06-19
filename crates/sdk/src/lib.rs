@@ -210,7 +210,7 @@ impl HasConditions for AccessSchema {
     }
 }
 
-impl HasConditions for &TransitionSchema {
+impl HasConditions for TransitionSchema {
     fn conditions(&self) -> Option<&Vec<ConditionSchema>> {
         self.conditions.as_ref()
     }

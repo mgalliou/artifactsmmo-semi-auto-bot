@@ -10,7 +10,8 @@ use sdk::{
     gear::{Gear, Slot},
     items::{ItemSource, Type},
     simulator::{FightParams, HasEffects, Participant, Simulator, time_to_rest},
-    skill::Skill, yields_xp,
+    skill::Skill,
+    yields_xp,
 };
 
 pub use artifact_set::ArtifactSet;

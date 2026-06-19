@@ -104,8 +104,8 @@ impl LimitedContainer for InventoryController {
         self.client.inventory().is_full()
     }
 
-    fn has_room_for_multiple(&self, items: &[SimpleItemSchema]) -> bool {
-        self.client.inventory().has_room_for_multiple(items)
+    fn has_room_for_all(&self, items: &[SimpleItemSchema]) -> bool {
+        self.client.inventory().has_room_for_all(items)
     }
 
     fn has_room_for_drops_from<H: DropsItems>(&self, entity: &H) -> bool {

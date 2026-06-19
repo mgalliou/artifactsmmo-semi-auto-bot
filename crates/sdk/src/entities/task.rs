@@ -29,7 +29,7 @@ impl Task {
 
     #[must_use]
     pub fn rewards(&self) -> &RewardsSchema {
-        self.0.rewards.as_ref()
+        &self.0.rewards
     }
 }
 

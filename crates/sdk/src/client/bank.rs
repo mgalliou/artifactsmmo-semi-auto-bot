@@ -101,7 +101,7 @@ impl LimitedContainer for BankClient {
         self.free_slots() == 0
     }
 
-    fn has_room_for_multiple(&self, items: &[SimpleItemSchema]) -> bool {
+    fn has_room_for_all(&self, items: &[SimpleItemSchema]) -> bool {
         let mut free_slot = self.free_slots();
         for item in items {
             if free_slot < 1 {

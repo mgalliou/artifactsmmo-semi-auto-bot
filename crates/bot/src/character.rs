@@ -645,7 +645,7 @@ impl CharacterController {
         self.can_exchange_tasks_coins()?;
         let mut quantity = min(
             self.inventory.max_items() / 2,
-            self.bank.has_available(&(TASKS_COIN, self.name()).into()),
+            self.bank.has_available((TASKS_COIN, self.name())),
         );
         quantity = quantity.saturating_sub(quantity % TASK_EXCHANGE_PRICE);
         if self.inventory.total_of(TASKS_COIN) < TASK_EXCHANGE_PRICE {
@@ -658,7 +658,7 @@ impl CharacterController {
     }
 
     fn cancel_task(&self) -> Result<(), TaskCancellationCommandError> {
-        if self.bank.has_available(&(TASKS_COIN, &self.name()).into())
+        if self.bank.has_available((TASKS_COIN, self.name()))
             < TASK_CANCEL_PRICE + MIN_COIN_THRESHOLD
         {
             return Err(TaskCancellationCommandError::MissingCoins);
@@ -860,7 +860,7 @@ impl CharacterController {
         let missing_mats = self.inventory.missing_among(&mats);
         self.bank.reserve_all(&missing_mats, &self.name())?;
         self.equip_gear_for(GearPurpose::Crafting(&item))?;
-        if !self.inventory.has_room_for_multiple(&missing_mats) {
+        if !self.inventory.has_room_for_all(&missing_mats) {
             self.deposit_all_but_multiple(&mats)?;
         }
         self.withdraw_items(&missing_mats)?;
@@ -1075,7 +1075,7 @@ impl CharacterController {
         {
             return Err(DepositItemCommandError::InsufficientQuantity);
         }
-        if !self.bank.has_room_for_multiple(items) {
+        if !self.bank.has_room_for_all(items) {
             return Err(DepositItemCommandError::InsufficientBankSpace);
         }
         info!(
@@ -1120,7 +1120,7 @@ impl CharacterController {
         // TODO: defined food quantity depending on the monster drop rate and damages
         let quantity = min(
             ((self.inventory.max_items() as f32) * 0.90) as u32,
-            self.bank.has_available(&(food.code(), self.name()).into()),
+            self.bank.has_available((food.code(), self.name())),
         );
         self.lock_in_inventory(food.code(), quantity)
     }
@@ -1143,10 +1143,10 @@ impl CharacterController {
         if items.is_empty() {
             return Ok(());
         }
-        if !self.bank.has_multiple_available(items, &self.name()) {
+        if !self.bank.has_all_available(items, &self.name()) {
             return Err(WithdrawItemCommandError::InsufficientQuantity);
         }
-        if !self.inventory.has_room_for_multiple(items) {
+        if !self.inventory.has_room_for_all(items) {
             return Err(WithdrawItemCommandError::InsufficientInventorySpace);
         }
         info!(
@@ -1269,24 +1269,25 @@ impl CharacterController {
 
     //TODO: move, comment, or ?
     pub fn unequip_and_deposit_all(&self) {
-        Slot::iter().for_each(|s| {
-            if let Some(item) = self.items.get(&self.equiped_in(s)) {
-                let quantity = self.quantity_in_slot(s);
-                if let Err(e) = self.unequip_slot(s, quantity) {
-                    error!(
-                        "{}: failed to unequip '{}'x{quantity} during unequip_and_deposit_all: {e}",
-                        self.name(),
-                        item.code(),
-                    );
-                } else if let Err(e) = self.deposit_item(item.code(), quantity) {
-                    error!(
-                        "{}: failed depositing '{}'x{quantity} during `unequip_and_deposit_all`: {e}",
-                        self.name(),
-                        item.code(),
-                    );
-                }
+        for slot in Slot::iter() {
+            let Some(item) = self.items.get(&self.equiped_in(slot)) else {
+                continue;
+            };
+            let quantity = self.quantity_in_slot(slot);
+            if let Err(e) = self.unequip_slot(slot, quantity) {
+                error!(
+                    "{}: failed to unequip '{}'x{quantity} during unequip_and_deposit_all: {e}",
+                    self.name(),
+                    item.code(),
+                );
+            } else if let Err(e) = self.deposit_item(item.code(), quantity) {
+                error!(
+                    "{}: failed depositing '{}'x{quantity} during `unequip_and_deposit_all`: {e}",
+                    self.name(),
+                    item.code(),
+                );
             }
-        });
+        }
     }
 
     fn unequip_slot(&self, slot: Slot, quantity: u32) -> Result<(), UnequipCommandError> {
@@ -1337,7 +1338,7 @@ impl CharacterController {
         if current_map.content_type_is(r#type) {
             return Ok(current_map);
         }
-        let Some(map) = self.maps.closest_of_type_from(&self.current_map(), r#type) else {
+        let Some(map) = self.maps.closest_of_type_from(&current_map, r#type) else {
             return Err(MoveCommandError::MapNotFound);
         };
         self.r#move(&Either::Left((map.x(), map.y())))
@@ -1351,10 +1352,7 @@ impl CharacterController {
         if current_map.content_code_is(code) {
             return Ok(current_map);
         }
-        let Some(map) = self
-            .maps
-            .closest_with_content_code_from(&self.current_map(), code)
-        else {
+        let Some(map) = self.maps.closest_with_content_code_from(&current_map, code) else {
             return Err(MoveCommandError::MapNotFound);
         };
         self.r#move(&Either::Left((map.x(), map.y())))
@@ -1425,7 +1423,9 @@ impl CharacterController {
         }
         self.move_to_closest_map_with_content_code(npc_item.npc_code())?;
         self.client.npc_buy(item_code, quantity)?;
-        self.inventory.release(npc_item.currency(), total_price);
+        if npc_item.currency() != GOLD {
+            self.inventory.release(npc_item.currency(), total_price);
+        }
         Ok(())
     }
 
@@ -1549,19 +1549,14 @@ impl CharacterController {
     }
 
     fn process_item(&self, item: &SimpleItemSchema) -> bool {
-        if item.code == GOLDEN_SHRIMP || item.code == GOLDEN_EGG {
-            self.sell_item(
-                &item.code,
-                min(
-                    self.bank
-                        .has_available(&(item.code.as_str(), &*self.name()).into()),
-                    self.inventory.max_items(),
-                ),
-            )
-            .is_ok()
-        } else {
-            self.recycle_or_sell_if_necessary(item)
+        if !(item.code == GOLDEN_SHRIMP || item.code == GOLDEN_EGG) {
+            return self.recycle_or_sell_if_necessary(item);
         }
+        let quantity = min(
+            self.bank.has_available((&item.code, self.name())),
+            self.inventory.max_items(),
+        );
+        self.sell_item(&item.code, quantity).is_ok()
     }
 
     fn recycle_or_sell_if_necessary(&self, item: &SimpleItemSchema) -> bool {
@@ -1757,7 +1752,7 @@ impl CharacterController {
     /// Returns the amount of the given item `code` available in bank and inventory.
     //TODO: maybe use `inventory.has_available`
     fn has_in_bank_or_inv(&self, item: &str) -> u32 {
-        self.inventory.total_of(item) + self.bank.has_available(&(item, &*self.name()).into())
+        self.inventory.total_of(item) + self.bank.has_available((item, self.name()))
     }
 
     fn missing_mats_for(&self, item_code: &str, quantity: u32) -> Vec<SimpleItemSchema> {

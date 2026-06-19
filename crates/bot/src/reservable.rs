@@ -62,14 +62,14 @@ pub trait Reservable: ItemContainer {
     }
 
     fn release(&self, key: impl Into<Self::Key>, quantity: u32) {
-        let discriminant = key.into();
+        let key = key.into();
         let mut reservations = self.reservations_mut();
-        let Some(quantity_reserved) = reservations.get_mut(&discriminant) else {
+        let Some(quantity_reserved) = reservations.get_mut(&key) else {
             return;
         };
         *quantity_reserved = quantity_reserved.saturating_sub(quantity);
         if *quantity_reserved == 0 {
-            reservations.remove(&discriminant);
+            reservations.remove(&key);
         }
     }
 

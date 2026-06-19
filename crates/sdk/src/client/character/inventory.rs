@@ -23,7 +23,7 @@ pub trait Inventory: SlotLimited + SpaceLimited {
     /// Checks there is enough room to craft `item`.
     /// Returns `false` if `item` is not craftable or mats required are missing.
     fn has_room_to_craft(&self, item: &Item) -> bool {
-        if !item.is_craftable() || !self.contains_multiple(&item.mats()) {
+        if !item.is_craftable() || !self.contains_all(&item.mats()) {
             return false;
         }
         let free_slot = self.free_slots();
@@ -76,7 +76,7 @@ impl LimitedContainer for InventoryClient {
         self.total_items() >= self.max_items() || self.free_slots() == 0
     }
 
-    fn has_room_for_multiple(&self, items: &[SimpleItemSchema]) -> bool {
+    fn has_room_for_all(&self, items: &[SimpleItemSchema]) -> bool {
         let mut free_slot = self.free_slots();
         let mut free_space = self.free_space();
         for item in items {

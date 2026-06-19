@@ -18,18 +18,18 @@ pub trait ItemContainer {
             .map_or(0, Quantity::quantity)
     }
 
-    fn contains_multiple(&self, items: &[SimpleItemSchema]) -> bool {
+    fn contains_all(&self, items: &[SimpleItemSchema]) -> bool {
         items.iter().all(|i| self.total_of(&i.code) >= i.quantity)
     }
 }
 
 pub trait LimitedContainer {
     fn is_full(&self) -> bool;
-    fn has_room_for_multiple(&self, items: &[SimpleItemSchema]) -> bool;
+    fn has_room_for_all(&self, items: &[SimpleItemSchema]) -> bool;
     fn has_room_for_drops_from<H: DropsItems>(&self, entity: &H) -> bool;
 
     fn has_room_for(&self, item_code: &str, quantity: u32) -> bool {
-        self.has_room_for_multiple(&[SimpleItemSchema {
+        self.has_room_for_all(&[SimpleItemSchema {
             code: item_code.to_owned(),
             quantity,
         }])

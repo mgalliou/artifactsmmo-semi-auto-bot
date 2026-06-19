@@ -80,7 +80,7 @@ impl BankController {
             .filter_map(|item| {
                 let missing = item
                     .quantity
-                    .saturating_sub(self.has_available(&(&item.code, owner).into()));
+                    .saturating_sub(self.has_available((&item.code, owner)));
                 (missing > 0).then(|| SimpleItemSchema {
                     code: item.code.clone(),
                     quantity: missing,
@@ -102,20 +102,16 @@ impl BankController {
             .collect_vec()
     }
 
-    pub fn has_multiple_available(
-        &self,
-        items: &[SimpleItemSchema],
-        owner: &CharacterName,
-    ) -> bool {
+    pub fn has_all_available(&self, items: &[SimpleItemSchema], owner: &CharacterName) -> bool {
         items
             .iter()
-            .all(|i| self.has_available(&(i.code(), owner).into()) >= i.quantity)
+            .all(|i| self.has_available((i.code(), owner)) >= i.quantity)
     }
 
     /// Returns the `quantity` of the given item `code` available to the given `owner`.
     /// If no owner is given returns the quantity not reserved.
-    pub fn has_available(&self, discriminant: &BankKey) -> u32 {
-        self.quantity_allowed(discriminant)
+    pub fn has_available(&self, key: impl Into<BankKey>) -> u32 {
+        self.quantity_allowed(&key.into())
     }
 
     pub fn reserve_all(
@@ -136,9 +132,9 @@ impl BankController {
     }
 
     /// Returns the quantity the given `owner` can withdraw from the bank.
-    fn quantity_allowed(&self, discriminant: &BankKey) -> u32 {
-        self.total_of(&discriminant.item)
-            .saturating_sub(self.quantity_not_allowed(discriminant))
+    fn quantity_allowed(&self, key: &BankKey) -> u32 {
+        self.total_of(&key.item)
+            .saturating_sub(self.quantity_not_allowed(key))
     }
 
     /// Returns the quantity of the given item `code` that is reserved to a different character
@@ -171,8 +167,8 @@ impl LimitedContainer for BankController {
         self.client.is_full()
     }
 
-    fn has_room_for_multiple(&self, items: &[SimpleItemSchema]) -> bool {
-        self.client.has_room_for_multiple(items)
+    fn has_room_for_all(&self, items: &[SimpleItemSchema]) -> bool {
+        self.client.has_room_for_all(items)
     }
 
     fn has_room_for_drops_from<H: DropsItems>(&self, entity: &H) -> bool {
@@ -245,7 +241,7 @@ mod tests {
         }]);
         let _ = bank.inc_reservation(("copper_ore", "char1"), 50);
         let _ = bank.inc_reservation(("copper_ore", "char1"), 50);
-        assert_eq!(100, bank.has_available(&("copper_ore", "char1").into()));
+        assert_eq!(100, bank.has_available(("copper_ore", "char1")));
     }
 
     #[test]
@@ -257,7 +253,7 @@ mod tests {
         }]);
         let _ = bank.reserve(("gold_ore", "char1"), 50);
         let _ = bank.reserve(("gold_ore", "char1"), 50);
-        assert_eq!(100, bank.has_available(&("gold_ore", "char1").into()));
+        assert_eq!(100, bank.has_available(("gold_ore", "char1")));
         assert_eq!(50, bank.reserved("gold_ore"));
     }
 }

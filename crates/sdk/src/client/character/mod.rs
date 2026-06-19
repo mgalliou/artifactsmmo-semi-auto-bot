@@ -145,16 +145,17 @@ impl CharacterClient {
 
     pub fn can_move(&self, x: i32, y: i32) -> Result<(), MoveError> {
         let position = self.position();
-        let layer = position.0;
-        if position == (layer, x, y) {
+        let destination = (position.0, x, y);
+        if position == destination {
             return Err(MoveError::AlreadyOnMap);
         }
-        let Some(map) = self.maps.get(&(layer, x, y)) else {
+        let Some(map) = self.maps.get(&destination) else {
             return Err(MoveError::MapNotFound);
         };
         if map.is_blocked() || !self.meets_conditions_for(map.access()) {
             return Err(MoveError::ConditionsNotMet);
         }
+        // TODO: check map is accesible
         Ok(())
     }
 
@@ -165,10 +166,10 @@ impl CharacterClient {
 
     pub fn can_transition(&self) -> Result<(), TransitionError> {
         let map = self.current_map();
-        let Some(ref transition) = map.interactions().transition else {
+        let Some(transition) = map.transition() else {
             return Err(TransitionError::TransitionNotFound);
         };
-        if !self.meets_conditions_for(&transition.as_ref()) {
+        if !self.meets_conditions_for(transition) {
             return Err(TransitionError::ConditionsNotMet);
         }
         Ok(())
@@ -257,7 +258,7 @@ impl CharacterClient {
         if self.skill_level(skill) < item.level() {
             return Err(CraftError::InsufficientSkillLevel);
         }
-        if !self.inventory().contains_multiple(&item.mats_for(quantity)) {
+        if !self.inventory().contains_all(&item.mats_for(quantity)) {
             return Err(CraftError::InsufficientMaterials);
         }
         if !self.inventory().has_room_to_craft(&item) {
@@ -332,7 +333,7 @@ impl CharacterClient {
                 return Err(DepositError::InsufficientQuantity);
             }
         }
-        if !self.bank.has_room_for_multiple(items) {
+        if !self.bank.has_room_for_all(items) {
             return Err(DepositError::InsufficientBankSpace);
         }
         if !self.current_map().is_bank() {
@@ -353,7 +354,7 @@ impl CharacterClient {
         {
             return Err(WithdrawError::InsufficientQuantity);
         }
-        if !self.inventory().has_room_for_multiple(items) {
+        if !self.inventory().has_room_for_all(items) {
             return Err(WithdrawError::InsufficientInventorySpace);
         }
         if !self.current_map().is_bank() {
@@ -546,11 +547,7 @@ impl CharacterClient {
         if self.task_missing() < quantity {
             return Err(TaskTradeError::SuperfluousQuantity);
         }
-        if !self
-            .current_map()
-            .content_type_is(MapContentType::TasksMaster)
-            || !self.current_map().content_code_is("items")
-        {
+        if !self.current_map().is_tasksmaster(TaskType::Items) {
             return Err(TaskTradeError::WrongOrNoTasksMasterOnMap);
         }
         Ok(())
@@ -568,19 +565,10 @@ impl CharacterClient {
         if !self.task_finished() {
             return Err(TaskCompletionError::TaskNotFullfilled);
         }
-        if !self
-            .inventory()
-            .has_room_for_multiple(&task.rewards().items)
-        {
+        if !self.inventory().has_room_for_all(&task.rewards().items) {
             return Err(TaskCompletionError::InsufficientInventorySpace);
         }
-        if !self
-            .current_map()
-            .content_type_is(MapContentType::TasksMaster)
-            || !self
-                .current_map()
-                .content_code_is(&task.r#type().to_string())
-        {
+        if !self.current_map().is_tasksmaster(task.r#type()) {
             return Err(TaskCompletionError::WrongOrNoTasksMasterOnMap);
         }
         Ok(())
@@ -606,10 +594,7 @@ impl CharacterClient {
         {
             return Err(TasksCoinExchangeError::InsufficientInventorySpace);
         }
-        if !self
-            .current_map()
-            .content_type_is(MapContentType::TasksMaster)
-        {
+        if !self.current_map().is_tasksmaster(None) {
             return Err(TasksCoinExchangeError::NoTasksMasterOnMap);
         }
         Ok(())
@@ -634,9 +619,10 @@ impl CharacterClient {
         let Some(buy_price) = item.buy_price() else {
             return Err(BuyNpcError::ItemNotBuyable);
         };
-        if item.currency() == GOLD && self.gold() < buy_price * quantity {
+        let total_price = buy_price * quantity;
+        if item.currency() == GOLD && self.gold() < total_price {
             return Err(BuyNpcError::InsufficientGold);
-        } else if self.inventory().total_of(item.currency()) < buy_price * quantity {
+        } else if self.inventory().total_of(item.currency()) < total_price {
             return Err(BuyNpcError::InsufficientQuantity);
         }
         Ok(())
@@ -655,10 +641,12 @@ impl CharacterClient {
         if self.items.get(item_code).is_none() {
             return Err(SellNpcError::ItemNotFound);
         }
-        let Some(npc_item) = self.npcs.items().get(item_code) else {
-            return Err(SellNpcError::ItemNotSalable);
-        };
-        if !npc_item.is_salable() {
+        if self
+            .npcs
+            .items()
+            .get(item_code)
+            .is_none_or(|item| !item.is_salable())
+        {
             return Err(SellNpcError::ItemNotSalable);
         }
         if self.inventory().total_of(item_code) < quantity {
@@ -670,7 +658,7 @@ impl CharacterClient {
     pub fn give_item(
         &self,
         items: &[SimpleItemSchema],
-        character: &str,
+        character: &CharacterName,
     ) -> Result<(), GiveItemError> {
         self.can_give_item(items, character)?;
         Ok(self.handler().request_give_item(items, character)?)
@@ -679,23 +667,23 @@ impl CharacterClient {
     pub fn can_give_item(
         &self,
         items: &[SimpleItemSchema],
-        character: &str,
+        receiver: &CharacterName,
     ) -> Result<(), GiveItemError> {
         for item in items {
-            if self.items.get(&item.code).is_none() {
+            if self.items.get(item.code()).is_none() {
                 return Err(GiveItemError::ItemNotFound);
             }
-            if self.inventory().total_of(&item.code) < item.quantity {
+            if self.inventory().total_of(item.code()) < item.quantity {
                 return Err(GiveItemError::InsufficientQuantity);
             }
         }
-        let Some(character) = self.account().get_character(character) else {
+        let Some(receiver) = self.account().get_character(receiver) else {
             return Err(GiveItemError::CharacterNotFound);
         };
-        if character.position() != self.position() {
+        if self.position() != receiver.position() {
             return Err(GiveItemError::CharacterNotFound);
         }
-        if !character.inventory().has_room_for_multiple(items) {
+        if !receiver.inventory().has_room_for_all(items) {
             return Err(GiveItemError::InsufficientInventorySpace);
         }
         Ok(())
@@ -773,7 +761,7 @@ impl CharacterClient {
         let Some(item) = self.items.get(item_code) else {
             return Err(GeCreateOrderError::ItemNotFound);
         };
-        if !item.is_tradable() {
+        if !item.is_tradeable() {
             return Err(GeCreateOrderError::ItemNotSalable);
         }
         if self.inventory().total_of(item.code()) < quantity {

@@ -36,9 +36,11 @@ pub trait Map {
         self.content_type_is(MapContentType::Bank)
     }
 
-    fn is_tasksmaster(&self, task_type: Option<TaskType>) -> bool {
+    fn is_tasksmaster(&self, task_type: impl Into<Option<TaskType>>) -> bool {
         self.content_type_is(MapContentType::TasksMaster)
-            && task_type.is_none_or(|tt| self.content_code_is(&tt.to_string()))
+            && task_type
+                .into()
+                .is_none_or(|tt| self.content_code_is(&tt.to_string()))
     }
 
     fn content_type_is(&self, r#type: MapContentType) -> bool {

@@ -83,24 +83,24 @@ impl Gear {
     }
 
     #[must_use]
-    pub fn item_in(&self, slot: Slot) -> Option<Item> {
+    pub const fn item_in(&self, slot: Slot) -> Option<&Item> {
         match slot {
-            Slot::Weapon => self.weapon.clone(),
-            Slot::Shield => self.shield.clone(),
-            Slot::Helmet => self.helmet.clone(),
-            Slot::BodyArmor => self.body_armor.clone(),
-            Slot::LegArmor => self.leg_armor.clone(),
-            Slot::Boots => self.boots.clone(),
-            Slot::Ring1 => self.ring1.clone(),
-            Slot::Ring2 => self.ring2.clone(),
-            Slot::Amulet => self.amulet.clone(),
-            Slot::Artifact1 => self.artifact1.clone(),
-            Slot::Artifact2 => self.artifact2.clone(),
-            Slot::Artifact3 => self.artifact3.clone(),
-            Slot::Utility1 => self.utility1.clone(),
-            Slot::Utility2 => self.utility2.clone(),
-            Slot::Rune => self.rune.clone(),
-            Slot::Bag => self.bag.clone(),
+            Slot::Weapon => self.weapon.as_ref(),
+            Slot::Shield => self.shield.as_ref(),
+            Slot::Helmet => self.helmet.as_ref(),
+            Slot::BodyArmor => self.body_armor.as_ref(),
+            Slot::LegArmor => self.leg_armor.as_ref(),
+            Slot::Boots => self.boots.as_ref(),
+            Slot::Ring1 => self.ring1.as_ref(),
+            Slot::Ring2 => self.ring2.as_ref(),
+            Slot::Amulet => self.amulet.as_ref(),
+            Slot::Artifact1 => self.artifact1.as_ref(),
+            Slot::Artifact2 => self.artifact2.as_ref(),
+            Slot::Artifact3 => self.artifact3.as_ref(),
+            Slot::Utility1 => self.utility1.as_ref(),
+            Slot::Utility2 => self.utility2.as_ref(),
+            Slot::Rune => self.rune.as_ref(),
+            Slot::Bag => self.bag.as_ref(),
         }
     }
 
@@ -126,15 +126,15 @@ impl Gear {
 impl HasEffects for Gear {
     fn effect_value(&self, effect: &str) -> i32 {
         Slot::iter()
-            .map(|s| self.item_in(s).map_or(0, |i| i.effect_value(effect)))
+            .map(|slot| self.item_in(slot).map_or(0, |i| i.effect_value(effect)))
             .sum()
     }
 
     fn effects(&self) -> Vec<SimpleEffectSchema> {
         EffectCode::iter()
-            .filter(|&code| self.effect_value(code.as_ref()) != 0)
+            .filter(|code| self.effect_value(code.as_ref()) != 0)
             .map(|code| SimpleEffectSchema {
-                code: code.as_ref().to_owned(),
+                code: code.to_string(),
                 value: self.effect_value(code.as_ref()),
                 description: String::new(),
             })
@@ -144,12 +144,11 @@ impl HasEffects for Gear {
 
 impl Display for Gear {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        for s in Slot::iter() {
+        for slot in Slot::iter() {
             writeln!(
                 f,
-                "{}: {}",
-                s,
-                self.item_in(s).as_ref().map_or("empty", |i| i.code())
+                "{slot}: {}",
+                self.item_in(slot).map_or("empty", |i| i.code())
             )?;
         }
         Ok(())
@@ -157,10 +156,10 @@ impl Display for Gear {
 }
 
 impl From<Gear> for Vec<SimpleItemSchema> {
-    fn from(value: Gear) -> Self {
+    fn from(gear: Gear) -> Self {
         let mut items = Slot::iter()
             .filter_map(|slot| {
-                value.item_in(slot).and_then(|i| {
+                gear.item_in(slot).and_then(|i| {
                     (!slot.is_ring()).then(|| SimpleItemSchema {
                         code: i.code().to_owned(),
                         quantity: slot.max_quantity(),
@@ -168,15 +167,15 @@ impl From<Gear> for Vec<SimpleItemSchema> {
                 })
             })
             .collect_vec();
-        let quantity = if value.ring1 == value.ring2 { 2 } else { 1 };
-        if let Some(ring1) = value.ring1 {
+        let quantity = if gear.ring1 == gear.ring2 { 2 } else { 1 };
+        if let Some(ring1) = gear.ring1 {
             items.push(SimpleItemSchema {
                 code: ring1.code().to_owned(),
                 quantity,
             });
         }
         if quantity == 1
-            && let Some(ring2) = value.ring2
+            && let Some(ring2) = gear.ring2
         {
             items.push(SimpleItemSchema {
                 code: ring2.code().to_owned(),

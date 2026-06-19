@@ -1,10 +1,10 @@
 use crate::{
-    CanProvideXp, Code, HasConditions, Level, Skill, TASKS_REWARDS_SPECIFICS,
+    CanProvideXp, Code, HasConditions, Level, Quantity, Skill, TASKS_REWARDS_SPECIFICS,
     items::{SubType, Type},
     simulator::HasEffects,
     yields_xp,
 };
-use core::fmt;
+use core::fmt::{self, Display, Formatter};
 use itertools::Itertools;
 use openapi::models::{
     ConditionSchema, CraftSchema, ItemSchema, SimpleEffectSchema, SimpleItemSchema,
@@ -22,12 +22,12 @@ impl Item {
 
     #[must_use]
     pub fn is_crafted_with(&self, item_code: &str) -> bool {
-        self.mats().iter().any(|m| m.code == item_code)
+        self.mats().iter().any(|m| m.code() == item_code)
     }
 
     #[must_use]
     pub fn mats_quantity(&self) -> u32 {
-        self.mats().iter().map(|m| m.quantity).sum()
+        self.mats().iter().map(Quantity::quantity).sum()
     }
 
     #[must_use]
@@ -86,7 +86,7 @@ impl Item {
     }
 
     #[must_use]
-    pub fn is_tradable(&self) -> bool {
+    pub fn is_tradeable(&self) -> bool {
         self.0.tradeable
     }
 
@@ -196,8 +196,8 @@ impl CanProvideXp for Item {
     }
 }
 
-impl fmt::Display for Item {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Display for Item {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.name())
     }
 }

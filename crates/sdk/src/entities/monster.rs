@@ -76,6 +76,7 @@ impl HasEffects for Monster {
     }
 
     fn effects(&self) -> Vec<SimpleEffectSchema> {
+        // TODO: remove this clone
         self.0.effects.iter().flatten().cloned().collect_vec()
     }
 }
