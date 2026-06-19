@@ -50,7 +50,7 @@ impl Ord for RingSet {
         } else {
             match item_cmp(self.ring1(), other.ring1()) {
                 Ordering::Less => Ordering::Less,
-                Ordering::Equal => item_cmp(other.ring2(), other.ring2()),
+                Ordering::Equal => item_cmp(self.ring2(), other.ring2()),
                 Ordering::Greater => Ordering::Greater,
             }
         }
