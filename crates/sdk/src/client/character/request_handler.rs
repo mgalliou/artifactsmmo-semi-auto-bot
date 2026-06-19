@@ -172,7 +172,7 @@ impl CharacterRequestHandler {
         if let Some(gold) = res.bank_gold() {
             self.account.bank().set_gold(gold);
         } else if let Some(extension_price) = res.extension_price() {
-            self.account.bank().expend();
+            self.account.bank().expand();
             self.account
                 .bank()
                 .set_gold(self.account.bank().gold() - extension_price);
@@ -595,7 +595,7 @@ impl Character for CharacterRequestHandler {
         self.data().inventory_items()
     }
 
-    fn inventory_max_items(&self) -> i32 {
+    fn inventory_max_items(&self) -> u32 {
         self.data().inventory_max_items()
     }
 

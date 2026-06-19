@@ -88,20 +88,23 @@ impl CharacterClient {
         server: ServerClient,
         api: ArtifactApi,
     ) -> Self {
-        Self(Arc::new(CharacterClientInner {
-            id,
-            handler: CharacterRequestHandler::new(api, data.clone(), account.clone(), server),
-            inventory: InventoryClient::new(data),
-            bank: account.bank(),
-            account,
-            items,
-            resources,
-            monsters,
-            maps,
-            npcs,
-            tasks,
-            grand_exchange,
-        }))
+        Self(
+            CharacterClientInner {
+                id,
+                handler: CharacterRequestHandler::new(api, data.clone(), account.clone(), server),
+                inventory: InventoryClient::new(data),
+                bank: account.bank(),
+                account,
+                items,
+                resources,
+                monsters,
+                maps,
+                npcs,
+                tasks,
+                grand_exchange,
+            }
+            .into(),
+        )
     }
 
     #[must_use]
@@ -959,7 +962,7 @@ impl Character for CharacterClient {
         self.data().inventory_items()
     }
 
-    fn inventory_max_items(&self) -> i32 {
+    fn inventory_max_items(&self) -> u32 {
         self.data().inventory_max_items()
     }
 

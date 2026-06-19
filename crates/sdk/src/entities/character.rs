@@ -62,7 +62,7 @@ pub trait Character: Level {
     fn task_missing(&self) -> u32;
     fn task_finished(&self) -> bool;
     fn inventory_items(&self) -> Arc<Vec<InventorySlot>>;
-    fn inventory_max_items(&self) -> i32;
+    fn inventory_max_items(&self) -> u32;
     fn gold(&self) -> u32;
     fn equiped_in(&self, slot: Slot) -> String;
     fn has_equiped(&self, item_code: &str) -> u32;
@@ -261,8 +261,8 @@ impl Character for RawCharacter {
         self.inventory.clone()
     }
 
-    fn inventory_max_items(&self) -> i32 {
-        self.schema.inventory_max_items
+    fn inventory_max_items(&self) -> u32 {
+        self.schema.inventory_max_items as u32
     }
 }
 

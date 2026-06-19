@@ -5,12 +5,12 @@ use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use sdk::{
     CanProvideXp, Code, CollectionClient, FROZEN_AXE, FROZEN_FISHING_ROD, FROZEN_GLOVES,
-    FROZEN_PICKAXE, ItemsClient, Level, MAX_LEVEL, check_lvl_diff,
+    FROZEN_PICKAXE, ItemsClient, Level, MAX_LEVEL,
     entities::{Character, Item, Monster, Resource},
     gear::{Gear, Slot},
     items::{ItemSource, Type},
     simulator::{FightParams, HasEffects, Participant, Simulator, time_to_rest},
-    skill::Skill,
+    skill::Skill, yields_xp,
 };
 
 pub use artifact_set::ArtifactSet;
@@ -311,7 +311,7 @@ impl GearFinder {
         filter: Filter,
     ) -> Option<Gear> {
         let skill = item.skill_to_craft()?;
-        if !check_lvl_diff(char.skill_level(skill), item.level()) {
+        if !yields_xp(char.skill_level(skill), item.level()) {
             return None;
         }
         self.gen_skill_gears(char, skill, item.level(), filter, false)
@@ -403,7 +403,7 @@ impl GearFinder {
                 && ((i.prospecting() > 0 && skill.is_gathering())
                     || (i.wisdom() > 0
                         && char.skill_level(skill) < MAX_LEVEL
-                        && check_lvl_diff(char.skill_level(skill), skill_level)))
+                        && yields_xp(char.skill_level(skill), skill_level)))
         });
         if let Some(best) = best_armor_by(ArmorCriteria::Prospecting, &armors, char)
             && bests.iter().all(|u| u.prospecting() < best.prospecting())

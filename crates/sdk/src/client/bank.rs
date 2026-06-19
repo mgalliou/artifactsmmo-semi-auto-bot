@@ -2,10 +2,7 @@ use crate::{BANK_EXPANSION_SIZE, ItemContainer, LimitedContainer, SlotLimited};
 use api::ArtifactApi;
 use derive_more::Deref;
 use openapi::models::{BankSchema, SimpleItemSchema};
-use std::{
-    ops::Deref,
-    sync::{Arc, RwLock},
-};
+use std::sync::{Arc, RwLock};
 
 #[derive(Default, Debug, Clone, Deref)]
 #[deref(forward)]

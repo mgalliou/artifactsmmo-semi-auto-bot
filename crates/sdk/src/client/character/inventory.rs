@@ -67,7 +67,7 @@ impl SlotLimited for InventoryClient {
 
 impl SpaceLimited for InventoryClient {
     fn max_items(&self) -> u32 {
-        self.data.read().inventory_max_items() as u32
+        self.data.read().inventory_max_items()
     }
 }
 

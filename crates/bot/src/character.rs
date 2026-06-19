@@ -1986,7 +1986,7 @@ impl Character for CharacterController {
         self.data().inventory_items()
     }
 
-    fn inventory_max_items(&self) -> i32 {
+    fn inventory_max_items(&self) -> u32 {
         self.data().inventory_max_items()
     }
 
