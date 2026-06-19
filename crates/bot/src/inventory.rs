@@ -2,7 +2,6 @@ use crate::{
     FOOD_CONSUMPTION_BLACKLIST,
     reservable::{Key, Reservable, ReservationError},
 };
-use derive_more::Deref;
 use itertools::Itertools;
 use sdk::{
     CharacterClient, Code, CollectionClient, DropsItems, ItemContainer, ItemsClient, Level,
@@ -13,6 +12,8 @@ use sdk::{
 };
 use std::{
     collections::HashMap,
+    fmt::Debug,
+    hash::Hash,
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
@@ -20,8 +21,11 @@ use std::{
 pub struct InventoryController {
     items: ItemsClient,
     client: CharacterClient,
-    reservations: RwLock<HashMap<InventoryKey, u32>>,
+    reservations: RwLock<HashMap<InventoryKey<String>, u32>>,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct InventoryKey<T = String>(T);
 
 impl InventoryController {
     pub fn new(client: CharacterClient, items: ItemsClient) -> Self {
@@ -126,7 +130,7 @@ impl SlotLimited for InventoryController {
 }
 
 impl Reservable for InventoryController {
-    type Key = InventoryKey;
+    type Key = InventoryKey<String>;
 
     fn reservations(&self) -> RwLockReadGuard<'_, HashMap<Self::Key, u32>> {
         self.reservations.read().unwrap()
@@ -137,22 +141,22 @@ impl Reservable for InventoryController {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deref, Hash)]
-pub struct InventoryKey(String);
+impl<T: AsRef<str> + Hash + Eq + Debug> Key for InventoryKey<T> {}
 
-impl Key for InventoryKey {}
-
-impl<T> From<T> for InventoryKey
-where
-    T: ToString,
-{
+impl<T: ToString> From<T> for InventoryKey<String> {
     fn from(value: T) -> Self {
         Self(value.to_string())
     }
 }
 
-impl Code for InventoryKey {
+impl<'a, T: AsRef<str> + ?Sized> From<&'a T> for InventoryKey<&'a str> {
+    fn from(value: &'a T) -> Self {
+        Self(value.as_ref())
+    }
+}
+
+impl<T: AsRef<str>> Code for InventoryKey<T> {
     fn code(&self) -> &str {
-        &self.0
+        self.0.as_ref()
     }
 }

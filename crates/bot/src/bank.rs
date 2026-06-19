@@ -13,20 +13,28 @@ use sdk::{
 };
 use std::{
     collections::HashMap,
+    fmt::Debug,
+    hash::Hash,
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, TryLockError},
 };
-
-#[derive(Default, Clone, Deref)]
-#[deref(forward)]
-pub struct BankController(Arc<BankControllerInner>);
 
 #[derive(Default)]
 pub struct BankControllerInner {
     client: BankClient,
     items: ItemsClient,
-    reservations: RwLock<HashMap<BankKey, u32>>,
+    reservations: RwLock<HashMap<BankKey<String>, u32>>,
     pub browsed: RwLock<()>,
     pub being_expanded: RwLock<()>,
+}
+
+#[derive(Default, Clone, Deref)]
+#[deref(forward)]
+pub struct BankController(Arc<BankControllerInner>);
+
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub struct BankKey<T = String> {
+    item: T,
+    owner: CharacterName,
 }
 
 impl BankController {
@@ -42,21 +50,6 @@ impl BankController {
             .into(),
         )
     }
-
-    // TODO: check if this can be removed
-    // Returns the quantity of the given item `code` that can be crafted with the mats available in bank
-    // for the given `owner`.
-    //  NOTE: this should maybe return a Option to indicate that the item is not craftable and
-    //  return None in this case
-    // #[deprecated]
-    // pub fn has_mats_for(&self, item: &str, owner: &CharacterName) -> u32 {
-    //     self.items
-    //         .mats_of(item)
-    //         .iter()
-    //         .map(|mat| self.has_available(&mat.code, owner) / mat.quantity)
-    //         .min()
-    //         .unwrap_or(0)
-    // }
 
     pub fn expension_lock(
         &self,
@@ -110,7 +103,7 @@ impl BankController {
 
     /// Returns the `quantity` of the given item `code` available to the given `owner`.
     /// If no owner is given returns the quantity not reserved.
-    pub fn has_available(&self, key: impl Into<BankKey>) -> u32 {
+    pub fn has_available<'a>(&self, key: impl Into<BankKey<&'a str>>) -> u32 {
         self.quantity_allowed(&key.into())
     }
 
@@ -132,14 +125,14 @@ impl BankController {
     }
 
     /// Returns the quantity the given `owner` can withdraw from the bank.
-    fn quantity_allowed(&self, key: &BankKey) -> u32 {
-        self.total_of(&key.item)
+    fn quantity_allowed(&self, key: &BankKey<&str>) -> u32 {
+        self.total_of(key.item)
             .saturating_sub(self.quantity_not_allowed(key))
     }
 
     /// Returns the quantity of the given item `code` that is reserved to a different character
     /// than the given `owner`.
-    fn quantity_not_allowed(&self, discriminant: &BankKey) -> u32 {
+    fn quantity_not_allowed(&self, discriminant: &BankKey<&str>) -> u32 {
         self.reservations()
             .iter()
             .filter(|(d, _)| d.code() == discriminant.item && d.owner != discriminant.owner)
@@ -183,7 +176,7 @@ impl SlotLimited for BankController {
 }
 
 impl Reservable for BankController {
-    type Key = BankKey;
+    type Key = BankKey<String>;
 
     fn reservations(&self) -> RwLockReadGuard<'_, HashMap<Self::Key, u32>> {
         self.reservations.read().unwrap()
@@ -194,19 +187,9 @@ impl Reservable for BankController {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
-pub struct BankKey {
-    item: String,
-    owner: CharacterName,
-}
+impl<T: AsRef<str> + Hash + Eq + Debug> Key for BankKey<T> {}
 
-impl Key for BankKey {}
-
-impl<T, U> From<(T, U)> for BankKey
-where
-    T: ToString,
-    U: Into<CharacterName>,
-{
+impl<T: ToString, U: Into<CharacterName>> From<(T, U)> for BankKey<String> {
     fn from(value: (T, U)) -> Self {
         Self {
             item: value.0.to_string(),
@@ -215,9 +198,18 @@ where
     }
 }
 
-impl Code for BankKey {
+impl<'a, T: AsRef<str> + ?Sized, U: Into<CharacterName>> From<(&'a T, U)> for BankKey<&'a str> {
+    fn from(value: (&'a T, U)) -> Self {
+        Self {
+            item: value.0.as_ref(),
+            owner: value.1.into(),
+        }
+    }
+}
+
+impl<T: AsRef<str>> Code for BankKey<T> {
     fn code(&self) -> &str {
-        &self.item
+        self.item.as_ref()
     }
 }
 

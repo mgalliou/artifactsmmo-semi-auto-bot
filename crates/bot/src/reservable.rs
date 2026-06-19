@@ -7,6 +7,16 @@ use std::{
 };
 use thiserror::Error;
 
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum ReservationError {
+    #[error("Quantity unavailable: {0}")]
+    QuantityUnavailable(u32),
+    #[error("Reservation already exists")]
+    ReservationAlreadyExists,
+}
+
+pub trait Key: Code + Hash + Eq + Debug {}
+
 pub trait Reservable: ItemContainer {
     type Key: Key;
 
@@ -82,8 +92,6 @@ pub trait Reservable: ItemContainer {
     }
 }
 
-pub trait Key: Code + Clone + Hash + Eq + Debug {}
-
 fn sum_reservations_for(reservations: &HashMap<impl Key, u32>, item: &str) -> u32 {
     reservations
         .iter()
@@ -92,8 +100,8 @@ fn sum_reservations_for(reservations: &HashMap<impl Key, u32>, item: &str) -> u3
         .sum()
 }
 
-fn check_available<D: Key>(
-    reservations: &HashMap<D, u32>,
+fn check_available(
+    reservations: &HashMap<impl Key, u32>,
     item_code: &str,
     quantity: u32,
     total: u32,
@@ -103,12 +111,4 @@ fn check_available<D: Key>(
         return Err(ReservationError::QuantityUnavailable(quantity));
     }
     Ok(())
-}
-
-#[derive(Debug, Error, PartialEq, Eq)]
-pub enum ReservationError {
-    #[error("Quantity unavailable: {0}")]
-    QuantityUnavailable(u32),
-    #[error("Reservation already exists")]
-    ReservationAlreadyExists,
 }

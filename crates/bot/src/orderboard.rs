@@ -3,7 +3,8 @@ use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use log::{debug, error, info};
 use sdk::{
-    CollectionClient, ItemsClient, entities::CharacterName, models::SimpleItemSchema, skill::Skill,
+    Code, CollectionClient, ItemsClient, Quantity, entities::CharacterName,
+    models::SimpleItemSchema, skill::Skill,
 };
 use std::{
     borrow::ToOwned,
@@ -124,8 +125,7 @@ impl OrderBoard {
         if self.get(item, owner, &purpose).is_some() {
             return Err(OrderError::AlreadyExists);
         }
-        let order = Order::new(owner, item, quantity, purpose)?;
-        let arc = Arc::new(order);
+        let arc = Arc::new(Order::new(owner, item, quantity, purpose)?);
         self.orders.write().unwrap().push(arc.clone());
         info!("orderboard: added: {arc}");
         Ok(())
@@ -152,30 +152,28 @@ impl OrderBoard {
 
     pub fn register_deposited_items(&self, items: &[SimpleItemSchema]) {
         for item in items {
-            {
-                let mut remaining = item.quantity;
-                for order in &self.orders_by_priority() {
-                    if remaining < 1 {
-                        break;
-                    }
-                    if item.code != order.item {
-                        continue;
-                    }
-                    let quantity = min(order.quantity(), remaining);
-                    order.inc_deposited(quantity);
-                    if let Some(ref owner) = order.owner
-                        && let Err(e) = self
-                            .account
-                            .bank()
-                            .inc_reservation((&order.item, owner), quantity)
-                    {
-                        error!("orderboard: failed reserving deposited item: {e}");
-                    }
-                    if order.turned_in() {
-                        self.remove(order);
-                    }
-                    remaining = remaining.saturating_sub(quantity);
+            let mut remaining = item.quantity();
+            for order in &self.orders_by_priority() {
+                if remaining < 1 {
+                    break;
                 }
+                if item.code() != order.item {
+                    continue;
+                }
+                let quantity = min(order.quantity(), remaining);
+                order.inc_deposited(quantity);
+                if let Some(ref owner) = order.owner
+                    && let Err(e) = self
+                        .account
+                        .bank()
+                        .inc_reservation((&order.item, owner), quantity)
+                {
+                    error!("orderboard: failed reserving deposited item: {e}");
+                }
+                if order.turned_in() {
+                    self.remove(order);
+                }
+                remaining = remaining.saturating_sub(quantity);
             }
         }
     }

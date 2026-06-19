@@ -5,7 +5,6 @@ use crate::{
     skill::Skill,
 };
 use api::ArtifactApi;
-use chrono::Utc;
 use derive_more::Deref;
 use itertools::Itertools;
 use log::info;
@@ -77,21 +76,21 @@ impl MapsClient {
     }
 
     pub fn refresh_from_events(&self) {
-        self.events().active().iter().for_each(|e| {
-            if e.expiration() < Utc::now()
+        for e in self.events().active() {
+            if e.is_expired()
                 && let Some(map) = self.get_mut(&e.map().position())
             {
                 map.update(e.previous_map());
             }
-        });
+        }
         self.events().refresh_active();
-        self.events().active().iter().for_each(|e| {
-            if e.expiration() > Utc::now()
+        for e in self.events().active() {
+            if !e.is_expired()
                 && let Some(map) = self.get_mut(&e.map().position())
             {
                 map.update(e.map());
             }
-        });
+        }
     }
 
     //TODO: handle layer

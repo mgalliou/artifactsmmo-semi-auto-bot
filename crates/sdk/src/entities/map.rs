@@ -40,6 +40,7 @@ pub trait Map {
         self.content_type_is(MapContentType::TasksMaster)
             && task_type
                 .into()
+                // TODO remove to_string
                 .is_none_or(|tt| self.content_code_is(&tt.to_string()))
     }
 

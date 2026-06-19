@@ -1119,7 +1119,7 @@ impl CharacterController {
         };
         // TODO: defined food quantity depending on the monster drop rate and damages
         let quantity = min(
-            ((self.inventory.max_items() as f32) * 0.90) as u32,
+            ((self.inventory.max_items() as f32) * 0.90).round() as u32,
             self.bank.has_available((food.code(), self.name())),
         );
         self.lock_in_inventory(food.code(), quantity)

@@ -10,7 +10,7 @@ use log::{debug, info};
 use sdk_derive::CollectionClient;
 use std::{
     collections::HashMap,
-    sync::{Arc, RwLock},
+    sync::{Arc, RwLock, RwLockWriteGuard},
     thread,
 };
 
@@ -28,16 +28,20 @@ pub struct EventsClientInner {
 
 impl EventsClient {
     pub(crate) fn new(api: ArtifactApi) -> Self {
-        Self(Arc::new(EventsClientInner {
-            api,
-            data: RwLock::default(),
-            active: RwLock::default(),
-            last_refresh: RwLock::default(),
-        }))
+        Self(
+            EventsClientInner {
+                api,
+                data: RwLock::default(),
+                active: RwLock::default(),
+                last_refresh: RwLock::default(),
+            }
+            .into(),
+        )
     }
 
     pub fn init(&self) {
         let () = thread::scope(|s| {
+            // TODO: handle errors
             let _ = s.spawn(|| *self.data_mut() = self.load());
             let _ = s.spawn(|| self.refresh_active());
         });
@@ -49,10 +53,14 @@ impl EventsClient {
         self.active.read().unwrap().iter().cloned().collect_vec()
     }
 
+    fn active_mut(&self) -> RwLockWriteGuard<'_, Vec<ActiveEvent>> {
+        self.active.write().unwrap()
+    }
+
     pub fn refresh_active(&self) {
-        // keep `events` locked before updating last refresh
-        let mut events = self.active.write().unwrap();
+        let mut events = self.active_mut();
         let now = Utc::now();
+        // Only refresh active events if they have not been refreshed recently
         if now - self.last_refresh() <= Duration::seconds(30) {
             return;
         }
