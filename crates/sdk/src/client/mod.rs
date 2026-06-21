@@ -142,6 +142,11 @@ pub mod private {
     pub trait Sealed {}
 }
 
+/// Read-only access to an RCU (Read-Copy-Update) collection snapshot.
+///
+/// Each method clones the inner `Arc` under the read lock, drops the lock
+/// immediately, then operates on the snapshot. This ensures callers never
+/// block writes (e.g. background refresh) for the duration of their read.
 pub trait CollectionClient: Data {
     fn get<Q>(&self, key: &Q) -> Option<Self::Entity>
     where
@@ -174,6 +179,10 @@ pub trait CollectionClient: Data {
     }
 }
 
+/// Interior-mutable collection backed by `Arc<RwLock<Arc<HashMap<K, V>>>>`.
+///
+/// Writers swap the entire `Arc` pointer under the write lock (RCU).
+/// Readers snapshot the `Arc` under the read lock then drop it immediately.
 pub trait Data: private::Sealed {
     type Entity: Clone;
     type Key: Hash + Eq;
