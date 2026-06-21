@@ -1,14 +1,15 @@
 use crate::{
-    Code, CollectionClient, Data, Persist, client::npcs_items::NpcsItemsClient,
+    Code, CollectionClient, Persist, client::npcs_items::NpcsItemsClient,
     entities::Npc,
 };
 use api::ArtifactApi;
 use derive_more::Deref;
 use itertools::Itertools;
 use log::info;
+use arc_swap::ArcSwap;
 use std::{
     collections::HashMap,
-    sync::{Arc, RwLock},
+    sync::Arc,
 };
 
 #[derive(Default, Debug, Clone, Deref, CollectionClient)]
@@ -19,7 +20,7 @@ pub struct NpcsClient(Arc<NpcsClientInner>);
 #[derive(Default, Debug)]
 pub struct NpcsClientInner {
     api: ArtifactApi,
-    data: RwLock<Arc<HashMap<String, Npc>>>,
+    data: ArcSwap<HashMap<String, Npc>>,
     items: NpcsItemsClient,
 }
 
@@ -28,7 +29,7 @@ impl NpcsClient {
         Self(
             NpcsClientInner {
                 api,
-                data: RwLock::default(),
+                data: ArcSwap::default(),
                 items,
             }
             .into(),
@@ -36,7 +37,7 @@ impl NpcsClient {
     }
 
     pub fn init(&self) {
-        *self.data_mut() = Arc::new(self.load());
+        self.0.data.store(Arc::new(self.load()));
         info!("Npcs client initilized");
     }
 
@@ -75,7 +76,7 @@ impl Persist<HashMap<String, Npc>> for NpcsClient {
     }
 
     fn refresh(&self) {
-        *self.data_mut() = Arc::new(self.load_from_api());
+        self.0.data.store(Arc::new(self.load_from_api()));
     }
 }
 

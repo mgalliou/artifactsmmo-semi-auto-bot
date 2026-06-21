@@ -1,5 +1,5 @@
 use crate::{
-    CollectionClient, Data,
+    CollectionClient,
     client::events::EventsClient, entities::Map,
     entities::{MapDataHandle, RawMap},
     skill::Skill,
@@ -9,12 +9,11 @@ use derive_more::Deref;
 use itertools::Itertools;
 use log::info;
 use openapi::models::{MapContentSchema, MapContentType, MapLayer, TaskType};
+use arc_swap::ArcSwap;
 use std::{
     collections::HashMap,
-    sync::{Arc, RwLock},
+    sync::Arc,
 };
-
-type MapStore = Arc<HashMap<(MapLayer, i32, i32), MapDataHandle>>;
 
 #[derive(Default, Debug, Clone, Deref, CollectionClient)]
 #[deref(forward)]
@@ -24,7 +23,7 @@ pub struct MapsClient(Arc<MapsClientInner>);
 
 #[derive(Default, Debug)]
 pub struct MapsClientInner {
-    data: RwLock<MapStore>,
+    data: ArcSwap<HashMap<(MapLayer, i32, i32), MapDataHandle>>,
     events: EventsClient,
     api: ArtifactApi,
 }
@@ -33,7 +32,7 @@ impl MapsClient {
     pub(crate) fn new(api: ArtifactApi, events: EventsClient) -> Self {
         Self(
             MapsClientInner {
-                data: RwLock::default(),
+                data: ArcSwap::default(),
                 events,
                 api,
             }
@@ -42,7 +41,7 @@ impl MapsClient {
     }
 
     pub(crate) fn init(&self) {
-        *self.data_mut() = Arc::new(
+        self.0.data.store(Arc::new(
             self.api
                 .maps
                 .get_all()
@@ -50,7 +49,7 @@ impl MapsClient {
                 .into_iter()
                 .map(|m| ((m.layer, m.x, m.y), m.into()))
                 .collect::<HashMap<(MapLayer, i32, i32), MapDataHandle>>(),
-        );
+        ));
         info!("Maps client initilized");
     }
 

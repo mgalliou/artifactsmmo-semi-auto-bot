@@ -1,10 +1,11 @@
-use crate::{CollectionClient, Data, Persist, entities::TaskReward};
+use crate::{CollectionClient, Persist, entities::TaskReward};
 use api::ArtifactApi;
 use derive_more::Deref;
 use log::info;
+use arc_swap::ArcSwap;
 use std::{
     collections::HashMap,
-    sync::{Arc, RwLock},
+    sync::Arc,
 };
 
 #[derive(Default, Debug, Clone, Deref, CollectionClient)]
@@ -15,7 +16,7 @@ pub struct TasksRewardsClient(Arc<TasksRewardsClientInner>);
 #[derive(Default, Debug)]
 pub struct TasksRewardsClientInner {
     api: ArtifactApi,
-    data: RwLock<Arc<HashMap<String, TaskReward>>>,
+    data: ArcSwap<HashMap<String, TaskReward>>,
 }
 
 impl TasksRewardsClient {
@@ -23,14 +24,14 @@ impl TasksRewardsClient {
         Self(
             TasksRewardsClientInner {
                 api,
-                data: RwLock::default(),
+                data: ArcSwap::default(),
             }
             .into(),
         )
     }
 
     pub fn init(&self) {
-        *self.data_mut() = Arc::new(self.load());
+        self.0.data.store(Arc::new(self.load()));
         info!("Tasks rewards client initilized");
     }
 
@@ -56,7 +57,7 @@ impl Persist<HashMap<String, TaskReward>> for TasksRewardsClient {
     }
 
     fn refresh(&self) {
-        *self.data_mut() = Arc::new(self.load_from_api());
+        self.0.data.store(Arc::new(self.load_from_api()));
     }
 }
 

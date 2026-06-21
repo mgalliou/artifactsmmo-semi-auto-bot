@@ -1,5 +1,5 @@
 use crate::{
-    Data, Persist,
+    Persist,
     entities::{ActiveEvent, Event},
 };
 use api::ArtifactApi;
@@ -8,6 +8,7 @@ use derive_more::Deref;
 use itertools::Itertools;
 use log::{debug, info};
 use sdk_derive::CollectionClient;
+use arc_swap::ArcSwap;
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock, RwLockWriteGuard},
@@ -22,7 +23,7 @@ pub struct EventsClient(Arc<EventsClientInner>);
 #[derive(Default, Debug)]
 pub struct EventsClientInner {
     api: ArtifactApi,
-    data: RwLock<Arc<HashMap<String, Event>>>,
+    data: ArcSwap<HashMap<String, Event>>,
     active: RwLock<Vec<ActiveEvent>>,
     last_refresh: RwLock<DateTime<Utc>>,
 }
@@ -32,7 +33,7 @@ impl EventsClient {
         Self(
             EventsClientInner {
                 api,
-                data: RwLock::default(),
+                data: ArcSwap::default(),
                 active: RwLock::default(),
                 last_refresh: RwLock::default(),
             }
@@ -43,7 +44,7 @@ impl EventsClient {
     pub fn init(&self) {
         let () = thread::scope(|s| {
             // TODO: handle errors
-            let _ = s.spawn(|| *self.data_mut() = Arc::new(self.load()));
+            let _ = s.spawn(|| self.0.data.store(Arc::new(self.load())));
             let _ = s.spawn(|| self.refresh_active());
         });
         info!("Event client initilized");
@@ -103,7 +104,7 @@ impl Persist<HashMap<String, Event>> for EventsClient {
     }
 
     fn refresh(&self) {
-        *self.data_mut() = Arc::new(self.load_from_api());
+        self.0.data.store(Arc::new(self.load_from_api()));
     }
 }
 

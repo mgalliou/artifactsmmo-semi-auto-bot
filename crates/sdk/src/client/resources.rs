@@ -1,14 +1,15 @@
 use crate::{
-    CollectionClient, Data, DropsItems, Persist, client::events::EventsClient,
+    CollectionClient, DropsItems, Persist, client::events::EventsClient,
     entities::Resource,
 };
 use api::ArtifactApi;
 use derive_more::Deref;
 use itertools::Itertools;
 use log::info;
+use arc_swap::ArcSwap;
 use std::{
     collections::HashMap,
-    sync::{Arc, RwLock},
+    sync::Arc,
 };
 
 #[derive(Default, Debug, Clone, Deref, CollectionClient)]
@@ -19,7 +20,7 @@ pub struct ResourcesClient(Arc<ResourcesClientInner>);
 #[derive(Default, Debug)]
 pub struct ResourcesClientInner {
     api: ArtifactApi,
-    data: RwLock<Arc<HashMap<String, Resource>>>,
+    data: ArcSwap<HashMap<String, Resource>>,
     events: EventsClient,
 }
 
@@ -28,7 +29,7 @@ impl ResourcesClient {
         Self(
             ResourcesClientInner {
                 api,
-                data: RwLock::default(),
+                data: ArcSwap::default(),
                 events,
             }
             .into(),
@@ -36,7 +37,7 @@ impl ResourcesClient {
     }
 
     pub fn init(&self) {
-        *self.data_mut() = Arc::new(self.load());
+        self.0.data.store(Arc::new(self.load()));
         info!("Resource client initilized");
     }
 
@@ -68,7 +69,7 @@ impl Persist<HashMap<String, Resource>> for ResourcesClient {
     }
 
     fn refresh(&self) {
-        *self.data_mut() = Arc::new(self.load_from_api());
+        self.0.data.store(Arc::new(self.load_from_api()));
     }
 }
 

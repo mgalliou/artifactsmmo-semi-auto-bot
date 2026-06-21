@@ -1,5 +1,5 @@
 use crate::{
-    Code, CollectionClient, Data, DropsItems, Level, Persist, Quantity,
+    Code, CollectionClient, DropsItems, Level, Persist, Quantity,
     client::{
         monsters::MonstersClient, npcs::NpcsClient, resources::ResourcesClient,
         tasks_rewards::TasksRewardsClient,
@@ -15,10 +15,11 @@ use derive_more::Deref;
 use itertools::Itertools;
 use log::info;
 use openapi::models::SimpleItemSchema;
+use arc_swap::ArcSwap;
 use std::{
     collections::HashMap,
     fmt,
-    sync::{Arc, RwLock},
+    sync::Arc,
     vec::Vec,
 };
 use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
@@ -30,7 +31,7 @@ pub struct ItemsClient(Arc<ItemsClientInner>);
 
 #[derive(Default, Debug)]
 pub struct ItemsClientInner {
-    data: RwLock<Arc<HashMap<String, Item>>>,
+    data: ArcSwap<HashMap<String, Item>>,
     api: ArtifactApi,
     resources: ResourcesClient,
     monsters: MonstersClient,
@@ -48,7 +49,7 @@ impl ItemsClient {
     ) -> Self {
         Self(
             ItemsClientInner {
-                data: RwLock::default(),
+                data: ArcSwap::default(),
                 api,
                 resources,
                 monsters,
@@ -60,7 +61,7 @@ impl ItemsClient {
     }
 
     pub fn init(&self) {
-        *self.data_mut() = Arc::new(self.load());
+        self.0.data.store(Arc::new(self.load()));
         info!("Items client initilized");
     }
 
@@ -293,7 +294,7 @@ impl Persist<HashMap<String, Item>> for ItemsClient {
     }
 
     fn refresh(&self) {
-        *self.data_mut() = Arc::new(self.load_from_api());
+        self.0.data.store(Arc::new(self.load_from_api()));
     }
 }
 

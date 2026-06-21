@@ -1,14 +1,15 @@
 use crate::{
-    CanProvideXp, CollectionClient, Data, DropsItems, Level, Persist,
+    CanProvideXp, CollectionClient, DropsItems, Level, Persist,
     client::events::EventsClient, entities::Monster,
 };
 use api::ArtifactApi;
 use derive_more::Deref;
 use itertools::Itertools;
 use log::info;
+use arc_swap::ArcSwap;
 use std::{
     collections::HashMap,
-    sync::{Arc, RwLock},
+    sync::Arc,
 };
 
 #[derive(Default, Debug, Clone, Deref, CollectionClient)]
@@ -19,7 +20,7 @@ pub struct MonstersClient(Arc<MonstersClientInner>);
 #[derive(Default, Debug)]
 pub struct MonstersClientInner {
     api: ArtifactApi,
-    data: RwLock<Arc<HashMap<String, Monster>>>,
+    data: ArcSwap<HashMap<String, Monster>>,
     events: EventsClient,
 }
 
@@ -28,7 +29,7 @@ impl MonstersClient {
         Self(
             MonstersClientInner {
                 api,
-                data: RwLock::default(),
+                data: ArcSwap::default(),
                 events,
             }
             .into(),
@@ -36,7 +37,7 @@ impl MonstersClient {
     }
 
     pub fn init(&self) {
-        *self.data_mut() = Arc::new(self.load());
+        self.0.data.store(Arc::new(self.load()));
         info!("Monster client initilized");
     }
 
@@ -82,7 +83,7 @@ impl Persist<HashMap<String, Monster>> for MonstersClient {
     }
 
     fn refresh(&self) {
-        *self.data_mut() = Arc::new(self.load_from_api());
+        self.0.data.store(Arc::new(self.load_from_api()));
     }
 }
 

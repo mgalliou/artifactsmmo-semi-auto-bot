@@ -51,12 +51,8 @@ pub fn collection_client_derive(input: TokenStream) -> TokenStream {
                     type Entity = #entity_type;
                     type Key = #key_type;
 
-                    fn data(&self) -> std::sync::RwLockReadGuard<'_, std::sync::Arc<std::collections::HashMap<Self::Key, Self::Entity>>> {
-                        #data_path.read().unwrap()
-                    }
-
-                    fn data_mut(&self) -> std::sync::RwLockWriteGuard<'_, std::sync::Arc<std::collections::HashMap<Self::Key, Self::Entity>>> {
-                        #data_path.write().unwrap()
+                    fn data(&self) -> std::sync::Arc<std::collections::HashMap<Self::Key, Self::Entity>> {
+                        #data_path.load_full()
                     }
                 }
             };

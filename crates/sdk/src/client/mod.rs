@@ -6,7 +6,7 @@ use std::{
     borrow::Borrow,
     collections::HashMap,
     hash::Hash,
-    sync::{Arc, RwLockReadGuard, RwLockWriteGuard},
+    sync::Arc,
     thread::{self},
 };
 
@@ -144,49 +144,41 @@ pub mod private {
 
 /// Read-only access to an RCU (Read-Copy-Update) collection snapshot.
 ///
-/// Each method clones the inner `Arc` under the read lock, drops the lock
-/// immediately, then operates on the snapshot. This ensures callers never
-/// block writes (e.g. background refresh) for the duration of their read.
+/// Each method takes an `Arc` snapshot of the inner `HashMap` (lock-free via
+/// `ArcSwap`), then operates on it freely — callers never block concurrent
+/// writes (e.g. background refresh).
 pub trait CollectionClient: Data {
     fn get<Q>(&self, key: &Q) -> Option<Self::Entity>
     where
         Self::Key: Borrow<Q>,
         Q: Hash + Eq + ?Sized,
     {
-        let guard = self.data();
-        let map = Arc::clone(&*guard);
-        drop(guard);
-        map.get(key).cloned()
+        self.data().get(key).cloned()
     }
 
     fn all(&self) -> Vec<Self::Entity> {
-        let guard = self.data();
-        let map = Arc::clone(&*guard);
-        drop(guard);
-        map.values()
-            .cloned()
-             .collect_vec()
+        self.data().values().cloned().collect_vec()
     }
 
     fn filtered<F>(&self, mut f: F) -> Vec<Self::Entity>
     where
         F: FnMut(&Self::Entity) -> bool,
     {
-        let guard = self.data();
-        let map = Arc::clone(&*guard);
-        drop(guard);
-        map.values().filter(|v| f(*v)).cloned().collect_vec()
+        self.data()
+            .values()
+            .filter(|v| f(*v))
+            .cloned()
+            .collect_vec()
     }
 }
 
-/// Interior-mutable collection backed by `Arc<RwLock<Arc<HashMap<K, V>>>>`.
+/// Interior-mutable collection backed by `ArcSwap<HashMap<K, V>>`.
 ///
-/// Writers swap the entire `Arc` pointer under the write lock (RCU).
-/// Readers snapshot the `Arc` under the read lock then drop it immediately.
+/// Writers atomically swap the entire `HashMap` pointer (`ArcSwap::store`).
+/// Readers take a lock-free `Arc` snapshot (`ArcSwap::load_full`).
 pub trait Data: private::Sealed {
     type Entity: Clone;
     type Key: Hash + Eq;
 
-    fn data(&self) -> RwLockReadGuard<'_, Arc<HashMap<Self::Key, Self::Entity>>>;
-    fn data_mut(&self) -> RwLockWriteGuard<'_, Arc<HashMap<Self::Key, Self::Entity>>>;
+    fn data(&self) -> Arc<HashMap<Self::Key, Self::Entity>>;
 }
