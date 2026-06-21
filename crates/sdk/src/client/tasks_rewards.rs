@@ -14,7 +14,7 @@ pub struct TasksRewardsClient(Arc<TasksRewardsClientInner>);
 #[derive(Default, Debug)]
 pub struct TasksRewardsClientInner {
     api: ArtifactApi,
-    data: RwLock<HashMap<String, TaskReward>>,
+    data: RwLock<Arc<HashMap<String, TaskReward>>>,
 }
 
 impl TasksRewardsClient {
@@ -29,7 +29,7 @@ impl TasksRewardsClient {
     }
 
     pub fn init(&self) {
-        *self.data_mut() = self.load();
+        *self.data_mut() = Arc::new(self.load());
         info!("Tasks rewards client initilized");
     }
 
@@ -55,7 +55,7 @@ impl Persist<HashMap<String, TaskReward>> for TasksRewardsClient {
     }
 
     fn refresh(&self) {
-        *self.data_mut() = self.load_from_api();
+        *self.data_mut() = Arc::new(self.load_from_api());
     }
 }
 

@@ -21,7 +21,7 @@ pub struct EventsClient(Arc<EventsClientInner>);
 #[derive(Default, Debug)]
 pub struct EventsClientInner {
     api: ArtifactApi,
-    data: RwLock<HashMap<String, Event>>,
+    data: RwLock<Arc<HashMap<String, Event>>>,
     active: RwLock<Vec<ActiveEvent>>,
     last_refresh: RwLock<DateTime<Utc>>,
 }
@@ -42,7 +42,7 @@ impl EventsClient {
     pub fn init(&self) {
         let () = thread::scope(|s| {
             // TODO: handle errors
-            let _ = s.spawn(|| *self.data_mut() = self.load());
+            let _ = s.spawn(|| *self.data_mut() = Arc::new(self.load()));
             let _ = s.spawn(|| self.refresh_active());
         });
         info!("Event client initilized");
@@ -102,7 +102,7 @@ impl Persist<HashMap<String, Event>> for EventsClient {
     }
 
     fn refresh(&self) {
-        *self.data_mut() = self.load_from_api();
+        *self.data_mut() = Arc::new(self.load_from_api());
     }
 }
 

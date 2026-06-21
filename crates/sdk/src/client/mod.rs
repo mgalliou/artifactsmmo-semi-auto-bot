@@ -3,7 +3,9 @@ use api::ArtifactApi;
 use derive_more::Deref;
 use itertools::Itertools;
 use std::{
+    borrow::Borrow,
     collections::HashMap,
+    hash::Hash,
     sync::{Arc, RwLockReadGuard, RwLockWriteGuard},
     thread::{self},
 };
@@ -138,25 +140,42 @@ impl Client {
 
 #[allow(private_bounds)]
 pub trait CollectionClient: Data {
-    fn get(&self, code: &str) -> Option<Self::Entity> {
-        self.data().get(code).cloned()
+    fn get<Q>(&self, key: &Q) -> Option<Self::Entity>
+    where
+        Self::Key: Borrow<Q>,
+        Q: Hash + Eq + ?Sized,
+    {
+        let guard = self.data();
+        let map = Arc::clone(&*guard);
+        drop(guard);
+        map.get(key).cloned()
     }
 
     fn all(&self) -> Vec<Self::Entity> {
-        self.data().values().cloned().collect_vec()
+        let guard = self.data();
+        let map = Arc::clone(&*guard);
+        drop(guard);
+        map.values()
+            .cloned()
+             .collect_vec()
     }
 
-    fn filtered<F>(&self, f: F) -> Vec<Self::Entity>
+    fn filtered<F>(&self, mut f: F) -> Vec<Self::Entity>
     where
         F: FnMut(&Self::Entity) -> bool,
     {
-        self.all().into_iter().filter(f).collect_vec()
+        let guard = self.data();
+        let map = Arc::clone(&*guard);
+        drop(guard);
+        map.values().filter(|v| f(*v)).cloned().collect_vec()
     }
 }
 
 pub(crate) trait Data: DataEntity {
-    fn data(&self) -> RwLockReadGuard<'_, HashMap<String, Self::Entity>>;
-    fn data_mut(&self) -> RwLockWriteGuard<'_, HashMap<String, Self::Entity>>;
+    type Key: Hash + Eq;
+
+    fn data(&self) -> RwLockReadGuard<'_, Arc<HashMap<Self::Key, Self::Entity>>>;
+    fn data_mut(&self) -> RwLockWriteGuard<'_, Arc<HashMap<Self::Key, Self::Entity>>>;
 }
 
 pub trait DataEntity {

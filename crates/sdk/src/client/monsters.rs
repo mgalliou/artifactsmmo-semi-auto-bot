@@ -18,7 +18,7 @@ pub struct MonstersClient(Arc<MonstersClientInner>);
 #[derive(Default, Debug)]
 pub struct MonstersClientInner {
     api: ArtifactApi,
-    data: RwLock<HashMap<String, Monster>>,
+    data: RwLock<Arc<HashMap<String, Monster>>>,
     events: EventsClient,
 }
 
@@ -35,7 +35,7 @@ impl MonstersClient {
     }
 
     pub fn init(&self) {
-        *self.data_mut() = self.load();
+        *self.data_mut() = Arc::new(self.load());
         info!("Monster client initilized");
     }
 
@@ -81,7 +81,7 @@ impl Persist<HashMap<String, Monster>> for MonstersClient {
     }
 
     fn refresh(&self) {
-        *self.data_mut() = self.load_from_api();
+        *self.data_mut() = Arc::new(self.load_from_api());
     }
 }
 

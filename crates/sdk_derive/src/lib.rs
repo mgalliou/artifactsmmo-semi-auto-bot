@@ -11,12 +11,13 @@ pub fn collection_client_derive(input: TokenStream) -> TokenStream {
             let expanded = quote! {
                 impl crate::CollectionClient for #name {}
                 impl crate::Data for #name {
+                    type Key = String;
 
-                    fn data(&self) -> std::sync::RwLockReadGuard<'_, HashMap<String, Self::Entity>> {
+                    fn data(&self) -> std::sync::RwLockReadGuard<'_, std::sync::Arc<std::collections::HashMap<Self::Key, Self::Entity>>> {
                         self.0.data.read().unwrap()
                     }
 
-                    fn data_mut(&self) -> std::sync::RwLockWriteGuard<'_, HashMap<String, Self::Entity>> {
+                    fn data_mut(&self) -> std::sync::RwLockWriteGuard<'_, std::sync::Arc<std::collections::HashMap<Self::Key, Self::Entity>>> {
                         self.0.data.write().unwrap()
                     }
                 }

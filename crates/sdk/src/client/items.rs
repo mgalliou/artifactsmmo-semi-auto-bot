@@ -29,7 +29,7 @@ pub struct ItemsClient(Arc<ItemsClientInner>);
 
 #[derive(Default, Debug)]
 pub struct ItemsClientInner {
-    data: RwLock<HashMap<String, Item>>,
+    data: RwLock<Arc<HashMap<String, Item>>>,
     api: ArtifactApi,
     resources: ResourcesClient,
     monsters: MonstersClient,
@@ -59,7 +59,7 @@ impl ItemsClient {
     }
 
     pub fn init(&self) {
-        *self.data_mut() = self.load();
+        *self.data_mut() = Arc::new(self.load());
         info!("Items client initilized");
     }
 
@@ -292,7 +292,7 @@ impl Persist<HashMap<String, Item>> for ItemsClient {
     }
 
     fn refresh(&self) {
-        *self.data_mut() = self.load_from_api();
+        *self.data_mut() = Arc::new(self.load_from_api());
     }
 }
 

@@ -544,7 +544,7 @@ impl CharacterController {
                     .collect()
             })?);
         }
-        let Some(monster) = self.monsters.get(&self.task()) else {
+        let Some(monster) = self.monsters.get::<str>(&self.task()) else {
             return Ok(self.trade_task().map(|r| {
                 vec![DropSchema {
                     code: r.code,
@@ -612,7 +612,7 @@ impl CharacterController {
     }
 
     fn complete_task(&self) -> Result<RewardsSchema, TaskCompletionCommandError> {
-        let Some(task) = self.tasks.get(&self.task()) else {
+        let Some(task) = self.tasks.get::<str>(&self.task()) else {
             return Err(TaskCompletionCommandError::NoTask);
         };
         if !self.task_finished() {
@@ -1370,7 +1370,7 @@ impl CharacterController {
                 if self.current_map().id() == *id {
                     return Ok(self.current_map());
                 }
-                let Some(map) = self.maps.all().into_iter().find(|m| m.id() == *id) else {
+                let Some(map) = self.maps.all_raw().into_iter().find(|m| m.id() == *id) else {
                     return Err(MoveCommandError::MapNotFound);
                 };
                 Ok(self.client.r#move(map.x(), map.y())?)

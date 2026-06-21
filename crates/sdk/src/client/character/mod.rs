@@ -149,7 +149,7 @@ impl CharacterClient {
         if position == destination {
             return Err(MoveError::AlreadyOnMap);
         }
-        let Some(map) = self.maps.get(&destination) else {
+        let Some(map) = self.maps.get_raw(&destination) else {
             return Err(MoveError::MapNotFound);
         };
         if map.is_blocked() || !self.meets_conditions_for(map.access()) {
@@ -562,7 +562,7 @@ impl CharacterClient {
     }
 
     pub fn can_complete_task(&self) -> Result<(), TaskCompletionError> {
-        let Some(task) = self.tasks.get(&self.task()) else {
+        let Some(task) = self.tasks.get::<str>(&self.task()) else {
             return Err(TaskCompletionError::NoCurrentTask);
         };
         if !self.task_finished() {
@@ -863,7 +863,7 @@ impl CharacterClient {
 
     #[must_use]
     pub fn current_map(&self) -> RawMap {
-        self.maps.get(&self.position()).unwrap()
+        self.maps.get_raw(&self.position()).unwrap()
     }
 }
 

@@ -18,7 +18,7 @@ pub struct NpcsClient(Arc<NpcsClientInner>);
 #[derive(Default, Debug)]
 pub struct NpcsClientInner {
     api: ArtifactApi,
-    data: RwLock<HashMap<String, Npc>>,
+    data: RwLock<Arc<HashMap<String, Npc>>>,
     items: NpcsItemsClient,
 }
 
@@ -35,7 +35,7 @@ impl NpcsClient {
     }
 
     pub fn init(&self) {
-        *self.data_mut() = self.load();
+        *self.data_mut() = Arc::new(self.load());
         info!("Npcs client initilized");
     }
 
@@ -74,7 +74,7 @@ impl Persist<HashMap<String, Npc>> for NpcsClient {
     }
 
     fn refresh(&self) {
-        *self.data_mut() = self.load_from_api();
+        *self.data_mut() = Arc::new(self.load_from_api());
     }
 }
 

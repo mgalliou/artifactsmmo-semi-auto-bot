@@ -1,5 +1,6 @@
 use crate::entities::Map;
 use crate::{
+    CollectionClient, Data, DataEntity,
     client::events::EventsClient,
     entities::{MapDataHandle, RawMap},
     skill::Skill,
@@ -11,8 +12,10 @@ use log::info;
 use openapi::models::{MapContentSchema, MapContentType, MapLayer, TaskType};
 use std::{
     collections::HashMap,
-    sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
+    sync::{Arc, RwLock},
 };
+
+type MapStore = Arc<HashMap<(MapLayer, i32, i32), MapDataHandle>>;
 
 #[derive(Default, Debug, Clone, Deref)]
 #[deref(forward)]
@@ -20,7 +23,7 @@ pub struct MapsClient(Arc<MapsClientInner>);
 
 #[derive(Default, Debug)]
 pub struct MapsClientInner {
-    data: RwLock<HashMap<(MapLayer, i32, i32), MapDataHandle>>,
+    data: RwLock<MapStore>,
     events: EventsClient,
     api: ArtifactApi,
 }
@@ -37,23 +40,16 @@ impl MapsClient {
         )
     }
 
-    fn data(&self) -> RwLockReadGuard<'_, HashMap<(MapLayer, i32, i32), MapDataHandle>> {
-        self.data.read().unwrap()
-    }
-
-    fn data_mut(&self) -> RwLockWriteGuard<'_, HashMap<(MapLayer, i32, i32), MapDataHandle>> {
-        self.data.write().unwrap()
-    }
-
     pub(crate) fn init(&self) {
-        *self.data_mut() = self
-            .api
-            .maps
-            .get_all()
-            .unwrap()
-            .into_iter()
-            .map(|m| ((m.layer, m.x, m.y), m.into()))
-            .collect();
+        *self.data_mut() = Arc::new(
+            self.api
+                .maps
+                .get_all()
+                .unwrap()
+                .into_iter()
+                .map(|m| ((m.layer, m.x, m.y), m.into()))
+                .collect::<HashMap<(MapLayer, i32, i32), MapDataHandle>>(),
+        );
         info!("Maps client initilized");
     }
 
@@ -62,23 +58,19 @@ impl MapsClient {
     }
 
     #[must_use]
-    pub fn get(&self, position: &(MapLayer, i32, i32)) -> Option<RawMap> {
-        Some(self.data().get(position)?.read())
+    pub fn get_raw(&self, position: &(MapLayer, i32, i32)) -> Option<RawMap> {
+        Some(self.get(position)?.read())
     }
 
     #[must_use]
-    pub fn get_mut(&self, position: &(MapLayer, i32, i32)) -> Option<MapDataHandle> {
-        self.data().get(position).cloned()
-    }
-
-    pub fn all(&self) -> Vec<RawMap> {
-        self.data().values().map(MapDataHandle::read).collect_vec()
+    pub fn all_raw(&self) -> Vec<RawMap> {
+        self.all().into_iter().map(|h| h.read()).collect_vec()
     }
 
     pub fn refresh_from_events(&self) {
         for e in self.events().active() {
             if e.is_expired()
-                && let Some(map) = self.get_mut(&e.map().position())
+                && let Some(map) = CollectionClient::get(self, &e.map().position())
             {
                 map.update(e.previous_map());
             }
@@ -86,7 +78,7 @@ impl MapsClient {
         self.events().refresh_active();
         for e in self.events().active() {
             if !e.is_expired()
-                && let Some(map) = self.get_mut(&e.map().position())
+                && let Some(map) = CollectionClient::get(self, &e.map().position())
             {
                 map.update(e.map());
             }
@@ -103,7 +95,7 @@ impl MapsClient {
 
     #[must_use]
     pub fn of_type(&self, r#type: MapContentType) -> Vec<RawMap> {
-        self.all()
+        self.all_raw()
             .into_iter()
             .filter_map(|m| m.content_type_is(r#type).then_some(m))
             .collect_vec()
@@ -111,7 +103,7 @@ impl MapsClient {
 
     #[must_use]
     pub fn with_content_code(&self, code: &str) -> Vec<RawMap> {
-        self.all()
+        self.all_raw()
             .into_iter()
             .filter_map(|m| m.content_code_is(code).then_some(m))
             .collect()
@@ -119,7 +111,7 @@ impl MapsClient {
 
     #[must_use]
     pub fn with_content(&self, content: &MapContentSchema) -> Vec<RawMap> {
-        self.all()
+        self.all_raw()
             .into_iter()
             .filter_map(|m| m.content_is(content).then_some(m))
             .collect()
@@ -180,6 +172,28 @@ impl MapsClient {
         )
     }
 }
+
+impl DataEntity for MapsClient {
+    type Entity = MapDataHandle;
+}
+
+impl Data for MapsClient {
+    type Key = (MapLayer, i32, i32);
+
+    fn data(
+        &self,
+    ) -> std::sync::RwLockReadGuard<'_, std::sync::Arc<HashMap<Self::Key, Self::Entity>>> {
+        self.0.data.read().unwrap()
+    }
+
+    fn data_mut(
+        &self,
+    ) -> std::sync::RwLockWriteGuard<'_, std::sync::Arc<HashMap<Self::Key, Self::Entity>>> {
+        self.0.data.write().unwrap()
+    }
+}
+
+impl CollectionClient for MapsClient {}
 
 #[cfg(test)]
 mod tests {

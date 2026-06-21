@@ -18,7 +18,7 @@ pub struct ResourcesClient(Arc<ResourcesClientInner>);
 #[derive(Default, Debug)]
 pub struct ResourcesClientInner {
     api: ArtifactApi,
-    data: RwLock<HashMap<String, Resource>>,
+    data: RwLock<Arc<HashMap<String, Resource>>>,
     events: EventsClient,
 }
 
@@ -35,7 +35,7 @@ impl ResourcesClient {
     }
 
     pub fn init(&self) {
-        *self.data_mut() = self.load();
+        *self.data_mut() = Arc::new(self.load());
         info!("Resource client initilized");
     }
 
@@ -67,7 +67,7 @@ impl Persist<HashMap<String, Resource>> for ResourcesClient {
     }
 
     fn refresh(&self) {
-        *self.data_mut() = self.load_from_api();
+        *self.data_mut() = Arc::new(self.load_from_api());
     }
 }
 
