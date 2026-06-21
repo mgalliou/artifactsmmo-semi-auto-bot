@@ -1,5 +1,5 @@
 use crate::{
-    Code, CollectionClient, Data, DataEntity, Persist, client::npcs_items::NpcsItemsClient,
+    Code, CollectionClient, Data, Persist, client::npcs_items::NpcsItemsClient,
     entities::Npc,
 };
 use api::ArtifactApi;
@@ -13,6 +13,7 @@ use std::{
 
 #[derive(Default, Debug, Clone, Deref, CollectionClient)]
 #[deref(forward)]
+#[element(Npc)]
 pub struct NpcsClient(Arc<NpcsClientInner>);
 
 #[derive(Default, Debug)]
@@ -78,6 +79,4 @@ impl Persist<HashMap<String, Npc>> for NpcsClient {
     }
 }
 
-impl DataEntity for NpcsClient {
-    type Entity = Npc;
-}
+

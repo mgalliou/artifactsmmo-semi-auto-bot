@@ -1,5 +1,5 @@
 use crate::{
-    Code, CollectionClient, Data, DataEntity, DropsItems, Level, Persist, Quantity,
+    Code, CollectionClient, Data, DropsItems, Level, Persist, Quantity,
     client::{
         monsters::MonstersClient, npcs::NpcsClient, resources::ResourcesClient,
         tasks_rewards::TasksRewardsClient,
@@ -25,6 +25,7 @@ use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
 
 #[derive(Default, Debug, Clone, Deref, CollectionClient)]
 #[deref(forward)]
+#[element(Item)]
 pub struct ItemsClient(Arc<ItemsClientInner>);
 
 #[derive(Default, Debug)]
@@ -294,10 +295,6 @@ impl Persist<HashMap<String, Item>> for ItemsClient {
     fn refresh(&self) {
         *self.data_mut() = Arc::new(self.load_from_api());
     }
-}
-
-impl DataEntity for ItemsClient {
-    type Entity = Item;
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Display, AsRefStr, EnumIter, EnumString, EnumIs)]

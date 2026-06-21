@@ -138,7 +138,10 @@ impl Client {
     }
 }
 
-#[allow(private_bounds)]
+pub mod private {
+    pub trait Sealed {}
+}
+
 pub trait CollectionClient: Data {
     fn get<Q>(&self, key: &Q) -> Option<Self::Entity>
     where
@@ -171,13 +174,10 @@ pub trait CollectionClient: Data {
     }
 }
 
-pub(crate) trait Data: DataEntity {
+pub trait Data: private::Sealed {
+    type Entity: Clone;
     type Key: Hash + Eq;
 
     fn data(&self) -> RwLockReadGuard<'_, Arc<HashMap<Self::Key, Self::Entity>>>;
     fn data_mut(&self) -> RwLockWriteGuard<'_, Arc<HashMap<Self::Key, Self::Entity>>>;
-}
-
-pub trait DataEntity {
-    type Entity: Clone;
 }

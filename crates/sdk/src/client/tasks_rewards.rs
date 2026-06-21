@@ -1,4 +1,4 @@
-use crate::{CollectionClient, Data, DataEntity, Persist, entities::TaskReward};
+use crate::{CollectionClient, Data, Persist, entities::TaskReward};
 use api::ArtifactApi;
 use derive_more::Deref;
 use log::info;
@@ -9,6 +9,7 @@ use std::{
 
 #[derive(Default, Debug, Clone, Deref, CollectionClient)]
 #[deref(forward)]
+#[element(TaskReward)]
 pub struct TasksRewardsClient(Arc<TasksRewardsClientInner>);
 
 #[derive(Default, Debug)]
@@ -59,6 +60,4 @@ impl Persist<HashMap<String, TaskReward>> for TasksRewardsClient {
     }
 }
 
-impl DataEntity for TasksRewardsClient {
-    type Entity = TaskReward;
-}
+

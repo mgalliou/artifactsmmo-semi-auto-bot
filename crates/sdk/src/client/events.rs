@@ -1,5 +1,5 @@
 use crate::{
-    Data, DataEntity, Persist,
+    Data, Persist,
     entities::{ActiveEvent, Event},
 };
 use api::ArtifactApi;
@@ -16,6 +16,7 @@ use std::{
 
 #[derive(Default, Debug, Clone, Deref, CollectionClient)]
 #[deref(forward)]
+#[element(Event)]
 pub struct EventsClient(Arc<EventsClientInner>);
 
 #[derive(Default, Debug)]
@@ -106,6 +107,4 @@ impl Persist<HashMap<String, Event>> for EventsClient {
     }
 }
 
-impl DataEntity for EventsClient {
-    type Entity = Event;
-}
+

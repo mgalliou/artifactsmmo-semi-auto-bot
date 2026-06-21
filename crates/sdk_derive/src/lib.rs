@@ -1,6 +1,17 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{Data, DeriveInput};
+use syn::{Data, DeriveInput, Type};
+
+fn get_element_type(attrs: &[syn::Attribute]) -> Type {
+    for attr in attrs {
+        if attr.path().is_ident("element") {
+            return attr
+                .parse_args::<Type>()
+                .expect("expected type argument, e.g. #[element(Item)]");
+        }
+    }
+    panic!("missing #[element(Type)] attribute");
+}
 
 #[proc_macro_derive(CollectionClient, attributes(element))]
 pub fn collection_client_derive(input: TokenStream) -> TokenStream {
@@ -8,9 +19,12 @@ pub fn collection_client_derive(input: TokenStream) -> TokenStream {
     match ast.data {
         Data::Struct(_) => {
             let name = &ast.ident;
+            let entity_type = get_element_type(&ast.attrs);
             let expanded = quote! {
+                impl crate::client::private::Sealed for #name {}
                 impl crate::CollectionClient for #name {}
                 impl crate::Data for #name {
+                    type Entity = #entity_type;
                     type Key = String;
 
                     fn data(&self) -> std::sync::RwLockReadGuard<'_, std::sync::Arc<std::collections::HashMap<Self::Key, Self::Entity>>> {

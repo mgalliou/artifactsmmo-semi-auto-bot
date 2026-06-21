@@ -1,6 +1,6 @@
 use crate::entities::Map;
 use crate::{
-    CollectionClient, Data, DataEntity,
+    CollectionClient, Data,
     client::events::EventsClient,
     entities::{MapDataHandle, RawMap},
     skill::Skill,
@@ -173,11 +173,8 @@ impl MapsClient {
     }
 }
 
-impl DataEntity for MapsClient {
-    type Entity = MapDataHandle;
-}
-
 impl Data for MapsClient {
+    type Entity = MapDataHandle;
     type Key = (MapLayer, i32, i32);
 
     fn data(
@@ -193,6 +190,7 @@ impl Data for MapsClient {
     }
 }
 
+impl crate::client::private::Sealed for MapsClient {}
 impl CollectionClient for MapsClient {}
 
 #[cfg(test)]

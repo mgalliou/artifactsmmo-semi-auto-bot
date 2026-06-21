@@ -1,5 +1,5 @@
 use crate::{
-    CollectionClient, Data, DataEntity, DropsItems, Persist, client::events::EventsClient,
+    CollectionClient, Data, DropsItems, Persist, client::events::EventsClient,
     entities::Resource,
 };
 use api::ArtifactApi;
@@ -13,6 +13,7 @@ use std::{
 
 #[derive(Default, Debug, Clone, Deref, CollectionClient)]
 #[deref(forward)]
+#[element(Resource)]
 pub struct ResourcesClient(Arc<ResourcesClientInner>);
 
 #[derive(Default, Debug)]
@@ -71,6 +72,4 @@ impl Persist<HashMap<String, Resource>> for ResourcesClient {
     }
 }
 
-impl DataEntity for ResourcesClient {
-    type Entity = Resource;
-}
+
