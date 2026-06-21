@@ -1,16 +1,13 @@
 use crate::{
-    CanProvideXp, CollectionClient, DropsItems, Level, Persist,
-    client::events::EventsClient, entities::Monster,
+    CanProvideXp, CollectionClient, DropsItems, Level, Persist, client::events::EventsClient,
+    entities::Monster,
 };
 use api::ArtifactApi;
+use arc_swap::ArcSwap;
 use derive_more::Deref;
 use itertools::Itertools;
 use log::info;
-use arc_swap::ArcSwap;
-use std::{
-    collections::HashMap,
-    sync::Arc,
-};
+use std::{collections::HashMap, sync::Arc};
 
 #[derive(Default, Debug, Clone, Deref, CollectionClient)]
 #[deref(forward)]
@@ -43,29 +40,26 @@ impl MonstersClient {
 
     #[must_use]
     pub fn dropping(&self, item_code: &str) -> Vec<Monster> {
-        self.all()
-            .into_iter()
+        self.iter()
             .filter(|m| m.drops().iter().any(|d| d.code == item_code))
             .collect_vec()
     }
 
     pub fn lowest_providing_xp_at(&self, level: u32) -> Option<Monster> {
-        self.all()
-            .into_iter()
+        self.iter()
             .filter(|m| m.provides_xp_at(level))
-            .min_by_key(Level::level)
+            .min_by_key(|m| m.level())
     }
 
     pub fn highest_providing_exp(&self, level: u32) -> Option<Monster> {
-        self.all()
-            .into_iter()
+        self.iter()
             .filter(|m| m.provides_xp_at(level))
-            .max_by_key(Level::level)
+            .max_by_key(|m| m.level())
     }
 
     #[must_use]
     pub fn is_event(&self, code: &str) -> bool {
-        self.events.all().iter().any(|e| e.content().code == code)
+        self.events.any(|e| e.content().code == code)
     }
 }
 
@@ -86,5 +80,3 @@ impl Persist<HashMap<String, Monster>> for MonstersClient {
         self.0.data.store(Arc::new(self.load_from_api()));
     }
 }
-
-

@@ -3,12 +3,12 @@ use crate::{
     entities::{ActiveEvent, Event},
 };
 use api::ArtifactApi;
+use arc_swap::ArcSwap;
 use chrono::{DateTime, Duration, Utc};
 use derive_more::Deref;
 use itertools::Itertools;
 use log::{debug, info};
 use sdk_derive::CollectionClient;
-use arc_swap::ArcSwap;
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock, RwLockWriteGuard},
@@ -107,5 +107,3 @@ impl Persist<HashMap<String, Event>> for EventsClient {
         self.0.data.store(Arc::new(self.load_from_api()));
     }
 }
-
-

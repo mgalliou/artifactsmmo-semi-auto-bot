@@ -42,8 +42,8 @@ impl LevelingHelper {
     /// when crafted.
     pub fn crafts_providing_exp(&self, level: u32, skill: Skill) -> impl Iterator<Item = Item> {
         self.items
-            .filtered(|i| i.skill_to_craft_is(skill) && i.provides_xp_at(level))
-            .into_iter()
+            .iter()
+            .filter(move |i| i.skill_to_craft_is(skill) && i.provides_xp_at(level))
     }
 
     /// Takes a `level` and a `skill` and returns the items of the lowest level
@@ -151,23 +151,23 @@ impl LevelingHelper {
 
     pub fn best_resource(&self, level: u32, skill: Skill) -> Option<Resource> {
         self.resources
-            .filtered(|r| {
+            .iter()
+            .filter(|r| {
                 skill == r.skill()
                     && r.provides_xp_at(level)
                     && !self.maps.with_content_code(r.code()).is_empty()
             })
-            .into_iter()
             .max_by_key(Level::level)
     }
 
     pub fn best_monster(&self, char: &CharacterController) -> Option<Monster> {
         self.monsters
-            .filtered(|m| {
+            .iter()
+            .filter(|m| {
                 m.level() <= char.level()
                     && !["imp", "death_knight"].contains(&m.code())
                     && char.can_kill(m).is_ok()
             })
-            .into_iter()
             .max_by_key(Level::level)
     }
 }

@@ -1,4 +1,7 @@
-use chrono::{Utc, prelude::{DateTime, FixedOffset}};
+use chrono::{
+    Utc,
+    prelude::{DateTime, FixedOffset},
+};
 use openapi::models::ActiveEventSchema;
 use serde::{Deserialize, Serialize};
 use std::{

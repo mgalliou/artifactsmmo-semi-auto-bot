@@ -1,19 +1,17 @@
 use crate::{
     CollectionClient,
-    client::events::EventsClient, entities::Map,
+    client::events::EventsClient,
+    entities::Map,
     entities::{MapDataHandle, RawMap},
     skill::Skill,
 };
 use api::ArtifactApi;
+use arc_swap::ArcSwap;
 use derive_more::Deref;
 use itertools::Itertools;
 use log::info;
 use openapi::models::{MapContentSchema, MapContentType, MapLayer, TaskType};
-use arc_swap::ArcSwap;
-use std::{
-    collections::HashMap,
-    sync::Arc,
-};
+use std::{collections::HashMap, sync::Arc};
 
 #[derive(Default, Debug, Clone, Deref, CollectionClient)]
 #[deref(forward)]
@@ -64,7 +62,7 @@ impl MapsClient {
 
     #[must_use]
     pub fn all_raw(&self) -> Vec<RawMap> {
-        self.all().into_iter().map(|h| h.read()).collect_vec()
+        self.iter().map(|h| h.read()).collect_vec()
     }
 
     pub fn refresh_from_events(&self) {
@@ -172,8 +170,6 @@ impl MapsClient {
         )
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {

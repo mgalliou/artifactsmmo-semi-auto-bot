@@ -1,16 +1,12 @@
 use crate::{
-    CollectionClient, DropsItems, Persist, client::events::EventsClient,
-    entities::Resource,
+    CollectionClient, DropsItems, Persist, client::events::EventsClient, entities::Resource,
 };
 use api::ArtifactApi;
+use arc_swap::ArcSwap;
 use derive_more::Deref;
 use itertools::Itertools;
 use log::info;
-use arc_swap::ArcSwap;
-use std::{
-    collections::HashMap,
-    sync::Arc,
-};
+use std::{collections::HashMap, sync::Arc};
 
 #[derive(Default, Debug, Clone, Deref, CollectionClient)]
 #[deref(forward)]
@@ -43,15 +39,14 @@ impl ResourcesClient {
 
     #[must_use]
     pub fn dropping(&self, item_code: &str) -> Vec<Resource> {
-        self.all()
-            .into_iter()
+        self.iter()
             .filter(|r| r.drops().iter().any(|d| d.code == item_code))
             .collect_vec()
     }
 
     #[must_use]
     pub fn is_event(&self, code: &str) -> bool {
-        self.events.all().iter().any(|e| e.content().code == code)
+        self.events.any(|e| e.content().code == code)
     }
 }
 
@@ -72,5 +67,3 @@ impl Persist<HashMap<String, Resource>> for ResourcesClient {
         self.0.data.store(Arc::new(self.load_from_api()));
     }
 }
-
-

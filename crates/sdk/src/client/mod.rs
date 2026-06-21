@@ -1,7 +1,5 @@
-use crate::Persist;
 use api::ArtifactApi;
 use derive_more::Deref;
-use itertools::Itertools;
 use std::{
     borrow::Borrow,
     collections::HashMap,
@@ -10,13 +8,7 @@ use std::{
     thread::{self},
 };
 
-pub use crate::client::{
-    account::AccountClient, bank::BankClient, character::CharacterClient, error::ClientError,
-    events::EventsClient, grand_exchange::GrandExchangeClient, items::ItemsClient,
-    maps::MapsClient, monsters::MonstersClient, npcs::NpcsClient, npcs_items::NpcsItemsClient,
-    resources::ResourcesClient, server::ServerClient, tasks::TasksClient,
-    tasks_rewards::TasksRewardsClient,
-};
+use crate::Persist;
 
 pub mod account;
 pub mod bank;
@@ -33,6 +25,103 @@ pub mod resources;
 pub mod server;
 pub mod tasks;
 pub mod tasks_rewards;
+
+pub use crate::client::{
+    account::AccountClient, bank::BankClient, character::CharacterClient, error::ClientError,
+    events::EventsClient, grand_exchange::GrandExchangeClient, items::ItemsClient,
+    maps::MapsClient, monsters::MonstersClient, npcs::NpcsClient, npcs_items::NpcsItemsClient,
+    resources::ResourcesClient, server::ServerClient, tasks::TasksClient,
+    tasks_rewards::TasksRewardsClient,
+};
+
+mod private {
+    pub trait Sealed {}
+}
+
+/// Read-only access to an RCU (Read-Copy-Update) collection snapshot.
+///
+/// Each method takes an `Arc` snapshot of the inner `HashMap` (lock-free via
+/// `ArcSwap`), then operates on it freely — callers never block concurrent
+/// writes (e.g. background refresh).
+pub trait CollectionClient: Data {
+    fn get<Q>(&self, key: &Q) -> Option<Self::Entity>
+    where
+        Self::Key: Borrow<Q>,
+        Q: Hash + Eq + ?Sized,
+    {
+        self.data().get(key).cloned()
+    }
+
+    fn contains<Q>(&self, key: &Q) -> bool
+    where
+        Self::Key: Borrow<Q>,
+        Q: Hash + Eq + ?Sized,
+    {
+        self.data().contains_key(key)
+    }
+
+    fn len(&self) -> usize {
+        self.data().len()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.data().is_empty()
+    }
+
+    fn any<F>(&self, f: F) -> bool
+    where
+        F: FnMut(&Self::Entity) -> bool,
+    {
+        self.data().values().any(f)
+    }
+
+    fn find<F>(&self, mut f: F) -> Option<Self::Entity>
+    where
+        F: FnMut(&Self::Entity) -> bool,
+    {
+        self.data().values().find(|v| f(v)).cloned()
+    }
+
+    fn min_by_key<F, R>(&self, mut f: F) -> Option<Self::Entity>
+    where
+        F: FnMut(&Self::Entity) -> R,
+        R: Ord,
+    {
+        self.data().values().min_by_key(|v| f(v)).cloned()
+    }
+
+    fn max_by_key<F, R>(&self, mut f: F) -> Option<Self::Entity>
+    where
+        F: FnMut(&Self::Entity) -> R,
+        R: Ord,
+    {
+        self.data().values().max_by_key(|v| f(v)).cloned()
+    }
+
+    fn iter(&self) -> CollectionIter<Self::Key, Self::Entity>
+    where
+        Self::Key: Clone + Hash + Eq,
+    {
+        let snapshot = self.data();
+        let keys = snapshot.keys().cloned().collect();
+        CollectionIter {
+            snapshot,
+            keys,
+            pos: 0,
+        }
+    }
+}
+
+/// Interior-mutable collection backed by `ArcSwap<HashMap<K, V>>`.
+///
+/// Writers atomically swap the entire `HashMap` pointer (`ArcSwap::store`).
+/// Readers take a lock-free `Arc` snapshot (`ArcSwap::load_full`).
+pub trait Data: private::Sealed {
+    type Entity: Clone;
+    type Key: Hash + Eq;
+
+    fn data(&self) -> Arc<HashMap<Self::Key, Self::Entity>>;
+}
 
 #[derive(Default, Debug, Clone, Deref)]
 #[deref(forward)]
@@ -138,47 +227,28 @@ impl Client {
     }
 }
 
-pub mod private {
-    pub trait Sealed {}
-}
-
-/// Read-only access to an RCU (Read-Copy-Update) collection snapshot.
+/// Lazily-yielding iterator over an RCU snapshot of a collection.
 ///
-/// Each method takes an `Arc` snapshot of the inner `HashMap` (lock-free via
-/// `ArcSwap`), then operates on it freely — callers never block concurrent
-/// writes (e.g. background refresh).
-pub trait CollectionClient: Data {
-    fn get<Q>(&self, key: &Q) -> Option<Self::Entity>
-    where
-        Self::Key: Borrow<Q>,
-        Q: Hash + Eq + ?Sized,
-    {
-        self.data().get(key).cloned()
+/// Clones keys upfront (cheap) and values on demand.
+pub struct CollectionIter<K, V> {
+    snapshot: Arc<HashMap<K, V>>,
+    keys: Vec<K>,
+    pos: usize,
+}
+
+impl<K: Clone + Hash + Eq, V: Clone> Iterator for CollectionIter<K, V> {
+    type Item = V;
+
+    fn next(&mut self) -> Option<V> {
+        let key = &self.keys[self.pos];
+        self.pos += 1;
+        self.snapshot.get(key).cloned()
     }
 
-    fn all(&self) -> Vec<Self::Entity> {
-        self.data().values().cloned().collect_vec()
-    }
-
-    fn filtered<F>(&self, mut f: F) -> Vec<Self::Entity>
-    where
-        F: FnMut(&Self::Entity) -> bool,
-    {
-        self.data()
-            .values()
-            .filter(|v| f(*v))
-            .cloned()
-            .collect_vec()
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.keys.len() - self.pos;
+        (remaining, Some(remaining))
     }
 }
 
-/// Interior-mutable collection backed by `ArcSwap<HashMap<K, V>>`.
-///
-/// Writers atomically swap the entire `HashMap` pointer (`ArcSwap::store`).
-/// Readers take a lock-free `Arc` snapshot (`ArcSwap::load_full`).
-pub trait Data: private::Sealed {
-    type Entity: Clone;
-    type Key: Hash + Eq;
-
-    fn data(&self) -> Arc<HashMap<Self::Key, Self::Entity>>;
-}
+impl<K: Clone + Hash + Eq, V: Clone> ExactSizeIterator for CollectionIter<K, V> {}

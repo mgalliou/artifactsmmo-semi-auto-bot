@@ -109,8 +109,8 @@ impl GearFinder {
         filter: Filter,
     ) -> impl Iterator<Item = Item> {
         self.items
-            .filtered(|i| !i.is_tool() && self.is_eligible(i, Type::Weapon, filter, char))
-            .into_iter()
+            .iter()
+            .filter(move |i| !i.is_tool() && self.is_eligible(i, Type::Weapon, filter, char))
             .sorted_by_key(|i| OrderedFloat(i.average_dmg_against(monster)))
             .rev()
             .take(3)
@@ -213,7 +213,9 @@ impl GearFinder {
         let mut bests: Vec<Item> = vec![];
         let armors = self
             .items
-            .filtered(|i| !unique_items.contains(i) && self.is_eligible(i, r#type, filter, char));
+            .iter()
+            .filter(|i| !unique_items.contains(i) && self.is_eligible(i, r#type, filter, char))
+            .collect_vec();
         if let Some(best) = best_armor_by(
             ArmorCriteria::DamageBoost { weapon, monster },
             &armors,
@@ -261,7 +263,9 @@ impl GearFinder {
         let mut bests: Vec<Item> = vec![];
         let utilities = self
             .items
-            .filtered(|i| self.is_eligible(i, Type::Utility, filter, char));
+            .iter()
+            .filter(|i| self.is_eligible(i, Type::Utility, filter, char))
+            .collect_vec();
         if let Some(best) = best_armor_by(
             ArmorCriteria::DamageBoost { weapon, monster },
             &utilities,
@@ -290,7 +294,9 @@ impl GearFinder {
 
     fn best_combat_runes(&self, char: &CharacterController, filter: Filter) -> Vec<ItemWrapper> {
         self.items
-            .filtered(|i| self.is_eligible(i, Type::Rune, filter, char))
+            .iter()
+            .filter(|i| self.is_eligible(i, Type::Rune, filter, char))
+            .collect_vec()
             .iter()
             .max_set_by_key(HasEffects::burn)
             .into_iter()
@@ -376,8 +382,8 @@ impl GearFinder {
 
     fn best_tool(&self, char: &CharacterController, skill: Skill, filter: Filter) -> Option<Item> {
         self.items
-            .filtered(|i| i.is_tool() && self.is_eligible(i, Type::Weapon, filter, char))
-            .into_iter()
+            .iter()
+            .filter(|i| i.is_tool() && self.is_eligible(i, Type::Weapon, filter, char))
             .min_by_key(|i| i.skill_cooldown_reduction(skill))
     }
 
@@ -391,17 +397,19 @@ impl GearFinder {
         unique_items: &[Item],
     ) -> Vec<Option<Item>> {
         let mut bests: Vec<Item> = vec![];
-        let armors = self.items.filtered(|i| {
-            !unique_items.contains(i)
-                && self.is_eligible(i, r#type, filter, char)
-                && ((i.prospecting() > 0 && skill.is_gathering())
-                    || (i.wisdom() > 0
-                        && char.skill_level(skill) < MAX_LEVEL
-                        && yields_xp(char.skill_level(skill), skill_level)))
-        });
-        if let Some(best) = best_armor_by(ArmorCriteria::Prospecting, &armors, char)
-            && bests.iter().all(|u| u.prospecting() < best.prospecting())
-        {
+        let armors = self
+            .items
+            .iter()
+            .filter(|i| {
+                !unique_items.contains(i)
+                    && self.is_eligible(i, r#type, filter, char)
+                    && ((i.prospecting() > 0 && skill.is_gathering())
+                        || (i.wisdom() > 0
+                            && char.skill_level(skill) < MAX_LEVEL
+                            && yields_xp(char.skill_level(skill), skill_level)))
+            })
+            .collect_vec();
+        if let Some(best) = best_armor_by(ArmorCriteria::Prospecting, &armors, char) {
             bests.push(best.clone());
         }
         if let Some(best) = best_armor_by(ArmorCriteria::Wisdom, &armors, char)
@@ -487,10 +495,10 @@ impl GearFinder {
     }
 
     fn best_bag(&self, char: &CharacterController, filter: Filter) -> Option<Item> {
-        let bags = self
-            .items
-            .filtered(|i| self.is_eligible(i, Type::Bag, filter, char));
-        bags.into_iter().max_by_key(HasEffects::inventory_space)
+        self.items
+            .iter()
+            .filter(|i| self.is_eligible(i, Type::Bag, filter, char))
+            .max_by_key(HasEffects::inventory_space)
     }
 
     fn item_from_wrappers(wrappers: &[ItemWrapper], slot: Slot) -> Option<Item> {

@@ -138,7 +138,7 @@ fn respond(line: &str, bot: &Bot, character: &mut Option<CharacterController>) -
         },
         Commands::Events { action } => match action {
             EventsAction::List => {
-                bot.client.events.all().iter().for_each(|e| println!("{e}"));
+                bot.client.events.iter().for_each(|e| println!("{e}"));
             }
             EventsAction::Active => {
                 bot.client

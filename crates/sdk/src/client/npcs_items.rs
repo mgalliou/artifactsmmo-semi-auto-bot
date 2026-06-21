@@ -1,13 +1,10 @@
 use crate::{Persist, entities::NpcItem};
 use api::ArtifactApi;
+use arc_swap::ArcSwap;
 use derive_more::Deref;
 use log::info;
 use sdk_derive::CollectionClient;
-use arc_swap::ArcSwap;
-use std::{
-    collections::HashMap,
-    sync::Arc,
-};
+use std::{collections::HashMap, sync::Arc};
 
 #[derive(Default, Debug, Clone, Deref, CollectionClient)]
 #[deref(forward)]
@@ -54,5 +51,3 @@ impl Persist<HashMap<String, NpcItem>> for NpcsItemsClient {
         self.0.data.store(Arc::new(self.load_from_api()));
     }
 }
-
-

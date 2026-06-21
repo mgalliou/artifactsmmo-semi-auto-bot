@@ -1,16 +1,10 @@
-use crate::{
-    Code, CollectionClient, Persist, client::npcs_items::NpcsItemsClient,
-    entities::Npc,
-};
+use crate::{Code, CollectionClient, Persist, client::npcs_items::NpcsItemsClient, entities::Npc};
 use api::ArtifactApi;
+use arc_swap::ArcSwap;
 use derive_more::Deref;
 use itertools::Itertools;
 use log::info;
-use arc_swap::ArcSwap;
-use std::{
-    collections::HashMap,
-    sync::Arc,
-};
+use std::{collections::HashMap, sync::Arc};
 
 #[derive(Default, Debug, Clone, Deref, CollectionClient)]
 #[deref(forward)]
@@ -49,7 +43,6 @@ impl NpcsClient {
     #[must_use]
     pub fn selling(&self, code: &str) -> Vec<Npc> {
         self.items
-            .all()
             .iter()
             .filter_map(|i| {
                 if i.is_buyable() && i.code() == code {
@@ -79,5 +72,3 @@ impl Persist<HashMap<String, Npc>> for NpcsClient {
         self.0.data.store(Arc::new(self.load_from_api()));
     }
 }
-
-

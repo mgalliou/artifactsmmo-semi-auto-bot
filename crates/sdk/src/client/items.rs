@@ -11,17 +11,12 @@ use crate::{
     skill::Skill,
 };
 use api::ArtifactApi;
+use arc_swap::ArcSwap;
 use derive_more::Deref;
 use itertools::Itertools;
 use log::info;
 use openapi::models::SimpleItemSchema;
-use arc_swap::ArcSwap;
-use std::{
-    collections::HashMap,
-    fmt,
-    sync::Arc,
-    vec::Vec,
-};
+use std::{collections::HashMap, fmt, sync::Arc, vec::Vec};
 use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
 
 #[derive(Default, Debug, Clone, Deref, CollectionClient)]
@@ -123,7 +118,9 @@ impl ItemsClient {
     /// Takes an item `code` and returns the items directly crafted with it.
     #[must_use]
     pub fn crafted_with(&self, code: &str) -> Vec<Item> {
-        self.filtered(|i| i.is_crafted_with(code))
+        self.iter()
+            .filter(|i| i.is_crafted_with(code))
+            .collect_vec()
     }
 
     #[must_use]
@@ -146,7 +143,9 @@ impl ItemsClient {
     /// Takes an item `code` and returns the items crafted with it as base mat.
     #[must_use]
     pub fn crafted_with_base_mat(&self, code: &str) -> Vec<Item> {
-        self.filtered(|i| self.is_crafted_with_base_mat(i.code(), code))
+        self.iter()
+            .filter(|i| self.is_crafted_with_base_mat(i.code(), code))
+            .collect_vec()
     }
 
     /// Takes an item `code` and checks if it is crafted with `mat` as a base
@@ -192,7 +191,9 @@ impl ItemsClient {
 
     #[must_use]
     pub fn restoring_utilities(&self, level: u32) -> Vec<Item> {
-        self.filtered(|i| i.r#type().is_utility() && i.restore() > 0 && i.level() >= level)
+        self.iter()
+            .filter(|i| i.r#type().is_utility() && i.restore() > 0 && i.level() >= level)
+            .collect_vec()
     }
 
     #[must_use]
@@ -200,22 +201,24 @@ impl ItemsClient {
         let Some(item) = self.get(item_code) else {
             return vec![];
         };
-        self.filtered(|i| {
-            i.code() != item.code()
-                && i.type_is(item.r#type())
-                && item.effects().iter().all(|e| {
-                    if e.code == EffectCode::InventorySpace
-                        || e.code == EffectCode::Mining
-                        || e.code == EffectCode::Woodcutting
-                        || e.code == EffectCode::Fishing
-                        || e.code == EffectCode::Alchemy
-                    {
-                        e.value >= i.effect_value(&e.code)
-                    } else {
-                        e.value <= i.effect_value(&e.code)
-                    }
-                })
-        })
+        self.iter()
+            .filter(|i| {
+                i.code() != item.code()
+                    && i.type_is(item.r#type())
+                    && item.effects().iter().all(|e| {
+                        if e.code == EffectCode::InventorySpace
+                            || e.code == EffectCode::Mining
+                            || e.code == EffectCode::Woodcutting
+                            || e.code == EffectCode::Fishing
+                            || e.code == EffectCode::Alchemy
+                        {
+                            e.value >= i.effect_value(&e.code)
+                        } else {
+                            e.value <= i.effect_value(&e.code)
+                        }
+                    })
+            })
+            .collect_vec()
     }
 
     pub fn sources_of(&self, code: &str) -> Vec<ItemSource> {
@@ -238,7 +241,7 @@ impl ItemsClient {
         if self.get(code).is_some_and(|i| i.is_craftable()) {
             sources.push(ItemSource::Craft);
         }
-        if self.tasks_rewards.all().iter().any(|r| r.code() == code) {
+        if self.tasks_rewards.any(|r| r.code() == code) {
             sources.push(ItemSource::TaskReward);
         }
         sources.extend(

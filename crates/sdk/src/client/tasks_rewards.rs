@@ -1,12 +1,9 @@
 use crate::{CollectionClient, Persist, entities::TaskReward};
 use api::ArtifactApi;
+use arc_swap::ArcSwap;
 use derive_more::Deref;
 use log::info;
-use arc_swap::ArcSwap;
-use std::{
-    collections::HashMap,
-    sync::Arc,
-};
+use std::{collections::HashMap, sync::Arc};
 
 #[derive(Default, Debug, Clone, Deref, CollectionClient)]
 #[deref(forward)]
@@ -36,10 +33,8 @@ impl TasksRewardsClient {
     }
 
     pub fn max_quantity(&self) -> u32 {
-        self.all()
-            .iter()
-            .max_by_key(|i| i.max_quantity())
-            .map_or(0, TaskReward::max_quantity)
+        self.max_by_key(|i| i.max_quantity())
+            .map_or(0, |r| r.max_quantity())
     }
 }
 
@@ -60,5 +55,3 @@ impl Persist<HashMap<String, TaskReward>> for TasksRewardsClient {
         self.0.data.store(Arc::new(self.load_from_api()));
     }
 }
-
-
