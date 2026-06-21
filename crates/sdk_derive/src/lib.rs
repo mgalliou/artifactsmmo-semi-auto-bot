@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{Data, DeriveInput, Type};
+use syn::{Data, DeriveInput, Expr, Type};
 
 fn get_element_type(attrs: &[syn::Attribute]) -> Type {
     for attr in attrs {
@@ -24,7 +24,18 @@ fn get_key_type(attrs: &[syn::Attribute]) -> Type {
     syn::parse_quote!(String)
 }
 
-#[proc_macro_derive(CollectionClient, attributes(element, key))]
+fn get_data_path(attrs: &[syn::Attribute]) -> Expr {
+    for attr in attrs {
+        if attr.path().is_ident("data_path") {
+            return attr
+                .parse_args::<Expr>()
+                .expect("expected expression path, e.g. #[data_path(self.0.data)]");
+        }
+    }
+    syn::parse_quote!(self.0.data)
+}
+
+#[proc_macro_derive(CollectionClient, attributes(element, key, data_path))]
 pub fn collection_client_derive(input: TokenStream) -> TokenStream {
     let ast = syn::parse_macro_input!(input as DeriveInput);
     match ast.data {
@@ -32,6 +43,7 @@ pub fn collection_client_derive(input: TokenStream) -> TokenStream {
             let name = &ast.ident;
             let entity_type = get_element_type(&ast.attrs);
             let key_type = get_key_type(&ast.attrs);
+            let data_path = get_data_path(&ast.attrs);
             let expanded = quote! {
                 impl crate::client::private::Sealed for #name {}
                 impl crate::CollectionClient for #name {}
@@ -40,11 +52,11 @@ pub fn collection_client_derive(input: TokenStream) -> TokenStream {
                     type Key = #key_type;
 
                     fn data(&self) -> std::sync::RwLockReadGuard<'_, std::sync::Arc<std::collections::HashMap<Self::Key, Self::Entity>>> {
-                        self.0.data.read().unwrap()
+                        #data_path.read().unwrap()
                     }
 
                     fn data_mut(&self) -> std::sync::RwLockWriteGuard<'_, std::sync::Arc<std::collections::HashMap<Self::Key, Self::Entity>>> {
-                        self.0.data.write().unwrap()
+                        #data_path.write().unwrap()
                     }
                 }
             };
