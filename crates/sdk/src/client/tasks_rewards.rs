@@ -32,8 +32,9 @@ impl TasksRewardsClient {
         info!("Tasks rewards client initilized");
     }
 
+    #[must_use]
     pub fn max_quantity(&self) -> u32 {
-        self.max_by_key(|i| i.max_quantity())
+        self.max_by_key(TaskReward::max_quantity)
             .map_or(0, |r| r.max_quantity())
     }
 }

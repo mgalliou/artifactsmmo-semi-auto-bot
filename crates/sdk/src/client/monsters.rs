@@ -45,16 +45,18 @@ impl MonstersClient {
             .collect_vec()
     }
 
+    #[must_use]
     pub fn lowest_providing_xp_at(&self, level: u32) -> Option<Monster> {
         self.iter()
             .filter(|m| m.provides_xp_at(level))
-            .min_by_key(|m| m.level())
+            .min_by_key(Level::level)
     }
 
+    #[must_use]
     pub fn highest_providing_exp(&self, level: u32) -> Option<Monster> {
         self.iter()
             .filter(|m| m.provides_xp_at(level))
-            .max_by_key(|m| m.level())
+            .max_by_key(Level::level)
     }
 
     #[must_use]
