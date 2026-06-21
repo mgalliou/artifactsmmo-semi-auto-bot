@@ -13,19 +13,31 @@ fn get_element_type(attrs: &[syn::Attribute]) -> Type {
     panic!("missing #[element(Type)] attribute");
 }
 
-#[proc_macro_derive(CollectionClient, attributes(element))]
+fn get_key_type(attrs: &[syn::Attribute]) -> Type {
+    for attr in attrs {
+        if attr.path().is_ident("key") {
+            return attr
+                .parse_args::<Type>()
+                .expect("expected type argument, e.g. #[key(String)]");
+        }
+    }
+    syn::parse_quote!(String)
+}
+
+#[proc_macro_derive(CollectionClient, attributes(element, key))]
 pub fn collection_client_derive(input: TokenStream) -> TokenStream {
     let ast = syn::parse_macro_input!(input as DeriveInput);
     match ast.data {
         Data::Struct(_) => {
             let name = &ast.ident;
             let entity_type = get_element_type(&ast.attrs);
+            let key_type = get_key_type(&ast.attrs);
             let expanded = quote! {
                 impl crate::client::private::Sealed for #name {}
                 impl crate::CollectionClient for #name {}
                 impl crate::Data for #name {
                     type Entity = #entity_type;
-                    type Key = String;
+                    type Key = #key_type;
 
                     fn data(&self) -> std::sync::RwLockReadGuard<'_, std::sync::Arc<std::collections::HashMap<Self::Key, Self::Entity>>> {
                         self.0.data.read().unwrap()

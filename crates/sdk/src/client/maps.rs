@@ -1,7 +1,6 @@
-use crate::entities::Map;
 use crate::{
     CollectionClient, Data,
-    client::events::EventsClient,
+    client::events::EventsClient, entities::Map,
     entities::{MapDataHandle, RawMap},
     skill::Skill,
 };
@@ -17,8 +16,10 @@ use std::{
 
 type MapStore = Arc<HashMap<(MapLayer, i32, i32), MapDataHandle>>;
 
-#[derive(Default, Debug, Clone, Deref)]
+#[derive(Default, Debug, Clone, Deref, CollectionClient)]
 #[deref(forward)]
+#[key((MapLayer, i32, i32))]
+#[element(MapDataHandle)]
 pub struct MapsClient(Arc<MapsClientInner>);
 
 #[derive(Default, Debug)]
@@ -173,25 +174,7 @@ impl MapsClient {
     }
 }
 
-impl Data for MapsClient {
-    type Entity = MapDataHandle;
-    type Key = (MapLayer, i32, i32);
 
-    fn data(
-        &self,
-    ) -> std::sync::RwLockReadGuard<'_, std::sync::Arc<HashMap<Self::Key, Self::Entity>>> {
-        self.0.data.read().unwrap()
-    }
-
-    fn data_mut(
-        &self,
-    ) -> std::sync::RwLockWriteGuard<'_, std::sync::Arc<HashMap<Self::Key, Self::Entity>>> {
-        self.0.data.write().unwrap()
-    }
-}
-
-impl crate::client::private::Sealed for MapsClient {}
-impl CollectionClient for MapsClient {}
 
 #[cfg(test)]
 mod tests {
