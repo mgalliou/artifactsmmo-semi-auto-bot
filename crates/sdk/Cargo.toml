@@ -12,7 +12,6 @@ openapi.workspace = true
 chrono.workspace = true
 derive_more.workspace = true
 downcast-rs.workspace = true
-fs_extra.workspace = true
 itertools.workspace = true
 log.workspace = true
 ordered-float.workspace = true

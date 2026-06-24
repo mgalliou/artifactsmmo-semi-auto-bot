@@ -1,4 +1,4 @@
-use fs_extra::file::{read_to_string, write_all};
+use std::fs;
 use log::error;
 use openapi::models::{
     AccessSchema, CharacterFightSchema, ConditionSchema, DropRateSchema, DropSchema, InventorySlot,
@@ -47,13 +47,13 @@ where
     fn load_from_api(&self) -> D;
 
     fn load_from_file<T: for<'a> Deserialize<'a>>(&self) -> Result<T, Box<dyn Error>> {
-        Ok(serde_json::from_str(&read_to_string(Path::new(
+        Ok(serde_json::from_str(&fs::read_to_string(Path::new(
             Self::PATH,
         ))?)?)
     }
 
     fn persist<T: Serialize>(data: T) -> Result<(), Box<dyn Error>> {
-        Ok(write_all(
+        Ok(fs::write(
             Path::new(Self::PATH),
             &serde_json::to_string_pretty(&data)?,
         )?)
