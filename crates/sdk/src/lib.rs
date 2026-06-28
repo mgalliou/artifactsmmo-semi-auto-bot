@@ -1,8 +1,7 @@
 use std::fs;
 use log::error;
 use openapi::models::{
-    AccessSchema, CharacterFightSchema, ConditionSchema, DropRateSchema, DropSchema, InventorySlot,
-    RewardsSchema, SimpleItemSchema, SkillInfoSchema, TransitionSchema,
+    AccessSchema, CharacterFightSchema, ConditionSchema, DropRateSchema, DropSchema, InventorySlotSchema, RewardsSchema, SimpleItemSchema, SkillInfoSchema, TransitionSchema,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -72,7 +71,7 @@ impl Code for DropSchema {
     }
 }
 
-impl Code for InventorySlot {
+impl Code for InventorySlotSchema {
     fn code(&self) -> &str {
         &self.code
     }
@@ -94,7 +93,7 @@ impl Quantity for DropSchema {
     }
 }
 
-impl Quantity for InventorySlot {
+impl Quantity for InventorySlotSchema {
     fn quantity(&self) -> u32 {
         self.quantity as u32
     }

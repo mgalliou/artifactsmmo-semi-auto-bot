@@ -38,7 +38,7 @@ use chrono::{DateTime, FixedOffset};
 use derive_more::Deref;
 use openapi::models::{
     CharacterFightSchema, CharacterSchema, ConditionOperator, GeOrderType, GeTransactionSchema,
-    InventorySlot, MapContentType, MapLayer, NpcItemTransactionSchema, RecyclingItemsSchema,
+    InventorySlotSchema, MapContentType, MapLayer, NpcItemTransactionSchema, RecyclingItemsSchema,
     RewardsSchema, SimpleItemSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
 };
 use std::{str::FromStr, sync::Arc, time::Duration};
@@ -949,7 +949,7 @@ impl Character for CharacterClient {
         self.data().task_finished()
     }
 
-    fn inventory_items(&self) -> Arc<Vec<InventorySlot>> {
+    fn inventory_items(&self) -> Arc<Vec<InventorySlotSchema>> {
         self.data().inventory_items()
     }
 

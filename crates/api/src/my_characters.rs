@@ -53,21 +53,8 @@ use openapi::{
             action_withdraw_bank_gold_my_name_action_bank_withdraw_gold_post,
             action_withdraw_bank_item_my_name_action_bank_withdraw_item_post,
         },
-    },
-    models::{
-        BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema,
-        BankItemTransactionResponseSchema, CharacterFightResponseSchema,
-        CharacterMovementResponseSchema, CharacterRestResponseSchema,
-        CharacterTransitionResponseSchema, CraftingSchema, DeleteItemResponseSchema,
-        DepositWithdrawGoldSchema, DestinationSchema, EquipSchema, EquipmentResponseSchema,
-        FightRequestSchema, GeBuyOrderSchema, GeCancelOrderSchema,
-        GeCreateOrderTransactionResponseSchema, GeOrderCreationrSchema,
-        GeTransactionResponseSchema, GiveGoldResponseSchema, GiveGoldSchema,
-        GiveItemResponseSchema, GiveItemsSchema, ItemSlot, NpcMerchantBuySchema,
-        NpcMerchantTransactionResponseSchema, RecyclingResponseSchema, RecyclingSchema,
-        RewardDataResponseSchema, SimpleItemSchema, SkillResponseSchema,
-        TaskCancelledResponseSchema, TaskResponseSchema, TaskTradeResponseSchema, UnequipSchema,
-        UseItemResponseSchema,
+    }, models::{
+        BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema, BankItemTransactionResponseSchema, CharacterFightResponseSchema, CharacterMovementResponseSchema, CharacterRestResponseSchema, CharacterTransitionResponseSchema, CraftingSchema, DeleteItemResponseSchema, DepositWithdrawGoldSchema, DestinationSchema, EquipSchema, EquipmentResponseSchema, FightRequestSchema, GeBuyOrderSchema, GeCancelOrderSchema, GeCreateOrderTransactionResponseSchema, GeOrderCreationSchema, GeTransactionResponseSchema, GiveGoldResponseSchema, GiveGoldSchema, GiveItemResponseSchema, GiveItemsSchema, ItemSlot, NpcMerchantBuySchema, NpcMerchantTransactionResponseSchema, RecyclingResponseSchema, RecyclingSchema, RewardDataResponseSchema, SimpleItemSchema, SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema, TaskTradeResponseSchema, UnequipSchema, UseItemResponseSchema,
     },
 };
 use std::sync::Arc;
@@ -149,10 +136,12 @@ impl MyCharacterApi {
         name: &str,
         item_code: &str,
         quantity: u32,
+        enhanced: bool,
     ) -> Result<RecyclingResponseSchema, Error<ActionRecyclingMyNameActionRecyclingPostError>> {
         let schema = RecyclingSchema {
             code: item_code.to_owned(),
             quantity: Some(quantity),
+            enhanced: enhanced.into()
         };
         action_recycling_my_name_action_recycling_post(&self.configuration, name, schema)
     }
@@ -247,7 +236,7 @@ impl MyCharacterApi {
     ) -> Result<EquipmentResponseSchema, Error<ActionEquipItemMyNameActionEquipPostError>> {
         let mut schema = EquipSchema::new(item_code.to_string(), slot);
         schema.quantity = quantity;
-        action_equip_item_my_name_action_equip_post(&self.configuration, name, schema)
+        action_equip_item_my_name_action_equip_post(&self.configuration, name, vec![schema])
     }
 
     pub fn unequip(
@@ -258,7 +247,7 @@ impl MyCharacterApi {
     ) -> Result<EquipmentResponseSchema, Error<ActionUnequipItemMyNameActionUnequipPostError>> {
         let mut schema = UnequipSchema::new(slot);
         schema.quantity = quantity;
-        action_unequip_item_my_name_action_unequip_post(&self.configuration, name, schema)
+        action_unequip_item_my_name_action_unequip_post(&self.configuration, name, vec![schema])
     }
 
     pub fn use_item(
@@ -393,7 +382,7 @@ impl MyCharacterApi {
         GeCreateOrderTransactionResponseSchema,
         Error<ActionGeCreateSellOrderMyNameActionGrandexchangeCreateSellOrderPostError>,
     > {
-        let schema = GeOrderCreationrSchema::new(item_code.to_owned(), quantity, price);
+        let schema = GeOrderCreationSchema::new(item_code.to_owned(), quantity, price);
         action_ge_create_sell_order_my_name_action_grandexchange_create_sell_order_post(
             &self.configuration,
             name,

@@ -46,9 +46,9 @@ use sdk::{
     gear::{Gear, Slot},
     items::ItemSource,
     models::{
-        CharacterFightSchema, CharacterSchema, DropSchema, InventorySlot, MapContentType, MapLayer,
-        RecyclingItemsSchema, RewardsSchema, SimpleItemSchema, SkillInfoSchema, TaskSchema,
-        TaskTradeSchema, TaskType,
+        CharacterFightSchema, CharacterSchema, DropSchema, InventorySlotSchema, MapContentType,
+        MapLayer, RecyclingItemsSchema, RewardsSchema, SimpleItemSchema, SkillInfoSchema,
+        TaskSchema, TaskTradeSchema, TaskType,
     },
     simulator::{
         FightParams, HasEffects, Participant, Simulator, compute_gathering_cd, time_to_rest,
@@ -1977,7 +1977,7 @@ impl Character for CharacterController {
         self.data().task_finished()
     }
 
-    fn inventory_items(&self) -> Arc<Vec<InventorySlot>> {
+    fn inventory_items(&self) -> Arc<Vec<InventorySlotSchema>> {
         self.data().inventory_items()
     }
 

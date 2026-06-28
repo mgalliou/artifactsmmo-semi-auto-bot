@@ -4,10 +4,10 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct NpcItem(Arc<models::NpcItem>);
+pub struct NpcItem(Arc<models::NpcItemSchema>);
 
 impl NpcItem {
-    pub(crate) fn new(shema: models::NpcItem) -> Self {
+    pub(crate) fn new(shema: models::NpcItemSchema) -> Self {
         Self(shema.into())
     }
 

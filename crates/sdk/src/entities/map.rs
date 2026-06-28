@@ -5,7 +5,6 @@ use openapi::models::{
 };
 use serde::{Deserialize, Serialize};
 use std::{
-    convert::AsRef,
     sync::{Arc, RwLock},
 };
 
@@ -61,7 +60,7 @@ pub trait Map {
     }
 
     fn content(&self) -> Option<&MapContentSchema> {
-        self.interactions().content.as_ref().map(AsRef::as_ref)
+        self.interactions().content.as_deref()
     }
 
     fn transition(&self) -> Option<&TransitionSchema> {

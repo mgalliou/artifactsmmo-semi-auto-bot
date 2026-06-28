@@ -103,9 +103,7 @@ pub trait Paginate {
         let pages = response.pages();
 
         data.extend(response.data());
-        if let Some(pages) = pages
-            && pages > 1
-        {
+        if pages > 1 {
             thread::scope(|s| {
                 let mut handles = vec![];
                 for p in 2..pages {
@@ -127,5 +125,5 @@ pub trait Paginate {
 
 pub trait DataPage<T> {
     fn data(self) -> Vec<T>;
-    fn pages(&self) -> Option<u32>;
+    fn pages(&self) -> u32;
 }

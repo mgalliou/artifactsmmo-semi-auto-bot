@@ -15,40 +15,35 @@ impl Event {
     }
 
     #[must_use]
-    pub fn content(&self) -> &EventContentSchema {
-        &self.0.content
+    pub fn content(&self) -> Option<&EventContentSchema> {
+        Some(self.0.content.as_ref()?)
     }
 }
 
 pub trait EventSchemaExt {
-    fn content_code(&self) -> &str;
+    fn content_code(&self) -> Option<&str>;
     fn pretty(&self) -> String;
 }
 
 impl EventSchemaExt for Event {
-    fn content_code(&self) -> &str {
-        &self.0.content.code
+    fn content_code(&self) -> Option<&str> {
+        Some(&self.content()?.code)
     }
 
     fn pretty(&self) -> String {
-        format!("{}: '{}'", self.0.name, self.content_code())
+        format!("{}: '{:?}'", self.0.name, self.content_code())
     }
 }
 
 impl EventSchemaExt for ActiveEventSchema {
-    fn content_code(&self) -> &str {
-        self.map
-            .interactions
-            .content
-            .as_deref()
-            .map(|c| &c.code)
-            .expect("event to have content")
+    fn content_code(&self) -> Option<&str> {
+        Some(&self.map.interactions.content.as_deref()?.code)
     }
 
     fn pretty(&self) -> String {
         let remaining = self.expiration.to_utc() - Utc::now();
         format!(
-            "{} ({},{}): '{}', duration: {}, created at {}, expires at {}, remaining: {}s",
+            "{} ({},{}): '{:?}', duration: {}, created at {}, expires at {}, remaining: {}s",
             self.name,
             self.map.x,
             self.map.y,

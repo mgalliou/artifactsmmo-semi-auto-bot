@@ -8,7 +8,7 @@ use openapi::{
             get_all_npcs_items_npcs_items_get, get_all_npcs_npcs_details_get,
         },
     },
-    models::{NpcItem, NpcSchema, StaticDataPageNpcItem, StaticDataPageNpcSchema},
+    models::{NpcItemSchema, NpcSchema, StaticDataPageNpcItemSchema, StaticDataPageNpcSchema},
 };
 use std::sync::Arc;
 
@@ -29,7 +29,7 @@ impl NpcsApi {
         .send()
     }
 
-    pub fn get_items(&self) -> Result<Vec<NpcItem>, Error<GetAllNpcsItemsNpcsItemsGetError>> {
+    pub fn get_items(&self) -> Result<Vec<NpcItemSchema>, Error<GetAllNpcsItemsNpcsItemsGetError>> {
         NpcsItemsRequest {
             configuration: &self.configuration,
         }
@@ -64,7 +64,7 @@ impl DataPage<NpcSchema> for StaticDataPageNpcSchema {
         self.data
     }
 
-    fn pages(&self) -> Option<u32> {
+    fn pages(&self) -> u32 {
         self.pages
     }
 }
@@ -74,8 +74,8 @@ struct NpcsItemsRequest<'a> {
 }
 
 impl Paginate for NpcsItemsRequest<'_> {
-    type Data = NpcItem;
-    type Page = StaticDataPageNpcItem;
+    type Data = NpcItemSchema;
+    type Page = StaticDataPageNpcItemSchema;
     type Error = GetAllNpcsItemsNpcsItemsGetError;
 
     fn request_page(&self, page: u32) -> Result<Self::Page, Error<Self::Error>> {
@@ -90,12 +90,12 @@ impl Paginate for NpcsItemsRequest<'_> {
     }
 }
 
-impl DataPage<NpcItem> for StaticDataPageNpcItem {
-    fn data(self) -> Vec<NpcItem> {
+impl DataPage<NpcItemSchema> for StaticDataPageNpcItemSchema {
+    fn data(self) -> Vec<NpcItemSchema> {
         self.data
     }
 
-    fn pages(&self) -> Option<u32> {
+    fn pages(&self) -> u32 {
         self.pages
     }
 }

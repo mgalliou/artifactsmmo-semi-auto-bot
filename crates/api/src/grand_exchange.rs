@@ -84,7 +84,7 @@ impl DataPage<GeOrderHistorySchema> for DataPageGeOrderHistorySchema {
         self.data
     }
 
-    fn pages(&self) -> Option<u32> {
+    fn pages(&self) -> u32 {
         self.pages
     }
 }
@@ -100,6 +100,7 @@ impl Paginate for SellOrdersRequest<'_> {
             None,
             None,
             None,
+            None,
             Some(page),
             Some(100),
         )
@@ -111,7 +112,7 @@ impl DataPage<GeOrderSchema> for DataPageGeOrderSchema {
         self.data
     }
 
-    fn pages(&self) -> Option<u32> {
+    fn pages(&self) -> u32 {
         self.pages
     }
 }

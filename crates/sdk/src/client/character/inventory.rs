@@ -4,7 +4,7 @@ use crate::{
     entities::{Character, CharacterDataHandle, Item},
 };
 use itertools::Itertools;
-use openapi::models::{InventorySlot, SimpleItemSchema};
+use openapi::models::{InventorySlotSchema, SimpleItemSchema};
 use std::sync::Arc;
 
 #[derive(Default, Debug, Clone)]
@@ -43,7 +43,7 @@ pub trait Inventory: SlotLimited + SpaceLimited {
 impl Inventory for InventoryClient {}
 
 impl ItemContainer for InventoryClient {
-    type Slot = InventorySlot;
+    type Slot = InventorySlotSchema;
 
     fn content(&self) -> Arc<Vec<Self::Slot>> {
         self.data

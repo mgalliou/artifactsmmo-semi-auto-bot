@@ -1,7 +1,7 @@
 use crate::{Level, Skill, Slot};
 use chrono::{DateTime, FixedOffset};
 use derive_more::{Deref, Display, From};
-use openapi::models::{CharacterSchema, InventorySlot, MapLayer, TaskType};
+use openapi::models::{CharacterSchema, InventorySlotSchema, MapLayer, TaskType};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, RwLock};
 use strum::IntoEnumIterator;
@@ -61,7 +61,7 @@ pub trait Character: Level {
     fn task_total(&self) -> u32;
     fn task_missing(&self) -> u32;
     fn task_finished(&self) -> bool;
-    fn inventory_items(&self) -> Arc<Vec<InventorySlot>>;
+    fn inventory_items(&self) -> Arc<Vec<InventorySlotSchema>>;
     fn inventory_max_items(&self) -> u32;
     fn gold(&self) -> u32;
     fn equiped_in(&self, slot: Slot) -> String;
@@ -100,7 +100,7 @@ pub struct RawCharacter {
     schema: Arc<CharacterSchema>,
     name: CharacterName,
     task: TaskCode,
-    inventory: Arc<Vec<InventorySlot>>,
+    inventory: Arc<Vec<InventorySlotSchema>>,
 }
 
 impl Character for RawCharacter {
@@ -257,7 +257,7 @@ impl Character for RawCharacter {
         }
     }
 
-    fn inventory_items(&self) -> Arc<Vec<InventorySlot>> {
+    fn inventory_items(&self) -> Arc<Vec<InventorySlotSchema>> {
         self.inventory.clone()
     }
 

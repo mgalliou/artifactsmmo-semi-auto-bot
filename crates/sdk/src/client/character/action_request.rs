@@ -141,7 +141,7 @@ impl ActionRequest<'_> {
                 quantity,
             } => api
                 .my_character
-                .recycle(name, item, *quantity)
+                .recycle(name, item, *quantity, false)
                 .map(Into::into)
                 .map_err(Into::into),
             ActionRequest::Delete {

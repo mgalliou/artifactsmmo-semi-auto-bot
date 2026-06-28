@@ -8,7 +8,7 @@ use sdk::{
     LimitedContainer, Quantity, SlotLimited, SpaceLimited,
     character::Inventory,
     entities::Item,
-    models::{InventorySlot, SimpleItemSchema},
+    models::{InventorySlotSchema, SimpleItemSchema},
 };
 use std::{
     collections::HashMap,
@@ -96,9 +96,9 @@ impl InventoryController {
 impl Inventory for InventoryController {}
 
 impl ItemContainer for InventoryController {
-    type Slot = InventorySlot;
+    type Slot = InventorySlotSchema;
 
-    fn content(&self) -> Arc<Vec<InventorySlot>> {
+    fn content(&self) -> Arc<Vec<Self::Slot>> {
         self.client.inventory().content()
     }
 }

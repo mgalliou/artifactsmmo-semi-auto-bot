@@ -258,19 +258,13 @@ impl ResponseSchema for EquipmentResponseSchema {
     fn pretty(&self) -> String {
         if self.data.cooldown.reason == ActionType::Equip {
             format!(
-                "{}: equipped '{}' in the '{}' slot. {}s",
-                &self.data.character.name,
-                &self.data.item.code,
-                &self.data.slot,
-                self.data.cooldown.remaining_seconds
+                "{}: equipped '{:?}'. {}s",
+                &self.data.character.name, &self.data.items, self.data.cooldown.remaining_seconds
             )
         } else {
             format!(
-                "{}: unequipped '{}' from the '{}' slot. {}s",
-                &self.data.character.name,
-                &self.data.item.code,
-                &self.data.slot,
-                self.data.cooldown.remaining_seconds
+                "{}: unequipped '{:?}'. {}s",
+                &self.data.character.name, &self.data.items, self.data.cooldown.remaining_seconds
             )
         }
     }

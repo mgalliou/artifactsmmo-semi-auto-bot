@@ -12,7 +12,7 @@ use openapi::{
         ActiveEventSchema, EventSchema, StaticDataPageActiveEventSchema, StaticDataPageEventSchema,
     },
 };
-use std::{option::Option, sync::Arc};
+use std::sync::Arc;
 
 #[derive(Default, Debug)]
 pub struct EventsApi {
@@ -60,7 +60,7 @@ impl DataPage<EventSchema> for StaticDataPageEventSchema {
         self.data
     }
 
-    fn pages(&self) -> Option<u32> {
+    fn pages(&self) -> u32 {
         self.pages
     }
 }
@@ -84,7 +84,7 @@ impl DataPage<ActiveEventSchema> for StaticDataPageActiveEventSchema {
         self.data
     }
 
-    fn pages(&self) -> Option<u32> {
+    fn pages(&self) -> u32 {
         self.pages
     }
 }

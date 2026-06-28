@@ -41,20 +41,19 @@ impl ActiveEvent {
 }
 
 impl EventSchemaExt for ActiveEvent {
-    fn content_code(&self) -> &str {
+    fn content_code(&self) -> Option<&str> {
         self.0
             .map
             .interactions
             .content
             .as_deref()
-            .map(|c| &c.code)
-            .expect("event to have content")
+            .map(|c| c.code.as_str())
     }
 
     fn pretty(&self) -> String {
         let remaining = self.0.expiration.to_utc() - Utc::now();
         format!(
-            "{} ({},{}): '{}', duration: {}, created at {}, expires at {}, remaining: {}s",
+            "{} ({},{}): '{:?}', duration: {}, created at {}, expires at {}, remaining: {}s",
             self.0.name,
             self.0.map.x,
             self.0.map.y,

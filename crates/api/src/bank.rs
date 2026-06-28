@@ -55,7 +55,7 @@ impl DataPage<SimpleItemSchema> for DataPageSimpleItemSchema {
         self.data
     }
 
-    fn pages(&self) -> Option<u32> {
+    fn pages(&self) -> u32 {
         self.pages
     }
 }

@@ -17,7 +17,7 @@ use openapi::models::{
     CharacterFightResponseSchema, CharacterFightSchema, CharacterMovementResponseSchema,
     CharacterRestResponseSchema, CharacterSchema, CharacterTransitionResponseSchema,
     DeleteItemResponseSchema, GeCreateOrderTransactionResponseSchema, GeTransactionResponseSchema,
-    GeTransactionSchema, GiveGoldResponseSchema, GiveItemResponseSchema, InventorySlot, MapLayer,
+    GeTransactionSchema, GiveGoldResponseSchema, GiveItemResponseSchema, InventorySlotSchema, MapLayer,
     NpcItemTransactionSchema, NpcMerchantTransactionResponseSchema, RecyclingItemsSchema,
     RecyclingResponseSchema, RewardDataResponseSchema, RewardsSchema, SimpleItemSchema,
     SkillInfoSchema, SkillResponseSchema, TaskResponseSchema, TaskSchema, TaskTradeResponseSchema,
@@ -587,7 +587,7 @@ impl Character for CharacterRequestHandler {
         self.data().task_finished()
     }
 
-    fn inventory_items(&self) -> Arc<Vec<InventorySlot>> {
+    fn inventory_items(&self) -> Arc<Vec<InventorySlotSchema>> {
         self.data().inventory_items()
     }
 
