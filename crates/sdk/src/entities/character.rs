@@ -3,48 +3,8 @@ use chrono::{DateTime, FixedOffset};
 use derive_more::{Deref, Display, From};
 use openapi::models::{CharacterSchema, InventorySlotSchema, MapLayer, TaskType};
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, RwLock};
+use std::{sync::{Arc, RwLock}};
 use strum::IntoEnumIterator;
-
-#[derive(
-    Debug, Default, Clone, Hash, PartialEq, Eq, Display, Deref, From, Serialize, Deserialize,
-)]
-#[deref(forward)]
-#[from(forward)]
-#[serde(transparent)]
-pub struct CharacterName(Arc<str>);
-
-impl CharacterName {
-    pub fn new(name: impl Into<Self>) -> Self {
-        name.into()
-    }
-}
-
-impl From<&Self> for CharacterName {
-    fn from(name: &Self) -> Self {
-        name.clone()
-    }
-}
-
-#[derive(
-    Debug, Default, Clone, Hash, PartialEq, Eq, Display, Deref, From, Serialize, Deserialize,
-)]
-#[deref(forward)]
-#[from(forward)]
-#[serde(transparent)]
-pub struct TaskCode(Arc<str>);
-
-impl TaskCode {
-    pub fn new(name: impl Into<Self>) -> Self {
-        name.into()
-    }
-}
-
-impl From<&Self> for TaskCode {
-    fn from(name: &Self) -> Self {
-        name.clone()
-    }
-}
 
 pub trait Character: Level {
     fn name(&self) -> CharacterName;
@@ -288,3 +248,44 @@ impl Level for RawCharacter {
         self.schema.level as u32
     }
 }
+
+#[derive(
+    Debug, Default, Clone, Hash, PartialEq, Eq, Display, Deref, From, Serialize, Deserialize,
+)]
+#[deref(forward)]
+#[from(forward)]
+#[serde(transparent)]
+pub struct CharacterName(Arc<str>);
+
+impl CharacterName {
+    pub fn new(name: impl Into<Self>) -> Self {
+        name.into()
+    }
+}
+
+impl From<&Self> for CharacterName {
+    fn from(name: &Self) -> Self {
+        name.clone()
+    }
+}
+
+#[derive(
+    Debug, Default, Clone, Hash, PartialEq, Eq, Display, Deref, From, Serialize, Deserialize,
+)]
+#[deref(forward)]
+#[from(forward)]
+#[serde(transparent)]
+pub struct TaskCode(Arc<str>);
+
+impl TaskCode {
+    pub fn new(name: impl Into<Self>) -> Self {
+        name.into()
+    }
+}
+
+impl From<&Self> for TaskCode {
+    fn from(name: &Self) -> Self {
+        name.clone()
+    }
+}
+

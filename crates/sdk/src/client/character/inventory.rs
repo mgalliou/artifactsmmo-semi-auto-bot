@@ -7,7 +7,7 @@ use itertools::Itertools;
 use openapi::models::{InventorySlotSchema, SimpleItemSchema};
 use std::sync::Arc;
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug)]
 pub struct InventoryClient {
     data: CharacterDataHandle,
 }

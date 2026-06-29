@@ -1,8 +1,9 @@
 use crate::{BANK_EXPANSION_SIZE, ItemContainer, LimitedContainer, SlotLimited};
 use api::ArtifactApi;
+use arc_swap::ArcSwap;
 use derive_more::Deref;
 use openapi::models::{BankSchema, SimpleItemSchema};
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 #[derive(Clone, Default, Deref)]
 #[deref(forward)]
@@ -10,8 +11,8 @@ pub struct BankClient(Arc<BankClientInner>);
 
 #[derive(Default)]
 pub struct BankClientInner {
-    details: RwLock<Arc<BankSchema>>,
-    content: RwLock<Arc<Vec<SimpleItemSchema>>>,
+    details: ArcSwap<BankSchema>,
+    content: ArcSwap<Vec<SimpleItemSchema>>,
     api: ArtifactApi,
 }
 
@@ -19,8 +20,8 @@ impl BankClient {
     pub(crate) fn new(api: ArtifactApi) -> Self {
         Self(
             BankClientInner {
-                details: RwLock::default(),
-                content: RwLock::default(),
+                details: ArcSwap::default(),
+                content: ArcSwap::default(),
                 api,
             }
             .into(),
@@ -46,11 +47,11 @@ impl BankClient {
     }
 
     pub fn set_details(&self, details: BankSchema) {
-        *self.details.write().unwrap() = Arc::new(details);
+        self.details.store(Arc::new(details));
     }
 
     pub fn set_content(&self, content: Vec<SimpleItemSchema>) {
-        *self.content.write().unwrap() = Arc::new(content);
+        self.content.store(Arc::new(content));
     }
 }
 
@@ -76,7 +77,7 @@ pub trait Bank: SlotLimited {
 
 impl Bank for BankClient {
     fn details(&self) -> Arc<BankSchema> {
-        self.details.read().unwrap().clone()
+        self.details.load().clone()
     }
 }
 
@@ -84,7 +85,7 @@ impl ItemContainer for BankClient {
     type Slot = SimpleItemSchema;
 
     fn content(&self) -> Arc<Vec<Self::Slot>> {
-        self.content.read().unwrap().clone()
+        self.content.load().clone()
     }
 }
 
