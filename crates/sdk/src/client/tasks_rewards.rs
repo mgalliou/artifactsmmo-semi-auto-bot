@@ -5,12 +5,12 @@ use derive_more::Deref;
 use log::info;
 use std::{collections::HashMap, sync::Arc};
 
-#[derive(Default, Debug, Clone, Deref, CollectionClient)]
+#[derive(Clone, Deref, Default, CollectionClient)]
 #[deref(forward)]
 #[element(TaskReward)]
 pub struct TasksRewardsClient(Arc<TasksRewardsClientInner>);
 
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct TasksRewardsClientInner {
     api: ArtifactApi,
     data: ArcSwap<HashMap<String, TaskReward>>,

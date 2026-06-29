@@ -6,12 +6,12 @@ use log::info;
 use sdk_derive::CollectionClient;
 use std::{collections::HashMap, sync::Arc, thread};
 
-#[derive(Default, Debug, Clone, Deref, CollectionClient)]
+#[derive(Clone, Default, Deref, CollectionClient)]
 #[deref(forward)]
 #[element(Task)]
 pub struct TasksClient(Arc<TasksClientInner>);
 
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct TasksClientInner {
     api: ArtifactApi,
     data: ArcSwap<HashMap<String, Task>>,
@@ -32,7 +32,7 @@ impl TasksClient {
 
     pub fn init(&self) {
         let () = thread::scope(|s| {
-            let _ = s.spawn(|| self.0.data.store(Arc::new(self.load())));
+            let _ = s.spawn(|| self.data.store(Arc::new(self.load())));
             let _ = s.spawn(|| self.rewards().init());
         });
         info!("Tasks client initilized");
@@ -58,6 +58,6 @@ impl Persist<HashMap<String, Task>> for TasksClient {
     }
 
     fn refresh(&self) {
-        self.0.data.store(Arc::new(self.load_from_api()));
+        self.data.store(Arc::new(self.load_from_api()));
     }
 }

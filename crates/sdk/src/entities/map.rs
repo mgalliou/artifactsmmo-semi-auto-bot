@@ -4,9 +4,7 @@ use openapi::models::{
     MapSchema, TaskType, TransitionSchema,
 };
 use serde::{Deserialize, Serialize};
-use std::{
-    sync::{Arc, RwLock},
-};
+use std::sync::{Arc, RwLock};
 
 pub trait Map {
     fn position(&self) -> (MapLayer, i32, i32) {

@@ -13,13 +13,13 @@ use log::info;
 use openapi::models::{MapContentSchema, MapContentType, MapLayer, TaskType};
 use std::{collections::HashMap, sync::Arc};
 
-#[derive(Default, Debug, Clone, Deref, CollectionClient)]
+#[derive(Clone, Default, Deref, CollectionClient)]
 #[deref(forward)]
 #[key((MapLayer, i32, i32))]
 #[element(MapDataHandle)]
 pub struct MapsClient(Arc<MapsClientInner>);
 
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct MapsClientInner {
     data: ArcSwap<HashMap<(MapLayer, i32, i32), MapDataHandle>>,
     events: EventsClient,
@@ -39,7 +39,7 @@ impl MapsClient {
     }
 
     pub(crate) fn init(&self) {
-        self.0.data.store(Arc::new(
+        self.data.store(Arc::new(
             self.api
                 .maps
                 .get_all()

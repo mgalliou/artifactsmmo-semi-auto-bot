@@ -19,12 +19,12 @@ use openapi::models::SimpleItemSchema;
 use std::{collections::HashMap, fmt, sync::Arc, vec::Vec};
 use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
 
-#[derive(Default, Debug, Clone, Deref, CollectionClient)]
+#[derive(Clone, Default, Deref, CollectionClient)]
 #[deref(forward)]
 #[element(Item)]
 pub struct ItemsClient(Arc<ItemsClientInner>);
 
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct ItemsClientInner {
     data: ArcSwap<HashMap<String, Item>>,
     api: ArtifactApi,
@@ -56,7 +56,7 @@ impl ItemsClient {
     }
 
     pub fn init(&self) {
-        self.0.data.store(Arc::new(self.load()));
+        self.data.store(Arc::new(self.load()));
         info!("Items client initilized");
     }
 
@@ -297,7 +297,7 @@ impl Persist<HashMap<String, Item>> for ItemsClient {
     }
 
     fn refresh(&self) {
-        self.0.data.store(Arc::new(self.load_from_api()));
+        self.data.store(Arc::new(self.load_from_api()));
     }
 }
 

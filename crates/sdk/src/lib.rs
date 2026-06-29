@@ -1,9 +1,10 @@
-use std::fs;
 use log::error;
 use openapi::models::{
-    AccessSchema, CharacterFightSchema, ConditionSchema, DropRateSchema, DropSchema, InventorySlotSchema, RewardsSchema, SimpleItemSchema, SkillInfoSchema, TransitionSchema,
+    AccessSchema, CharacterFightSchema, ConditionSchema, DropRateSchema, DropSchema,
+    InventorySlotSchema, RewardsSchema, SimpleItemSchema, SkillInfoSchema, TransitionSchema,
 };
 use serde::{Deserialize, Serialize};
+use std::fs;
 use std::{
     error::Error,
     fmt::{self, Display, Formatter},
@@ -116,7 +117,7 @@ impl HasDrops for CharacterFightSchema {
             .map(|c| {
                 c.drops
                     .iter()
-                    .find(|i| i.code == item_code)
+                    .find(|i| i.code() == item_code)
                     .map_or(0, Quantity::quantity)
             })
             .sum()
@@ -127,7 +128,7 @@ impl HasDrops for SkillInfoSchema {
     fn amount_of(&self, item_code: &str) -> u32 {
         self.items
             .iter()
-            .find(|i| i.code == item_code)
+            .find(|i| i.code() == item_code)
             .map_or(0, Quantity::quantity)
     }
 }
@@ -136,7 +137,7 @@ impl HasDrops for RewardsSchema {
     fn amount_of(&self, item_code: &str) -> u32 {
         self.items
             .iter()
-            .find(|i| i.code == item_code)
+            .find(|i| i.code() == item_code)
             .map_or(0, |i| i.quantity)
     }
 }
@@ -144,7 +145,7 @@ impl HasDrops for RewardsSchema {
 impl HasDrops for Vec<SimpleItemSchema> {
     fn amount_of(&self, item_code: &str) -> u32 {
         self.iter()
-            .find(|i| i.code == item_code)
+            .find(|i| i.code() == item_code)
             .map_or(0, |i| i.quantity)
     }
 }
@@ -152,7 +153,7 @@ impl HasDrops for Vec<SimpleItemSchema> {
 impl HasDrops for Vec<DropSchema> {
     fn amount_of(&self, item_code: &str) -> u32 {
         self.iter()
-            .find(|i| i.code == item_code)
+            .find(|i| i.code() == item_code)
             .map_or(0, Quantity::quantity)
     }
 }

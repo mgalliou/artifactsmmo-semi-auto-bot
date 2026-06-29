@@ -10,12 +10,12 @@ use itertools::Itertools;
 use log::info;
 use std::{collections::HashMap, sync::Arc};
 
-#[derive(Default, Debug, Clone, Deref, CollectionClient)]
+#[derive(Clone, Default, Deref, CollectionClient)]
 #[deref(forward)]
 #[element(Monster)]
 pub struct MonstersClient(Arc<MonstersClientInner>);
 
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct MonstersClientInner {
     api: ArtifactApi,
     data: ArcSwap<HashMap<String, Monster>>,
@@ -35,7 +35,7 @@ impl MonstersClient {
     }
 
     pub fn init(&self) {
-        self.0.data.store(Arc::new(self.load()));
+        self.data.store(Arc::new(self.load()));
         info!("Monster client initilized");
     }
 

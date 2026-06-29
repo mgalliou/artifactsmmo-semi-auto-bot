@@ -1,5 +1,7 @@
 use crate::{
-    CollectionClient, DropsItems, Persist, client::events::EventsClient, entities::{EventSchemaExt, Resource},
+    CollectionClient, DropsItems, Persist,
+    client::events::EventsClient,
+    entities::{EventSchemaExt, Resource},
 };
 use api::ArtifactApi;
 use arc_swap::ArcSwap;
@@ -8,12 +10,12 @@ use itertools::Itertools;
 use log::info;
 use std::{collections::HashMap, sync::Arc};
 
-#[derive(Default, Debug, Clone, Deref, CollectionClient)]
+#[derive(Clone, Default, Deref, CollectionClient)]
 #[deref(forward)]
 #[element(Resource)]
 pub struct ResourcesClient(Arc<ResourcesClientInner>);
 
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct ResourcesClientInner {
     api: ArtifactApi,
     data: ArcSwap<HashMap<String, Resource>>,

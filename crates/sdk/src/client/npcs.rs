@@ -6,12 +6,12 @@ use itertools::Itertools;
 use log::info;
 use std::{collections::HashMap, sync::Arc};
 
-#[derive(Default, Debug, Clone, Deref, CollectionClient)]
+#[derive(Clone, Default, Deref, CollectionClient)]
 #[deref(forward)]
 #[element(Npc)]
 pub struct NpcsClient(Arc<NpcsClientInner>);
 
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct NpcsClientInner {
     api: ArtifactApi,
     data: ArcSwap<HashMap<String, Npc>>,
@@ -31,7 +31,7 @@ impl NpcsClient {
     }
 
     pub fn init(&self) {
-        self.0.data.store(Arc::new(self.load()));
+        self.data.store(Arc::new(self.load()));
         info!("Npcs client initilized");
     }
 
@@ -69,6 +69,6 @@ impl Persist<HashMap<String, Npc>> for NpcsClient {
     }
 
     fn refresh(&self) {
-        self.0.data.store(Arc::new(self.load_from_api()));
+        self.data.store(Arc::new(self.load_from_api()));
     }
 }

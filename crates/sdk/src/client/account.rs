@@ -11,12 +11,12 @@ use itertools::Itertools;
 use log::info;
 use std::sync::{Arc, RwLock};
 
-#[derive(Default, Debug, Clone, Deref)]
+#[derive(Clone, Default, Deref)]
 #[deref(forward)]
 pub struct AccountClient(Arc<AccountClientInner>);
 
 /// Hold and manage data related to a specific account
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct AccountClientInner {
     api: ArtifactApi,
     name: String,

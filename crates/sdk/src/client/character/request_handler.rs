@@ -17,8 +17,8 @@ use openapi::models::{
     CharacterFightResponseSchema, CharacterFightSchema, CharacterMovementResponseSchema,
     CharacterRestResponseSchema, CharacterSchema, CharacterTransitionResponseSchema,
     DeleteItemResponseSchema, GeCreateOrderTransactionResponseSchema, GeTransactionResponseSchema,
-    GeTransactionSchema, GiveGoldResponseSchema, GiveItemResponseSchema, InventorySlotSchema, MapLayer,
-    NpcItemTransactionSchema, NpcMerchantTransactionResponseSchema, RecyclingItemsSchema,
+    GeTransactionSchema, GiveGoldResponseSchema, GiveItemResponseSchema, InventorySlotSchema,
+    MapLayer, NpcItemTransactionSchema, NpcMerchantTransactionResponseSchema, RecyclingItemsSchema,
     RecyclingResponseSchema, RewardDataResponseSchema, RewardsSchema, SimpleItemSchema,
     SkillInfoSchema, SkillResponseSchema, TaskResponseSchema, TaskSchema, TaskTradeResponseSchema,
     TaskTradeSchema, TaskType,
@@ -27,55 +27,16 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread::sleep;
 use std::time::Duration;
 
-#[derive(Default, Debug)]
-struct PauseState {
-    paused: Mutex<bool>,
-    canceled: Mutex<bool>,
-    cv: Condvar,
-}
-
-impl PauseState {
-    fn pause(&self) {
-        *self.paused.lock().unwrap() = true;
-    }
-
-    fn resume(&self) {
-        *self.paused.lock().unwrap() = false;
-        self.cv.notify_all();
-    }
-
-    fn cancel(&self) {
-        *self.canceled.lock().unwrap() = true;
-        self.cv.notify_all();
-    }
-
-    fn is_paused(&self) -> bool {
-        *self.paused.lock().unwrap()
-    }
-
-    fn is_canceled(&self) -> bool {
-        *self.canceled.lock().unwrap()
-    }
-}
-
 /// First layer of abstraction around the character API.
-/// It is responsible for handling the character action requests responce and errors
+/// It is responsible for handling the character action requests response and errors
 /// by updating character and bank data, and retrying requests in case of errors.
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct CharacterRequestHandler {
     api: ArtifactApi,
     data: CharacterDataHandle,
     account: AccountClient,
     server: ServerClient,
     pause_state: Arc<PauseState>,
-}
-
-fn downcast_response<T: ResponseSchema + 'static>(
-    r: Box<dyn ResponseSchema>,
-) -> Result<T, RequestError> {
-    r.downcast()
-        .map(|b| *b)
-        .map_err(|_| RequestError::DowncastError)
 }
 
 impl CharacterRequestHandler {
@@ -614,4 +575,43 @@ impl Character for CharacterRequestHandler {
     fn cooldown_expiration(&self) -> Option<DateTime<FixedOffset>> {
         self.data().cooldown_expiration()
     }
+}
+
+#[derive(Default, Debug)]
+struct PauseState {
+    paused: Mutex<bool>,
+    canceled: Mutex<bool>,
+    cv: Condvar,
+}
+
+impl PauseState {
+    fn pause(&self) {
+        *self.paused.lock().unwrap() = true;
+    }
+
+    fn resume(&self) {
+        *self.paused.lock().unwrap() = false;
+        self.cv.notify_all();
+    }
+
+    fn cancel(&self) {
+        *self.canceled.lock().unwrap() = true;
+        self.cv.notify_all();
+    }
+
+    fn is_paused(&self) -> bool {
+        *self.paused.lock().unwrap()
+    }
+
+    fn is_canceled(&self) -> bool {
+        *self.canceled.lock().unwrap()
+    }
+}
+
+fn downcast_response<T: ResponseSchema + 'static>(
+    r: Box<dyn ResponseSchema>,
+) -> Result<T, RequestError> {
+    r.downcast()
+        .map(|b| *b)
+        .map_err(|_| RequestError::DowncastError)
 }

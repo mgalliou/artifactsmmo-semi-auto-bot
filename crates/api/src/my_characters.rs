@@ -53,8 +53,20 @@ use openapi::{
             action_withdraw_bank_gold_my_name_action_bank_withdraw_gold_post,
             action_withdraw_bank_item_my_name_action_bank_withdraw_item_post,
         },
-    }, models::{
-        BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema, BankItemTransactionResponseSchema, CharacterFightResponseSchema, CharacterMovementResponseSchema, CharacterRestResponseSchema, CharacterTransitionResponseSchema, CraftingSchema, DeleteItemResponseSchema, DepositWithdrawGoldSchema, DestinationSchema, EquipSchema, EquipmentResponseSchema, FightRequestSchema, GeBuyOrderSchema, GeCancelOrderSchema, GeCreateOrderTransactionResponseSchema, GeOrderCreationSchema, GeTransactionResponseSchema, GiveGoldResponseSchema, GiveGoldSchema, GiveItemResponseSchema, GiveItemsSchema, ItemSlot, NpcMerchantBuySchema, NpcMerchantTransactionResponseSchema, RecyclingResponseSchema, RecyclingSchema, RewardDataResponseSchema, SimpleItemSchema, SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema, TaskTradeResponseSchema, UnequipSchema, UseItemResponseSchema,
+    },
+    models::{
+        BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema,
+        BankItemTransactionResponseSchema, CharacterFightResponseSchema,
+        CharacterMovementResponseSchema, CharacterRestResponseSchema,
+        CharacterTransitionResponseSchema, CraftingSchema, DeleteItemResponseSchema,
+        DepositWithdrawGoldSchema, DestinationSchema, EquipSchema, EquipmentResponseSchema,
+        FightRequestSchema, GeBuyOrderSchema, GeCancelOrderSchema,
+        GeCreateOrderTransactionResponseSchema, GeOrderCreationSchema, GeTransactionResponseSchema,
+        GiveGoldResponseSchema, GiveGoldSchema, GiveItemResponseSchema, GiveItemsSchema, ItemSlot,
+        NpcMerchantBuySchema, NpcMerchantTransactionResponseSchema, RecyclingResponseSchema,
+        RecyclingSchema, RewardDataResponseSchema, SimpleItemSchema, SkillResponseSchema,
+        TaskCancelledResponseSchema, TaskResponseSchema, TaskTradeResponseSchema, UnequipSchema,
+        UseItemResponseSchema,
     },
 };
 use std::sync::Arc;
@@ -141,7 +153,7 @@ impl MyCharacterApi {
         let schema = RecyclingSchema {
             code: item_code.to_owned(),
             quantity: Some(quantity),
-            enhanced: enhanced.into()
+            enhanced: enhanced.into(),
         };
         action_recycling_my_name_action_recycling_post(&self.configuration, name, schema)
     }

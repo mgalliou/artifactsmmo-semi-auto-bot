@@ -1,3 +1,4 @@
+use crate::Persist;
 use api::ArtifactApi;
 use derive_more::Deref;
 use std::{
@@ -7,8 +8,6 @@ use std::{
     sync::Arc,
     thread::{self},
 };
-
-use crate::Persist;
 
 pub mod account;
 pub mod bank;
@@ -38,7 +37,7 @@ mod private {
     pub trait Sealed {}
 }
 
-/// Read-only access to an RCU (Read-Copy-Update) collection snapshot.
+/// Read-only access to an Read-Copy-Update collection snapshot.
 ///
 /// Each method takes an `Arc` snapshot of the inner `HashMap` (lock-free via
 /// `ArcSwap`), then operates on it freely — callers never block concurrent
@@ -123,11 +122,10 @@ pub trait Data: private::Sealed {
     fn data(&self) -> Arc<HashMap<Self::Key, Self::Entity>>;
 }
 
-#[derive(Default, Debug, Clone, Deref)]
+#[derive(Clone, Deref)]
 #[deref(forward)]
 pub struct Client(Arc<ClientInner>);
 
-#[derive(Default, Debug)]
 pub struct ClientInner {
     pub account: AccountClient,
     pub server: ServerClient,

@@ -2,7 +2,7 @@ use api::ArtifactApi;
 use itertools::Itertools;
 use openapi::models::{GeOrderHistorySchema, GeOrderSchema};
 
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct GrandExchangeClient {
     api: ArtifactApi,
 }

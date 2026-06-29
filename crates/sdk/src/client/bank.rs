@@ -4,11 +4,11 @@ use derive_more::Deref;
 use openapi::models::{BankSchema, SimpleItemSchema};
 use std::sync::{Arc, RwLock};
 
-#[derive(Default, Debug, Clone, Deref)]
+#[derive(Clone, Default, Deref)]
 #[deref(forward)]
 pub struct BankClient(Arc<BankClientInner>);
 
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct BankClientInner {
     details: RwLock<Arc<BankSchema>>,
     content: RwLock<Arc<Vec<SimpleItemSchema>>>,

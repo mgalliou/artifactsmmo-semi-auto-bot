@@ -52,11 +52,11 @@ pub mod error;
 pub mod inventory;
 pub mod responses;
 
-#[derive(Default, Debug, Clone, Deref)]
+#[derive(Default, Clone, Deref)]
 #[deref(forward)]
 pub struct CharacterClient(Arc<CharacterClientInner>);
 
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct CharacterClientInner {
     pub id: usize,
     handler: CharacterRequestHandler,

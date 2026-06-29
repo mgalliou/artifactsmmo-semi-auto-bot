@@ -15,12 +15,12 @@ use std::{
     thread,
 };
 
-#[derive(Default, Debug, Clone, Deref, CollectionClient)]
+#[derive(Clone, Default, Deref, CollectionClient)]
 #[deref(forward)]
 #[element(Event)]
 pub struct EventsClient(Arc<EventsClientInner>);
 
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct EventsClientInner {
     api: ArtifactApi,
     data: ArcSwap<HashMap<String, Event>>,
