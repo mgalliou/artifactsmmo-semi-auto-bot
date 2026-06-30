@@ -84,6 +84,12 @@ impl Code for SimpleItemSchema {
     }
 }
 
+impl Code for DropRateSchema {
+    fn code(&self) -> &str {
+        &self.code
+    }
+}
+
 pub trait Quantity {
     fn quantity(&self) -> u32;
 }
@@ -142,15 +148,10 @@ impl HasDrops for RewardsSchema {
     }
 }
 
-impl HasDrops for Vec<SimpleItemSchema> {
-    fn amount_of(&self, item_code: &str) -> u32 {
-        self.iter()
-            .find(|i| i.code() == item_code)
-            .map_or(0, |i| i.quantity)
-    }
-}
-
-impl HasDrops for Vec<DropSchema> {
+impl<T> HasDrops for Vec<T>
+where
+    T: Code + Quantity,
+{
     fn amount_of(&self, item_code: &str) -> u32 {
         self.iter()
             .find(|i| i.code() == item_code)
@@ -170,14 +171,14 @@ pub trait DropsItems {
     fn drop_rate_of(&self, item_code: &str) -> f32 {
         self.drops()
             .iter()
-            .find(|d| d.code == item_code)
+            .find(|d| d.code() == item_code)
             .map_or(0.0, DropRateSchemaExt::rate)
     }
 
     fn effective_drop_rate_of(&self, item_code: &str) -> f32 {
         self.drops()
             .iter()
-            .find(|d| d.code == item_code)
+            .find(|d| d.code() == item_code)
             .map_or(0.0, DropRateSchemaExt::effective_rate)
     }
 
@@ -227,22 +228,30 @@ pub trait CanProvideXp: Level {
 }
 
 pub trait DropRateSchemaExt {
-    fn average_quantity(&self) -> f32;
+    fn effective_rate(&self) -> f32 {
+        self.rate() * self.average_quantity()
+    }
+
+    fn average_quantity(&self) -> f32 {
+        (self.min_quantity() + self.max_quantity()) as f32 / 2.0
+    }
+
     fn rate(&self) -> f32;
-    fn effective_rate(&self) -> f32;
+    fn min_quantity(&self) -> u32;
+    fn max_quantity(&self) -> u32;
 }
 
 impl DropRateSchemaExt for DropRateSchema {
-    fn average_quantity(&self) -> f32 {
-        (self.min_quantity + self.max_quantity) as f32 / 2.0
+    fn min_quantity(&self) -> u32 {
+        self.min_quantity
+    }
+
+    fn max_quantity(&self) -> u32 {
+        self.max_quantity
     }
 
     fn rate(&self) -> f32 {
         self.rate as f32 / 100.0
-    }
-
-    fn effective_rate(&self) -> f32 {
-        self.rate() * self.average_quantity()
     }
 }
 
