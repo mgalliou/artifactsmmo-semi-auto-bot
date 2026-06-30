@@ -1,9 +1,8 @@
 use crate::{
-    CanProvideXp, CollectionClient, DropsItems, Level, Persist,
+    Cached, CanProvideXp, CollectionClient, DropsItems, Level,
     client::events::EventsClient,
     entities::{EventSchemaExt, Monster},
 };
-use api::ArtifactApi;
 use arc_swap::ArcSwap;
 use derive_more::Deref;
 use itertools::Itertools;
@@ -15,18 +14,34 @@ use std::{collections::HashMap, sync::Arc};
 #[element(Monster)]
 pub struct MonstersClient(Arc<MonstersClientInner>);
 
-#[derive(Default)]
 pub struct MonstersClientInner {
-    api: ArtifactApi,
+    path: Box<str>,
     data: ArcSwap<HashMap<String, Monster>>,
+    fetch: Box<dyn Fn() -> HashMap<String, Monster> + Send + Sync>,
     events: EventsClient,
 }
 
+impl Default for MonstersClientInner {
+    fn default() -> Self {
+        Self {
+            path: Box::from(".cache/monsters.json"),
+            data: ArcSwap::default(),
+            fetch: Box::new(|| panic!("MonstersClient not initialized")),
+            events: EventsClient::default(),
+        }
+    }
+}
+
 impl MonstersClient {
-    pub(crate) fn new(api: ArtifactApi, events: EventsClient) -> Self {
+    pub(crate) fn new(
+        path: &str,
+        fetch: Box<dyn Fn() -> HashMap<String, Monster> + Send + Sync>,
+        events: EventsClient,
+    ) -> Self {
         Self(
             MonstersClientInner {
-                api,
+                path: path.into(),
+                fetch,
                 data: ArcSwap::default(),
                 events,
             }
@@ -34,8 +49,19 @@ impl MonstersClient {
         )
     }
 
+    #[must_use]
+    pub fn from_cache(path: &str) -> Self {
+        let client = Self::new(
+            path,
+            Box::new(|| unreachable!("MonstersClient::from_cache has no API fallback")),
+            EventsClient::default(),
+        );
+        client.init();
+        client
+    }
+
     pub fn init(&self) {
-        self.data.store(Arc::new(self.load()));
+        self.data.store(Arc::new(self.fetch()));
         info!("Monster client initilized");
     }
 
@@ -67,20 +93,16 @@ impl MonstersClient {
     }
 }
 
-impl Persist<HashMap<String, Monster>> for MonstersClient {
-    const PATH: &'static str = ".cache/monsters.json";
+impl Cached<HashMap<String, Monster>> for MonstersClient {
+    fn path(&self) -> &str {
+        &self.path
+    }
 
-    fn load_from_api(&self) -> HashMap<String, Monster> {
-        self.api
-            .monsters
-            .get_all()
-            .unwrap()
-            .into_iter()
-            .map(|m| (m.code.clone(), Monster::new(m)))
-            .collect()
+    fn fetch_from_source(&self) -> HashMap<String, Monster> {
+        (self.fetch)()
     }
 
     fn refresh(&self) {
-        self.0.data.store(Arc::new(self.load_from_api()));
+        self.0.data.store(Arc::new(self.fetch_from_source()));
     }
 }

@@ -1,5 +1,4 @@
-use crate::{Persist, TasksRewardsClient, entities::Task};
-use api::ArtifactApi;
+use crate::{Cached, TasksRewardsClient, entities::Task};
 use arc_swap::ArcSwap;
 use derive_more::Deref;
 use log::info;
@@ -11,18 +10,34 @@ use std::{collections::HashMap, sync::Arc, thread};
 #[element(Task)]
 pub struct TasksClient(Arc<TasksClientInner>);
 
-#[derive(Default)]
 pub struct TasksClientInner {
-    api: ArtifactApi,
+    path: Box<str>,
     data: ArcSwap<HashMap<String, Task>>,
+    fetch: Box<dyn Fn() -> HashMap<String, Task> + Send + Sync>,
     rewards: TasksRewardsClient,
 }
 
+impl Default for TasksClientInner {
+    fn default() -> Self {
+        Self {
+            path: Box::from(".cache/tasks.json"),
+            data: ArcSwap::default(),
+            fetch: Box::new(|| panic!("TasksClient not initialized")),
+            rewards: TasksRewardsClient::default(),
+        }
+    }
+}
+
 impl TasksClient {
-    pub(crate) fn new(api: ArtifactApi, reward: TasksRewardsClient) -> Self {
+    pub(crate) fn new(
+        path: &str,
+        fetch: Box<dyn Fn() -> HashMap<String, Task> + Send + Sync>,
+        reward: TasksRewardsClient,
+    ) -> Self {
         Self(
             TasksClientInner {
-                api,
+                path: path.into(),
+                fetch,
                 data: ArcSwap::default(),
                 rewards: reward,
             }
@@ -30,9 +45,20 @@ impl TasksClient {
         )
     }
 
+    #[must_use]
+    pub fn from_cache(path: &str) -> Self {
+        let client = Self::new(
+            path,
+            Box::new(|| unreachable!("TasksClient::from_cache has no API fallback")),
+            TasksRewardsClient::default(),
+        );
+        client.init();
+        client
+    }
+
     pub fn init(&self) {
         let () = thread::scope(|s| {
-            let _ = s.spawn(|| self.data.store(Arc::new(self.load())));
+            let _ = s.spawn(|| self.data.store(Arc::new(self.fetch())));
             let _ = s.spawn(|| self.rewards().init());
         });
         info!("Tasks client initilized");
@@ -44,20 +70,16 @@ impl TasksClient {
     }
 }
 
-impl Persist<HashMap<String, Task>> for TasksClient {
-    const PATH: &'static str = ".cache/tasks.json";
+impl Cached<HashMap<String, Task>> for TasksClient {
+    fn path(&self) -> &str {
+        &self.path
+    }
 
-    fn load_from_api(&self) -> HashMap<String, Task> {
-        self.api
-            .tasks
-            .get_all()
-            .unwrap()
-            .into_iter()
-            .map(|task| (task.code.clone(), Task::new(task)))
-            .collect()
+    fn fetch_from_source(&self) -> HashMap<String, Task> {
+        (self.fetch)()
     }
 
     fn refresh(&self) {
-        self.data.store(Arc::new(self.load_from_api()));
+        self.data.store(Arc::new(self.fetch_from_source()));
     }
 }

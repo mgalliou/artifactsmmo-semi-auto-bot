@@ -1,5 +1,5 @@
 use crate::{
-    Persist,
+    Cached,
     entities::{ActiveEvent, Event},
 };
 use api::ArtifactApi;
@@ -20,18 +20,38 @@ use std::{
 #[element(Event)]
 pub struct EventsClient(Arc<EventsClientInner>);
 
-#[derive(Default)]
 pub struct EventsClientInner {
     api: ArtifactApi,
+    path: Box<str>,
     data: ArcSwap<HashMap<String, Event>>,
+    fetch: Box<dyn Fn() -> HashMap<String, Event> + Send + Sync>,
     active: RwLock<Vec<ActiveEvent>>,
     last_refresh: RwLock<DateTime<Utc>>,
 }
 
+impl Default for EventsClientInner {
+    fn default() -> Self {
+        Self {
+            api: ArtifactApi::default(),
+            path: Box::from(".cache/events.json"),
+            data: ArcSwap::default(),
+            fetch: Box::new(|| panic!("EventsClient not initialized")),
+            active: RwLock::default(),
+            last_refresh: RwLock::default(),
+        }
+    }
+}
+
 impl EventsClient {
-    pub(crate) fn new(api: ArtifactApi) -> Self {
+    pub(crate) fn new(
+        path: &str,
+        fetch: Box<dyn Fn() -> HashMap<String, Event> + Send + Sync>,
+        api: ArtifactApi,
+    ) -> Self {
         Self(
             EventsClientInner {
+                path: path.into(),
+                fetch,
                 api,
                 data: ArcSwap::default(),
                 active: RwLock::default(),
@@ -41,10 +61,21 @@ impl EventsClient {
         )
     }
 
+    #[must_use]
+    pub fn from_cache(path: &str) -> Self {
+        let client = Self::new(
+            path,
+            Box::new(|| unreachable!("EventsClient::from_cache has no API fallback")),
+            ArtifactApi::default(),
+        );
+        client.init();
+        client
+    }
+
     pub fn init(&self) {
         let () = thread::scope(|s| {
             // TODO: handle errors
-            let _ = s.spawn(|| self.0.data.store(Arc::new(self.load())));
+            let _ = s.spawn(|| self.0.data.store(Arc::new(self.fetch())));
             let _ = s.spawn(|| self.refresh_active());
         });
         info!("Event client initilized");
@@ -90,20 +121,16 @@ impl EventsClient {
     }
 }
 
-impl Persist<HashMap<String, Event>> for EventsClient {
-    const PATH: &'static str = ".cache/events.json";
+impl Cached<HashMap<String, Event>> for EventsClient {
+    fn path(&self) -> &str {
+        &self.path
+    }
 
-    fn load_from_api(&self) -> HashMap<String, Event> {
-        self.api
-            .events
-            .get_all()
-            .unwrap()
-            .into_iter()
-            .map(|event| (event.code.clone(), Event::new(event)))
-            .collect()
+    fn fetch_from_source(&self) -> HashMap<String, Event> {
+        (self.fetch)()
     }
 
     fn refresh(&self) {
-        self.0.data.store(Arc::new(self.load_from_api()));
+        self.0.data.store(Arc::new(self.fetch_from_source()));
     }
 }

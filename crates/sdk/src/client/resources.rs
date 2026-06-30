@@ -1,9 +1,8 @@
 use crate::{
-    CollectionClient, DropsItems, Persist,
+    Cached, CollectionClient, DropsItems,
     client::events::EventsClient,
     entities::{EventSchemaExt, Resource},
 };
-use api::ArtifactApi;
 use arc_swap::ArcSwap;
 use derive_more::Deref;
 use itertools::Itertools;
@@ -15,18 +14,34 @@ use std::{collections::HashMap, sync::Arc};
 #[element(Resource)]
 pub struct ResourcesClient(Arc<ResourcesClientInner>);
 
-#[derive(Default)]
 pub struct ResourcesClientInner {
-    api: ArtifactApi,
+    path: Box<str>,
     data: ArcSwap<HashMap<String, Resource>>,
+    fetch: Box<dyn Fn() -> HashMap<String, Resource> + Send + Sync>,
     events: EventsClient,
 }
 
+impl Default for ResourcesClientInner {
+    fn default() -> Self {
+        Self {
+            path: Box::from(".cache/resources.json"),
+            data: ArcSwap::default(),
+            fetch: Box::new(|| panic!("ResourcesClient not initialized")),
+            events: EventsClient::default(),
+        }
+    }
+}
+
 impl ResourcesClient {
-    pub(crate) fn new(api: ArtifactApi, events: EventsClient) -> Self {
+    pub(crate) fn new(
+        path: &str,
+        fetch: Box<dyn Fn() -> HashMap<String, Resource> + Send + Sync>,
+        events: EventsClient,
+    ) -> Self {
         Self(
             ResourcesClientInner {
-                api,
+                path: path.into(),
+                fetch,
                 data: ArcSwap::default(),
                 events,
             }
@@ -34,8 +49,19 @@ impl ResourcesClient {
         )
     }
 
+    #[must_use]
+    pub fn from_cache(path: &str) -> Self {
+        let client = Self::new(
+            path,
+            Box::new(|| unreachable!("ResourcesClient::from_cache has no API fallback")),
+            EventsClient::default(),
+        );
+        client.init();
+        client
+    }
+
     pub fn init(&self) {
-        self.0.data.store(Arc::new(self.load()));
+        self.0.data.store(Arc::new(self.fetch()));
         info!("Resource client initilized");
     }
 
@@ -53,20 +79,16 @@ impl ResourcesClient {
     }
 }
 
-impl Persist<HashMap<String, Resource>> for ResourcesClient {
-    const PATH: &'static str = ".cache/resources.json";
+impl Cached<HashMap<String, Resource>> for ResourcesClient {
+    fn path(&self) -> &str {
+        &self.path
+    }
 
-    fn load_from_api(&self) -> HashMap<String, Resource> {
-        self.api
-            .resources
-            .get_all()
-            .unwrap()
-            .into_iter()
-            .map(|r| (r.code.clone(), Resource::new(r)))
-            .collect()
+    fn fetch_from_source(&self) -> HashMap<String, Resource> {
+        (self.fetch)()
     }
 
     fn refresh(&self) {
-        self.0.data.store(Arc::new(self.load_from_api()));
+        self.0.data.store(Arc::new(self.fetch_from_source()));
     }
 }

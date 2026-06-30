@@ -3,7 +3,7 @@ use chrono::{DateTime, FixedOffset};
 use derive_more::{Deref, Display, From};
 use openapi::models::{CharacterSchema, InventorySlotSchema, MapLayer, TaskType};
 use serde::{Deserialize, Serialize};
-use std::{sync::{Arc, RwLock}};
+use std::sync::{Arc, RwLock};
 use strum::IntoEnumIterator;
 
 pub trait Character: Level {
@@ -288,4 +288,3 @@ impl From<&Self> for TaskCode {
         name.clone()
     }
 }
-

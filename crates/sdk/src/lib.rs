@@ -4,12 +4,8 @@ use openapi::models::{
     InventorySlotSchema, RewardsSchema, SimpleItemSchema, SkillInfoSchema, TransitionSchema,
 };
 use serde::{Deserialize, Serialize};
+use std::fmt::{self, Display, Formatter};
 use std::fs;
-use std::{
-    error::Error,
-    fmt::{self, Display, Formatter},
-    path::Path,
-};
 
 pub use openapi::models;
 pub use sdk_derive::CollectionClient;
@@ -28,37 +24,43 @@ pub mod gear;
 pub mod simulator;
 pub mod skill;
 
-pub(crate) trait Persist<D>
+#[cfg(test)]
+pub(crate) mod test_support;
+
+pub(crate) trait Cached<D>
 where
     D: for<'a> Deserialize<'a> + Serialize,
 {
-    const PATH: &'static str;
+    fn path(&self) -> &str;
 
-    fn load(&self) -> D {
-        self.load_from_file::<D>().unwrap_or_else(|_| {
-            let data = self.load_from_api();
-            if let Err(e) = Self::persist(&data) {
-                error!("failed to persist data: {e}");
+    /// Returns cached data, falling back to `fetch_from_source` when cache is unavailable
+    fn fetch(&self) -> D {
+        self.fetch_from_cache::<D>().unwrap_or_else(|_| {
+            let data = self.fetch_from_source();
+            if let Err(e) = self.cache(&data) {
+                error!("failed to cache data: {e}");
             }
             data
         })
     }
 
-    fn load_from_api(&self) -> D;
-
-    fn load_from_file<T: for<'a> Deserialize<'a>>(&self) -> Result<T, Box<dyn Error>> {
-        Ok(serde_json::from_str(&fs::read_to_string(Path::new(
-            Self::PATH,
-        ))?)?)
+    /// Reads and deserializes data from the local cache file
+    fn fetch_from_cache<T: for<'a> Deserialize<'a>>(&self) -> anyhow::Result<T> {
+        Ok(serde_json::from_str(&fs::read_to_string(self.path())?)?)
     }
 
-    fn persist<T: Serialize>(data: T) -> Result<(), Box<dyn Error>> {
+    /// Writes data to the local cache file
+    fn cache<T: Serialize>(&self, data: T) -> anyhow::Result<()> {
         Ok(fs::write(
-            Path::new(Self::PATH),
+            self.path(),
             &serde_json::to_string_pretty(&data)?,
         )?)
     }
 
+    /// Returns data from the source of truth (e.g., the `ArtifactMMO` API)
+    fn fetch_from_source(&self) -> D;
+
+    /// Updates the local cache directly from the source of truth
     fn refresh(&self);
 }
 

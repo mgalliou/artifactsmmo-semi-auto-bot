@@ -319,44 +319,48 @@ impl From<Slot> for SlotType {
 
 #[cfg(test)]
 mod tests {
-    //TODO: rewrite tests
-    // use crate::items::Items;
-    //
-    // use super::*;
-    //
-    // #[test]
-    // fn check_gear_alignment_is_working() {
-    //     let gear1 = Gear {
-    //         ring1: Some(ITEMS.get("skull_ring").unwrap()),
-    //         ring2: Some(ITEMS.get("dreadful_ring").unwrap()),
-    //         utility1: Some(ITEMS.get("minor_health_potion").unwrap()),
-    //         utility2: Some(ITEMS.get("small_health_potion").unwrap()),
-    //         artifact1: Some(ITEMS.get("christmas_star").unwrap()),
-    //         artifact2: Some(ITEMS.get("life_crystal").unwrap()),
-    //         artifact3: Some(ITEMS.get("backpack").unwrap()),
-    //         ..Default::default()
-    //     };
-    //     let mut gear2 = Gear {
-    //         ring1: Some(ITEMS.get("dreadful_ring").unwrap()),
-    //         ring2: Some(ITEMS.get("skull_ring").unwrap()),
-    //         utility1: Some(ITEMS.get("small_health_potion").unwrap()),
-    //         utility2: Some(ITEMS.get("minor_health_potion").unwrap()),
-    //         artifact1: Some(ITEMS.get("life_crystal").unwrap()),
-    //         artifact2: Some(ITEMS.get("backpack").unwrap()),
-    //         artifact3: Some(ITEMS.get("christmas_star").unwrap()),
-    //         ..Default::default()
-    //     };
-    //     let mut gear3 = Gear {
-    //         ring2: Some(ITEMS.get("skull_ring").unwrap()),
-    //         utility1: Some(ITEMS.get("small_health_potion").unwrap()),
-    //         artifact2: Some(ITEMS.get("christmas_star").unwrap()),
-    //         ..Default::default()
-    //     };
-    //     gear2.align_to(&gear1);
-    //     gear3.align_to(&gear1);
-    //     assert_eq!(gear1, gear2);
-    //     assert_eq!(gear3.ring1, gear1.ring1);
-    //     assert_eq!(gear3.utility2, gear1.utility2);
-    //     assert_eq!(gear3.artifact1, gear1.artifact1);
-    // }
+    use crate::client::CollectionClient;
+    use crate::test_support::ITEMS;
+
+    use super::*;
+
+    fn items() -> &'static crate::client::items::ItemsClient {
+        &*ITEMS
+    }
+
+    #[test]
+    fn check_gear_alignment_is_working() {
+        let gear1 = Gear {
+            ring1: items().get("skull_ring"),
+            ring2: items().get("dreadful_ring"),
+            utility1: items().get("minor_health_potion"),
+            utility2: items().get("small_health_potion"),
+            artifact1: items().get("life_crystal"),
+            artifact2: items().get("malefic_crystal"),
+            artifact3: items().get("corrupted_skull"),
+            ..Default::default()
+        };
+        let mut gear2 = Gear {
+            ring1: items().get("dreadful_ring"),
+            ring2: items().get("skull_ring"),
+            utility1: items().get("small_health_potion"),
+            utility2: items().get("minor_health_potion"),
+            artifact1: items().get("malefic_crystal"),
+            artifact2: items().get("corrupted_skull"),
+            artifact3: items().get("life_crystal"),
+            ..Default::default()
+        };
+        let mut gear3 = Gear {
+            ring2: items().get("skull_ring"),
+            utility1: items().get("small_health_potion"),
+            artifact2: items().get("life_crystal"),
+            ..Default::default()
+        };
+        gear2.align_to(&gear1);
+        gear3.align_to(&gear1);
+        assert_eq!(gear1, gear2);
+        assert_eq!(gear3.ring1, gear1.ring1);
+        assert_eq!(gear3.utility2, gear1.utility2);
+        assert_eq!(gear3.artifact1, gear1.artifact1);
+    }
 }

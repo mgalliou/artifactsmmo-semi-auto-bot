@@ -1,5 +1,4 @@
-use crate::{Code, CollectionClient, Persist, client::npcs_items::NpcsItemsClient, entities::Npc};
-use api::ArtifactApi;
+use crate::{Cached, Code, CollectionClient, client::npcs_items::NpcsItemsClient, entities::Npc};
 use arc_swap::ArcSwap;
 use derive_more::Deref;
 use itertools::Itertools;
@@ -11,18 +10,34 @@ use std::{collections::HashMap, sync::Arc};
 #[element(Npc)]
 pub struct NpcsClient(Arc<NpcsClientInner>);
 
-#[derive(Default)]
 pub struct NpcsClientInner {
-    api: ArtifactApi,
+    path: Box<str>,
     data: ArcSwap<HashMap<String, Npc>>,
+    fetch: Box<dyn Fn() -> HashMap<String, Npc> + Send + Sync>,
     items: NpcsItemsClient,
 }
 
+impl Default for NpcsClientInner {
+    fn default() -> Self {
+        Self {
+            path: Box::from(".cache/npcs.json"),
+            data: ArcSwap::default(),
+            fetch: Box::new(|| panic!("NpcsClient not initialized")),
+            items: NpcsItemsClient::default(),
+        }
+    }
+}
+
 impl NpcsClient {
-    pub(crate) fn new(api: ArtifactApi, items: NpcsItemsClient) -> Self {
+    pub(crate) fn new(
+        path: &str,
+        fetch: Box<dyn Fn() -> HashMap<String, Npc> + Send + Sync>,
+        items: NpcsItemsClient,
+    ) -> Self {
         Self(
             NpcsClientInner {
-                api,
+                path: path.into(),
+                fetch,
                 data: ArcSwap::default(),
                 items,
             }
@@ -30,8 +45,19 @@ impl NpcsClient {
         )
     }
 
+    #[must_use]
+    pub fn from_cache(path: &str) -> Self {
+        let client = Self::new(
+            path,
+            Box::new(|| unreachable!("NpcsClient::from_cache has no API fallback")),
+            NpcsItemsClient::default(),
+        );
+        client.init();
+        client
+    }
+
     pub fn init(&self) {
-        self.data.store(Arc::new(self.load()));
+        self.data.store(Arc::new(self.fetch()));
         info!("Npcs client initilized");
     }
 
@@ -55,20 +81,16 @@ impl NpcsClient {
     }
 }
 
-impl Persist<HashMap<String, Npc>> for NpcsClient {
-    const PATH: &'static str = ".cache/npcs.json";
+impl Cached<HashMap<String, Npc>> for NpcsClient {
+    fn path(&self) -> &str {
+        &self.path
+    }
 
-    fn load_from_api(&self) -> HashMap<String, Npc> {
-        self.api
-            .npcs
-            .get_all()
-            .unwrap()
-            .into_iter()
-            .map(|npc| (npc.code.clone(), Npc::new(npc)))
-            .collect()
+    fn fetch_from_source(&self) -> HashMap<String, Npc> {
+        (self.fetch)()
     }
 
     fn refresh(&self) {
-        self.data.store(Arc::new(self.load_from_api()));
+        self.data.store(Arc::new(self.fetch_from_source()));
     }
 }

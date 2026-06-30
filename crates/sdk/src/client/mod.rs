@@ -1,4 +1,7 @@
-use crate::Persist;
+use crate::{
+    Cached,
+    entities::{Event, Item, Monster, Npc, Resource, Task, TaskReward},
+};
 use api::ArtifactApi;
 use derive_more::Deref;
 use std::{
@@ -146,20 +149,137 @@ impl Client {
         let bank = BankClient::new(api.clone());
         let account = AccountClient::new(account_name, bank, api.clone());
         let server = ServerClient::new(api.clone());
-        let events = EventsClient::new(api.clone());
-        let resources = ResourcesClient::new(api.clone(), events.clone());
-        let monsters = MonstersClient::new(api.clone(), events.clone());
-        let tasks_rewards = TasksRewardsClient::new(api.clone());
-        let tasks = TasksClient::new(api.clone(), tasks_rewards.clone());
-        let npcs_items = NpcsItemsClient::new(api.clone());
-        let npcs = NpcsClient::new(api.clone(), npcs_items);
-        let items = ItemsClient::new(
-            api.clone(),
-            resources.clone(),
-            monsters.clone(),
-            tasks_rewards,
-            npcs.clone(),
+
+        let events = {
+            let api_fetch = api.clone();
+            EventsClient::new(
+                ".cache/events.json",
+                Box::new(move || {
+                    api_fetch
+                        .events
+                        .get_all()
+                        .unwrap()
+                        .into_iter()
+                        .map(|event| (event.code.clone(), Event::new(event)))
+                        .collect()
+                }),
+                api.clone(),
+            )
+        };
+
+        let resources = {
+            let api = api.clone();
+            ResourcesClient::new(
+                ".cache/resources.json",
+                Box::new(move || {
+                    api.resources
+                        .get_all()
+                        .unwrap()
+                        .into_iter()
+                        .map(|r| (r.code.clone(), Resource::new(r)))
+                        .collect()
+                }),
+                events.clone(),
+            )
+        };
+
+        let monsters = {
+            let api = api.clone();
+            MonstersClient::new(
+                ".cache/monsters.json",
+                Box::new(move || {
+                    api.monsters
+                        .get_all()
+                        .unwrap()
+                        .into_iter()
+                        .map(|m| (m.code.clone(), Monster::new(m)))
+                        .collect()
+                }),
+                events.clone(),
+            )
+        };
+
+        let tasks_rewards = {
+            let api = api.clone();
+            TasksRewardsClient::new(
+                ".cache/tasks_rewards.json",
+                Box::new(move || {
+                    api.tasks
+                        .get_rewards()
+                        .unwrap()
+                        .into_iter()
+                        .map(|tr| (tr.code.clone(), TaskReward::new(tr)))
+                        .collect()
+                }),
+            )
+        };
+
+        let tasks = {
+            let api = api.clone();
+            TasksClient::new(
+                ".cache/tasks.json",
+                Box::new(move || {
+                    api.tasks
+                        .get_all()
+                        .unwrap()
+                        .into_iter()
+                        .map(|task| (task.code.clone(), Task::new(task)))
+                        .collect()
+                }),
+                tasks_rewards.clone(),
+            )
+        };
+
+        let npcs_items = NpcsItemsClient::new(
+            ".cache/npcs_items.json",
+            Box::new({
+                let api = api.clone();
+                move || {
+                    api.npcs
+                        .get_items()
+                        .unwrap()
+                        .into_iter()
+                        .map(|npc| (npc.code.clone(), crate::entities::NpcItem::new(npc)))
+                        .collect()
+                }
+            }),
         );
+
+        let npcs = {
+            let api = api.clone();
+            NpcsClient::new(
+                ".cache/npcs.json",
+                Box::new(move || {
+                    api.npcs
+                        .get_all()
+                        .unwrap()
+                        .into_iter()
+                        .map(|npc| (npc.code.clone(), Npc::new(npc)))
+                        .collect()
+                }),
+                npcs_items,
+            )
+        };
+
+        let items = {
+            let api = api.clone();
+            ItemsClient::new(
+                ".cache/items.json",
+                Box::new(move || {
+                    api.items
+                        .get_all()
+                        .unwrap()
+                        .into_iter()
+                        .map(|i| (i.code.clone(), Item::new(i)))
+                        .collect()
+                }),
+                resources.clone(),
+                monsters.clone(),
+                tasks_rewards,
+                npcs.clone(),
+            )
+        };
+
         let maps = MapsClient::new(api.clone(), events.clone());
         let grand_exchange = GrandExchangeClient::new(api);
         Self(

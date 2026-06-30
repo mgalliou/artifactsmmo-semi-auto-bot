@@ -1,5 +1,5 @@
 use crate::{
-    Code, CollectionClient, DropsItems, Level, Persist, Quantity,
+    Cached, Code, CollectionClient, DropsItems, Level, Quantity,
     client::{
         monsters::MonstersClient, npcs::NpcsClient, resources::ResourcesClient,
         tasks_rewards::TasksRewardsClient,
@@ -10,7 +10,6 @@ use crate::{
     simulator::{EffectCode, HasEffects},
     skill::Skill,
 };
-use api::ArtifactApi;
 use arc_swap::ArcSwap;
 use derive_more::Deref;
 use itertools::Itertools;
@@ -24,19 +23,34 @@ use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
 #[element(Item)]
 pub struct ItemsClient(Arc<ItemsClientInner>);
 
-#[derive(Default)]
 pub struct ItemsClientInner {
+    path: Box<str>,
     data: ArcSwap<HashMap<String, Item>>,
-    api: ArtifactApi,
+    fetch: Box<dyn Fn() -> HashMap<String, Item> + Send + Sync>,
     resources: ResourcesClient,
     monsters: MonstersClient,
     tasks_rewards: TasksRewardsClient,
     npcs: NpcsClient,
 }
 
+impl Default for ItemsClientInner {
+    fn default() -> Self {
+        Self {
+            path: Box::from(".cache/items.json"),
+            data: ArcSwap::default(),
+            fetch: Box::new(|| panic!("ItemsClient not initialized")),
+            resources: ResourcesClient::default(),
+            monsters: MonstersClient::default(),
+            tasks_rewards: TasksRewardsClient::default(),
+            npcs: NpcsClient::default(),
+        }
+    }
+}
+
 impl ItemsClient {
     pub(crate) fn new(
-        api: ArtifactApi,
+        path: &str,
+        fetch: Box<dyn Fn() -> HashMap<String, Item> + Send + Sync>,
         resources: ResourcesClient,
         monsters: MonstersClient,
         tasks_rewards: TasksRewardsClient,
@@ -44,8 +58,9 @@ impl ItemsClient {
     ) -> Self {
         Self(
             ItemsClientInner {
+                path: path.into(),
+                fetch,
                 data: ArcSwap::default(),
-                api,
                 resources,
                 monsters,
                 tasks_rewards,
@@ -55,8 +70,22 @@ impl ItemsClient {
         )
     }
 
+    #[must_use]
+    pub fn from_cache(path: &str) -> Self {
+        let client = Self::new(
+            path,
+            Box::new(|| unreachable!("ItemsClient::from_cache has no API fallback")),
+            ResourcesClient::default(),
+            MonstersClient::default(),
+            TasksRewardsClient::default(),
+            NpcsClient::default(),
+        );
+        client.init();
+        client
+    }
+
     pub fn init(&self) {
-        self.data.store(Arc::new(self.load()));
+        self.data.store(Arc::new(self.fetch()));
         info!("Items client initilized");
     }
 
@@ -283,21 +312,17 @@ impl ItemsClient {
     }
 }
 
-impl Persist<HashMap<String, Item>> for ItemsClient {
-    const PATH: &'static str = ".cache/items.json";
+impl Cached<HashMap<String, Item>> for ItemsClient {
+    fn path(&self) -> &str {
+        &self.path
+    }
 
-    fn load_from_api(&self) -> HashMap<String, Item> {
-        self.api
-            .items
-            .get_all()
-            .unwrap()
-            .into_iter()
-            .map(|i| (i.code.clone(), Item::new(i)))
-            .collect()
+    fn fetch_from_source(&self) -> HashMap<String, Item> {
+        (self.fetch)()
     }
 
     fn refresh(&self) {
-        self.data.store(Arc::new(self.load_from_api()));
+        self.data.store(Arc::new(self.fetch_from_source()));
     }
 }
 
@@ -428,113 +453,85 @@ impl PartialEq<LevelConditionCode> for String {
 
 #[cfg(test)]
 mod tests {
-    //TODO: rewrite test
-    // use itertools::Itertools;
-    // use crate::{items::ItemSchemaExt, };
+    use crate::client::CollectionClient;
+    use crate::simulator::{DamageType, HasEffects};
+    use crate::test_support::{ITEMS, MONSTERS};
 
-    // #[test]
-    // fn item_damage_against() {
-    //     assert_eq!(
-    //         ITEMS
-    //             .get("skull_staff")
-    //             .unwrap()
-    //             .attack_damage_against(&MONSTERS.get("ogre").unwrap()),
-    //         48.0
-    //     );
-    //     assert_eq!(
-    //         ITEMS
-    //             .get("dreadful_staff")
-    //             .unwrap()
-    //             .attack_damage_against(&MONSTERS.get("vampire").unwrap()),
-    //         57.5
-    //     );
-    // }
-    //
-    // #[test]
-    // fn damage_increase() {
-    //     assert_eq!(
-    //         ITEMS
-    //             .get("steel_boots")
-    //             .unwrap()
-    //             .damage_increase(super::DamageType::Air),
-    //         0
-    //     )
-    // }
-    //
-    // #[test]
-    // fn damage_increase_against() {
-    //     assert_eq!(
-    //         ITEMS
-    //             .get("steel_armor")
-    //             .unwrap()
-    //             .damage_increase_against_with(
-    //                 &MONSTERS.get("chicken").unwrap(),
-    //                 &ITEMS.get("steel_battleaxe").unwrap()
-    //             ),
-    //         6.0
-    //     );
-    //
-    //     assert_eq!(
-    //         ITEMS
-    //             .get("steel_boots")
-    //             .unwrap()
-    //             .damage_increase_against_with(
-    //                 &MONSTERS.get("ogre").unwrap(),
-    //                 &ITEMS.get("skull_staff").unwrap()
-    //             ),
-    //         0.0
-    //     );
-    // }
-    //
-    // #[test]
-    // fn damage_reduction_against() {
-    //     assert_eq!(
-    //         ITEMS
-    //             .get("steel_armor")
-    //             .unwrap()
-    //             .damage_reduction_against(&MONSTERS.get("ogre").unwrap()),
-    //         4.0
-    //     );
-    // }
-    //
-    // //#[test]
-    // //fn gift_source() {
-    // //    assert_eq!(
-    // //        ITEMS.sources_of("christmas_star").first(),
-    // //        Some(&ItemSource::Gift)
-    // //    );
-    // //    assert_eq!(
-    // //        ITEMS.best_source_of("gift"),
-    // //        Some(&ItemSource::Monster(MONSTERS.get("gingerbread").unwrap())).cloned()
-    // //    );
-    // //}
-    //
-    // #[test]
-    // fn best_consumable_foods() {
-    //     assert_eq!(
-    //         ITEMS
-    //             .best_consumable_foods(29)
-    //             .iter()
-    //             .max_by_key(|i| i.heal())
-    //             .unwrap()
-    //             .code,
-    //         "cooked_trout"
-    //     );
-    // }
-    //
-    // #[test]
-    // fn drop_rate() {
-    //     assert_eq!(ITEMS.drop_rate("milk_bucket"), 12);
-    // }
-    //
-    // #[test]
-    // fn require_task_reward() {
-    //     assert!(ITEMS.require_task_reward("greater_dreadful_staff"));
-    // }
-    //
-    // #[test]
-    // fn mats_methods() {
-    //     assert!(!ITEMS.mats_of("greater_dreadful_staff").is_empty());
-    //     assert!(!ITEMS.base_mats_of("greater_dreadful_staff").is_empty());
-    // }
+    fn items() -> &'static crate::client::items::ItemsClient {
+        &*ITEMS
+    }
+
+    fn monsters() -> &'static crate::client::monsters::MonstersClient {
+        &*MONSTERS
+    }
+
+    #[test]
+    fn item_damage_against() {
+        let val = items()
+            .get("skull_staff")
+            .unwrap()
+            .average_dmg_against(&monsters().get("ogre").unwrap());
+        assert!(val > 0.0, "skull_staff vs ogre dmg = {val}");
+
+        let val = items()
+            .get("dreadful_staff")
+            .unwrap()
+            .average_dmg_against(&monsters().get("vampire").unwrap());
+        assert!(val > 0.0, "dreadful_staff vs vampire dmg = {val}");
+    }
+
+    #[test]
+    fn damage_increase() {
+        assert_eq!(
+            items()
+                .get("steel_boots")
+                .unwrap()
+                .dmg_increase(DamageType::Air),
+            0
+        )
+    }
+
+    #[test]
+    fn damage_increase_against() {
+        let val = items()
+            .get("steel_armor")
+            .unwrap()
+            .average_dmg_boost_against_with(
+                &monsters().get("chicken").unwrap(),
+                &items().get("steel_battleaxe").unwrap(),
+            );
+        assert!(
+            val >= 0.0,
+            "steel_armor boost vs chicken with battleaxe = {val}"
+        );
+
+        let val = items()
+            .get("steel_boots")
+            .unwrap()
+            .average_dmg_boost_against_with(
+                &monsters().get("ogre").unwrap(),
+                &items().get("skull_staff").unwrap(),
+            );
+        assert_eq!(val, 0.0);
+    }
+
+    #[test]
+    fn damage_reduction_against() {
+        let val = items()
+            .get("steel_armor")
+            .unwrap()
+            .average_dmg_reduction_against(&monsters().get("ogre").unwrap());
+        assert!(val > 0.0, "steel_armor reduction vs ogre = {val}");
+    }
+
+    #[test]
+    fn require_task_reward() {
+        assert!(items().require_task_reward("greater_dreadful_staff"));
+    }
+
+    #[test]
+    fn mats_methods() {
+        assert!(!items().mats_of("greater_dreadful_staff").is_empty());
+        assert!(!items().base_mats_of("greater_dreadful_staff").is_empty());
+    }
 }
