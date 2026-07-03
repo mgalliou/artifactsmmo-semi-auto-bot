@@ -430,7 +430,7 @@ impl From<Slot> for SlotType {
 mod tests {
     use crate::client::CollectionClient;
     use crate::client::items::ItemsClient;
-    use crate::test_support::ITEMS;
+    use crate::test_utils::ITEMS;
 
     use super::*;
 

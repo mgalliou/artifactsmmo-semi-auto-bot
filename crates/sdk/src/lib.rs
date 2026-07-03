@@ -24,8 +24,8 @@ pub mod gear;
 pub mod simulator;
 pub mod skill;
 
-#[cfg(test)]
-pub mod test_support;
+#[cfg(any(test, feature = "test-utils"))]
+pub mod test_utils;
 
 pub(crate) trait Cached<D>
 where

@@ -40,15 +40,10 @@ impl UtilitySet {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sdk::{CollectionClient, client::items::ItemsClient};
+    use sdk::{CollectionClient, test_utils::ITEMS};
 
     fn item(code: &str) -> Item {
-        ItemsClient::from_cache(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../sdk/tests/fixtures/items.json"
-        ))
-        .get(code)
-        .unwrap()
+        ITEMS.get(code).unwrap()
     }
 
     #[test]

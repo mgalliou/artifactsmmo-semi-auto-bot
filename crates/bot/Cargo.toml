@@ -22,6 +22,9 @@ strum.workspace = true
 strum_macros.workspace = true
 thiserror.workspace = true
 
+[dev-dependencies]
+sdk = { workspace = true, features = ["test-utils"] }
+
 [lints.clippy]
 pedantic = { level = "warn" }
 nursery = { level = "warn" }

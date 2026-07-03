@@ -455,7 +455,7 @@ impl PartialEq<LevelConditionCode> for String {
 mod tests {
     use crate::client::CollectionClient;
     use crate::simulator::{DamageType, HasEffects};
-    use crate::test_support::{ITEMS, MONSTERS};
+    use crate::test_utils::{ITEMS, MONSTERS};
 
     fn items() -> &'static crate::client::items::ItemsClient {
         &ITEMS

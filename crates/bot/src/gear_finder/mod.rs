@@ -626,28 +626,14 @@ mod tests {
     use std::collections::HashSet;
 
     use super::*;
-    use sdk::{CollectionClient, client::items::ItemsClient, client::monsters::MonstersClient};
-
-    fn items() -> ItemsClient {
-        ItemsClient::from_cache(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../sdk/tests/fixtures/items.json"
-        ))
-    }
+    use sdk::{CollectionClient, test_utils::{ITEMS, MONSTERS}};
 
     fn item(item_code: &str) -> Item {
-        items().get(item_code).unwrap()
+        ITEMS.get(item_code).unwrap()
     }
 
     fn monster(item_code: &str) -> Monster {
-        monsters().get(item_code).unwrap()
-    }
-
-    fn monsters() -> MonstersClient {
-        MonstersClient::from_cache(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../sdk/tests/fixtures/monsters.json"
-        ))
+        MONSTERS.get(item_code).unwrap()
     }
 
     #[test]
@@ -656,26 +642,26 @@ mod tests {
             purpose: GearPurpose::Combat(monster("vampire")),
             level: 30,
             skill_levels: HashMap::new(),
-            item_pool: items().iter().filter(|i| i.level() <= 30).collect(),
+            item_pool: ITEMS.iter().filter(|i| i.level() <= 30).collect(),
             available_items: HashMap::new(),
             available_only: false,
             use_utilities: false,
         };
 
-        let weapons = resolver.best_weapons(&monsters().get("vampire").unwrap());
+        let weapons = resolver.best_weapons(&MONSTERS.get("vampire").unwrap());
         assert_eq!(
             weapons.first().unwrap().code(),
-            items().get("greater_dreadful_staff").unwrap().code(),
+            ITEMS.get("greater_dreadful_staff").unwrap().code(),
         );
     }
 
     #[test]
     fn resolve_best_gear_against_blue_slime() {
         let resolver = GearResolver {
-            purpose: GearPurpose::Combat(monsters().get("blue_slime").unwrap()),
+            purpose: GearPurpose::Combat(MONSTERS.get("blue_slime").unwrap()),
             level: 10,
             skill_levels: HashMap::new(),
-            item_pool: items().iter().filter(|i| i.level() <= 10).collect(),
+            item_pool: ITEMS.iter().filter(|i| i.level() <= 10).collect(),
             available_items: HashMap::new(),
             available_only: false,
             use_utilities: false,
@@ -758,7 +744,7 @@ mod tests {
             purpose: GearPurpose::Combat(monster("blue_slime")),
             level: 10,
             skill_levels: HashMap::new(),
-            item_pool: items().iter().filter(|i| i.level() <= 10).collect_vec(),
+                item_pool: ITEMS.iter().filter(|i| i.level() <= 10).collect_vec(),
             available_items: HashMap::from([("forest_ring".to_string(), 1)]),
             available_only: true,
             use_utilities: false,
@@ -775,7 +761,7 @@ mod tests {
             purpose: GearPurpose::Combat(monster("blue_slime")),
             level: 10,
             skill_levels: HashMap::new(),
-            item_pool: items().iter().filter(|i| i.level() <= 10).collect_vec(),
+                item_pool: ITEMS.iter().filter(|i| i.level() <= 10).collect_vec(),
             available_items: HashMap::from([("forest_ring".to_string(), 2)]),
             available_only: true,
             use_utilities: false,
