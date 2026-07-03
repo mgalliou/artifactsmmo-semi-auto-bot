@@ -358,7 +358,7 @@ impl<K: Clone + Hash + Eq, V: Clone> Iterator for CollectionIter<K, V> {
     type Item = V;
 
     fn next(&mut self) -> Option<V> {
-        let key = &self.keys[self.pos];
+        let key = &self.keys.get(self.pos)?;
         self.pos += 1;
         self.snapshot.get(key).cloned()
     }

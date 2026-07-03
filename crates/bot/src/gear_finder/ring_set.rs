@@ -1,21 +1,20 @@
-use std::cmp::Ordering;
-
-use crate::gear_finder::item_wrapper::item_cmp;
+use crate::gear_finder::component::ItemSlot;
 use sdk::{Slot, entities::Item};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct RingSet {
-    rings: [Option<Item>; 2],
+    rings: [ItemSlot; 2],
 }
 
 impl RingSet {
-    pub fn new(mut rings: [Option<Item>; 2]) -> Option<Self> {
+    pub fn new(rings: [Option<Item>; 2]) -> Option<Self> {
         if rings[0].is_none() && rings[1].is_none() {
-            None
-        } else {
-            rings.sort_by(|a, b| item_cmp(a.as_ref(), b.as_ref()));
-            Some(Self { rings })
+            return None;
         }
+        let [a, b] = rings;
+        let mut slots: [ItemSlot; 2] = [a.into(), b.into()];
+        slots.sort();
+        Some(Self { rings: slots })
     }
 
     pub const fn slot(&self, slot: Slot) -> Option<&Item> {
@@ -27,32 +26,60 @@ impl RingSet {
     }
 
     pub const fn ring1(&self) -> Option<&Item> {
-        self.rings[0].as_ref()
+        self.rings[0].0.as_ref()
     }
 
     pub const fn ring2(&self) -> Option<&Item> {
-        self.rings[1].as_ref()
+        self.rings[1].0.as_ref()
     }
 }
 
-impl Eq for RingSet {}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sdk::{CollectionClient, client::items::ItemsClient};
 
-impl PartialOrd for RingSet {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
+    fn item(code: &str) -> Item {
+        ItemsClient::from_cache(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../sdk/tests/fixtures/items.json"
+        ))
+        .get(code)
+        .unwrap()
     }
-}
 
-impl Ord for RingSet {
-    fn cmp(&self, other: &Self) -> Ordering {
-        if self == other {
-            Ordering::Equal
-        } else {
-            match item_cmp(self.ring1(), other.ring1()) {
-                Ordering::Less => Ordering::Less,
-                Ordering::Equal => item_cmp(self.ring2(), other.ring2()),
-                Ordering::Greater => Ordering::Greater,
-            }
-        }
+    #[test]
+    fn ring_set_both_none_returns_none() {
+        assert!(RingSet::new([None, None]).is_none());
+    }
+
+    #[test]
+    fn ring_set_single_ring() {
+        let set = RingSet::new([Some(item("copper_ring")), None]).unwrap();
+        assert_eq!(set.ring1(), Some(&item("copper_ring")));
+        assert_eq!(set.ring2(), None);
+    }
+
+    #[test]
+    fn ring_set_two_rings_sorted_alphabetically() {
+        let set = RingSet::new([Some(item("iron_ring")), Some(item("forest_ring"))]).unwrap();
+        assert_eq!(set.ring1(), Some(&item("forest_ring")));
+        assert_eq!(set.ring2(), Some(&item("iron_ring")));
+    }
+
+    #[test]
+    fn ring_set_none_sorted_last() {
+        let set = RingSet::new([None, Some(item("forest_ring"))]).unwrap();
+        assert_eq!(set.ring1(), Some(&item("forest_ring")));
+        assert_eq!(set.ring2(), None);
+    }
+
+    #[test]
+    fn ring_set_slot_access() {
+        let set = RingSet::new([Some(item("copper_ring")), Some(item("dreadful_ring"))]).unwrap();
+        assert_eq!(set.slot(Slot::Ring1), Some(&item("copper_ring")));
+        assert_eq!(set.slot(Slot::Ring2), Some(&item("dreadful_ring")));
+        assert_eq!(set.slot(Slot::Helmet), None);
+        assert_eq!(set.slot(Slot::Amulet), None);
     }
 }

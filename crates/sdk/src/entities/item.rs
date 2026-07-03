@@ -4,12 +4,14 @@ use crate::{
     simulator::HasEffects,
     yields_xp,
 };
+use core::cmp::Ordering;
 use core::fmt::{self, Display, Formatter};
 use itertools::Itertools;
 use openapi::models::{
     ConditionSchema, CraftSchema, ItemSchema, SimpleEffectSchema, SimpleItemSchema,
 };
 use serde::{Deserialize, Serialize};
+use std::hash::{Hash, Hasher};
 use std::{str::FromStr, sync::Arc};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -166,6 +168,20 @@ impl Item {
     }
 }
 
+impl Eq for Item {}
+
+impl PartialOrd for Item {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Item {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.code().cmp(other.code())
+    }
+}
+
 impl HasEffects for Item {
     fn effects(&self) -> Vec<SimpleEffectSchema> {
         self.0.effects.iter().flatten().cloned().collect_vec()
@@ -199,5 +215,50 @@ impl CanProvideXp for Item {
 impl Display for Item {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.name())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{CollectionClient, client::items::ItemsClient};
+
+    fn item(code: &str) -> Item {
+        ItemsClient::from_cache(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/fixtures/items.json"
+        ))
+        .get(code)
+        .unwrap()
+    }
+
+    #[test]
+    fn item_ord_is_alphabetical_by_code() {
+        let copper = item("copper_ring");
+        let dreadful = item("dreadful_ring");
+        let emerald = item("emerald_ring");
+        let forest = item("forest_ring");
+        let gold = item("gold_ring");
+        let iron = item("iron_ring");
+
+        assert!(copper < dreadful);
+        assert!(dreadful < emerald);
+        assert!(emerald < forest);
+        assert!(forest < gold);
+        assert!(gold < iron);
+    }
+
+    #[test]
+    fn item_ord_option_none_less_than_some() {
+        let none: Option<Item> = None;
+        let some = Some(item("forest_ring"));
+        assert!(none < some);
+    }
+
+    #[test]
+    fn item_ord_option_some_ordered_by_code() {
+        let a = Some(item("copper_ring"));
+        let b = Some(item("dreadful_ring"));
+        assert!(a < b);
     }
 }

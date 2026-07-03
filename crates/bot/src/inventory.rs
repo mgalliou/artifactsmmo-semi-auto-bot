@@ -91,6 +91,13 @@ impl InventoryController {
             self.release(item.code.as_str(), item.quantity);
         }
     }
+
+    pub(crate) fn available_items(&self) -> HashMap<String, u32> {
+        self.content()
+            .iter()
+            .map(|i| (i.code().to_string(), self.has_available(i.code())))
+            .collect()
+    }
 }
 
 impl Inventory for InventoryController {}

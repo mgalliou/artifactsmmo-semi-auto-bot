@@ -458,11 +458,11 @@ mod tests {
     use crate::test_support::{ITEMS, MONSTERS};
 
     fn items() -> &'static crate::client::items::ItemsClient {
-        &*ITEMS
+        &ITEMS
     }
 
     fn monsters() -> &'static crate::client::monsters::MonstersClient {
-        &*MONSTERS
+        &MONSTERS
     }
 
     #[test]
@@ -488,7 +488,7 @@ mod tests {
                 .unwrap()
                 .dmg_increase(DamageType::Air),
             0
-        )
+        );
     }
 
     #[test]

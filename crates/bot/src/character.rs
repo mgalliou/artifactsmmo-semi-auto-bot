@@ -55,6 +55,7 @@ use sdk::{
     },
     skill::Skill,
 };
+use std::collections::HashMap;
 use std::{
     cmp::min,
     convert::Into,
@@ -683,7 +684,7 @@ impl CharacterController {
             //TODO: should not return this
             return Ok(CharacterFightSchema::default());
         }
-        if self.order_best_gear_for(GearPurpose::Combat(monster)) {
+        if self.order_best_gear_for(GearPurpose::Combat(monster.clone())) {
             //TODO: should not return this
             return Ok(CharacterFightSchema::default());
         }
@@ -721,11 +722,11 @@ impl CharacterController {
     /// to the given map or the closest containing the `resource` and gather it.  
     fn gather_resource(&self, resource: &Resource) -> Result<SkillInfoSchema, GatherCommandError> {
         self.can_gather_now(resource)?;
-        if self.order_best_gear_for(GearPurpose::Gathering(resource)) {
+        if self.order_best_gear_for(GearPurpose::Gathering(resource.clone())) {
             // TODO: should not return this
             return Ok(SkillInfoSchema::default());
         }
-        self.equip_gear_for(GearPurpose::Gathering(resource))?;
+        self.equip_gear_for(GearPurpose::Gathering(resource.clone()))?;
         if !self.inventory.has_room_for_drops_from(resource) {
             self.deposit_all()?;
         }
@@ -756,7 +757,7 @@ impl CharacterController {
     fn equip_gear_for(&self, purpose: GearPurpose) -> Result<(), EquipGearCommandError> {
         let mut available = self
             .gear_finder
-            .best_for(purpose, self, Filter::available_only())
+            .best_for_new(purpose, self, Filter::available_only())
             .unwrap_or_default();
         self.equip_gear(&mut available)
     }
@@ -765,11 +766,14 @@ impl CharacterController {
         if !self.bot_config.order_gear() {
             return false;
         }
-        let Some(mut gear) = self.gear_finder.best_for(purpose, self, Filter::default()) else {
+        let Some(mut gear) =
+            self.gear_finder
+                .best_for_new(purpose.clone(), self, Filter::default())
+        else {
             return false;
         };
         if let GearPurpose::Combat(monster) = purpose
-            && !self.can_kill_with(monster, &gear)
+            && !self.can_kill_with(&monster, &gear)
         {
             return false;
         }
@@ -790,10 +794,11 @@ impl CharacterController {
     /// the best available gear to do so.
     pub fn can_kill(&self, monster: &Monster) -> Result<Gear, KillMonsterCommandError> {
         self.can_fight(monster)?;
-        if let Some(gear) =
-            self.gear_finder
-                .best_for(GearPurpose::Combat(monster), self, Filter::available_only())
-            && self.can_kill_with(monster, &gear)
+        if let Some(gear) = self.gear_finder.best_for_new(
+            GearPurpose::Combat(monster.clone()),
+            self,
+            Filter::available_only(),
+        ) && self.can_kill_with(monster, &gear)
         {
             Ok(gear)
         } else {
@@ -847,7 +852,7 @@ impl CharacterController {
     /// items into the bank.
     pub fn craft(&self, item: &str, quantity: u32) -> Result<SkillInfoSchema, CraftCommandError> {
         let (item, skill) = self.can_craft_now(item, quantity)?;
-        if self.order_best_gear_for(GearPurpose::Crafting(&item)) {
+        if self.order_best_gear_for(GearPurpose::Crafting(item.clone())) {
             // TODO: should not return this
             return Ok(SkillInfoSchema::default());
         }
@@ -859,7 +864,7 @@ impl CharacterController {
         let mats = self.items.mats_for(item.code(), quantity);
         let missing_mats = self.inventory.missing_among(&mats);
         self.bank.reserve_all(&missing_mats, &self.name())?;
-        self.equip_gear_for(GearPurpose::Crafting(&item))?;
+        self.equip_gear_for(GearPurpose::Crafting(item.clone()))?;
         if !self.inventory.has_room_for_all(&missing_mats) {
             self.deposit_all_but_multiple(&mats)?;
         }
@@ -1710,8 +1715,8 @@ impl CharacterController {
         self.can_gather(resource).ok()?;
         let reduction = self
             .gear_finder
-            .best_for(
-                GearPurpose::Gathering(resource),
+            .best_for_new(
+                GearPurpose::Gathering(resource.clone()),
                 self,
                 Filter::available_only(),
             )
@@ -1835,6 +1840,21 @@ impl CharacterController {
 
     pub fn config(&self) -> Arc<CharConfig> {
         self.bot_config.get_char_config(self.client.id()).unwrap()
+    }
+
+    pub fn available_items(&self) -> HashMap<String, u32> {
+        let in_bank = self.bank.available_for(&self.name());
+        let in_inventory = self.inventory.available_items();
+        let equipped: HashMap<String, u32> = self.gear().into();
+
+        // Chain inventory and equipped, folding them directly into the bank map
+        in_inventory
+            .into_iter()
+            .chain(equipped)
+            .fold(in_bank, |mut acc, (k, v)| {
+                *acc.entry(k).or_insert(0) += v;
+                acc
+            })
     }
 
     //fn progress_gift_order(&self, order: &Order) -> Option<u32> {

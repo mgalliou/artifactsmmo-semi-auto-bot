@@ -1,24 +1,23 @@
-use crate::gear_finder::item_wrapper::item_cmp;
+use crate::gear_finder::component::ItemSlot;
 use sdk::{Slot, entities::Item};
-use std::cmp::Ordering;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ArtifactSet {
-    artifacts: [Option<Item>; 3],
+    artifacts: [ItemSlot; 3],
 }
 
 impl ArtifactSet {
-    pub fn new(mut artifacts: [Option<Item>; 3]) -> Option<Self> {
-        if artifacts[0].is_some() && artifacts[0] == artifacts[1]
-            || artifacts[1].is_some() && artifacts[1] == artifacts[2]
-            || artifacts[0].is_some() && artifacts[0] == artifacts[2]
-            || (artifacts[0].is_none() && artifacts[1].is_none() && artifacts[2].is_none())
-        {
-            None
-        } else {
-            artifacts.sort_by(|a, b| item_cmp(a.as_ref(), b.as_ref()));
-            Some(Self { artifacts })
+    pub fn new(artifacts: [Option<Item>; 3]) -> Option<Self> {
+        if artifacts[0].is_none() && artifacts[1].is_none() && artifacts[2].is_none() {
+            return None;
         }
+        let [a, b, c] = artifacts;
+        if a.is_some() && a == b || a.is_some() && a == c || b.is_some() && b == c {
+            return None;
+        }
+        let mut slots: [ItemSlot; 3] = [a.into(), b.into(), c.into()];
+        slots.sort();
+        Some(Self { artifacts: slots })
     }
 
     pub const fn slot(&self, slot: Slot) -> Option<&Item> {
@@ -31,40 +30,94 @@ impl ArtifactSet {
     }
 
     pub const fn artifact1(&self) -> Option<&Item> {
-        self.artifacts[0].as_ref()
+        self.artifacts[0].0.as_ref()
     }
 
     pub const fn artifact2(&self) -> Option<&Item> {
-        self.artifacts[1].as_ref()
+        self.artifacts[1].0.as_ref()
     }
 
     pub const fn artifact3(&self) -> Option<&Item> {
-        self.artifacts[2].as_ref()
+        self.artifacts[2].0.as_ref()
     }
 }
 
-impl Eq for ArtifactSet {}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sdk::{CollectionClient, client::items::ItemsClient};
 
-impl PartialOrd for ArtifactSet {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
+    fn item(code: &str) -> Item {
+        ItemsClient::from_cache(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../sdk/tests/fixtures/items.json"
+        ))
+        .get(code)
+        .unwrap()
     }
-}
 
-impl Ord for ArtifactSet {
-    fn cmp(&self, other: &Self) -> Ordering {
-        if self == other {
-            Ordering::Equal
-        } else {
-            match item_cmp(self.artifact1(), other.artifact1()) {
-                Ordering::Less => Ordering::Less,
-                Ordering::Equal => match item_cmp(self.artifact2(), other.artifact2()) {
-                    Ordering::Less => Ordering::Less,
-                    Ordering::Equal => item_cmp(self.artifact3(), other.artifact3()),
-                    Ordering::Greater => Ordering::Greater,
-                },
-                Ordering::Greater => Ordering::Greater,
-            }
-        }
+    #[test]
+    fn artifact_set_all_none_returns_none() {
+        assert!(ArtifactSet::new([None, None, None]).is_none());
+    }
+
+    #[test]
+    fn artifact_set_single_artifact() {
+        let set = ArtifactSet::new([Some(item("novice_guide")), None, None]).unwrap();
+        assert_eq!(set.artifact1(), Some(&item("novice_guide")));
+        assert_eq!(set.artifact2(), None);
+        assert_eq!(set.artifact3(), None);
+    }
+
+    #[test]
+    fn artifact_set_three_artifacts_sorted_alphabetically() {
+        let set = ArtifactSet::new([
+            Some(item("malefic_crystal")),
+            Some(item("life_crystal")),
+            Some(item("corrupted_skull")),
+        ])
+        .unwrap();
+        assert_eq!(set.artifact1(), Some(&item("corrupted_skull")));
+        assert_eq!(set.artifact2(), Some(&item("life_crystal")));
+        assert_eq!(set.artifact3(), Some(&item("malefic_crystal")));
+    }
+
+    #[test]
+    fn artifact_set_none_sorted_last() {
+        let set = ArtifactSet::new([None, None, Some(item("novice_guide"))]).unwrap();
+        assert_eq!(set.artifact1(), Some(&item("novice_guide")));
+        assert_eq!(set.artifact2(), None);
+        assert_eq!(set.artifact3(), None);
+    }
+
+    #[test]
+    fn artifact_set_two_artifacts_none_last() {
+        let set = ArtifactSet::new([
+            None,
+            Some(item("life_crystal")),
+            Some(item("corrupted_skull")),
+        ])
+        .unwrap();
+        assert_eq!(set.artifact1(), Some(&item("corrupted_skull")));
+        assert_eq!(set.artifact2(), Some(&item("life_crystal")));
+        assert_eq!(set.artifact3(), None);
+    }
+
+    #[test]
+    fn artifact_set_duplicate_a_b_returns_none() {
+        let ng = item("novice_guide");
+        assert!(ArtifactSet::new([Some(ng.clone()), Some(ng), None]).is_none());
+    }
+
+    #[test]
+    fn artifact_set_duplicate_a_c_returns_none() {
+        let lc = item("life_crystal");
+        assert!(ArtifactSet::new([Some(lc.clone()), None, Some(lc)]).is_none());
+    }
+
+    #[test]
+    fn artifact_set_duplicate_b_c_returns_none() {
+        let cs = item("corrupted_skull");
+        assert!(ArtifactSet::new([None, Some(cs.clone()), Some(cs)]).is_none());
     }
 }

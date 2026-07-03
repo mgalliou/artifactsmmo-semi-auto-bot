@@ -1,23 +1,23 @@
-use std::cmp::Ordering;
-
-use crate::gear_finder::item_wrapper::item_cmp;
+use crate::gear_finder::component::ItemSlot;
 use sdk::{Slot, entities::Item};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct UtilitySet {
-    utilities: [Option<Item>; 2],
+    utilities: [ItemSlot; 2],
 }
 
 impl UtilitySet {
-    pub fn new(mut utilities: [Option<Item>; 2]) -> Option<Self> {
-        if utilities[0].is_some() && utilities[0] == utilities[1]
-            || utilities[0].is_none() && utilities[1].is_none()
-        {
-            None
-        } else {
-            utilities.sort_by(|a, b| item_cmp(a.as_ref(), b.as_ref()));
-            Some(Self { utilities })
+    pub fn new(utilities: [Option<Item>; 2]) -> Option<Self> {
+        if utilities[0].is_none() && utilities[1].is_none() {
+            return None;
         }
+        let [a, b] = utilities;
+        if a.is_some() && a == b {
+            return None;
+        }
+        let mut slots: [ItemSlot; 2] = [a.into(), b.into()];
+        slots.sort();
+        Some(Self { utilities: slots })
     }
 
     pub const fn slot(&self, slot: Slot) -> Option<&Item> {
@@ -29,32 +29,59 @@ impl UtilitySet {
     }
 
     pub const fn utility1(&self) -> Option<&Item> {
-        self.utilities[0].as_ref()
+        self.utilities[0].0.as_ref()
     }
 
     pub const fn utility2(&self) -> Option<&Item> {
-        self.utilities[1].as_ref()
+        self.utilities[1].0.as_ref()
     }
 }
 
-impl Eq for UtilitySet {}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sdk::{CollectionClient, client::items::ItemsClient};
 
-impl PartialOrd for UtilitySet {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
+    fn item(code: &str) -> Item {
+        ItemsClient::from_cache(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../sdk/tests/fixtures/items.json"
+        ))
+        .get(code)
+        .unwrap()
     }
-}
 
-impl Ord for UtilitySet {
-    fn cmp(&self, other: &Self) -> Ordering {
-        if self == other {
-            Ordering::Equal
-        } else {
-            match item_cmp(self.utility1(), other.utility1()) {
-                Ordering::Less => Ordering::Less,
-                Ordering::Equal => item_cmp(self.utility2(), other.utility2()),
-                Ordering::Greater => Ordering::Greater,
-            }
-        }
+    #[test]
+    fn utility_set_both_none_returns_none() {
+        assert!(UtilitySet::new([None, None]).is_none());
+    }
+
+    #[test]
+    fn utility_set_single_utility() {
+        let set = UtilitySet::new([Some(item("minor_health_potion")), None]).unwrap();
+        assert_eq!(set.utility1(), Some(&item("minor_health_potion")));
+        assert_eq!(set.utility2(), None);
+    }
+
+    #[test]
+    fn utility_set_two_utilities_sorted_alphabetically() {
+        let hp = item("health_potion");
+        let mhp = item("minor_health_potion");
+        let set = UtilitySet::new([Some(mhp), Some(hp)]).unwrap();
+        assert_eq!(set.utility1(), Some(&item("health_potion")));
+        assert_eq!(set.utility2(), Some(&item("minor_health_potion")));
+    }
+
+    #[test]
+    fn utility_set_none_sorted_last() {
+        let set = UtilitySet::new([None, Some(item("antidote"))]).unwrap();
+        assert_eq!(set.utility1(), Some(&item("antidote")));
+        assert_eq!(set.utility2(), None);
+    }
+
+    #[test]
+    fn utility_set_duplicate_returns_none() {
+        let hp = item("health_potion");
+        assert!(UtilitySet::new([Some(hp.clone()), Some(hp)]).is_none());
     }
 }

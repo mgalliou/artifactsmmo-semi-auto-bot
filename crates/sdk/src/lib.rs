@@ -25,7 +25,7 @@ pub mod simulator;
 pub mod skill;
 
 #[cfg(test)]
-pub(crate) mod test_support;
+pub mod test_support;
 
 pub(crate) trait Cached<D>
 where

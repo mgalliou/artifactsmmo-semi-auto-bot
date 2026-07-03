@@ -104,7 +104,7 @@ impl BankController {
     /// Returns the `quantity` of the given item `code` available to the given `owner`.
     /// If no owner is given returns the quantity not reserved.
     pub fn has_available<'a>(&self, key: impl Into<BankKey<&'a str>>) -> u32 {
-        self.quantity_allowed(&key.into())
+        self.quantity_allowed(key)
     }
 
     pub fn reserve_all(
@@ -125,9 +125,10 @@ impl BankController {
     }
 
     /// Returns the quantity the given `owner` can withdraw from the bank.
-    fn quantity_allowed(&self, key: &BankKey<&str>) -> u32 {
+    fn quantity_allowed<'a>(&self, key: impl Into<BankKey<&'a str>>) -> u32 {
+        let key = key.into();
         self.total_of(key.item)
-            .saturating_sub(self.quantity_not_allowed(key))
+            .saturating_sub(self.quantity_not_allowed(&key))
     }
 
     /// Returns the quantity of the given item `code` that is reserved to a different character
@@ -138,6 +139,18 @@ impl BankController {
             .filter(|(d, _)| d.code() == discriminant.item && d.owner != discriminant.owner)
             .map(|(_, q)| q)
             .sum()
+    }
+
+    pub(crate) fn available_for(&self, name: &CharacterName) -> HashMap<String, u32> {
+        self.content()
+            .iter()
+            .map(|i| {
+                (
+                    i.code().to_string(),
+                    self.quantity_allowed((i.code(), name.clone())),
+                )
+            })
+            .collect()
     }
 }
 

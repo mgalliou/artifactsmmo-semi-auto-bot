@@ -215,7 +215,7 @@ fn respond(line: &str, bot: &Bot, character: &mut Option<CharacterController>) -
             };
             let gear = bot
                 .gear_finder
-                .best_for(GearPurpose::Combat(&monster), char, filter);
+                .best_for_new(GearPurpose::Combat(monster), char, filter);
             if let Some(gear) = gear {
                 println!("{gear}");
             } else {
@@ -246,9 +246,9 @@ fn respond(line: &str, bot: &Bot, character: &mut Option<CharacterController>) -
                 from_monster,
                 utilities,
             };
-            let gear = bot
-                .gear_finder
-                .best_for(GearPurpose::Combat(&monster), char, filter);
+            let gear =
+                bot.gear_finder
+                    .best_for_new(GearPurpose::Combat(monster.clone()), char, filter);
             if let Some(gear) = gear {
                 println!("{gear}");
                 let fight = Simulator::fight(

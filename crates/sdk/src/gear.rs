@@ -3,16 +3,20 @@ use crate::{
     entities::Item,
     simulator::{EffectCode, HasEffects},
 };
+use ::std::hash::BuildHasher;
 use itertools::Itertools;
 use openapi::models::{ItemSlot, SimpleEffectSchema, SimpleItemSchema};
 use std::{
+    collections::HashMap,
+    convert::Into,
+    default::Default,
     fmt::{self, Display, Formatter},
     mem::swap,
 };
 use strum::IntoEnumIterator;
 use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
 
-#[derive(Default, Debug, PartialEq, Clone)]
+#[derive(Default, Debug, PartialEq, Eq, Clone)]
 pub struct Gear {
     pub weapon: Option<Item>,
     pub helmet: Option<Item>,
@@ -80,6 +84,102 @@ impl Gear {
                 bag,
             })
         }
+    }
+
+    #[must_use]
+    pub fn with_weapon(mut self, item: Item) -> Self {
+        self.weapon = Some(item);
+        self
+    }
+
+    #[must_use]
+    pub fn with_helmet(mut self, item: Item) -> Self {
+        self.helmet = Some(item);
+        self
+    }
+
+    #[must_use]
+    pub fn with_shield(mut self, item: Item) -> Self {
+        self.shield = Some(item);
+        self
+    }
+
+    #[must_use]
+    pub fn with_body_armor(mut self, item: Item) -> Self {
+        self.body_armor = Some(item);
+        self
+    }
+
+    #[must_use]
+    pub fn with_leg_armor(mut self, item: Item) -> Self {
+        self.leg_armor = Some(item);
+        self
+    }
+
+    #[must_use]
+    pub fn with_boots(mut self, item: Item) -> Self {
+        self.boots = Some(item);
+        self
+    }
+
+    #[must_use]
+    pub fn with_amulet(mut self, item: Item) -> Self {
+        self.amulet = Some(item);
+        self
+    }
+
+    #[must_use]
+    pub fn with_ring1(mut self, item: Item) -> Self {
+        self.ring1 = Some(item);
+        self
+    }
+
+    #[must_use]
+    pub fn with_ring2(mut self, item: Item) -> Self {
+        self.ring2 = Some(item);
+        self
+    }
+
+    #[must_use]
+    pub fn with_utility1(mut self, item: Item) -> Self {
+        self.utility1 = Some(item);
+        self
+    }
+
+    #[must_use]
+    pub fn with_utility2(mut self, item: Item) -> Self {
+        self.utility2 = Some(item);
+        self
+    }
+
+    #[must_use]
+    pub fn with_artifact1(mut self, item: Item) -> Self {
+        self.artifact1 = Some(item);
+        self
+    }
+
+    #[must_use]
+    pub fn with_artifact2(mut self, item: Item) -> Self {
+        self.artifact2 = Some(item);
+        self
+    }
+
+    #[must_use]
+    pub fn with_artifact3(mut self, item: Item) -> Self {
+        self.artifact3 = Some(item);
+        self
+    }
+
+    #[must_use]
+    pub fn with_rune(mut self, item: Item) -> Self {
+        self.rune = Some(item);
+        self
+    }
+
+    #[must_use]
+    pub fn with_bag(mut self, item: Item) -> Self {
+        self.bag = Some(item);
+        self
     }
 
     #[must_use]
@@ -183,6 +283,15 @@ impl From<Gear> for Vec<SimpleItemSchema> {
             });
         }
         items
+    }
+}
+
+impl<S: BuildHasher + Default> From<Gear> for HashMap<String, u32, S> {
+    fn from(value: Gear) -> Self {
+        Into::<Vec<SimpleItemSchema>>::into(value)
+            .iter()
+            .map(|i| (i.code().to_owned(), i.quantity))
+            .collect()
     }
 }
 
@@ -320,12 +429,13 @@ impl From<Slot> for SlotType {
 #[cfg(test)]
 mod tests {
     use crate::client::CollectionClient;
+    use crate::client::items::ItemsClient;
     use crate::test_support::ITEMS;
 
     use super::*;
 
-    fn items() -> &'static crate::client::items::ItemsClient {
-        &*ITEMS
+    fn items() -> &'static ItemsClient {
+        &ITEMS
     }
 
     #[test]
