@@ -53,7 +53,7 @@ impl Paginate for MapsRequest<'_> {
             None,
             None,
             None,
-            None,
+            Some(true),
             None,
             Some(page),
             Some(100),

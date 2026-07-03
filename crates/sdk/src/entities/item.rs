@@ -11,7 +11,6 @@ use openapi::models::{
     ConditionSchema, CraftSchema, ItemSchema, SimpleEffectSchema, SimpleItemSchema,
 };
 use serde::{Deserialize, Serialize};
-use std::hash::{Hash, Hasher};
 use std::{str::FromStr, sync::Arc};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

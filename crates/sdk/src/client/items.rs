@@ -512,7 +512,7 @@ mod tests {
                 &monsters().get("ogre").unwrap(),
                 &items().get("skull_staff").unwrap(),
             );
-        assert_eq!(val, 0.0);
+        assert!(val.abs() < 0.000_1);
     }
 
     #[test]

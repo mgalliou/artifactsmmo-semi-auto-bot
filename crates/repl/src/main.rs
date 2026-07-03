@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bot::{Bot, orderboard::Purpose};
+use bot::{Bot};
 use log::LevelFilter;
 use sdk::Client;
 use std::env;
@@ -7,7 +7,7 @@ use std::env;
 mod cli;
 
 fn main() -> Result<()> {
-    simple_logging::log_to_file("artifactsmmo.log", LevelFilter::Debug)?;
+    simple_logging::log_to_file("artifactsmmo.log", LevelFilter::Info)?;
     let client = Client::new(
         "https://api.artifactsmmo.com".into(),
         env::var("ARTIFACTSMMO_TOKEN").unwrap_or_default(),
@@ -15,12 +15,12 @@ fn main() -> Result<()> {
     );
     client.init();
     let bot = Bot::new(client);
-    bot.order_board
-        .add("lizard_skin", 1000, None, Purpose::Cli)?;
-    bot.order_board
-        .add("demon_horn", 1000, None, Purpose::Cli)?;
-    bot.order_board
-        .add("corrupted_gem", 1000, None, Purpose::Cli)?;
+    // bot.order_board
+    //     .add("lizard_skin", 1000, None, Purpose::Cli)?;
+    // bot.order_board
+    //     .add("demon_horn", 1000, None, Purpose::Cli)?;
+    // bot.order_board
+    //     .add("corrupted_gem", 1000, None, Purpose::Cli)?;
     // bot.order_board
     //     .add(None, "malefic_cloth", 200, Purpose::Cli)?;
     // bot.order_board

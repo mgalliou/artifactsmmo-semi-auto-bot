@@ -1526,7 +1526,7 @@ impl CharacterController {
                 !FOOD_ORDER_BLACKLIST.contains(&i.code())
                     && i.is_food()
                     && i.level() <= self.level()
-                    && i.level() > self.level() - 10
+                    && i.level() > self.level().saturating_sub(10)
             })
             .filter_map(|i| self.account.time_to_get(i.code()).map(|t| (i, t)))
             .max_by_key(|(i, t)| i.heal() as u32 / t)

@@ -1,11 +1,9 @@
 use crate::{
-    CollectionClient,
+    Cached, CollectionClient,
     client::events::EventsClient,
-    entities::Map,
-    entities::{MapDataHandle, RawMap},
+    entities::{Map, MapDataHandle, RawMap},
     skill::Skill,
 };
-use api::ArtifactApi;
 use arc_swap::ArcSwap;
 use derive_more::Deref;
 use itertools::Itertools;
@@ -19,35 +17,45 @@ use std::{collections::HashMap, sync::Arc};
 #[element(MapDataHandle)]
 pub struct MapsClient(Arc<MapsClientInner>);
 
-#[derive(Default)]
+type MapsFetcher = Box<dyn Fn() -> HashMap<(MapLayer, i32, i32), MapDataHandle> + Send + Sync + 'static>;
+
 pub struct MapsClientInner {
+    path: Box<str>,
+    fetch: MapsFetcher,
     data: ArcSwap<HashMap<(MapLayer, i32, i32), MapDataHandle>>,
     events: EventsClient,
-    api: ArtifactApi,
+}
+
+impl Default for MapsClientInner {
+    fn default() -> Self {
+        Self {
+            path: Box::from(".cache/maps.json"),
+            data: ArcSwap::default(),
+            fetch: Box::new(|| panic!("MapsClientInner not initialized")),
+            events: EventsClient::default(),
+        }
+    }
 }
 
 impl MapsClient {
-    pub(crate) fn new(api: ArtifactApi, events: EventsClient) -> Self {
+    pub(crate) fn new(
+        path: &str,
+        fetch: MapsFetcher,
+        events: EventsClient,
+    ) -> Self {
         Self(
             MapsClientInner {
+                path: path.into(),
+                fetch,
                 data: ArcSwap::default(),
                 events,
-                api,
             }
             .into(),
         )
     }
 
-    pub(crate) fn init(&self) {
-        self.data.store(Arc::new(
-            self.api
-                .maps
-                .get_all()
-                .unwrap()
-                .into_iter()
-                .map(|m| ((m.layer, m.x, m.y), m.into()))
-                .collect::<HashMap<(MapLayer, i32, i32), MapDataHandle>>(),
-        ));
+    pub fn init(&self) {
+        self.data.store(Arc::new(self.fetch()));
         info!("Maps client initilized");
     }
 
@@ -168,6 +176,20 @@ impl MapsClient {
                 )
             },
         )
+    }
+}
+
+impl Cached<HashMap<(MapLayer, i32, i32), MapDataHandle>> for MapsClient {
+    fn path(&self) -> &str {
+        &self.path
+    }
+
+    fn fetch_from_source(&self) -> HashMap<(MapLayer, i32, i32), MapDataHandle> {
+        (self.fetch)()
+    }
+
+    fn refresh(&self) {
+        self.data.store(Arc::new(self.fetch_from_source()));
     }
 }
 

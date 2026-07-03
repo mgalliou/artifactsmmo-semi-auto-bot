@@ -110,8 +110,12 @@ pub trait Paginate {
                     handles.push(s.spawn(move || self.request_page(p)));
                 }
                 for h in handles {
-                    let Ok(resp) = h.join().unwrap() else {
-                        continue;
+                    let resp = match h.join().unwrap() {
+                        Ok(resp) => resp,
+                        Err(e) => {
+                            log::error!("failed to get page: {e}");
+                            continue;
+                        }
                     };
                     data.extend(resp.data());
                 }

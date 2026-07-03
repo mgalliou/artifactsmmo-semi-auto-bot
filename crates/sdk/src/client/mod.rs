@@ -1,9 +1,10 @@
 use crate::{
     Cached,
-    entities::{Event, Item, Monster, Npc, Resource, Task, TaskReward},
+    entities::{Event, Item, MapDataHandle, Monster, Npc, Resource, Task, TaskReward},
 };
 use api::ArtifactApi;
 use derive_more::Deref;
+use openapi::models::MapLayer;
 use std::{
     borrow::Borrow,
     collections::HashMap,
@@ -144,6 +145,7 @@ pub struct ClientInner {
 
 impl Client {
     #[must_use]
+    #[allow(clippy::too_many_lines)]
     pub fn new(url: String, token: String, account_name: String) -> Self {
         let api = ArtifactApi::new(url, token);
         let bank = BankClient::new(api.clone());
@@ -280,7 +282,21 @@ impl Client {
             )
         };
 
-        let maps = MapsClient::new(api.clone(), events.clone());
+        let maps = {
+            let api = api.clone();
+            MapsClient::new(
+                ".cache/maps.json",
+                Box::new(move || {
+                    api.maps
+                        .get_all()
+                        .unwrap()
+                        .into_iter()
+                        .map(|m| ((m.layer, m.x, m.y), m.into()))
+                        .collect::<HashMap<(MapLayer, i32, i32), MapDataHandle>>()
+                }),
+                events.clone(),
+            )
+        };
         let grand_exchange = GrandExchangeClient::new(api);
         Self(
             ClientInner {
