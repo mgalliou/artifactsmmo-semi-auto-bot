@@ -1,7 +1,8 @@
 generatorName: openapi
-useSingleRequestParameter: false
-supportAsync: false
 preferUnsignedInt: true
+useSingleRequestParameter: false
+supportAsync: true
+supportMiddleware: true
 basePathCustom: https://api.artifactsmmo.com
 # operationIdNameMappings:
 #   get_server_details__get: get_status
