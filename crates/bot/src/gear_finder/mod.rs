@@ -4,17 +4,10 @@ use crate::{account::AccountController, character::CharacterController};
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use sdk::{
-    CanProvideXp, Code, CollectionClient, FROZEN_AXE, FROZEN_FISHING_ROD, FROZEN_GLOVES,
-    FROZEN_PICKAXE, ItemsClient, Level, MAX_LEVEL,
-    entities::{Character, Item, Monster, Resource},
-    gear::{Gear, Slot},
-    items::{
+    CanProvideXp, Code, CollectionClient, FROZEN_AXE, FROZEN_FISHING_ROD, FROZEN_GLOVES, FROZEN_PICKAXE, ItemsClient, Level, MAX_LEVEL, entities::{Character, Item, Monster, Resource}, gear::{Gear, Slot}, items::{
         ItemSource,
         Type::{self, Rune},
-    },
-    simulator::{FightParams, HasEffects, Participant, Simulator, time_to_rest},
-    skill::Skill,
-    yields_xp,
+    }, simulator::{FightParams, HasEffects, Participant, Simulator, time_to_rest}, skill::Skill, yields_xp,
 };
 
 pub use artifact_set::ArtifactSet;
@@ -49,22 +42,26 @@ impl GearFinder {
         Self { items, account }
     }
 
-    pub fn best_for_new(
+    pub fn best_for(
         &self,
         purpose: GearPurpose,
         char: &CharacterController,
         filter: Filter,
     ) -> Option<Gear> {
-        let owned = char.available_items();
-        let owned_items = owned
+        let owned_items = char
+            .available_items()
             .keys()
             .filter_map(|code| self.items.get(code))
+            .filter(Item::is_equipable)
             .collect_vec();
-        let mut item_pool: Vec<Item> = self
-            .items
-            .iter()
-            .filter(|i| self.is_eligible(i, filter, char))
-            .collect();
+        let mut item_pool: Vec<Item> = if filter.available_only {
+            vec![]
+        } else {
+            self.items
+                .iter()
+                .filter(|i| self.is_eligible(i, filter, char))
+                .collect()
+        };
         item_pool = [item_pool, owned_items].concat();
         item_pool.sort();
         item_pool.dedup();
@@ -76,7 +73,7 @@ impl GearFinder {
                 .map(|skill| (skill, char.skill_level(skill)))
                 .collect(),
             item_pool,
-            available_items: owned,
+            available_items: char.available_items(),
             available_only: filter.available_only,
             use_utilities: filter.utilities,
         };
@@ -626,7 +623,10 @@ mod tests {
     use std::collections::HashSet;
 
     use super::*;
-    use sdk::{CollectionClient, test_utils::{ITEMS, MONSTERS}};
+    use sdk::{
+        CollectionClient,
+        test_utils::{ITEMS, MONSTERS},
+    };
 
     fn item(item_code: &str) -> Item {
         ITEMS.get(item_code).unwrap()
@@ -744,7 +744,7 @@ mod tests {
             purpose: GearPurpose::Combat(monster("blue_slime")),
             level: 10,
             skill_levels: HashMap::new(),
-                item_pool: ITEMS.iter().filter(|i| i.level() <= 10).collect_vec(),
+            item_pool: ITEMS.iter().filter(|i| i.level() <= 10).collect_vec(),
             available_items: HashMap::from([("forest_ring".to_string(), 1)]),
             available_only: true,
             use_utilities: false,
@@ -761,7 +761,7 @@ mod tests {
             purpose: GearPurpose::Combat(monster("blue_slime")),
             level: 10,
             skill_levels: HashMap::new(),
-                item_pool: ITEMS.iter().filter(|i| i.level() <= 10).collect_vec(),
+            item_pool: ITEMS.iter().filter(|i| i.level() <= 10).collect_vec(),
             available_items: HashMap::from([("forest_ring".to_string(), 2)]),
             available_only: true,
             use_utilities: false,

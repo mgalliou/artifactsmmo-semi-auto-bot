@@ -197,12 +197,9 @@ fn respond(line: &str, bot: &Bot, character: &mut Option<CharacterController>) -
             from_npc,
             utilities,
             winning: _,
-            monster,
+            entity,
         } => {
             let Some(char) = character else {
-                bail!("no character selected");
-            };
-            let Some(monster) = bot.client.monsters.get(&monster) else {
                 bail!("no character selected");
             };
             let filter = Filter {
@@ -213,13 +210,24 @@ fn respond(line: &str, bot: &Bot, character: &mut Option<CharacterController>) -
                 from_monster,
                 utilities,
             };
+            let purpose = if let Some(monster) = bot.client.monsters.get(&entity) {
+                GearPurpose::Combat(monster)
+            } else if let Some(resource) = bot.client.resources.get(&entity) {
+
+                GearPurpose::Gathering(resource)
+            } else if let Some(item) = bot.client.items.get(&entity) {
+
+                GearPurpose::Crafting(item)
+            } else {
+                bail!("entity not found")
+            };
             let gear = bot
                 .gear_finder
-                .best_for_new(GearPurpose::Combat(monster), char, filter);
+                .best_for(purpose, char, filter);
             if let Some(gear) = gear {
                 println!("{gear}");
             } else {
-                println!("no winning gear found");
+                println!("no gear found");
             }
         }
         Commands::Simulate {
@@ -246,9 +254,9 @@ fn respond(line: &str, bot: &Bot, character: &mut Option<CharacterController>) -
                 from_monster,
                 utilities,
             };
-            let gear =
-                bot.gear_finder
-                    .best_for_new(GearPurpose::Combat(monster.clone()), char, filter);
+            let gear = bot
+                .gear_finder
+                .best_for(GearPurpose::Combat(monster.clone()), char, filter);
             if let Some(gear) = gear {
                 println!("{gear}");
                 let fight = Simulator::fight(
@@ -428,7 +436,7 @@ enum Commands {
         utilities: bool,
         #[arg(short = 'w', long)]
         winning: bool,
-        monster: String,
+        entity: String,
     },
     #[command(alias = "sim")]
     Simulate {

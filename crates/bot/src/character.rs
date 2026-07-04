@@ -216,8 +216,8 @@ impl CharacterController {
                 }
                 Err(e) => error!("{}: failed to progress task as fallback: {e}", self.name()),
             }
-            warn!("{}: nothing to do, sleeping...", self.name());
-            sleep(Duration::from_mins(1));
+            warn!("{}: nothing to do, sleeping for 5 seconds...", self.name());
+            sleep(Duration::from_secs(5));
         }
     }
 
@@ -757,7 +757,7 @@ impl CharacterController {
     fn equip_gear_for(&self, purpose: GearPurpose) -> Result<(), EquipGearCommandError> {
         let mut available = self
             .gear_finder
-            .best_for_new(purpose, self, Filter::available_only())
+            .best_for(purpose, self, Filter::available_only())
             .unwrap_or_default();
         self.equip_gear(&mut available)
     }
@@ -768,7 +768,7 @@ impl CharacterController {
         }
         let Some(mut gear) =
             self.gear_finder
-                .best_for_new(purpose.clone(), self, Filter::default())
+                .best_for(purpose.clone(), self, Filter::default())
         else {
             return false;
         };
@@ -794,7 +794,7 @@ impl CharacterController {
     /// the best available gear to do so.
     pub fn can_kill(&self, monster: &Monster) -> Result<Gear, KillMonsterCommandError> {
         self.can_fight(monster)?;
-        if let Some(gear) = self.gear_finder.best_for_new(
+        if let Some(gear) = self.gear_finder.best_for(
             GearPurpose::Combat(monster.clone()),
             self,
             Filter::available_only(),
@@ -1715,7 +1715,7 @@ impl CharacterController {
         self.can_gather(resource).ok()?;
         let reduction = self
             .gear_finder
-            .best_for_new(
+            .best_for(
                 GearPurpose::Gathering(resource.clone()),
                 self,
                 Filter::available_only(),
