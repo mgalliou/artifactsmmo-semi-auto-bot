@@ -51,7 +51,12 @@ impl Paginate for EventsRequest<'_> {
     type Error = GetAllEventsEventsGetError;
 
     fn request_page(&self, page: u32) -> Result<Self::Page, Error<Self::Error>> {
-        crate::runtime().block_on(get_all_events_events_get(self.configuration, None, Some(page), Some(100)))
+        crate::runtime().block_on(get_all_events_events_get(
+            self.configuration,
+            None,
+            Some(page),
+            Some(100),
+        ))
     }
 }
 
@@ -75,7 +80,11 @@ impl Paginate for ActiveEventsRequest<'_> {
     type Error = GetAllActiveEventsEventsActiveGetError;
 
     fn request_page(&self, current_page: u32) -> Result<Self::Page, Error<Self::Error>> {
-        crate::runtime().block_on(get_all_active_events_events_active_get(self.configuration, Some(current_page), Some(100)))
+        crate::runtime().block_on(get_all_active_events_events_active_get(
+            self.configuration,
+            Some(current_page),
+            Some(100),
+        ))
     }
 }
 

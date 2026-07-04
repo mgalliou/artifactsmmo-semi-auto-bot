@@ -29,7 +29,10 @@ impl AccountApi {
         account: &str,
     ) -> Result<CharactersListSchema, Error<GetAccountCharactersAccountsAccountCharactersGetError>>
     {
-        crate::runtime().block_on(get_account_characters_accounts_account_characters_get(&self.configuration, account))
+        crate::runtime().block_on(get_account_characters_accounts_account_characters_get(
+            &self.configuration,
+            account,
+        ))
     }
 
     pub fn achievements(

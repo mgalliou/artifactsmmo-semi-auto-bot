@@ -1,5 +1,8 @@
 use governor::{
-    clock::DefaultClock, state::InMemoryState, state::NotKeyed, Quota, RateLimiter,
+    Quota, RateLimiter,
+    clock::{Clock, DefaultClock},
+    state::InMemoryState,
+    state::NotKeyed,
 };
 use http::Extensions;
 use reqwest::{Request, Response};
@@ -10,34 +13,32 @@ const fn nz(n: u32) -> NonZeroU32 {
     NonZeroU32::new(n).expect("rate limit value must be non-zero")
 }
 
+/// Sync poll: block the current thread via `std::thread::sleep` until a
+/// token is available.
+fn wait_for(lim: &RateLimiter<NotKeyed, InMemoryState, DefaultClock>) {
+    let clock = DefaultClock::default();
+    loop {
+        match lim.check() {
+            Ok(()) => return,
+            Err(not_until) => {
+                std::thread::sleep(not_until.wait_time_from(clock.now()));
+            }
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct RateLimiterMiddleware {
-    account_per_sec: RateLimiter<NotKeyed, InMemoryState, DefaultClock>,
-    account_per_hour: RateLimiter<NotKeyed, InMemoryState, DefaultClock>,
-    token_per_sec: RateLimiter<NotKeyed, InMemoryState, DefaultClock>,
-    token_per_hour: RateLimiter<NotKeyed, InMemoryState, DefaultClock>,
-    data_per_sec: RateLimiter<NotKeyed, InMemoryState, DefaultClock>,
-    data_per_min: RateLimiter<NotKeyed, InMemoryState, DefaultClock>,
-    data_per_hour: RateLimiter<NotKeyed, InMemoryState, DefaultClock>,
-    action_per_sec: RateLimiter<NotKeyed, InMemoryState, DefaultClock>,
-    action_per_min: RateLimiter<NotKeyed, InMemoryState, DefaultClock>,
-    action_per_hour: RateLimiter<NotKeyed, InMemoryState, DefaultClock>,
+    global: RateLimiter<NotKeyed, InMemoryState, DefaultClock>,
 }
 
 impl RateLimiterMiddleware {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            account_per_sec: RateLimiter::direct(Quota::per_second(nz(8)).allow_burst(nz(1))),
-            account_per_hour: RateLimiter::direct(Quota::per_hour(nz(300))),
-            token_per_sec: RateLimiter::direct(Quota::per_second(nz(8)).allow_burst(nz(1))),
-            token_per_hour: RateLimiter::direct(Quota::per_hour(nz(300))),
-            data_per_sec: RateLimiter::direct(Quota::per_second(nz(8)).allow_burst(nz(1))),
-            data_per_min: RateLimiter::direct(Quota::per_minute(nz(200))),
-            data_per_hour: RateLimiter::direct(Quota::per_hour(nz(2000))),
-            action_per_sec: RateLimiter::direct(Quota::per_second(nz(8)).allow_burst(nz(1))),
-            action_per_min: RateLimiter::direct(Quota::per_minute(nz(100))),
-            action_per_hour: RateLimiter::direct(Quota::per_hour(nz(5000))),
+            // Server enforces a hard global limit of 10 requests/second.
+            // Use 8/s with burst=1 to leave headroom and avoid 429s.
+            global: RateLimiter::direct(Quota::per_second(nz(8)).allow_burst(nz(1))),
         }
     }
 }
@@ -50,27 +51,102 @@ impl Middleware for RateLimiterMiddleware {
         extensions: &mut Extensions,
         next: Next<'_>,
     ) -> Result<Response> {
-        let path = req.url().path().to_owned();
-
-        if path.starts_with("/token") {
-            self.token_per_sec.until_ready().await;
-            self.token_per_hour.until_ready().await;
-        } else if path.contains("/action/") {
-            self.action_per_sec.until_ready().await;
-            self.action_per_min.until_ready().await;
-            self.action_per_hour.until_ready().await;
-        } else if path.starts_with("/accounts/")
-            || path == "/my/change_password"
-            || path == "/my/details"
-        {
-            self.account_per_sec.until_ready().await;
-            self.account_per_hour.until_ready().await;
-        } else {
-            self.data_per_sec.until_ready().await;
-            self.data_per_min.until_ready().await;
-            self.data_per_hour.until_ready().await;
-        }
+        wait_for(&self.global);
 
         next.run(req, extensions).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+    use std::time::{Duration, Instant};
+
+    fn nz(v: u32) -> NonZeroU32 {
+        NonZeroU32::new(v).unwrap()
+    }
+
+    /// Helper that exercises the same polling pattern as `wait_for`.
+    fn poll_lim(lim: &RateLimiter<NotKeyed, InMemoryState, DefaultClock>) {
+        let clock = DefaultClock::default();
+        loop {
+            match lim.check() {
+                Ok(()) => return,
+                Err(not_until) => {
+                    std::thread::sleep(not_until.wait_time_from(clock.now()));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn enforces_per_second_rate() {
+        let lim = RateLimiter::direct(Quota::per_second(nz(8)).allow_burst(nz(1)));
+        let start = Instant::now();
+
+        // First call should be near-instant.
+        poll_lim(&lim);
+        assert!(start.elapsed() < Duration::from_millis(10));
+
+        // Second immediate call must wait.
+        poll_lim(&lim);
+        let elapsed = start.elapsed();
+        // With burst=1, second call must wait at least ~125ms (1/8s).
+        assert!(
+            elapsed >= Duration::from_millis(120),
+            "expected ≥ 120ms, got {elapsed:?}"
+        );
+    }
+
+    #[test]
+    fn sequential_rate_limit() {
+        let lim = RateLimiter::direct(Quota::per_second(nz(8)).allow_burst(nz(1)));
+        let n = 16;
+        let start = Instant::now();
+        for _ in 0..n {
+            poll_lim(&lim);
+        }
+        let elapsed = start.elapsed();
+        // 16 calls with burst=1: first is instant, 15 more at ~125ms each = ~1875ms.
+        let min_expected = Duration::from_millis((n - 1) as u64 * 120);
+        assert!(
+            elapsed >= min_expected,
+            "{n} calls took {elapsed:?}, expected ≥ {min_expected:?}"
+        );
+    }
+
+    #[test]
+    fn concurrency_stress_inside_block_on() {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let lim = Arc::new(RateLimiter::direct(
+            Quota::per_second(nz(8)).allow_burst(nz(1)),
+        ));
+        let thread_count = 14;
+        let calls_per_thread = 3;
+        let total_calls = thread_count * calls_per_thread;
+
+        let rt_ref = &rt;
+        let start = Instant::now();
+        std::thread::scope(|s| {
+            for _ in 0..thread_count {
+                let lim = lim.clone();
+                s.spawn(move || {
+                    rt_ref.block_on(async {
+                        for _ in 0..calls_per_thread {
+                            poll_lim(&lim);
+                        }
+                    });
+                });
+            }
+        });
+        let elapsed = start.elapsed();
+
+        // 42 calls at 8/s with burst=1: first instant, remaining 41 at ~125ms each.
+        let min_expected = Duration::from_millis((total_calls - 1) as u64 * 120);
+        assert!(
+            elapsed >= min_expected,
+            "{total_calls} concurrent calls inside block_on took {elapsed:?}, expected ≥ {min_expected:?}"
+        );
     }
 }

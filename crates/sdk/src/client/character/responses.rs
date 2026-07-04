@@ -1,6 +1,6 @@
 use std::fmt::{self, Display, Formatter};
 
-use crate::{ItemList, entities::RawMap};
+use crate::{ItemList, entities::RawMap, items};
 use downcast_rs::{Downcast, impl_downcast};
 use itertools::Itertools;
 use openapi::models::{
@@ -256,15 +256,21 @@ impl ResponseSchema for RecyclingResponseSchema {
 
 impl ResponseSchema for EquipmentResponseSchema {
     fn pretty(&self) -> String {
+        let item_codes = self
+            .data
+            .items
+            .iter()
+            .map(|i| i.item.code.clone())
+            .collect_vec();
         if self.data.cooldown.reason == ActionType::Equip {
             format!(
-                "{}: equipped '{:?}'. {}s",
-                &self.data.character.name, &self.data.items, self.data.cooldown.remaining_seconds
+                "{}: equipped '{item_codes:?}'. {}s",
+                &self.data.character.name, self.data.cooldown.remaining_seconds
             )
         } else {
             format!(
-                "{}: unequipped '{:?}'. {}s",
-                &self.data.character.name, &self.data.items, self.data.cooldown.remaining_seconds
+                "{}: unequipped '{item_codes:?}'. {}s",
+                &self.data.character.name, self.data.cooldown.remaining_seconds
             )
         }
     }

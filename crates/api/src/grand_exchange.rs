@@ -51,7 +51,10 @@ impl GrandExchangeApi {
         &self,
         id: &str,
     ) -> Result<GeOrderResponseSchema, Error<GetGeOrderGrandexchangeOrdersIdGetError>> {
-        crate::runtime().block_on(get_ge_order_grandexchange_orders_id_get(&self.configuration, id))
+        crate::runtime().block_on(get_ge_order_grandexchange_orders_id_get(
+            &self.configuration,
+            id,
+        ))
     }
 }
 

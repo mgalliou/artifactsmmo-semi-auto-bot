@@ -83,7 +83,11 @@ impl Paginate for TasksRewardsRequest<'_> {
     type Error = GetAllTasksRewardsTasksRewardsGetError;
 
     fn request_page(&self, current_page: u32) -> Result<Self::Page, Error<Self::Error>> {
-        crate::runtime().block_on(get_all_tasks_rewards_tasks_rewards_get(self.configuration, Some(current_page), Some(100)))
+        crate::runtime().block_on(get_all_tasks_rewards_tasks_rewards_get(
+            self.configuration,
+            Some(current_page),
+            Some(100),
+        ))
     }
 }
 

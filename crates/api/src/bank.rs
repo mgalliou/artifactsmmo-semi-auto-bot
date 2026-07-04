@@ -32,7 +32,9 @@ impl BankApi {
     }
 
     pub fn get_details(&self) -> Result<BankSchema, Error<GetBankDetailsMyBankGetError>> {
-        crate::runtime().block_on(get_bank_details_my_bank_get(&self.configuration)).map(|s| *s.data)
+        crate::runtime()
+            .block_on(get_bank_details_my_bank_get(&self.configuration))
+            .map(|s| *s.data)
     }
 }
 
@@ -46,7 +48,12 @@ impl Paginate for BankItemsRequest<'_> {
     type Error = GetBankItemsMyBankItemsGetError;
 
     fn request_page(&self, current_page: u32) -> Result<Self::Page, Error<Self::Error>> {
-        crate::runtime().block_on(get_bank_items_my_bank_items_get(self.configuration, None, Some(current_page), Some(100)))
+        crate::runtime().block_on(get_bank_items_my_bank_items_get(
+            self.configuration,
+            None,
+            Some(current_page),
+            Some(100),
+        ))
     }
 }
 
