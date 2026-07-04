@@ -36,7 +36,7 @@ pub struct ItemsClientInner {
 impl Default for ItemsClientInner {
     fn default() -> Self {
         Self {
-            path: Box::from(".cache/items.json"),
+            path: Box::from(".cache/items.ron"),
             data: ArcSwap::default(),
             fetch: Box::new(|| panic!("ItemsClient not initialized")),
             resources: ResourcesClient::default(),

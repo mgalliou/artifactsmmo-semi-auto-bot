@@ -24,7 +24,7 @@ pub struct MonstersClientInner {
 impl Default for MonstersClientInner {
     fn default() -> Self {
         Self {
-            path: Box::from(".cache/monsters.json"),
+            path: Box::from(".cache/monsters.ron"),
             data: ArcSwap::default(),
             fetch: Box::new(|| panic!("MonstersClient not initialized")),
             events: EventsClient::default(),

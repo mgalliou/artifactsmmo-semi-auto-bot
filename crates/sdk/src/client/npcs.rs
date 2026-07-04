@@ -20,7 +20,7 @@ pub struct NpcsClientInner {
 impl Default for NpcsClientInner {
     fn default() -> Self {
         Self {
-            path: Box::from(".cache/npcs.json"),
+            path: Box::from(".cache/npcs.ron"),
             data: ArcSwap::default(),
             fetch: Box::new(|| panic!("NpcsClient not initialized")),
             items: NpcsItemsClient::default(),

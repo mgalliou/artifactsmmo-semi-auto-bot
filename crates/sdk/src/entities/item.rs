@@ -225,7 +225,7 @@ mod tests {
     fn item(code: &str) -> Item {
         ItemsClient::from_cache(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/tests/fixtures/items.json"
+            "/tests/fixtures/items.ron"
         ))
         .get(code)
         .unwrap()

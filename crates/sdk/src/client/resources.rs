@@ -24,7 +24,7 @@ pub struct ResourcesClientInner {
 impl Default for ResourcesClientInner {
     fn default() -> Self {
         Self {
-            path: Box::from(".cache/resources.json"),
+            path: Box::from(".cache/resources.ron"),
             data: ArcSwap::default(),
             fetch: Box::new(|| panic!("ResourcesClient not initialized")),
             events: EventsClient::default(),

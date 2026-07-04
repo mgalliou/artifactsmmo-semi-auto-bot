@@ -18,7 +18,7 @@ pub struct TasksRewardsClientInner {
 impl Default for TasksRewardsClientInner {
     fn default() -> Self {
         Self {
-            path: Box::from(".cache/tasks_rewards.json"),
+            path: Box::from(".cache/tasks_rewards.ron"),
             data: ArcSwap::default(),
             fetch: Box::new(|| panic!("TasksRewardsClient not initialized")),
         }

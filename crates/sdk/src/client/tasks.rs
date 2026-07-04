@@ -20,7 +20,7 @@ pub struct TasksClientInner {
 impl Default for TasksClientInner {
     fn default() -> Self {
         Self {
-            path: Box::from(".cache/tasks.json"),
+            path: Box::from(".cache/tasks.ron"),
             data: ArcSwap::default(),
             fetch: Box::new(|| panic!("TasksClient not initialized")),
             rewards: TasksRewardsClient::default(),

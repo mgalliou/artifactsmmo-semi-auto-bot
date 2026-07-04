@@ -33,7 +33,7 @@ impl Default for EventsClientInner {
     fn default() -> Self {
         Self {
             api: ArtifactApi::default(),
-            path: Box::from(".cache/events.json"),
+            path: Box::from(".cache/events.ron"),
             data: ArcSwap::default(),
             fetch: Box::new(|| panic!("EventsClient not initialized")),
             active: RwLock::default(),

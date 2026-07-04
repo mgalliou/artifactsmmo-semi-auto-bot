@@ -29,7 +29,7 @@ pub struct MapsClientInner {
 impl Default for MapsClientInner {
     fn default() -> Self {
         Self {
-            path: Box::from(".cache/maps.json"),
+            path: Box::from(".cache/maps.ron"),
             data: ArcSwap::default(),
             fetch: Box::new(|| panic!("MapsClientInner not initialized")),
             events: EventsClient::default(),

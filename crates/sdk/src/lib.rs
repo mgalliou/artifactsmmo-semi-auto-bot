@@ -46,14 +46,14 @@ where
 
     /// Reads and deserializes data from the local cache file
     fn fetch_from_cache<T: for<'a> Deserialize<'a>>(&self) -> anyhow::Result<T> {
-        Ok(serde_json::from_str(&fs::read_to_string(self.path())?)?)
+        Ok(ron::from_str(&fs::read_to_string(self.path())?)?)
     }
 
     /// Writes data to the local cache file
     fn cache<T: Serialize>(&self, data: T) -> anyhow::Result<()> {
         Ok(fs::write(
             self.path(),
-            &serde_json::to_string_pretty(&data)?,
+            &ron::ser::to_string_pretty(&data, ron::ser::PrettyConfig::default())?,
         )?)
     }
 
