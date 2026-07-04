@@ -37,7 +37,7 @@ impl Paginate for ItemsRequest<'_> {
     type Error = GetAllItemsItemsGetError;
 
     fn request_page(&self, current_page: u32) -> Result<Self::Page, Error<Self::Error>> {
-        get_all_items_items_get(
+        crate::runtime().block_on(get_all_items_items_get(
             self.configuration,
             None,
             None,
@@ -47,7 +47,7 @@ impl Paginate for ItemsRequest<'_> {
             None,
             Some(current_page),
             Some(100),
-        )
+        ))
     }
 }
 

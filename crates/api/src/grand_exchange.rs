@@ -51,7 +51,7 @@ impl GrandExchangeApi {
         &self,
         id: &str,
     ) -> Result<GeOrderResponseSchema, Error<GetGeOrderGrandexchangeOrdersIdGetError>> {
-        get_ge_order_grandexchange_orders_id_get(&self.configuration, id)
+        crate::runtime().block_on(get_ge_order_grandexchange_orders_id_get(&self.configuration, id))
     }
 }
 
@@ -69,13 +69,13 @@ impl Paginate for SellHistoryRequest<'_> {
     type Error = GetGeHistoryGrandexchangeHistoryCodeGetError;
 
     fn request_page(&self, current_page: u32) -> Result<Self::Page, Error<Self::Error>> {
-        get_ge_history_grandexchange_history_code_get(
+        crate::runtime().block_on(get_ge_history_grandexchange_history_code_get(
             self.configuration,
             self.code,
             None,
             Some(current_page),
             Some(100),
-        )
+        ))
     }
 }
 
@@ -95,7 +95,7 @@ impl Paginate for SellOrdersRequest<'_> {
     type Error = GetGeOrdersGrandexchangeOrdersGetError;
 
     fn request_page(&self, page: u32) -> Result<Self::Page, Error<Self::Error>> {
-        get_ge_orders_grandexchange_orders_get(
+        crate::runtime().block_on(get_ge_orders_grandexchange_orders_get(
             self.configuration,
             None,
             None,
@@ -103,7 +103,7 @@ impl Paginate for SellOrdersRequest<'_> {
             None,
             Some(page),
             Some(100),
-        )
+        ))
     }
 }
 

@@ -174,7 +174,7 @@ impl CharacterRequestHandler {
                 warn!("{}: refreshing data", self.name());
                 self.refresh_data();
             }
-            RequestError::Canceled => return Err(error),
+            RequestError::Canceled | RequestError::ReqwestMiddleware(_) => return Err(error),
         }
         Err(error)
     }

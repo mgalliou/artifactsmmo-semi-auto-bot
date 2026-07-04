@@ -92,7 +92,7 @@ impl MyCharacterApi {
             y: Some(y),
             map_id: None,
         };
-        action_move_my_name_action_move_post(&self.configuration, name, dest)
+        crate::runtime().block_on(action_move_my_name_action_move_post(&self.configuration, name, dest))
     }
 
     pub fn transition(
@@ -102,7 +102,7 @@ impl MyCharacterApi {
         CharacterTransitionResponseSchema,
         Error<ActionTransitionMyNameActionTransitionPostError>,
     > {
-        action_transition_my_name_action_transition_post(&self.configuration, name)
+        crate::runtime().block_on(action_transition_my_name_action_transition_post(&self.configuration, name))
     }
 
     pub fn fight(
@@ -113,21 +113,21 @@ impl MyCharacterApi {
         let schema = FightRequestSchema {
             participants: participants.map(|p| p.to_vec()),
         };
-        action_fight_my_name_action_fight_post(&self.configuration, name, Some(schema))
+        crate::runtime().block_on(action_fight_my_name_action_fight_post(&self.configuration, name, Some(schema)))
     }
 
     pub fn rest(
         &self,
         name: &str,
     ) -> Result<CharacterRestResponseSchema, Error<ActionRestMyNameActionRestPostError>> {
-        action_rest_my_name_action_rest_post(&self.configuration, name)
+        crate::runtime().block_on(action_rest_my_name_action_rest_post(&self.configuration, name))
     }
 
     pub fn gather(
         &self,
         name: &str,
     ) -> Result<SkillResponseSchema, Error<ActionGatheringMyNameActionGatheringPostError>> {
-        action_gathering_my_name_action_gathering_post(&self.configuration, name)
+        crate::runtime().block_on(action_gathering_my_name_action_gathering_post(&self.configuration, name))
     }
 
     pub fn craft(
@@ -140,7 +140,7 @@ impl MyCharacterApi {
             code: item_code.to_owned(),
             quantity: Some(quantity),
         };
-        action_crafting_my_name_action_crafting_post(&self.configuration, name, schema)
+        crate::runtime().block_on(action_crafting_my_name_action_crafting_post(&self.configuration, name, schema))
     }
 
     pub fn recycle(
@@ -155,7 +155,7 @@ impl MyCharacterApi {
             quantity: Some(quantity),
             enhanced: enhanced.into(),
         };
-        action_recycling_my_name_action_recycling_post(&self.configuration, name, schema)
+        crate::runtime().block_on(action_recycling_my_name_action_recycling_post(&self.configuration, name, schema))
     }
 
     pub fn delete(
@@ -168,7 +168,7 @@ impl MyCharacterApi {
             code: item_code.to_owned(),
             quantity,
         };
-        action_delete_item_my_name_action_delete_post(&self.configuration, name, schema)
+        crate::runtime().block_on(action_delete_item_my_name_action_delete_post(&self.configuration, name, schema))
     }
 
     pub fn deposit_item(
@@ -179,11 +179,11 @@ impl MyCharacterApi {
         BankItemTransactionResponseSchema,
         Error<ActionDepositBankItemMyNameActionBankDepositItemPostError>,
     > {
-        action_deposit_bank_item_my_name_action_bank_deposit_item_post(
+        crate::runtime().block_on(action_deposit_bank_item_my_name_action_bank_deposit_item_post(
             &self.configuration,
             name,
             items.to_vec(),
-        )
+        ))
     }
 
     pub fn withdraw_item(
@@ -194,11 +194,11 @@ impl MyCharacterApi {
         BankItemTransactionResponseSchema,
         Error<ActionWithdrawBankItemMyNameActionBankWithdrawItemPostError>,
     > {
-        action_withdraw_bank_item_my_name_action_bank_withdraw_item_post(
+        crate::runtime().block_on(action_withdraw_bank_item_my_name_action_bank_withdraw_item_post(
             &self.configuration,
             name,
             items.to_vec(),
-        )
+        ))
     }
 
     pub fn deposit_gold(
@@ -210,7 +210,7 @@ impl MyCharacterApi {
         Error<ActionDepositBankGoldMyNameActionBankDepositGoldPostError>,
     > {
         let s = DepositWithdrawGoldSchema { quantity };
-        action_deposit_bank_gold_my_name_action_bank_deposit_gold_post(&self.configuration, name, s)
+        crate::runtime().block_on(action_deposit_bank_gold_my_name_action_bank_deposit_gold_post(&self.configuration, name, s))
     }
 
     pub fn withdraw_gold(
@@ -222,11 +222,11 @@ impl MyCharacterApi {
         Error<ActionWithdrawBankGoldMyNameActionBankWithdrawGoldPostError>,
     > {
         let s = DepositWithdrawGoldSchema { quantity };
-        action_withdraw_bank_gold_my_name_action_bank_withdraw_gold_post(
+        crate::runtime().block_on(action_withdraw_bank_gold_my_name_action_bank_withdraw_gold_post(
             &self.configuration,
             name,
             s,
-        )
+        ))
     }
 
     pub fn expand_bank(
@@ -236,7 +236,7 @@ impl MyCharacterApi {
         BankExtensionTransactionResponseSchema,
         Error<ActionBuyBankExpansionMyNameActionBankBuyExpansionPostError>,
     > {
-        action_buy_bank_expansion_my_name_action_bank_buy_expansion_post(&self.configuration, name)
+        crate::runtime().block_on(action_buy_bank_expansion_my_name_action_bank_buy_expansion_post(&self.configuration, name))
     }
 
     pub fn equip(
@@ -248,7 +248,7 @@ impl MyCharacterApi {
     ) -> Result<EquipmentResponseSchema, Error<ActionEquipItemMyNameActionEquipPostError>> {
         let mut schema = EquipSchema::new(item_code.to_string(), slot);
         schema.quantity = quantity;
-        action_equip_item_my_name_action_equip_post(&self.configuration, name, vec![schema])
+        crate::runtime().block_on(action_equip_item_my_name_action_equip_post(&self.configuration, name, vec![schema]))
     }
 
     pub fn unequip(
@@ -259,7 +259,7 @@ impl MyCharacterApi {
     ) -> Result<EquipmentResponseSchema, Error<ActionUnequipItemMyNameActionUnequipPostError>> {
         let mut schema = UnequipSchema::new(slot);
         schema.quantity = quantity;
-        action_unequip_item_my_name_action_unequip_post(&self.configuration, name, vec![schema])
+        crate::runtime().block_on(action_unequip_item_my_name_action_unequip_post(&self.configuration, name, vec![schema]))
     }
 
     pub fn use_item(
@@ -272,14 +272,14 @@ impl MyCharacterApi {
             code: item_code.to_owned(),
             quantity,
         };
-        action_use_item_my_name_action_use_post(&self.configuration, name, schema)
+        crate::runtime().block_on(action_use_item_my_name_action_use_post(&self.configuration, name, schema))
     }
 
     pub fn accept_task(
         &self,
         name: &str,
     ) -> Result<TaskResponseSchema, Error<ActionAcceptNewTaskMyNameActionTaskNewPostError>> {
-        action_accept_new_task_my_name_action_task_new_post(&self.configuration, name)
+        crate::runtime().block_on(action_accept_new_task_my_name_action_task_new_post(&self.configuration, name))
     }
 
     pub fn cancel_task(
@@ -287,7 +287,7 @@ impl MyCharacterApi {
         name: &str,
     ) -> Result<TaskCancelledResponseSchema, Error<ActionTaskCancelMyNameActionTaskCancelPostError>>
     {
-        action_task_cancel_my_name_action_task_cancel_post(&self.configuration, name)
+        crate::runtime().block_on(action_task_cancel_my_name_action_task_cancel_post(&self.configuration, name))
     }
 
     pub fn trade_task_item(
@@ -296,11 +296,11 @@ impl MyCharacterApi {
         item_code: &str,
         quantity: u32,
     ) -> Result<TaskTradeResponseSchema, Error<ActionTaskTradeMyNameActionTaskTradePostError>> {
-        action_task_trade_my_name_action_task_trade_post(
+        crate::runtime().block_on(action_task_trade_my_name_action_task_trade_post(
             &self.configuration,
             name,
             SimpleItemSchema::new(item_code.to_owned(), quantity),
-        )
+        ))
     }
 
     pub fn complete_task(
@@ -308,7 +308,7 @@ impl MyCharacterApi {
         name: &str,
     ) -> Result<RewardDataResponseSchema, Error<ActionCompleteTaskMyNameActionTaskCompletePostError>>
     {
-        action_complete_task_my_name_action_task_complete_post(&self.configuration, name)
+        crate::runtime().block_on(action_complete_task_my_name_action_task_complete_post(&self.configuration, name))
     }
 
     pub fn exchange_tasks_coins(
@@ -316,7 +316,7 @@ impl MyCharacterApi {
         name: &str,
     ) -> Result<RewardDataResponseSchema, Error<ActionTaskExchangeMyNameActionTaskExchangePostError>>
     {
-        action_task_exchange_my_name_action_task_exchange_post(&self.configuration, name)
+        crate::runtime().block_on(action_task_exchange_my_name_action_task_exchange_post(&self.configuration, name))
     }
 
     pub fn npc_buy(
@@ -329,7 +329,7 @@ impl MyCharacterApi {
         Error<ActionNpcBuyItemMyNameActionNpcBuyPostError>,
     > {
         let schema = NpcMerchantBuySchema::new(code, quantity);
-        action_npc_buy_item_my_name_action_npc_buy_post(&self.configuration, name, schema)
+        crate::runtime().block_on(action_npc_buy_item_my_name_action_npc_buy_post(&self.configuration, name, schema))
     }
 
     pub fn npc_sell(
@@ -342,7 +342,7 @@ impl MyCharacterApi {
         Error<ActionNpcSellItemMyNameActionNpcSellPostError>,
     > {
         let schema = NpcMerchantBuySchema::new(code, quantity);
-        action_npc_sell_item_my_name_action_npc_sell_post(&self.configuration, name, schema)
+        crate::runtime().block_on(action_npc_sell_item_my_name_action_npc_sell_post(&self.configuration, name, schema))
     }
 
     pub fn give_item(
@@ -355,7 +355,7 @@ impl MyCharacterApi {
             items: items.to_vec(),
             character: character.to_string(),
         };
-        action_give_items_my_name_action_give_item_post(&self.configuration, name, schema)
+        crate::runtime().block_on(action_give_items_my_name_action_give_item_post(&self.configuration, name, schema))
     }
 
     pub fn give_gold(
@@ -368,7 +368,7 @@ impl MyCharacterApi {
             quantity,
             character: character.to_string(),
         };
-        action_give_gold_my_name_action_give_gold_post(&self.configuration, name, schema)
+        crate::runtime().block_on(action_give_gold_my_name_action_give_gold_post(&self.configuration, name, schema))
     }
 
     pub fn ge_buy_order(
@@ -381,7 +381,7 @@ impl MyCharacterApi {
         Error<ActionGeBuyItemMyNameActionGrandexchangeBuyPostError>,
     > {
         let schema = GeBuyOrderSchema::new(id.to_owned(), quantity);
-        action_ge_buy_item_my_name_action_grandexchange_buy_post(&self.configuration, name, schema)
+        crate::runtime().block_on(action_ge_buy_item_my_name_action_grandexchange_buy_post(&self.configuration, name, schema))
     }
 
     pub fn ge_create_order(
@@ -395,11 +395,11 @@ impl MyCharacterApi {
         Error<ActionGeCreateSellOrderMyNameActionGrandexchangeCreateSellOrderPostError>,
     > {
         let schema = GeOrderCreationSchema::new(item_code.to_owned(), quantity, price);
-        action_ge_create_sell_order_my_name_action_grandexchange_create_sell_order_post(
+        crate::runtime().block_on(action_ge_create_sell_order_my_name_action_grandexchange_create_sell_order_post(
             &self.configuration,
             name,
             schema,
-        )
+        ))
     }
 
     pub fn ge_cancel_order(
@@ -410,11 +410,11 @@ impl MyCharacterApi {
         GeTransactionResponseSchema,
         Error<ActionGeCancelOrderMyNameActionGrandexchangeCancelPostError>,
     > {
-        action_ge_cancel_order_my_name_action_grandexchange_cancel_post(
+        crate::runtime().block_on(action_ge_cancel_order_my_name_action_grandexchange_cancel_post(
             &self.configuration,
             name,
             GeCancelOrderSchema::new(id.to_owned()),
-        )
+        ))
     }
 
     //pub fn christmas_exchange(

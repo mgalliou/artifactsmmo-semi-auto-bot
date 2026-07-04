@@ -22,6 +22,6 @@ impl CharactersApi {
         &self,
         name: &str,
     ) -> Result<CharacterResponseSchema, Error<GetCharacterCharactersNameGetError>> {
-        get_character_characters_name_get(&self.configuration, name)
+        crate::runtime().block_on(get_character_characters_name_get(&self.configuration, name))
     }
 }

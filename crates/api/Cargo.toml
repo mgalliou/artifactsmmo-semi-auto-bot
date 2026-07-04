@@ -9,6 +9,12 @@ publish.workspace = true
 openapi.workspace = true
 derive_more.workspace = true
 log.workspace = true
+reqwest.workspace = true
+reqwest-middleware.workspace = true
+async-trait.workspace = true
+tokio.workspace = true
+governor.workspace = true
+http.workspace = true
 
 [lints.clippy]
 pedantic = { level = "warn" }

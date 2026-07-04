@@ -16,6 +16,6 @@ impl ServerApi {
 
     //TODO: return result
     pub fn status(&self) -> Option<StatusResponseSchema> {
-        get_server_details_get(&self.configuration).ok()
+        crate::runtime().block_on(get_server_details_get(&self.configuration)).ok()
     }
 }

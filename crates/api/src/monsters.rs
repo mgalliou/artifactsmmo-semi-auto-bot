@@ -37,7 +37,7 @@ impl Paginate for MonstersRequest<'_> {
     type Error = GetAllMonstersMonstersGetError;
 
     fn request_page(&self, page: u32) -> Result<Self::Page, Error<Self::Error>> {
-        get_all_monsters_monsters_get(
+        crate::runtime().block_on(get_all_monsters_monsters_get(
             self.configuration,
             None,
             None,
@@ -45,7 +45,7 @@ impl Paginate for MonstersRequest<'_> {
             None,
             Some(page),
             Some(100),
-        )
+        ))
     }
 }
 

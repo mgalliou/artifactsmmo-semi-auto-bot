@@ -47,7 +47,7 @@ impl Paginate for NpcsRequest<'_> {
     type Error = GetAllNpcsNpcsDetailsGetError;
 
     fn request_page(&self, page: u32) -> Result<Self::Page, Error<Self::Error>> {
-        get_all_npcs_npcs_details_get(
+        crate::runtime().block_on(get_all_npcs_npcs_details_get(
             self.configuration,
             None,
             None,
@@ -55,7 +55,7 @@ impl Paginate for NpcsRequest<'_> {
             None,
             Some(page),
             Some(100),
-        )
+        ))
     }
 }
 
@@ -79,14 +79,14 @@ impl Paginate for NpcsItemsRequest<'_> {
     type Error = GetAllNpcsItemsNpcsItemsGetError;
 
     fn request_page(&self, page: u32) -> Result<Self::Page, Error<Self::Error>> {
-        get_all_npcs_items_npcs_items_get(
+        crate::runtime().block_on(get_all_npcs_items_npcs_items_get(
             self.configuration,
             None,
             None,
             None,
             Some(page),
             Some(100),
-        )
+        ))
     }
 }
 

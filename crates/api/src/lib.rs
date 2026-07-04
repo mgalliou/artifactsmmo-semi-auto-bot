@@ -1,9 +1,19 @@
 use derive_more::Deref;
 use openapi::apis::{Error, configuration::Configuration};
+use rate_limiter::RateLimiterMiddleware;
+use reqwest_middleware::ClientBuilder;
 use std::{
-    sync::Arc,
+    sync::{Arc, OnceLock},
     thread::{self},
 };
+use tokio::runtime::Runtime;
+
+fn runtime() -> &'static Runtime {
+    static RUNTIME: OnceLock<Runtime> = OnceLock::new();
+    RUNTIME.get_or_init(|| Runtime::new().expect("Failed to create Tokio runtime"))
+}
+
+mod rate_limiter;
 
 pub use account::AccountApi;
 pub use bank::BankApi;
@@ -59,6 +69,9 @@ impl ArtifactApi {
         let conf = Arc::new({
             let mut c = Configuration::new();
             c.base_path = base_path;
+            c.client = ClientBuilder::from_client(c.client)
+                .with(RateLimiterMiddleware::new())
+                .build();
             c
         });
         let auth_conf = Arc::new({

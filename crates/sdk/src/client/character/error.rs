@@ -43,6 +43,8 @@ const ENTITY_NOT_FOUND_ON_MAP: isize = 598;
 pub enum RequestError {
     #[error("reqwest error: {0}")]
     Reqwest(reqwest::Error),
+    #[error("reqwest middleware error: {0}")]
+    ReqwestMiddleware(reqwest_middleware::Error),
     #[error("serde error: {0}")]
     Serde(serde_json::Error),
     #[error("io error: {0}")]
@@ -59,6 +61,7 @@ impl<T> From<Error<T>> for RequestError {
     fn from(value: Error<T>) -> Self {
         match value {
             Error::Reqwest(e) => Self::Reqwest(e),
+            Error::ReqwestMiddleware(e) => Self::ReqwestMiddleware(e),
             Error::Serde(e) => Self::Serde(e),
             Error::Io(e) => Self::Io(e),
             Error::ResponseError(res) => match serde_json::from_str(&res.content) {

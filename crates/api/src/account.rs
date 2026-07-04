@@ -29,7 +29,7 @@ impl AccountApi {
         account: &str,
     ) -> Result<CharactersListSchema, Error<GetAccountCharactersAccountsAccountCharactersGetError>>
     {
-        get_account_characters_accounts_account_characters_get(&self.configuration, account)
+        crate::runtime().block_on(get_account_characters_accounts_account_characters_get(&self.configuration, account))
     }
 
     pub fn achievements(
@@ -58,14 +58,14 @@ impl Paginate for AchievementsRequest<'_> {
     type Error = GetAccountAchievementsAccountsAccountAchievementsGetError;
 
     fn request_page(&self, current_page: u32) -> Result<Self::Page, Error<Self::Error>> {
-        get_account_achievements_accounts_account_achievements_get(
+        crate::runtime().block_on(get_account_achievements_accounts_account_achievements_get(
             self.configuration,
             self.account,
             None,
             None,
             Some(current_page),
             Some(100),
-        )
+        ))
     }
 }
 
