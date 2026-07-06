@@ -4,10 +4,17 @@ use crate::{account::AccountController, character::CharacterController};
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use sdk::{
-    CanProvideXp, Code, CollectionClient, FROZEN_AXE, FROZEN_FISHING_ROD, FROZEN_GLOVES, FROZEN_PICKAXE, ItemsClient, Level, MAX_LEVEL, entities::{Character, Item, Monster, Resource}, gear::{Gear, Slot}, items::{
+    CanProvideXp, Code, CollectionClient, FROZEN_AXE, FROZEN_FISHING_ROD, FROZEN_GLOVES,
+    FROZEN_PICKAXE, ItemsClient, Level, MAX_LEVEL,
+    entities::{Character, Item, Monster, Resource},
+    gear::{Gear, Slot},
+    items::{
         ItemSource,
         Type::{self, Rune},
-    }, simulator::{FightParams, HasEffects, Participant, Simulator, time_to_rest}, skill::Skill, yields_xp,
+    },
+    simulator::{FightParams, HasEffects, Participant, Simulator, time_to_rest},
+    skill::Skill,
+    yields_xp,
 };
 
 pub use artifact_set::ArtifactSet;
@@ -193,7 +200,9 @@ impl GearResolver {
             .into_iter()
             .max_set_by_key(|(_, g)| g.prospecting())
             .into_iter()
-            .max_by_key(|(_, g)| g.wisdom())
+            .max_set_by_key(|(_, g)| g.wisdom())
+            .into_iter()
+            .max_by_key(|(_, g)| Slot::iter().filter(|s| g.item_in(*s).is_some()).count())
             .map(|(_, g)| g)
     }
 
@@ -811,5 +820,31 @@ mod tests {
             &armors,
         );
         assert_eq!(best2.map(Item::code), Some("stormforged_armor"));
+    }
+
+    #[test]
+    fn resolve_best_gear_against_chicken() {
+        let resolver = GearResolver {
+            purpose: GearPurpose::Combat(monster("chicken")),
+            level: 1,
+            skill_levels: HashMap::new(),
+            item_pool: ITEMS.iter().filter(|i| i.level() <= 1).collect(),
+            available_items: HashMap::new(),
+            available_only: false,
+            use_utilities: false,
+        };
+        let gear = resolver.resolve();
+        assert_eq!(
+            gear,
+            Some(
+                Gear::default()
+                    .with_weapon(item("wooden_staff"))
+                    .with_shield(item("wooden_shield"))
+                    .with_helmet(item("copper_helmet"))
+                    .with_boots(item("copper_boots"))
+                    .with_ring1(item("copper_ring"))
+                    .with_ring2(item("copper_ring")),
+            ),
+        );
     }
 }
