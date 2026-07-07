@@ -2,8 +2,8 @@ use crate::{
     AccountClient, Code, CollectionClient, GOLD, Gear, HasConditions, ItemContainer, Level,
     LimitedContainer, SlotLimited, SpaceLimited, TASK_EXCHANGE_PRICE, TASKS_COIN, TasksClient,
     character::error::{
-        GeBuyOrderError, GeCancelOrderError, GeCreateOrderError, GiveGoldError, GiveItemError,
-        TransitionError,
+        ClaimPendingItemError, GeBuyOrderError, GeCancelOrderError, GeCreateOrderError,
+        GiveGoldError, GiveItemError, TransitionError,
     },
     client::{
         bank::{Bank, BankClient},
@@ -706,6 +706,26 @@ impl CharacterClient {
         };
         if character.position() != self.position() {
             return Err(GiveGoldError::CharacterNotFound);
+        }
+        Ok(())
+    }
+
+    pub fn claim_pending_items(&self, id: &str) -> Result<(), ClaimPendingItemError> {
+        self.can_claim_pending_item(id)?;
+        Ok(self.handler().request_claim_pending_item(id)?)
+    }
+
+    fn can_claim_pending_item(&self, id: &str) -> Result<(), ClaimPendingItemError> {
+        let Some(pending) = self
+            .account()
+            .pending_items()
+            .into_iter()
+            .find(|i| i.id() == id)
+        else {
+            return Err(ClaimPendingItemError::ItemNotFound);
+        };
+        if !self.inventory().has_room_for_all(&pending.items()) {
+            return Err(ClaimPendingItemError::InsufficientInventorySpace);
         }
         Ok(())
     }

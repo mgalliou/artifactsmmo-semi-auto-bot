@@ -81,6 +81,9 @@ pub enum ActionRequest<'a> {
         quantity: u32,
         character: &'a str,
     },
+    ClaimPendingItem {
+        id: &'a str,
+    },
     GeBuyOrder {
         id: &'a str,
         quantity: u32,
@@ -255,6 +258,11 @@ impl ActionRequest<'_> {
             } => api
                 .my_character
                 .give_gold(name, *quantity, character)
+                .map(Into::into)
+                .map_err(Into::into),
+            ActionRequest::ClaimPendingItem { id } => api
+                .my_character
+                .claim_pending_item(name, id)
                 .map(Into::into)
                 .map_err(Into::into),
             ActionRequest::GeBuyOrder { id, quantity } => api

@@ -16,12 +16,13 @@ use openapi::models::{
     BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema,
     CharacterFightResponseSchema, CharacterFightSchema, CharacterMovementResponseSchema,
     CharacterRestResponseSchema, CharacterSchema, CharacterTransitionResponseSchema,
-    DeleteItemResponseSchema, GeCreateOrderTransactionResponseSchema, GeTransactionResponseSchema,
-    GeTransactionSchema, GiveGoldResponseSchema, GiveItemResponseSchema, InventorySlotSchema,
-    MapLayer, NpcItemTransactionSchema, NpcMerchantTransactionResponseSchema, RecyclingItemsSchema,
-    RecyclingResponseSchema, RewardDataResponseSchema, RewardsSchema, SimpleItemSchema,
-    SkillInfoSchema, SkillResponseSchema, TaskResponseSchema, TaskSchema, TaskTradeResponseSchema,
-    TaskTradeSchema, TaskType,
+    ClaimPendingItemResponseSchema, DeleteItemResponseSchema,
+    GeCreateOrderTransactionResponseSchema, GeTransactionResponseSchema, GeTransactionSchema,
+    GiveGoldResponseSchema, GiveItemResponseSchema, InventorySlotSchema, MapLayer, NpcItemTransactionSchema,
+    NpcMerchantTransactionResponseSchema, RecyclingItemsSchema, RecyclingResponseSchema,
+    RewardDataResponseSchema, RewardsSchema, SimpleItemSchema, SkillInfoSchema,
+    SkillResponseSchema, TaskResponseSchema, TaskSchema, TaskTradeResponseSchema, TaskTradeSchema,
+    TaskType,
 };
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread::sleep;
@@ -434,6 +435,12 @@ impl CharacterRequestHandler {
         })
         .and_then(downcast_response::<GiveGoldResponseSchema>)
         .map(|_| ())
+    }
+
+    pub fn request_claim_pending_item(&self, id: &str) -> Result<(), RequestError> {
+        self.request_action(ActionRequest::ClaimPendingItem { id })
+            .and_then(downcast_response::<ClaimPendingItemResponseSchema>)
+            .map(|_| ())
     }
 
     pub fn request_ge_buy_order(

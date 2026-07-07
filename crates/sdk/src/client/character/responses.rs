@@ -1,5 +1,3 @@
-use std::fmt::{self, Display, Formatter};
-
 use crate::{ItemList, entities::RawMap};
 use downcast_rs::{Downcast, impl_downcast};
 use itertools::Itertools;
@@ -7,13 +5,14 @@ use openapi::models::{
     ActionType, BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema,
     BankItemTransactionResponseSchema, CharacterFightResponseSchema,
     CharacterMovementResponseSchema, CharacterRestResponseSchema, CharacterSchema,
-    CharacterTransitionResponseSchema, DeleteItemResponseSchema, EquipmentResponseSchema,
-    FightResult, GeCreateOrderTransactionResponseSchema, GeTransactionResponseSchema,
-    GiveGoldResponseSchema, GiveItemResponseSchema, NpcMerchantTransactionResponseSchema,
-    RecyclingResponseSchema, RewardDataResponseSchema, SimpleItemSchema, SkillResponseSchema,
-    TaskCancelledResponseSchema, TaskResponseSchema, TaskTradeResponseSchema,
-    UseItemResponseSchema,
+    CharacterTransitionResponseSchema, ClaimPendingItemResponseSchema, DeleteItemResponseSchema,
+    EquipmentResponseSchema, FightResult, GeCreateOrderTransactionResponseSchema,
+    GeTransactionResponseSchema, GiveGoldResponseSchema, GiveItemResponseSchema,
+    NpcMerchantTransactionResponseSchema, RecyclingResponseSchema, RewardDataResponseSchema,
+    SimpleItemSchema, SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema,
+    TaskTradeResponseSchema, UseItemResponseSchema,
 };
+use std::fmt::{self, Display, Formatter};
 
 pub trait ResponseSchema: Downcast {
     fn pretty(&self) -> String;
@@ -398,6 +397,23 @@ impl ResponseSchema for GiveGoldResponseSchema {
 
     fn characters(&self) -> Vec<&CharacterSchema> {
         vec![&self.character(), &self.data.receiver_character]
+    }
+}
+
+impl ResponseSchema for ClaimPendingItemResponseSchema {
+    fn pretty(&self) -> String {
+        format!(
+            "{}: claimed '{:?}'. {}s",
+            self.data.character.name, self.data.item.items, self.data.cooldown.remaining_seconds,
+        )
+    }
+
+    fn character(&self) -> &CharacterSchema {
+        &self.data.character
+    }
+
+    fn characters(&self) -> Vec<&CharacterSchema> {
+        vec![&self.character()]
     }
 }
 

@@ -1,5 +1,5 @@
 use crate::{
-    Code, DropsItems,
+    Code, DropsItems, Quantity,
     container::{ItemContainer, LimitedContainer, SlotLimited, SpaceLimited},
     entities::{Character, CharacterDataHandle, Item},
 };
@@ -30,7 +30,7 @@ pub trait Inventory: SlotLimited + SpaceLimited {
         let slot_freed = item
             .mats()
             .iter()
-            .filter(|i| self.total_of(&i.code) <= i.quantity)
+            .filter(|i| self.total_of(i.code()) <= i.quantity())
             .count() as i32;
         let slot_taken = i32::from(self.total_of(item.code()) == 0);
         if free_slot < 1 && slot_freed < slot_taken {
@@ -80,13 +80,13 @@ impl LimitedContainer for InventoryClient {
         let mut free_slot = self.free_slots();
         let mut free_space = self.free_space();
         for item in items {
-            if free_slot < 1 || free_space < item.quantity {
+            if free_slot < 1 || free_space < item.quantity() {
                 return false;
             }
-            if self.total_of(&item.code) < 1 {
+            if self.total_of(item.code()) < 1 {
                 free_slot -= 1;
             }
-            free_space -= item.quantity;
+            free_space -= item.quantity();
         }
         true
     }

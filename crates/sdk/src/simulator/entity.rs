@@ -1,5 +1,7 @@
 use crate::{
-    Gear, entities::{CharacterName, Item, Monster}, simulator::{
+    Gear,
+    entities::{CharacterName, Item, Monster},
+    simulator::{
         BASE_HP, BASE_INITIATIVE, BURN_MULTIPLIER, HEAL_INTERVAL, HP_PER_LEVEL, HasEffects,
         Participant, damage_type::DamageType,
     },

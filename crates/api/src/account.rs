@@ -9,8 +9,14 @@ use openapi::{
             get_account_characters_accounts_account_characters_get,
         },
         configuration::Configuration,
+        my_account_api::{
+            GetPendingItemsMyPendingItemsGetError, get_pending_items_my_pending_items_get,
+        },
     },
-    models::{AccountAchievementSchema, CharactersListSchema, DataPageAccountAchievementSchema},
+    models::{
+        AccountAchievementSchema, CharactersListSchema, DataPageAccountAchievementSchema,
+        DataPagePendingItemSchema, PendingItemSchema,
+    },
 };
 use std::sync::Arc;
 
@@ -48,6 +54,15 @@ impl AccountApi {
         }
         .send()
     }
+
+    pub fn pending_items(
+        &self,
+    ) -> Result<Vec<PendingItemSchema>, Error<GetPendingItemsMyPendingItemsGetError>> {
+        PendingItemsRequest {
+            configuration: &self.configuration,
+        }
+        .send()
+    }
 }
 
 struct AchievementsRequest<'a> {
@@ -74,6 +89,34 @@ impl Paginate for AchievementsRequest<'_> {
 
 impl DataPage<AccountAchievementSchema> for DataPageAccountAchievementSchema {
     fn data(self) -> Vec<AccountAchievementSchema> {
+        self.data
+    }
+
+    fn pages(&self) -> u32 {
+        self.pages
+    }
+}
+
+struct PendingItemsRequest<'a> {
+    configuration: &'a Configuration,
+}
+
+impl Paginate for PendingItemsRequest<'_> {
+    type Data = PendingItemSchema;
+    type Page = DataPagePendingItemSchema;
+    type Error = GetPendingItemsMyPendingItemsGetError;
+
+    fn request_page(&self, current_page: u32) -> Result<Self::Page, Error<Self::Error>> {
+        crate::runtime().block_on(get_pending_items_my_pending_items_get(
+            self.configuration,
+            Some(current_page),
+            Some(100),
+        ))
+    }
+}
+
+impl DataPage<PendingItemSchema> for DataPagePendingItemSchema {
+    fn data(self) -> Vec<PendingItemSchema> {
         self.data
     }
 

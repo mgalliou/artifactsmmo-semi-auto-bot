@@ -2,10 +2,11 @@ use crate::{
     ClientError, Code, ItemsClient, MapsClient, MonstersClient, NpcsClient, ResourcesClient,
     ServerClient, TasksClient,
     client::{bank::BankClient, character::CharacterClient},
-    entities::{AccountAchievement, Character},
+    entities::{AccountAchievement, Character, PendingItem},
     grand_exchange::GrandExchangeClient,
 };
 use api::ArtifactApi;
+use arc_swap::ArcSwap;
 use derive_more::Deref;
 use itertools::Itertools;
 use log::info;
@@ -23,24 +24,24 @@ pub struct AccountClientInner {
     bank: BankClient,
     characters: RwLock<Vec<CharacterClient>>,
     achievements: RwLock<Vec<AccountAchievement>>,
+    pending_items: ArcSwap<Vec<PendingItem>>,
 }
 
 impl AccountClient {
     pub(crate) fn new(name: String, bank: BankClient, api: ArtifactApi) -> Self {
-        Self(
-            AccountClientInner {
-                api,
-                bank,
-                characters: RwLock::default(),
-                achievements: RwLock::default(),
-                name,
-            }
-            .into(),
-        )
+        Self(Arc::new(AccountClientInner {
+            api,
+            name,
+            bank,
+            characters: RwLock::default(),
+            achievements: RwLock::default(),
+            pending_items: ArcSwap::default(),
+        }))
     }
 
     pub fn init(&self) {
         let _ = self.load_achievements();
+        let _ = self.load_pending_items();
         info!("Account achievements initilized");
     }
 
@@ -107,6 +108,19 @@ impl AccountClient {
         Ok(())
     }
 
+    pub fn load_pending_items(&self) -> Result<(), ClientError> {
+        self.pending_items.store(Arc::new(
+            self.api
+                .account
+                .pending_items()
+                .map_err(|e| ClientError::Api(Box::new(e)))?
+                .into_iter()
+                .map(PendingItem::new)
+                .collect_vec(),
+        ));
+        Ok(())
+    }
+
     #[must_use]
     pub fn characters(&self) -> Vec<CharacterClient> {
         self.characters.read().unwrap().iter().cloned().collect()
@@ -136,5 +150,10 @@ impl AccountClient {
             .iter()
             .find(|a| a.code() == code)
             .cloned()
+    }
+
+    #[must_use]
+    pub fn pending_items(&self) -> Vec<PendingItem> {
+        self.pending_items.load().iter().cloned().collect_vec()
     }
 }

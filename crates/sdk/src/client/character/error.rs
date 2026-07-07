@@ -478,6 +478,18 @@ pub enum GiveGoldError {
 #[derive(Debug, Error, TryFrom)]
 #[try_from(repr)]
 #[repr(isize)]
+pub enum ClaimPendingItemError {
+    #[error("id not found")]
+    ItemNotFound = ENTITY_NOT_FOUND,
+    #[error("insufficient inventory space")]
+    InsufficientInventorySpace = INVENTORY_FULL,
+    #[error(transparent)]
+    UnhandledError(#[from] RequestError),
+}
+
+#[derive(Debug, Error, TryFrom)]
+#[try_from(repr)]
+#[repr(isize)]
 pub enum GeBuyOrderError {
     #[error("order not found")]
     OrderNotFound = ENTITY_NOT_FOUND,
