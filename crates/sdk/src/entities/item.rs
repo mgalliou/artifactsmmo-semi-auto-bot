@@ -220,16 +220,7 @@ impl Display for Item {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{CollectionClient, client::items::ItemsClient};
-
-    fn item(code: &str) -> Item {
-        ItemsClient::from_cache(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/tests/fixtures/items.ron"
-        ))
-        .get(code)
-        .unwrap()
-    }
+    use crate::test_utils::item;
 
     #[test]
     fn item_ord_is_alphabetical_by_code() {

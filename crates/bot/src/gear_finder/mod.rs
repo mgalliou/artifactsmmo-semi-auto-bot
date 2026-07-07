@@ -636,16 +636,8 @@ mod tests {
     use super::*;
     use sdk::{
         CollectionClient,
-        test_utils::{ITEMS, MONSTERS},
+        test_utils::{ITEMS, item, monster},
     };
-
-    fn item(item_code: &str) -> Item {
-        ITEMS.get(item_code).unwrap()
-    }
-
-    fn monster(item_code: &str) -> Monster {
-        MONSTERS.get(item_code).unwrap()
-    }
 
     #[test]
     fn resolver_best_weapons_against() {
@@ -659,17 +651,17 @@ mod tests {
             use_utilities: false,
         };
 
-        let weapons = resolver.best_weapons(&MONSTERS.get("vampire").unwrap());
+        let weapons = resolver.best_weapons(&monster("vampire"));
         assert_eq!(
             weapons.first().unwrap().code(),
-            ITEMS.get("greater_dreadful_staff").unwrap().code(),
+            item("greater_dreadful_staff").code(),
         );
     }
 
     #[test]
     fn resolve_best_gear_against_blue_slime() {
         let resolver = GearResolver {
-            purpose: GearPurpose::Combat(MONSTERS.get("blue_slime").unwrap()),
+            purpose: GearPurpose::Combat(monster("blue_slime")),
             level: 10,
             skill_levels: HashMap::new(),
             item_pool: ITEMS.iter().filter(|i| i.level() <= 10).collect(),

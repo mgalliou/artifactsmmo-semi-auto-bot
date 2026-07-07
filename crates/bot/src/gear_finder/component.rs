@@ -75,12 +75,8 @@ impl Ord for ItemSlot {
 
 #[cfg(test)]
 mod tests {
+    use sdk::test_utils::item;
     use super::*;
-    use sdk::{CollectionClient, test_utils::ITEMS};
-
-    fn item(code: &str) -> Item {
-        ITEMS.get(code).unwrap()
-    }
 
     #[test]
     fn item_slot_some_less_than_none() {

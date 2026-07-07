@@ -453,85 +453,51 @@ impl PartialEq<LevelConditionCode> for String {
 
 #[cfg(test)]
 mod tests {
-    use crate::client::CollectionClient;
     use crate::simulator::{DamageType, HasEffects};
-    use crate::test_utils::{ITEMS, MONSTERS};
-
-    fn items() -> &'static crate::client::items::ItemsClient {
-        &ITEMS
-    }
-
-    fn monsters() -> &'static crate::client::monsters::MonstersClient {
-        &MONSTERS
-    }
+    use crate::test_utils::{ITEMS, item, monster};
 
     #[test]
     fn item_damage_against() {
-        let val = items()
-            .get("skull_staff")
-            .unwrap()
-            .average_dmg_against(&monsters().get("ogre").unwrap());
+        let val = item("skull_staff").average_dmg_against(&monster("ogre"));
         assert!(val > 0.0, "skull_staff vs ogre dmg = {val}");
 
-        let val = items()
-            .get("dreadful_staff")
-            .unwrap()
-            .average_dmg_against(&monsters().get("vampire").unwrap());
+        let val = item("dreadful_staff").average_dmg_against(&monster("vampire"));
         assert!(val > 0.0, "dreadful_staff vs vampire dmg = {val}");
     }
 
     #[test]
     fn damage_increase() {
-        assert_eq!(
-            items()
-                .get("steel_boots")
-                .unwrap()
-                .dmg_increase(DamageType::Air),
-            0
-        );
+        assert_eq!(item("steel_boots").dmg_increase(DamageType::Air), 0);
     }
 
     #[test]
     fn damage_increase_against() {
-        let val = items()
-            .get("steel_armor")
-            .unwrap()
-            .average_dmg_boost_against_with(
-                &monsters().get("chicken").unwrap(),
-                &items().get("steel_battleaxe").unwrap(),
-            );
+        let val = item("steel_armor")
+            .average_dmg_boost_against_with(&monster("chicken"), &item("steel_battleaxe"));
         assert!(
             val >= 0.0,
             "steel_armor boost vs chicken with battleaxe = {val}"
         );
 
-        let val = items()
-            .get("steel_boots")
-            .unwrap()
-            .average_dmg_boost_against_with(
-                &monsters().get("ogre").unwrap(),
-                &items().get("skull_staff").unwrap(),
-            );
+        let val = item("steel_boots")
+            .average_dmg_boost_against_with(&monster("ogre"), &item("skull_staff"));
         assert!(val.abs() < 0.000_1);
     }
 
     #[test]
     fn damage_reduction_against() {
-        let val = items()
-            .get("steel_armor")
-            .unwrap()
-            .average_dmg_reduction_against(&monsters().get("ogre").unwrap());
+        let val = item("steel_armor").average_dmg_reduction_against(&monster("ogre"));
         assert!(val > 0.0, "steel_armor reduction vs ogre = {val}");
     }
 
     #[test]
     fn require_task_reward() {
-        assert!(items().require_task_reward("greater_dreadful_staff"));
+        assert!(ITEMS.require_task_reward("greater_dreadful_staff"));
     }
 
     #[test]
     fn mats_methods() {
-        assert!(!items().mats_of("greater_dreadful_staff").is_empty());
-        assert!(!items().base_mats_of("greater_dreadful_staff").is_empty());
+        assert!(!ITEMS.mats_of("greater_dreadful_staff").is_empty());
+        assert!(!ITEMS.base_mats_of("greater_dreadful_staff").is_empty());
     }
 }

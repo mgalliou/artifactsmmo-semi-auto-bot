@@ -428,42 +428,35 @@ impl From<Slot> for SlotType {
 
 #[cfg(test)]
 mod tests {
-    use crate::client::CollectionClient;
-    use crate::client::items::ItemsClient;
-    use crate::test_utils::ITEMS;
-
     use super::*;
-
-    fn items() -> &'static ItemsClient {
-        &ITEMS
-    }
+    use crate::{client::CollectionClient, test_utils::ITEMS};
 
     #[test]
     fn check_gear_alignment_is_working() {
         let gear1 = Gear {
-            ring1: items().get("skull_ring"),
-            ring2: items().get("dreadful_ring"),
-            utility1: items().get("minor_health_potion"),
-            utility2: items().get("small_health_potion"),
-            artifact1: items().get("life_crystal"),
-            artifact2: items().get("malefic_crystal"),
-            artifact3: items().get("corrupted_skull"),
+            ring1: ITEMS.get("skull_ring"),
+            ring2: ITEMS.get("dreadful_ring"),
+            utility1: ITEMS.get("minor_health_potion"),
+            utility2: ITEMS.get("small_health_potion"),
+            artifact1: ITEMS.get("life_crystal"),
+            artifact2: ITEMS.get("malefic_crystal"),
+            artifact3: ITEMS.get("corrupted_skull"),
             ..Default::default()
         };
         let mut gear2 = Gear {
-            ring1: items().get("dreadful_ring"),
-            ring2: items().get("skull_ring"),
-            utility1: items().get("small_health_potion"),
-            utility2: items().get("minor_health_potion"),
-            artifact1: items().get("malefic_crystal"),
-            artifact2: items().get("corrupted_skull"),
-            artifact3: items().get("life_crystal"),
+            ring1: ITEMS.get("dreadful_ring"),
+            ring2: ITEMS.get("skull_ring"),
+            utility1: ITEMS.get("small_health_potion"),
+            utility2: ITEMS.get("minor_health_potion"),
+            artifact1: ITEMS.get("malefic_crystal"),
+            artifact2: ITEMS.get("corrupted_skull"),
+            artifact3: ITEMS.get("life_crystal"),
             ..Default::default()
         };
         let mut gear3 = Gear {
-            ring2: items().get("skull_ring"),
-            utility1: items().get("small_health_potion"),
-            artifact2: items().get("life_crystal"),
+            ring2: ITEMS.get("skull_ring"),
+            utility1: ITEMS.get("small_health_potion"),
+            artifact2: ITEMS.get("life_crystal"),
             ..Default::default()
         };
         gear2.align_to(&gear1);

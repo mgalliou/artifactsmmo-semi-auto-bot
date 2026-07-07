@@ -37,11 +37,7 @@ impl RingSet {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sdk::{CollectionClient, test_utils::ITEMS};
-
-    fn item(code: &str) -> Item {
-        ITEMS.get(code).unwrap()
-    }
+    use sdk::test_utils::item;
 
     #[test]
     fn ring_set_both_none_returns_none() {

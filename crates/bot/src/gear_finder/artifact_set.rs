@@ -45,11 +45,7 @@ impl ArtifactSet {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sdk::{CollectionClient, test_utils::ITEMS};
-
-    fn item(code: &str) -> Item {
-        ITEMS.get(code).unwrap()
-    }
+    use sdk::test_utils::item;
 
     #[test]
     fn artifact_set_all_none_returns_none() {
