@@ -6,7 +6,7 @@ use derive_more::Deref;
 use itertools::Itertools;
 use sdk::{
     BankClient, Code, CollectionClient, DropsItems, ItemContainer, ItemsClient, Level,
-    LimitedContainer, SlotLimited,
+    LimitedContainer, Quantity, SlotLimited,
     bank::Bank,
     entities::{CharacterName, Item},
     models::{BankSchema, SimpleItemSchema},
@@ -173,7 +173,7 @@ impl LimitedContainer for BankController {
         self.client.is_full()
     }
 
-    fn has_room_for_all(&self, items: &[SimpleItemSchema]) -> bool {
+    fn has_room_for_all(&self, items: &[impl Code + Quantity]) -> bool {
         self.client.has_room_for_all(items)
     }
 

@@ -992,7 +992,7 @@ impl CharacterController {
         let missing = quantity.saturating_sub(in_inventory);
         if missing > 0 {
             self.bank.reserve((item, self.name()), missing)?;
-            if !self.inventory.has_room_for(item, missing) {
+            if !self.inventory.has_room_for((item, missing)) {
                 self.deposit_all_but(item)?;
             }
             self.withdraw_item(item, missing)?;
@@ -1297,7 +1297,7 @@ impl CharacterController {
         if quantity == 0 || quantity > self.quantity_in_slot(slot) {
             return Err(UnequipCommandError::InvalidQuantity(quantity));
         }
-        if !self.inventory.has_room_for(equiped.code(), quantity) {
+        if !self.inventory.has_room_for((equiped.code(), quantity)) {
             self.deposit_all()?;
         }
         if self.hp() <= equiped.health() {

@@ -92,6 +92,12 @@ impl Code for DropRateSchema {
     }
 }
 
+impl<T: AsRef<str>> Code for (T, u32) {
+    fn code(&self) -> &str {
+        self.0.as_ref()
+    }
+}
+
 pub trait Quantity {
     fn quantity(&self) -> u32;
 }
@@ -111,6 +117,12 @@ impl Quantity for InventorySlotSchema {
 impl Quantity for SimpleItemSchema {
     fn quantity(&self) -> u32 {
         self.quantity
+    }
+}
+
+impl<T: AsRef<str>> Quantity for (T, u32) {
+    fn quantity(&self) -> u32 {
+        self.1
     }
 }
 

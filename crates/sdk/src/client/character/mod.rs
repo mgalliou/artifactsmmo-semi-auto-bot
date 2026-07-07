@@ -457,7 +457,7 @@ impl CharacterClient {
         if self.quantity_in_slot(slot) < quantity {
             return Err(UnequipError::InsufficientQuantity);
         }
-        if !self.inventory().has_room_for(equiped.code(), quantity) {
+        if !self.inventory().has_room_for((equiped.code(), quantity)) {
             return Err(UnequipError::InsufficientInventorySpace);
         }
         Ok(())
@@ -724,7 +724,7 @@ impl CharacterClient {
         else {
             return Err(ClaimPendingItemError::ItemNotFound);
         };
-        if !self.inventory().has_room_for_all(&pending.items()) {
+        if !self.inventory().has_room_for_all(pending.items()) {
             return Err(ClaimPendingItemError::InsufficientInventorySpace);
         }
         Ok(())
@@ -754,7 +754,7 @@ impl CharacterClient {
         if self.gold() < order.price * quantity {
             return Err(GeBuyOrderError::InsufficientGold);
         }
-        if !self.inventory().has_room_for(&order.code, quantity) {
+        if !self.inventory().has_room_for((&order.code, quantity)) {
             return Err(GeBuyOrderError::InsufficientInventorySpace);
         }
         if !self.current_map().is_grand_exchange() {
@@ -811,7 +811,7 @@ impl CharacterClient {
         if order.account.is_some_and(|a| a != self.account().name()) {
             return Err(GeCancelOrderError::OrderNotOwned);
         }
-        if !self.inventory().has_room_for(&order.code, order.quantity) {
+        if !self.inventory().has_room_for((&order.code, order.quantity)) {
             return Err(GeCancelOrderError::InsufficientInventorySpace);
         }
         if !self.current_map().is_grand_exchange() {

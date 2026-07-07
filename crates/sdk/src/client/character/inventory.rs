@@ -4,7 +4,7 @@ use crate::{
     entities::{Character, CharacterDataHandle, Item},
 };
 use itertools::Itertools;
-use openapi::models::{InventorySlotSchema, SimpleItemSchema};
+use openapi::models::InventorySlotSchema;
 use std::sync::Arc;
 
 #[derive(Default, Debug)]
@@ -76,7 +76,7 @@ impl LimitedContainer for InventoryClient {
         self.total_items() >= self.max_items() || self.free_slots() == 0
     }
 
-    fn has_room_for_all(&self, items: &[SimpleItemSchema]) -> bool {
+    fn has_room_for_all(&self, items: &[impl Code + Quantity]) -> bool {
         let mut free_slot = self.free_slots();
         let mut free_space = self.free_space();
         for item in items {

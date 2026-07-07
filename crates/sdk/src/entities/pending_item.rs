@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use openapi::models::{PendingItemSchema, SimpleItemSchema};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -18,8 +17,7 @@ impl PendingItem {
     }
 
     #[must_use]
-    pub fn items(&self) -> Vec<SimpleItemSchema> {
-        // TODO: don't clone
-        self.0.items.iter().flatten().cloned().collect_vec()
+    pub fn items(&self) -> &[SimpleItemSchema] {
+        self.0.items.as_deref().unwrap_or_default()
     }
 }

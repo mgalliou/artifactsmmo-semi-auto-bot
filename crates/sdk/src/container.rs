@@ -1,5 +1,4 @@
 use crate::{Code, DropsItems, Quantity};
-use openapi::models::SimpleItemSchema;
 use std::sync::Arc;
 
 pub trait ItemContainer {
@@ -18,29 +17,28 @@ pub trait ItemContainer {
             .map_or(0, Quantity::quantity)
     }
 
-    fn contains_all(&self, items: &[SimpleItemSchema]) -> bool {
-        items.iter().all(|i| self.total_of(&i.code) >= i.quantity)
+    fn contains_all(&self, items: &[impl Code + Quantity]) -> bool {
+        items
+            .iter()
+            .all(|i| self.total_of(i.code()) >= i.quantity())
     }
 }
 
-pub trait LimitedContainer {
+pub trait LimitedContainer: ItemContainer {
     fn is_full(&self) -> bool;
-    fn has_room_for_all(&self, items: &[SimpleItemSchema]) -> bool;
+    fn has_room_for_all(&self, items: &[impl Code + Quantity]) -> bool;
     fn has_room_for_drops_from<H: DropsItems>(&self, entity: &H) -> bool;
 
-    fn has_room_for(&self, item_code: &str, quantity: u32) -> bool {
-        self.has_room_for_all(&[SimpleItemSchema {
-            code: item_code.to_owned(),
-            quantity,
-        }])
+    fn has_room_for(&self, item: impl Code + Quantity) -> bool {
+        self.has_room_for_all(&[item])
     }
 }
 
-pub trait SlotLimited: ItemContainer + LimitedContainer {
+pub trait SlotLimited: LimitedContainer {
     fn free_slots(&self) -> u32;
 }
 
-pub trait SpaceLimited: ItemContainer + LimitedContainer {
+pub trait SpaceLimited: LimitedContainer {
     fn max_items(&self) -> u32;
 
     fn free_space(&self) -> u32 {

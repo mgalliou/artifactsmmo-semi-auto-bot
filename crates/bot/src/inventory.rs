@@ -115,7 +115,7 @@ impl LimitedContainer for InventoryController {
         self.client.inventory().is_full()
     }
 
-    fn has_room_for_all(&self, items: &[SimpleItemSchema]) -> bool {
+    fn has_room_for_all(&self, items: &[impl Code + Quantity]) -> bool {
         self.client.inventory().has_room_for_all(items)
     }
 

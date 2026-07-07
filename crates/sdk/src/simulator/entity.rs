@@ -353,20 +353,17 @@ struct BaseSimulationMonster {
 
 impl From<Monster> for SimulationMonster {
     fn from(monster: Monster) -> Self {
-        Self(Rc::new(
-            BaseSimulationMonster {
-                current_health: monster.health(),
-                current_turn: 1,
-                burning: 0,
-                poisoned: 0,
-                fire_res: monster.res(DamageType::Fire),
-                earth_res: monster.res(DamageType::Earth),
-                water_res: monster.res(DamageType::Water),
-                air_res: monster.res(DamageType::Air),
-                monster,
-            }
-            .into(),
-        ))
+        Self(Rc::new(RefCell::new(BaseSimulationMonster {
+            current_health: monster.health(),
+            current_turn: 1,
+            burning: 0,
+            poisoned: 0,
+            fire_res: monster.res(DamageType::Fire),
+            earth_res: monster.res(DamageType::Earth),
+            water_res: monster.res(DamageType::Water),
+            air_res: monster.res(DamageType::Air),
+            monster,
+        })))
     }
 }
 

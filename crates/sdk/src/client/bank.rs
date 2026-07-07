@@ -1,4 +1,4 @@
-use crate::{BANK_EXPANSION_SIZE, ItemContainer, LimitedContainer, SlotLimited};
+use crate::{BANK_EXPANSION_SIZE, Code, ItemContainer, LimitedContainer, Quantity, SlotLimited};
 use api::ArtifactApi;
 use arc_swap::ArcSwap;
 use derive_more::Deref;
@@ -102,13 +102,13 @@ impl LimitedContainer for BankClient {
         self.free_slots() == 0
     }
 
-    fn has_room_for_all(&self, items: &[SimpleItemSchema]) -> bool {
+    fn has_room_for_all(&self, items: &[impl Code + Quantity]) -> bool {
         let mut free_slot = self.free_slots();
         for item in items {
             if free_slot < 1 {
                 return false;
             }
-            if self.total_of(&item.code) < 1 {
+            if self.total_of(item.code()) < 1 {
                 free_slot -= 1;
             }
         }
