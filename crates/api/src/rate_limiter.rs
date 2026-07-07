@@ -109,7 +109,7 @@ mod tests {
         }
         let elapsed = start.elapsed();
         // 16 calls with burst=1: first is instant, 15 more at ~125ms each = ~1875ms.
-        let min_expected = Duration::from_millis((n - 1) as u64 * 120);
+        let min_expected = Duration::from_millis((n - 1) * 120);
         assert!(
             elapsed >= min_expected,
             "{n} calls took {elapsed:?}, expected ≥ {min_expected:?}"
@@ -143,7 +143,7 @@ mod tests {
         let elapsed = start.elapsed();
 
         // 42 calls at 8/s with burst=1: first instant, remaining 41 at ~125ms each.
-        let min_expected = Duration::from_millis((total_calls - 1) as u64 * 120);
+        let min_expected = Duration::from_millis((total_calls - 1) * 120);
         assert!(
             elapsed >= min_expected,
             "{total_calls} concurrent calls inside block_on took {elapsed:?}, expected ≥ {min_expected:?}"

@@ -1,6 +1,6 @@
 use std::fmt::{self, Display, Formatter};
 
-use crate::{ItemList, entities::RawMap, items};
+use crate::{ItemList, entities::RawMap};
 use downcast_rs::{Downcast, impl_downcast};
 use itertools::Itertools;
 use openapi::models::{

@@ -1,7 +1,5 @@
 use crate::{
-    CharacterClient, Gear, Level, Slot,
-    entities::{Character, Monster},
-    simulator::entity::{SimulationCharacter, SimulationEntity, SimulationMonster},
+    CharacterClient, Gear, Level, Slot, entities::{Character, CharacterName, Monster}, simulator::entity::{SimulationCharacter, SimulationEntity, SimulationMonster},
 };
 use itertools::Itertools;
 use openapi::models::FightResult;
@@ -44,7 +42,7 @@ impl Simulator {
         participants: Option<Vec<Participant>>,
         monster: &Monster,
         params: &FightParams,
-    ) -> Fight {
+    ) -> FightReport {
         let char = SimulationCharacter::from(initiator);
         let mut chars = vec![char.clone()];
         if let Some(participants) = participants {
@@ -80,11 +78,12 @@ impl Simulator {
             }
             turn += 1;
         }
-        Fight {
+        FightReport {
             turns: turn,
             hp: char.current_health(),
-            monster_hp: monster.current_health(),
+            hp_percent: char.health_percent(),
             hp_lost: char.starting_hp() - char.current_health(),
+            monster_hp: monster.current_health(),
             result: if monster.is_dead() {
                 FightResult::Win
             } else {
@@ -128,7 +127,7 @@ fn pick_monster_target(chars: &[SimulationCharacter]) -> Option<SimulationCharac
 }
 
 pub struct Participant {
-    name: String,
+    name: CharacterName,
     level: u32,
     gear: Gear,
     utility1_quantity: u32,
@@ -138,21 +137,53 @@ pub struct Participant {
 
 impl Participant {
     #[must_use]
-    pub const fn new(
-        name: String,
-        level: u32,
-        gear: Gear,
-        utility1_quantity: u32,
-        utility2_quantity: u32,
-        missing_hp: i32,
-    ) -> Self {
+    pub fn new(name: CharacterName) -> Self {
         Self {
             name,
-            level,
-            gear,
-            utility1_quantity,
-            utility2_quantity,
-            missing_hp,
+            ..Default::default()
+        }
+    }
+
+    #[must_use]
+    pub const fn with_level(mut self, level: u32) -> Self {
+        self.level = level;
+        self
+    }
+
+    #[must_use]
+    pub fn with_gear(mut self, gear: Gear) -> Self {
+        self.gear = gear;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_utility1_quantity(mut self, quantity: u32) -> Self {
+        self.utility1_quantity = quantity;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_utility2_quantity(mut self, quantity: u32) -> Self {
+        self.utility2_quantity = quantity;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_missing_hp(mut self, hp: i32) -> Self {
+        self.missing_hp = hp;
+        self
+    }
+}
+
+impl Default for Participant {
+    fn default() -> Self {
+        Self {
+            name: "Participant".into(),
+            level: 1,
+            gear: Gear::default(),
+            utility1_quantity: 100,
+            utility2_quantity: 100,
+            missing_hp: 0,
         }
     }
 }
@@ -160,7 +191,7 @@ impl Participant {
 impl From<&CharacterClient> for Participant {
     fn from(value: &CharacterClient) -> Self {
         Self {
-            name: value.name().to_string(),
+            name: value.name(),
             level: value.level(),
             gear: value.gear(),
             utility1_quantity: value.quantity_in_slot(Slot::Utility1),
@@ -191,16 +222,17 @@ impl FightParams {
 }
 
 #[derive(Debug)]
-pub struct Fight {
+pub struct FightReport {
     pub turns: u32,
     pub hp: i32,
-    pub monster_hp: i32,
     pub hp_lost: i32,
+    pub monster_hp: i32,
     pub result: FightResult,
     pub cd: u32,
+    pub hp_percent: i32,
 }
 
-impl Fight {
+impl FightReport {
     #[must_use]
     pub const fn is_winning(&self) -> bool {
         matches!(self.result, FightResult::Win)

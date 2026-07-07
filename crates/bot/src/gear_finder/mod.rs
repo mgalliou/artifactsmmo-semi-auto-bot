@@ -185,7 +185,9 @@ impl GearResolver {
         self.gen_combat_gears(monster)
             .filter_map(|g| {
                 let fight = Simulator::fight(
-                    Participant::new("char1".into(), self.level, g.clone(), 100, 100, 0),
+                    Participant::new("char1".into())
+                        .with_level(self.level)
+                        .with_gear(g.clone()),
                     None,
                     monster,
                     &FightParams::default().averaged(),

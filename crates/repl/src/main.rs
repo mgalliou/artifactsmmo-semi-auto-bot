@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bot::{Bot};
+use bot::Bot;
 use log::LevelFilter;
 use sdk::Client;
 use std::env;

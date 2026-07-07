@@ -151,11 +151,14 @@ fn respond(line: &str, bot: &Bot, character: &mut Option<CharacterController>) -
         Commands::Char { i } => {
             character.clone_from(&bot.account.get_character(i as usize));
             if let Some(char) = character.clone() {
-                bail!("character '{}' selected", char.name());
+                println!("character '{}' selected", char.name());
+            } else {
+                bail!("character not found");
             }
-            bail!("character not found");
         }
-        Commands::Status => todo!(),
+        Commands::Status => {
+            bail!("not yet implemented")
+        }
         Commands::Idle => {
             let Some(char) = character else {
                 bail!("no character selected");
@@ -213,17 +216,13 @@ fn respond(line: &str, bot: &Bot, character: &mut Option<CharacterController>) -
             let purpose = if let Some(monster) = bot.client.monsters.get(&entity) {
                 GearPurpose::Combat(monster)
             } else if let Some(resource) = bot.client.resources.get(&entity) {
-
                 GearPurpose::Gathering(resource)
             } else if let Some(item) = bot.client.items.get(&entity) {
-
                 GearPurpose::Crafting(item)
             } else {
                 bail!("entity not found")
             };
-            let gear = bot
-                .gear_finder
-                .best_for(purpose, char, filter);
+            let gear = bot.gear_finder.best_for(purpose, char, filter);
             if let Some(gear) = gear {
                 println!("{gear}");
             } else {
@@ -260,7 +259,9 @@ fn respond(line: &str, bot: &Bot, character: &mut Option<CharacterController>) -
             if let Some(gear) = gear {
                 println!("{gear}");
                 let fight = Simulator::fight(
-                    Participant::new(char.name().to_string(), char.level(), gear, 100, 100, 0),
+                    Participant::new(char.name())
+                        .with_level(char.level())
+                        .with_gear(gear),
                     None,
                     &monster,
                     &FightParams::default(),

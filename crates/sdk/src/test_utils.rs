@@ -1,5 +1,4 @@
-use crate::client::items::ItemsClient;
-use crate::client::monsters::MonstersClient;
+use crate::client::{items::ItemsClient, monsters::MonstersClient};
 use std::sync::LazyLock;
 
 pub static ITEMS: LazyLock<ItemsClient> = LazyLock::new(|| {

@@ -766,9 +766,9 @@ impl CharacterController {
         if !self.bot_config.order_gear() {
             return false;
         }
-        let Some(mut gear) =
-            self.gear_finder
-                .best_for(purpose.clone(), self, Filter::default())
+        let Some(mut gear) = self
+            .gear_finder
+            .best_for(purpose.clone(), self, Filter::default())
         else {
             return false;
         };
@@ -814,14 +814,9 @@ impl CharacterController {
         (1..=1000)
             .filter(|_| {
                 Simulator::fight(
-                    Participant::new(
-                        self.name().to_string(),
-                        self.level(),
-                        gear.clone(),
-                        100,
-                        100,
-                        0,
-                    ),
+                    Participant::new(self.name())
+                        .with_level(self.level())
+                        .with_gear(gear.clone()),
                     None,
                     monster,
                     &FightParams::default(),
@@ -1703,7 +1698,9 @@ impl CharacterController {
     pub fn time_to_kill(&self, monster: &Monster) -> Option<u32> {
         let gear = self.can_kill(monster).ok()?;
         let fight = Simulator::fight(
-            Participant::new(self.name().to_string(), self.level(), gear, 100, 100, 0),
+            Participant::new(self.name())
+                .with_level(self.level())
+                .with_gear(gear),
             None,
             monster,
             &FightParams::default(),

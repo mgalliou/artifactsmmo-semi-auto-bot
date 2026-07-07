@@ -1,7 +1,5 @@
 use crate::{
-    Gear,
-    entities::{Item, Monster},
-    simulator::{
+    Gear, entities::{CharacterName, Item, Monster}, simulator::{
         BASE_HP, BASE_INITIATIVE, BURN_MULTIPLIER, HEAL_INTERVAL, HP_PER_LEVEL, HasEffects,
         Participant, damage_type::DamageType,
     },
@@ -108,6 +106,10 @@ pub(super) trait SimulationEntity: HasEffects + DynClone {
         !self.is_alive()
     }
 
+    fn health_percent(&self) -> i32 {
+        self.current_health() % self.max_hp() * 100
+    }
+
     fn current_health(&self) -> i32;
     fn set_health(&mut self, value: i32);
     fn burning(&self) -> i32;
@@ -153,7 +155,7 @@ dyn_clone::clone_trait_object!(SimulationEntity);
 pub(super) struct SimulationCharacter(Rc<RefCell<BaseSimulationCharacter>>);
 
 pub struct BaseSimulationCharacter {
-    name: String,
+    name: CharacterName,
     gear: Gear,
     pub(super) starting_hp: i32,
     max_hp: i32,
@@ -176,7 +178,7 @@ pub struct BaseSimulationCharacter {
 
 impl BaseSimulationCharacter {
     fn new(
-        name: String,
+        name: CharacterName,
         level: u32,
         gear: Gear,
         utility1_quantity: u32,
@@ -221,7 +223,7 @@ impl From<Participant> for SimulationCharacter {
 
 impl SimulationEntity for SimulationCharacter {
     fn name(&self) -> String {
-        self.0.borrow().name.clone()
+        self.0.borrow().name.clone().to_string()
     }
 
     fn current_turn(&self) -> u32 {

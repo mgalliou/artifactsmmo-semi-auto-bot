@@ -17,7 +17,8 @@ use std::{collections::HashMap, sync::Arc};
 #[element(MapDataHandle)]
 pub struct MapsClient(Arc<MapsClientInner>);
 
-type MapsFetcher = Box<dyn Fn() -> HashMap<(MapLayer, i32, i32), MapDataHandle> + Send + Sync + 'static>;
+type MapsFetcher =
+    Box<dyn Fn() -> HashMap<(MapLayer, i32, i32), MapDataHandle> + Send + Sync + 'static>;
 
 pub struct MapsClientInner {
     path: Box<str>,
@@ -38,11 +39,7 @@ impl Default for MapsClientInner {
 }
 
 impl MapsClient {
-    pub(crate) fn new(
-        path: &str,
-        fetch: MapsFetcher,
-        events: EventsClient,
-    ) -> Self {
+    pub(crate) fn new(path: &str, fetch: MapsFetcher, events: EventsClient) -> Self {
         Self(
             MapsClientInner {
                 path: path.into(),
