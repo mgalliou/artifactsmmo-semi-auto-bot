@@ -3,31 +3,43 @@ use serde::{Deserialize, Serialize};
 use std::sync::{Arc, RwLock};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PendingItemDataHandle(Arc<RwLock<PendingItem>>);
+pub struct PendingItemHandle(Arc<RwLock<RawPendingItem>>);
 
-impl PendingItemDataHandle {
+impl PendingItemHandle {
     #[must_use]
-    pub fn read(&self) -> PendingItem {
+    pub fn read(&self) -> RawPendingItem {
         self.0.read().unwrap().clone()
     }
 
-    pub fn update(&self, data: PendingItem) {
+    pub fn update(&self, data: RawPendingItem) {
         *self.0.write().unwrap() = data;
     }
 }
 
-impl From<PendingItemSchema> for PendingItemDataHandle {
+impl From<PendingItemSchema> for PendingItemHandle {
     fn from(value: PendingItemSchema) -> Self {
-        Self(Arc::new(RwLock::new(PendingItem(Arc::new(value)))))
+        Self(Arc::new(RwLock::new(value.into())))
+    }
+}
+
+impl From<&PendingItemSchema> for PendingItemHandle {
+    fn from(value: &PendingItemSchema) -> Self {
+        value.clone().into()
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct PendingItem(Arc<PendingItemSchema>);
+pub struct RawPendingItem(Arc<PendingItemSchema>);
 
-impl PendingItem {
+impl From<PendingItemSchema> for RawPendingItem {
+    fn from(value: PendingItemSchema) -> Self {
+        Self(Arc::new(value))
+    }
+}
+
+impl RawPendingItem {
     #[must_use]
-    pub fn new(pending_item_schema: PendingItemSchema) -> Self {
+    pub(crate) fn new(pending_item_schema: PendingItemSchema) -> Self {
         Self(Arc::new(pending_item_schema))
     }
 

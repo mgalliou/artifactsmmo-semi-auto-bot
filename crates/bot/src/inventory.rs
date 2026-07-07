@@ -17,7 +17,6 @@ use std::{
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
-#[derive(Default)]
 pub struct InventoryController {
     items: ItemsClient,
     client: CharacterClient,

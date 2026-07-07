@@ -14,11 +14,11 @@ mod task_reward;
 
 pub use account_achievement::*;
 pub use active_event::*;
-pub(crate) use character::CharacterDataHandle;
+pub(crate) use character::CharacterHandle;
 pub use character::{Character, CharacterName, RawCharacter, TaskCode};
 pub use event::*;
 pub use item::*;
-pub(crate) use map::MapDataHandle;
+pub(crate) use map::MapHandle;
 pub use map::{Map, RawMap};
 pub use monster::*;
 pub use npc::*;

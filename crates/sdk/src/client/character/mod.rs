@@ -25,8 +25,8 @@ use crate::{
         server::ServerClient,
     },
     entities::{
-        AccountAchievement, Character, CharacterDataHandle, CharacterName, Map, RawCharacter,
-        RawMap, TaskCode,
+        AccountAchievement, Character, CharacterHandle, CharacterName, Map, RawCharacter, RawMap,
+        TaskCode,
     },
     gear::Slot,
     grand_exchange::GrandExchangeClient,
@@ -52,11 +52,10 @@ pub mod error;
 pub mod inventory;
 pub mod responses;
 
-#[derive(Default, Clone, Deref)]
+#[derive(Clone, Deref)]
 #[deref(forward)]
 pub struct CharacterClient(Arc<CharacterClientInner>);
 
-#[derive(Default)]
 pub struct CharacterClientInner {
     pub id: usize,
     handler: CharacterRequestHandler,
@@ -76,7 +75,7 @@ impl CharacterClient {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         id: usize,
-        data: CharacterDataHandle,
+        data: CharacterHandle,
         account: AccountClient,
         items: ItemsClient,
         resources: ResourcesClient,
@@ -725,7 +724,7 @@ impl CharacterClient {
             return Err(ClaimPendingItemError::ItemNotFound);
         };
         if pending.read().is_claimed() {
-            return Err(ClaimPendingItemError::AlreadyClaimed)
+            return Err(ClaimPendingItemError::AlreadyClaimed);
         }
         if !self.inventory().has_room_for_all(pending.read().items()) {
             return Err(ClaimPendingItemError::InsufficientInventorySpace);

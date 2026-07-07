@@ -1,7 +1,7 @@
 use crate::{
     Cached, CollectionClient,
     client::events::EventsClient,
-    entities::{Map, MapDataHandle, RawMap},
+    entities::{Map, MapHandle, RawMap},
     skill::Skill,
 };
 use arc_swap::ArcSwap;
@@ -14,16 +14,16 @@ use std::{collections::HashMap, sync::Arc};
 #[derive(Clone, Default, Deref, CollectionClient)]
 #[deref(forward)]
 #[key((MapLayer, i32, i32))]
-#[element(MapDataHandle)]
+#[element(MapHandle)]
 pub struct MapsClient(Arc<MapsClientInner>);
 
 type MapsFetcher =
-    Box<dyn Fn() -> HashMap<(MapLayer, i32, i32), MapDataHandle> + Send + Sync + 'static>;
+    Box<dyn Fn() -> HashMap<(MapLayer, i32, i32), MapHandle> + Send + Sync + 'static>;
 
 pub struct MapsClientInner {
     path: Box<str>,
     fetch: MapsFetcher,
-    data: ArcSwap<HashMap<(MapLayer, i32, i32), MapDataHandle>>,
+    data: ArcSwap<HashMap<(MapLayer, i32, i32), MapHandle>>,
     events: EventsClient,
 }
 
@@ -176,12 +176,12 @@ impl MapsClient {
     }
 }
 
-impl Cached<HashMap<(MapLayer, i32, i32), MapDataHandle>> for MapsClient {
+impl Cached<HashMap<(MapLayer, i32, i32), MapHandle>> for MapsClient {
     fn path(&self) -> &str {
         &self.path
     }
 
-    fn fetch_from_source(&self) -> HashMap<(MapLayer, i32, i32), MapDataHandle> {
+    fn fetch_from_source(&self) -> HashMap<(MapLayer, i32, i32), MapHandle> {
         (self.fetch)()
     }
 

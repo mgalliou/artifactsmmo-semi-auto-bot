@@ -1,20 +1,20 @@
 use crate::{
     Code, DropsItems, Quantity,
     container::{ItemContainer, LimitedContainer, SlotLimited, SpaceLimited},
-    entities::{Character, CharacterDataHandle, Item},
+    entities::{Character, CharacterHandle, Item},
 };
 use itertools::Itertools;
 use openapi::models::InventorySlotSchema;
 use std::sync::Arc;
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct InventoryClient {
-    data: CharacterDataHandle,
+    data: CharacterHandle,
 }
 
 impl InventoryClient {
     #[must_use]
-    pub const fn new(data: CharacterDataHandle) -> Self {
+    pub const fn new(data: CharacterHandle) -> Self {
         Self { data }
     }
 }

@@ -2,7 +2,15 @@ use crate::{ItemList, entities::RawMap};
 use downcast_rs::{Downcast, impl_downcast};
 use itertools::Itertools;
 use openapi::models::{
-    ActionType, BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema, BankItemTransactionResponseSchema, CharacterFightResponseSchema, CharacterMovementResponseSchema, CharacterRestResponseSchema, CharacterSchema, CharacterTransitionResponseSchema, ClaimPendingItemResponseSchema, DeleteItemResponseSchema, EquipmentResponseSchema, FightResult, GeCreateOrderTransactionResponseSchema, GeTransactionResponseSchema, GiveGoldResponseSchema, GiveItemResponseSchema, NpcMerchantTransactionResponseSchema, PendingItemSchema, RecyclingResponseSchema, RewardDataResponseSchema, SimpleItemSchema, SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema, TaskTradeResponseSchema, UseItemResponseSchema,
+    ActionType, BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema,
+    BankItemTransactionResponseSchema, CharacterFightResponseSchema,
+    CharacterMovementResponseSchema, CharacterRestResponseSchema, CharacterSchema,
+    CharacterTransitionResponseSchema, ClaimPendingItemResponseSchema, DeleteItemResponseSchema,
+    EquipmentResponseSchema, FightResult, GeCreateOrderTransactionResponseSchema,
+    GeTransactionResponseSchema, GiveGoldResponseSchema, GiveItemResponseSchema,
+    NpcMerchantTransactionResponseSchema, PendingItemSchema, RecyclingResponseSchema,
+    RewardDataResponseSchema, SimpleItemSchema, SkillResponseSchema, TaskCancelledResponseSchema,
+    TaskResponseSchema, TaskTradeResponseSchema, UseItemResponseSchema,
 };
 use std::fmt::{self, Display, Formatter};
 

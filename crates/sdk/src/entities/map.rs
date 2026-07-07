@@ -4,7 +4,11 @@ use openapi::models::{
     MapSchema, TaskType, TransitionSchema,
 };
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, RwLock};
+use std::{
+    clone::Clone,
+    marker::Sized,
+    sync::{Arc, RwLock},
+};
 
 pub trait Map {
     fn position(&self) -> (MapLayer, i32, i32) {
@@ -13,7 +17,7 @@ pub trait Map {
 
     fn closest_among(&self, others: &[Self]) -> Option<Self>
     where
-        Self: std::marker::Sized + std::clone::Clone,
+        Self: Sized + Clone,
     {
         others
             .iter()
@@ -79,9 +83,10 @@ pub trait Map {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct MapDataHandle(Arc<RwLock<RawMap>>);
+pub struct MapHandle(Arc<RwLock<RawMap>>);
 
-impl MapDataHandle {
+impl MapHandle {
+    #[must_use]
     pub fn read(&self) -> RawMap {
         self.0.read().unwrap().clone()
     }
@@ -91,13 +96,13 @@ impl MapDataHandle {
     }
 }
 
-impl From<MapSchema> for MapDataHandle {
+impl From<MapSchema> for MapHandle {
     fn from(value: MapSchema) -> Self {
-        Self(RwLock::new(value.into()).into())
+        Self(Arc::new(RwLock::new(value.into())))
     }
 }
 
-impl From<&MapSchema> for MapDataHandle {
+impl From<&MapSchema> for MapHandle {
     fn from(value: &MapSchema) -> Self {
         value.clone().into()
     }

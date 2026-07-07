@@ -30,32 +30,33 @@ pub trait Character: Level {
     fn cooldown_expiration(&self) -> Option<DateTime<FixedOffset>>;
 }
 
-#[derive(Debug, Default, Clone)]
-pub struct CharacterDataHandle(Arc<RwLock<RawCharacter>>);
+#[derive(Debug, Clone)]
+pub struct CharacterHandle(Arc<RwLock<RawCharacter>>);
 
-impl CharacterDataHandle {
+impl CharacterHandle {
+    #[must_use]
     pub fn read(&self) -> RawCharacter {
         self.0.read().unwrap().clone()
     }
 
-    pub(crate) fn update(&self, data: RawCharacter) {
+    pub fn update(&self, data: RawCharacter) {
         *self.0.write().unwrap() = data;
     }
 }
 
-impl From<CharacterSchema> for CharacterDataHandle {
+impl From<CharacterSchema> for CharacterHandle {
     fn from(value: CharacterSchema) -> Self {
-        Self(RwLock::new(value.into()).into())
+        Self(Arc::new(RwLock::new(value.into())))
     }
 }
 
-impl From<&CharacterSchema> for CharacterDataHandle {
+impl From<&CharacterSchema> for CharacterHandle {
     fn from(value: &CharacterSchema) -> Self {
         value.clone().into()
     }
 }
 
-#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RawCharacter {
     schema: Arc<CharacterSchema>,
     name: CharacterName,
@@ -226,6 +227,12 @@ impl Character for RawCharacter {
     }
 }
 
+impl Level for RawCharacter {
+    fn level(&self) -> u32 {
+        self.schema.level as u32
+    }
+}
+
 impl From<CharacterSchema> for RawCharacter {
     fn from(value: CharacterSchema) -> Self {
         Self {
@@ -240,12 +247,6 @@ impl From<CharacterSchema> for RawCharacter {
 impl From<&CharacterSchema> for RawCharacter {
     fn from(value: &CharacterSchema) -> Self {
         value.clone().into()
-    }
-}
-
-impl Level for RawCharacter {
-    fn level(&self) -> u32 {
-        self.schema.level as u32
     }
 }
 

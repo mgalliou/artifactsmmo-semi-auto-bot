@@ -1,7 +1,7 @@
 use crate::{
     AccountClient, Level, Skill,
     bank::Bank,
-    character::{CharacterDataHandle, responses::ResponseSchema},
+    character::{CharacterHandle, responses::ResponseSchema},
     client::{
         character::{HandleCharacterData, action_request::ActionRequest, error::RequestError},
         server::ServerClient,
@@ -18,11 +18,11 @@ use openapi::models::{
     CharacterRestResponseSchema, CharacterSchema, CharacterTransitionResponseSchema,
     ClaimPendingItemResponseSchema, DeleteItemResponseSchema,
     GeCreateOrderTransactionResponseSchema, GeTransactionResponseSchema, GeTransactionSchema,
-    GiveGoldResponseSchema, GiveItemResponseSchema, InventorySlotSchema, MapLayer, NpcItemTransactionSchema,
-    NpcMerchantTransactionResponseSchema, RecyclingItemsSchema, RecyclingResponseSchema,
-    RewardDataResponseSchema, RewardsSchema, SimpleItemSchema, SkillInfoSchema,
-    SkillResponseSchema, TaskResponseSchema, TaskSchema, TaskTradeResponseSchema, TaskTradeSchema,
-    TaskType,
+    GiveGoldResponseSchema, GiveItemResponseSchema, InventorySlotSchema, MapLayer,
+    NpcItemTransactionSchema, NpcMerchantTransactionResponseSchema, RecyclingItemsSchema,
+    RecyclingResponseSchema, RewardDataResponseSchema, RewardsSchema, SimpleItemSchema,
+    SkillInfoSchema, SkillResponseSchema, TaskResponseSchema, TaskSchema, TaskTradeResponseSchema,
+    TaskTradeSchema, TaskType,
 };
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread::sleep;
@@ -31,10 +31,9 @@ use std::time::Duration;
 /// First layer of abstraction around the character API.
 /// It is responsible for handling the character action requests response and errors
 /// by updating character and bank data, and retrying requests in case of errors.
-#[derive(Default)]
 pub struct CharacterRequestHandler {
     api: ArtifactApi,
-    data: CharacterDataHandle,
+    data: CharacterHandle,
     account: AccountClient,
     server: ServerClient,
     pause_state: Arc<PauseState>,
@@ -43,7 +42,7 @@ pub struct CharacterRequestHandler {
 impl CharacterRequestHandler {
     pub fn new(
         api: ArtifactApi,
-        data: CharacterDataHandle,
+        data: CharacterHandle,
         account: AccountClient,
         server: ServerClient,
     ) -> Self {

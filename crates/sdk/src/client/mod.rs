@@ -1,6 +1,6 @@
 use crate::{
     Cached,
-    entities::{Event, Item, MapDataHandle, Monster, Npc, Resource, Task, TaskReward},
+    entities::{Event, Item, MapHandle, Monster, Npc, Resource, Task, TaskReward},
 };
 use api::ArtifactApi;
 use derive_more::Deref;
@@ -292,7 +292,7 @@ impl Client {
                         .unwrap()
                         .into_iter()
                         .map(|m| ((m.layer, m.x, m.y), m.into()))
-                        .collect::<HashMap<(MapLayer, i32, i32), MapDataHandle>>()
+                        .collect::<HashMap<(MapLayer, i32, i32), MapHandle>>()
                 }),
                 events.clone(),
             )
