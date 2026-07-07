@@ -2,7 +2,7 @@ use crate::{
     ClientError, Code, ItemsClient, MapsClient, MonstersClient, NpcsClient, ResourcesClient,
     ServerClient, TasksClient,
     client::{bank::BankClient, character::CharacterClient},
-    entities::{AccountAchievement, Character, PendingItem},
+    entities::{AccountAchievement, Character, PendingItem, PendingItemDataHandle},
     grand_exchange::GrandExchangeClient,
 };
 use api::ArtifactApi;
@@ -10,6 +10,7 @@ use arc_swap::ArcSwap;
 use derive_more::Deref;
 use itertools::Itertools;
 use log::info;
+use openapi::models::PendingItemSchema;
 use std::sync::{Arc, RwLock};
 
 #[derive(Clone, Default, Deref)]
@@ -24,7 +25,7 @@ pub struct AccountClientInner {
     bank: BankClient,
     characters: RwLock<Vec<CharacterClient>>,
     achievements: RwLock<Vec<AccountAchievement>>,
-    pending_items: ArcSwap<Vec<PendingItem>>,
+    pending_items: ArcSwap<Vec<PendingItemDataHandle>>,
 }
 
 impl AccountClient {
@@ -115,7 +116,7 @@ impl AccountClient {
                 .pending_items()
                 .map_err(|e| ClientError::Api(Box::new(e)))?
                 .into_iter()
-                .map(PendingItem::new)
+                .map(PendingItemDataHandle::from)
                 .collect_vec(),
         ));
         Ok(())
@@ -153,7 +154,18 @@ impl AccountClient {
     }
 
     #[must_use]
-    pub fn pending_items(&self) -> Vec<PendingItem> {
+    pub fn pending_items(&self) -> Vec<PendingItemDataHandle> {
         self.pending_items.load().iter().cloned().collect_vec()
+    }
+
+    pub fn update_pending_item(&self, item: PendingItemSchema) {
+        let Some(pending) = self
+            .pending_items()
+            .into_iter()
+            .find(|i| *i.read().id() == item.id)
+        else {
+            return;
+        };
+        pending.update(PendingItem::new(item));
     }
 }

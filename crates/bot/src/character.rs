@@ -23,7 +23,7 @@ use crate::{
     orderboard::{Order, OrderBoard, Purpose},
     reservable::Reservable,
 };
-use anyhow::Result;
+use anyhow::{Result, bail};
 use chrono::{DateTime, FixedOffset};
 use derive_more::Deref;
 use itertools::{Either, Itertools};
@@ -162,6 +162,9 @@ impl CharacterController {
                 continue;
             }
             if self.order_food().is_ok() {
+                continue;
+            }
+            if self.claim_pending_items().is_ok() {
                 continue;
             }
             if let Ok(c) = self.commands_recvr.lock().unwrap().try_recv()
@@ -1852,6 +1855,21 @@ impl CharacterController {
                 *acc.entry(k).or_insert(0) += v;
                 acc
             })
+    }
+
+    fn claim_pending_items(&self) -> anyhow::Result<()> {
+        for pending in self.account.client().pending_items() {
+            if !pending.read().is_claimed() {
+                match self.client.claim_pending_item(pending.read().id()) {
+                    Err(e) => {
+                        error!("{}: failed to claim pending item: {e}", self.name());
+                        return Err(anyhow::anyhow!(e));
+                    }
+                    Ok(()) => return Ok(()),
+                };
+            }
+        }
+        bail!("no item pending")
     }
 
     //fn progress_gift_order(&self, order: &Order) -> Option<u32> {

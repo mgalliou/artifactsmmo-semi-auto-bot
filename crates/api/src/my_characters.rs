@@ -463,8 +463,8 @@ impl MyCharacterApi {
 
     pub fn claim_pending_item(
         &self,
-        id: &str,
         name: &str,
+        id: &str,
     ) -> Result<
         ClaimPendingItemResponseSchema,
         Error<ActionClaimPendingItemMyNameActionClaimItemIdPostError>,

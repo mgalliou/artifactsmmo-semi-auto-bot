@@ -125,11 +125,15 @@ impl CharacterRequestHandler {
         }
         if let Some(gold) = res.bank_gold() {
             self.account.bank().set_gold(gold);
-        } else if let Some(extension_price) = res.extension_price() {
+        }
+        if let Some(extension_price) = res.extension_price() {
             self.account.bank().expand();
             self.account
                 .bank()
                 .set_gold(self.account.bank().gold() - extension_price);
+        }
+        if let Some(item) = res.claimed_pending_item() {
+            self.account.update_pending_item(item.clone());
         }
     }
 

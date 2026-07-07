@@ -479,10 +479,12 @@ pub enum GiveGoldError {
 #[try_from(repr)]
 #[repr(isize)]
 pub enum ClaimPendingItemError {
-    #[error("id not found")]
+    #[error("pending item not found")]
     ItemNotFound = ENTITY_NOT_FOUND,
     #[error("insufficient inventory space")]
     InsufficientInventorySpace = INVENTORY_FULL,
+    #[error("item(s) already claimed")]
+    AlreadyClaimed, // TODO: find corresponding error code
     #[error(transparent)]
     UnhandledError(#[from] RequestError),
 }

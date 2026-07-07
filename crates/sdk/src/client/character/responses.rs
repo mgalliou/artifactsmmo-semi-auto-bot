@@ -2,15 +2,7 @@ use crate::{ItemList, entities::RawMap};
 use downcast_rs::{Downcast, impl_downcast};
 use itertools::Itertools;
 use openapi::models::{
-    ActionType, BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema,
-    BankItemTransactionResponseSchema, CharacterFightResponseSchema,
-    CharacterMovementResponseSchema, CharacterRestResponseSchema, CharacterSchema,
-    CharacterTransitionResponseSchema, ClaimPendingItemResponseSchema, DeleteItemResponseSchema,
-    EquipmentResponseSchema, FightResult, GeCreateOrderTransactionResponseSchema,
-    GeTransactionResponseSchema, GiveGoldResponseSchema, GiveItemResponseSchema,
-    NpcMerchantTransactionResponseSchema, RecyclingResponseSchema, RewardDataResponseSchema,
-    SimpleItemSchema, SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema,
-    TaskTradeResponseSchema, UseItemResponseSchema,
+    ActionType, BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema, BankItemTransactionResponseSchema, CharacterFightResponseSchema, CharacterMovementResponseSchema, CharacterRestResponseSchema, CharacterSchema, CharacterTransitionResponseSchema, ClaimPendingItemResponseSchema, DeleteItemResponseSchema, EquipmentResponseSchema, FightResult, GeCreateOrderTransactionResponseSchema, GeTransactionResponseSchema, GiveGoldResponseSchema, GiveItemResponseSchema, NpcMerchantTransactionResponseSchema, PendingItemSchema, RecyclingResponseSchema, RewardDataResponseSchema, SimpleItemSchema, SkillResponseSchema, TaskCancelledResponseSchema, TaskResponseSchema, TaskTradeResponseSchema, UseItemResponseSchema,
 };
 use std::fmt::{self, Display, Formatter};
 
@@ -31,6 +23,10 @@ pub trait ResponseSchema: Downcast {
     }
 
     fn extension_price(&self) -> Option<u32> {
+        None
+    }
+
+    fn claimed_pending_item(&self) -> Option<&PendingItemSchema> {
         None
     }
 }
@@ -414,6 +410,10 @@ impl ResponseSchema for ClaimPendingItemResponseSchema {
 
     fn characters(&self) -> Vec<&CharacterSchema> {
         vec![&self.character()]
+    }
+
+    fn claimed_pending_item(&self) -> Option<&PendingItemSchema> {
+        Some(&self.data.item)
     }
 }
 

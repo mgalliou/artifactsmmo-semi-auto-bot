@@ -710,7 +710,7 @@ impl CharacterClient {
         Ok(())
     }
 
-    pub fn claim_pending_items(&self, id: &str) -> Result<(), ClaimPendingItemError> {
+    pub fn claim_pending_item(&self, id: &str) -> Result<(), ClaimPendingItemError> {
         self.can_claim_pending_item(id)?;
         Ok(self.handler().request_claim_pending_item(id)?)
     }
@@ -720,11 +720,14 @@ impl CharacterClient {
             .account()
             .pending_items()
             .into_iter()
-            .find(|i| i.id() == id)
+            .find(|i| *i.read().id() == id)
         else {
             return Err(ClaimPendingItemError::ItemNotFound);
         };
-        if !self.inventory().has_room_for_all(pending.items()) {
+        if pending.read().is_claimed() {
+            return Err(ClaimPendingItemError::AlreadyClaimed)
+        }
+        if !self.inventory().has_room_for_all(pending.read().items()) {
             return Err(ClaimPendingItemError::InsufficientInventorySpace);
         }
         Ok(())
@@ -883,7 +886,9 @@ impl CharacterClient {
 
     #[must_use]
     pub fn current_map(&self) -> RawMap {
-        self.maps.get_raw(&self.position()).unwrap()
+        self.maps
+            .get_raw(&self.position())
+            .expect("current position should always have a corresponding map")
     }
 }
 
