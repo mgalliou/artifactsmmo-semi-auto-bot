@@ -39,7 +39,7 @@ impl CharacterHandle {
         self.0.read().unwrap().clone()
     }
 
-    pub fn store(&self, data: RawCharacter) {
+    pub(crate) fn store(&self, data: RawCharacter) {
         *self.0.write().unwrap() = data;
     }
 }

@@ -1,11 +1,16 @@
 use crate::{
     ClientError, Code, ItemsClient, MapsClient, MonstersClient, NpcsClient, ResourcesClient,
     ServerClient, TasksClient,
-    client::{bank::BankClient, character::CharacterClient},
-    entities::{AccountAchievement, Character, PendingItemHandle, RawPendingItem},
+    client::{
+        bank::BankClient,
+        character::{
+            CharacterClient, CharacterRequestHandler, request_handler::CharacterHttpRequestHandler,
+        },
+    },
+    entities::{AccountAchievement, Character, CharacterHandle, PendingItemHandle, RawPendingItem},
     grand_exchange::GrandExchangeClient,
 };
-use api::ArtifactApi;
+use ::api::ArtifactApi;
 use arc_swap::ArcSwap;
 use derive_more::Deref;
 use itertools::Itertools;
@@ -77,9 +82,18 @@ impl AccountClient {
             .into_iter()
             .enumerate()
             .map(|(id, data)| {
+                let data: CharacterHandle = data.into();
+                let handler: Arc<dyn CharacterRequestHandler> =
+                    Arc::new(CharacterHttpRequestHandler::new(
+                        self.api.clone(),
+                        data.clone(),
+                        self.clone(),
+                        server.clone(),
+                    ));
                 CharacterClient::new(
                     id,
-                    data.into(),
+                    data,
+                    handler,
                     self.clone(),
                     items.clone(),
                     resources.clone(),
@@ -88,8 +102,6 @@ impl AccountClient {
                     npcs.clone(),
                     tasks.clone(),
                     grand_exchange.clone(),
-                    server.clone(),
-                    self.api.clone(),
                 )
             })
             .collect_vec();

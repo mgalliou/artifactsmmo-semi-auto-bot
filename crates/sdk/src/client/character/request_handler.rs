@@ -4,7 +4,7 @@ use crate::{
     bank::Bank,
     character::{CharacterHandle, responses::ResponseSchema},
     client::{
-        character::{CharacterStore, action_request::ActionRequest, error::RequestError},
+        character::{CharacterRequestHandler, action_request::ActionRequest, error::RequestError},
         server::ServerClient,
     },
     entities::RawMap,
@@ -15,7 +15,7 @@ use log::{debug, error, info, warn};
 use openapi::models::{
     BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema,
     CharacterFightResponseSchema, CharacterFightSchema, CharacterMovementResponseSchema,
-    CharacterSchema, CharacterTransitionResponseSchema, ClaimPendingItemResponseSchema,
+    CharacterTransitionResponseSchema, ClaimPendingItemResponseSchema,
     DeleteItemResponseSchema, GeCreateOrderTransactionResponseSchema, GeTransactionResponseSchema,
     GeTransactionSchema, GiveGoldResponseSchema, GiveItemResponseSchema, NpcItemTransactionSchema,
     NpcMerchantTransactionResponseSchema, RecyclingItemsSchema, RecyclingResponseSchema,
@@ -24,7 +24,6 @@ use openapi::models::{
     UnequipSchema,
 };
 use openapi::models::{CharacterRestResponseSchema, EquipSchema};
-use std::ops::Deref;
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread::sleep;
 use std::time::Duration;
@@ -32,7 +31,7 @@ use std::time::Duration;
 /// First layer of abstraction around the character API.
 /// It is responsible for handling the character action requests response and errors
 /// by updating character and bank data, and retrying requests in case of errors.
-pub struct CharacterRequestHandler {
+pub struct CharacterHttpRequestHandler {
     api: ArtifactApi,
     data: CharacterHandle,
     account: AccountClient,
@@ -40,7 +39,7 @@ pub struct CharacterRequestHandler {
     pause_state: Arc<PauseState>,
 }
 
-impl CharacterRequestHandler {
+impl CharacterHttpRequestHandler {
     pub fn new(
         api: ArtifactApi,
         data: CharacterHandle,
@@ -56,25 +55,6 @@ impl CharacterRequestHandler {
         }
     }
 
-    pub fn pause(&self) {
-        info!("{}: paused", self.name());
-        self.pause_state.pause();
-    }
-
-    pub fn resume(&self) {
-        info!("{}: resumed", self.name());
-        self.pause_state.resume();
-    }
-
-    pub fn cancel(&self) {
-        info!("{}: request canceled", self.name());
-        self.pause_state.cancel();
-    }
-
-    pub fn is_paused(&self) -> bool {
-        self.pause_state.is_paused()
-    }
-
     fn request_action(
         &self,
         action: ActionRequest,
@@ -83,33 +63,12 @@ impl CharacterRequestHandler {
             *self.pause_state.canceled.lock().unwrap() = false;
             return Err(RequestError::Canceled);
         }
-        // if action.is_deposit_item() || action.is_withdraw_item() {
-        //     bank_content = Some(
-        //         self.account.bank()
-        //             .content()
-        //             .write()
-        //             .expect("bank_content to be writable"),
-        //     );
-        // }
-        // if action.is_deposit_gold() || action.is_withdraw_gold() || action.is_expand_bank() {
-        //     bank_details = Some(
-        //         self.account
-        //             .bank()
-        //             .details
-        //             .write()
-        //             .expect("bank_details to be writable"),
-        //     );
-        // }
-        match action.send(&self.name(), &self.api) {
+        match action.send(&self.data.name(), &self.api) {
             Ok(res) => {
                 self.update_data(&*res);
                 Ok(res)
             }
-            Err(e) => {
-                // drop(bank_content);
-                // drop(bank_details);
-                self.handle_request_error(action, e)
-            }
+            Err(e) => self.handle_request_error(action, e),
         }
     }
 
@@ -117,7 +76,7 @@ impl CharacterRequestHandler {
         info!("{res}");
         res.characters().into_iter().for_each(|c| {
             if let Some(char_client) = self.account.get_character(&c.name) {
-                char_client.update_data(c.clone());
+                char_client.store(c.clone().into());
             }
         });
         if let Some(content) = res.bank_content() {
@@ -144,7 +103,7 @@ impl CharacterRequestHandler {
     ) -> Result<Box<dyn ResponseSchema>, RequestError> {
         error!(
             "{}: failed to request action '{action}': {error}",
-            self.name(),
+            self.data.name(),
         );
         match error {
             RequestError::ResponseError(ref res) => {
@@ -154,7 +113,7 @@ impl CharacterRequestHandler {
                 if res.error.code == 499 {
                     error!(
                         "{}: code 499 received, resyncronizing server time",
-                        self.name()
+                        self.data.name()
                     );
                     self.server.update_offset();
                     return self.request_action(action);
@@ -162,7 +121,7 @@ impl CharacterRequestHandler {
                 if res.error.code == 500 || res.error.code == 520 {
                     error!(
                         "{}: unknown error ({}), retrying in 10 seconds.",
-                        self.name(),
+                        self.data.name(),
                         res.error.code
                     );
                     sleep(Duration::from_secs(10));
@@ -171,12 +130,12 @@ impl CharacterRequestHandler {
             }
             RequestError::Reqwest(ref req) => {
                 if req.is_timeout() {
-                    error!("{}: request timed-out, retrying...", self.name());
+                    error!("{}: request timed-out, retrying...", self.data.name());
                     return self.request_action(action);
                 }
             }
             RequestError::Serde(_) | RequestError::Io(_) | RequestError::DowncastError => {
-                warn!("{}: refreshing data", self.name());
+                warn!("{}: refreshing data", self.data.name());
                 self.refresh_data();
             }
             RequestError::Canceled | RequestError::ReqwestMiddleware(_) => return Err(error),
@@ -190,7 +149,7 @@ impl CharacterRequestHandler {
         let cooldown = self.remaining_cooldown();
         debug!(
             "{}: cooling down for {}.{} seconds.",
-            self.name(),
+            self.data.name(),
             cooldown.as_secs(),
             cooldown.subsec_millis()
         );
@@ -215,38 +174,63 @@ impl CharacterRequestHandler {
     }
 
     fn warn_if_late(&self) {
-        let Some(expiration) = self.cooldown_expiration() else {
+        let Some(expiration) = self.data.cooldown_expiration() else {
             return;
         };
         let late = Utc::now().fixed_offset() - expiration;
         if late.num_seconds() > 1 {
-            warn!("{}: is late by {}s", self.name(), late.num_seconds());
+            warn!("{}: is late by {}s", self.data.name(), late.num_seconds());
         }
     }
 
     /// Returns the remaining cooldown duration.
     pub fn remaining_cooldown(&self) -> Duration {
-        let Some(expiration_time) = self.cooldown_expiration() else {
+        let Some(expiration_time) = self.data.cooldown_expiration() else {
             return Duration::ZERO;
         };
         (expiration_time.to_utc() - self.server.synced_time())
             .to_std()
             .unwrap_or_default()
     }
+}
 
-    pub fn request_move(&self, x: i32, y: i32) -> Result<RawMap, RequestError> {
+impl CharacterRequestHandler for CharacterHttpRequestHandler {
+    fn pause(&self) {
+        info!("{}: paused", self.data.name());
+        self.pause_state.pause();
+    }
+
+    fn resume(&self) {
+        info!("{}: resumed", self.data.name());
+        self.pause_state.resume();
+    }
+
+    fn cancel(&self) {
+        info!("{}: request canceled", self.data.name());
+        self.pause_state.cancel();
+    }
+
+    fn is_paused(&self) -> bool {
+        self.pause_state.is_paused()
+    }
+
+    fn remaining_cooldown(&self) -> Duration {
+        self.remaining_cooldown()
+    }
+
+    fn request_move(&self, x: i32, y: i32) -> Result<RawMap, RequestError> {
         self.request_action(ActionRequest::Move { x, y })
             .and_then(downcast_response::<CharacterMovementResponseSchema>)
             .map(|s| RawMap::from(*s.data.destination))
     }
 
-    pub fn request_transition(&self) -> Result<RawMap, RequestError> {
+    fn request_transition(&self) -> Result<RawMap, RequestError> {
         self.request_action(ActionRequest::Transition)
             .and_then(downcast_response::<CharacterTransitionResponseSchema>)
             .map(|s| RawMap::from(*s.data.destination))
     }
 
-    pub fn request_fight(
+    fn request_fight(
         &self,
         participants: Option<&[String; 2]>,
     ) -> Result<CharacterFightSchema, RequestError> {
@@ -255,19 +239,19 @@ impl CharacterRequestHandler {
             .map(|s| *s.data.fight)
     }
 
-    pub fn request_rest(&self) -> Result<u32, RequestError> {
+    fn request_rest(&self) -> Result<u32, RequestError> {
         self.request_action(ActionRequest::Rest)
             .and_then(downcast_response::<CharacterRestResponseSchema>)
             .map(|s| s.data.hp_restored as u32)
     }
 
-    pub fn request_gather(&self) -> Result<SkillInfoSchema, RequestError> {
+    fn request_gather(&self) -> Result<SkillInfoSchema, RequestError> {
         self.request_action(ActionRequest::Gather)
             .and_then(downcast_response::<SkillResponseSchema>)
             .map(|s| *s.data.details)
     }
 
-    pub fn request_craft(
+    fn request_craft(
         &self,
         item_code: &str,
         quantity: u32,
@@ -280,7 +264,7 @@ impl CharacterRequestHandler {
         .map(|s| *s.data.details)
     }
 
-    pub fn request_delete(
+    fn request_delete(
         &self,
         item_code: &str,
         quantity: u32,
@@ -293,7 +277,7 @@ impl CharacterRequestHandler {
         .map(|r| *r.data.item)
     }
 
-    pub fn request_recycle(
+    fn request_recycle(
         &self,
         item_code: &str,
         quantity: u32,
@@ -306,45 +290,45 @@ impl CharacterRequestHandler {
         .map(|r| *r.data.details)
     }
 
-    pub fn request_deposit_item(&self, items: &[SimpleItemSchema]) -> Result<(), RequestError> {
+    fn request_deposit_item(&self, items: &[SimpleItemSchema]) -> Result<(), RequestError> {
         self.request_action(ActionRequest::DepositItem { items })
             .map(|_| ())
     }
 
-    pub fn request_withdraw_item(&self, items: &[SimpleItemSchema]) -> Result<(), RequestError> {
+    fn request_withdraw_item(&self, items: &[SimpleItemSchema]) -> Result<(), RequestError> {
         self.request_action(ActionRequest::WithdrawItem { items })
             .map(|_| ())
     }
 
-    pub fn request_deposit_gold(&self, quantity: u32) -> Result<u32, RequestError> {
+    fn request_deposit_gold(&self, quantity: u32) -> Result<u32, RequestError> {
         self.request_action(ActionRequest::DepositGold { quantity })
             .and_then(downcast_response::<BankGoldTransactionResponseSchema>)
             .map(|r| r.data.bank.quantity)
     }
 
-    pub fn request_withdraw_gold(&self, quantity: u32) -> Result<u32, RequestError> {
+    fn request_withdraw_gold(&self, quantity: u32) -> Result<u32, RequestError> {
         self.request_action(ActionRequest::WithdrawGold { quantity })
             .and_then(downcast_response::<BankGoldTransactionResponseSchema>)
             .map(|r| r.data.bank.quantity)
     }
 
-    pub fn request_expand_bank(&self) -> Result<u32, RequestError> {
+    fn request_expand_bank(&self) -> Result<u32, RequestError> {
         self.request_action(ActionRequest::ExpandBank)
             .and_then(downcast_response::<BankExtensionTransactionResponseSchema>)
             .map(|r| r.data.transaction.price)
     }
 
-    pub fn request_equip(&self, items: &[EquipSchema]) -> Result<(), RequestError> {
+    fn request_equip(&self, items: &[EquipSchema]) -> Result<(), RequestError> {
         self.request_action(ActionRequest::Equip { items })
             .map(|_| ())
     }
 
-    pub fn request_unequip(&self, slots: &[UnequipSchema]) -> Result<(), RequestError> {
+    fn request_unequip(&self, slots: &[UnequipSchema]) -> Result<(), RequestError> {
         self.request_action(ActionRequest::Unequip { slots })
             .map(|_| ())
     }
 
-    pub fn request_use_item(&self, item_code: &str, quantity: u32) -> Result<(), RequestError> {
+    fn request_use_item(&self, item_code: &str, quantity: u32) -> Result<(), RequestError> {
         self.request_action(ActionRequest::UseItem {
             item_code,
             quantity,
@@ -352,23 +336,23 @@ impl CharacterRequestHandler {
         .map(|_| ())
     }
 
-    pub fn request_accept_task(&self) -> Result<TaskSchema, RequestError> {
+    fn request_accept_task(&self) -> Result<TaskSchema, RequestError> {
         self.request_action(ActionRequest::AcceptTask)
             .and_then(downcast_response::<TaskResponseSchema>)
             .map(|r| *r.data.task)
     }
 
-    pub fn request_complete_task(&self) -> Result<RewardsSchema, RequestError> {
+    fn request_complete_task(&self) -> Result<RewardsSchema, RequestError> {
         self.request_action(ActionRequest::CompleteTask)
             .and_then(downcast_response::<RewardDataResponseSchema>)
             .map(|s| *s.data.rewards)
     }
 
-    pub fn request_cancel_task(&self) -> Result<(), RequestError> {
+    fn request_cancel_task(&self) -> Result<(), RequestError> {
         self.request_action(ActionRequest::CancelTask).map(|_| ())
     }
 
-    pub fn request_trade_task_item(
+    fn request_trade_task_item(
         &self,
         item_code: &str,
         quantity: u32,
@@ -381,13 +365,13 @@ impl CharacterRequestHandler {
         .map(|r| *r.data.trade)
     }
 
-    pub fn request_exchange_tasks_coin(&self) -> Result<RewardsSchema, RequestError> {
+    fn request_exchange_tasks_coin(&self) -> Result<RewardsSchema, RequestError> {
         self.request_action(ActionRequest::ExchangeTasksCoins)
             .and_then(downcast_response::<RewardDataResponseSchema>)
             .map(|r| *r.data.rewards)
     }
 
-    pub fn request_npc_buy(
+    fn request_npc_buy(
         &self,
         item_code: &str,
         quantity: u32,
@@ -400,7 +384,7 @@ impl CharacterRequestHandler {
         .map(|r| *r.data.transaction)
     }
 
-    pub fn request_npc_sell(
+    fn request_npc_sell(
         &self,
         item_code: &str,
         quantity: u32,
@@ -413,7 +397,7 @@ impl CharacterRequestHandler {
         .map(|r| *r.data.transaction)
     }
 
-    pub fn request_give_item(
+    fn request_give_item(
         &self,
         items: &[SimpleItemSchema],
         character: &str,
@@ -423,7 +407,7 @@ impl CharacterRequestHandler {
             .map(|_| ())
     }
 
-    pub fn request_give_gold(&self, quantity: u32, character: &str) -> Result<(), RequestError> {
+    fn request_give_gold(&self, quantity: u32, character: &str) -> Result<(), RequestError> {
         self.request_action(ActionRequest::GiveGold {
             quantity,
             character,
@@ -432,13 +416,13 @@ impl CharacterRequestHandler {
         .map(|_| ())
     }
 
-    pub fn request_claim_pending_item(&self, id: &str) -> Result<(), RequestError> {
+    fn request_claim_pending_item(&self, id: &str) -> Result<(), RequestError> {
         self.request_action(ActionRequest::ClaimPendingItem { id })
             .and_then(downcast_response::<ClaimPendingItemResponseSchema>)
             .map(|_| ())
     }
 
-    pub fn request_ge_buy_order(
+    fn request_ge_buy_order(
         &self,
         id: &str,
         quantity: u32,
@@ -448,7 +432,7 @@ impl CharacterRequestHandler {
             .map(|r| *r.data.order)
     }
 
-    pub fn request_ge_create_order(
+    fn request_ge_create_order(
         &self,
         item_code: &str,
         quantity: u32,
@@ -463,31 +447,17 @@ impl CharacterRequestHandler {
         .map(|_| ())
     }
 
-    pub fn request_ge_cancel_order(&self, id: &str) -> Result<GeTransactionSchema, RequestError> {
+    fn request_ge_cancel_order(&self, id: &str) -> Result<GeTransactionSchema, RequestError> {
         self.request_action(ActionRequest::GeCancelOrder { id })
             .and_then(downcast_response::<GeTransactionResponseSchema>)
             .map(|r| *r.data.order)
     }
-}
 
-impl CharacterStore for CharacterRequestHandler {
     fn refresh_data(&self) {
-        let Ok(res) = self.api.character.get(&self.name()) else {
+        let Ok(res) = self.api.character.get(&self.data.name()) else {
             return;
         };
         self.data.store((*res.data).into());
-    }
-
-    fn update_data(&self, schema: CharacterSchema) {
-        self.data.store(schema.into());
-    }
-}
-
-impl Deref for CharacterRequestHandler {
-    type Target = CharacterHandle;
-
-    fn deref(&self) -> &Self::Target {
-        &self.data
     }
 }
 

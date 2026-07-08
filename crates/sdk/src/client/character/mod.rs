@@ -7,22 +7,18 @@ use crate::{
     },
     client::{
         bank::{Bank, BankClient},
-        character::{
-            error::{
-                BankExpansionError, BuyNpcError, CraftError, DeleteError, DepositError, EquipError,
-                FightError, GatherError, GoldDepositError, GoldWithdrawError, MoveError,
-                RecycleError, RestError, SellNpcError, TaskAcceptationError, TaskCancellationError,
-                TaskCompletionError, TaskTradeError, TasksCoinExchangeError, UnequipError,
-                UseError, WithdrawError,
-            },
-            request_handler::CharacterRequestHandler,
+        character::error::{
+            BankExpansionError, BuyNpcError, CraftError, DeleteError, DepositError, EquipError,
+            FightError, GatherError, GoldDepositError, GoldWithdrawError, MoveError, RecycleError,
+            RestError, SellNpcError, TaskAcceptationError, TaskCancellationError,
+            TaskCompletionError, TaskTradeError, TasksCoinExchangeError, UnequipError, UseError,
+            WithdrawError,
         },
         items::{ItemsClient, LevelConditionCode},
         maps::MapsClient,
         monsters::MonstersClient,
         npcs::NpcsClient,
         resources::ResourcesClient,
-        server::ServerClient,
     },
     entities::{AccountAchievement, Character, CharacterHandle, CharacterName, Map, RawMap},
     gear::Slot,
@@ -30,19 +26,17 @@ use crate::{
     simulator::HasEffects,
     skill::Skill,
 };
-use api::ArtifactApi;
 use derive_more::Deref;
 use openapi::models::{
-    CharacterFightSchema, CharacterSchema, ConditionOperator, EquipSchema, GeOrderType,
-    GeTransactionSchema, MapContentType, NpcItemTransactionSchema, RecyclingItemsSchema,
-    RewardsSchema, SimpleItemSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
-    UnequipSchema,
+    CharacterFightSchema, ConditionOperator, EquipSchema, GeOrderType, GeTransactionSchema, MapContentType, NpcItemTransactionSchema, RecyclingItemsSchema, RewardsSchema, SimpleItemSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType, UnequipSchema,
 };
 use std::{str::FromStr, sync::Arc, time::Duration};
 
+pub use handler::CharacterRequestHandler;
 pub use inventory::{Inventory, InventoryClient};
 
-mod request_handler;
+pub mod handler;
+pub(crate) mod request_handler;
 
 pub mod action_request;
 pub mod error;
@@ -57,7 +51,8 @@ pub struct CharacterClient(Arc<CharacterClientInner>);
 pub struct CharacterClientInner {
     pub id: usize,
     #[deref]
-    handler: CharacterRequestHandler,
+    data: CharacterHandle,
+    handler: Arc<dyn CharacterRequestHandler>,
     inventory: InventoryClient,
     account: AccountClient,
     bank: BankClient,
@@ -75,6 +70,7 @@ impl CharacterClient {
     pub(crate) fn new(
         id: usize,
         data: CharacterHandle,
+        handler: Arc<dyn CharacterRequestHandler>,
         account: AccountClient,
         items: ItemsClient,
         resources: ResourcesClient,
@@ -83,13 +79,12 @@ impl CharacterClient {
         npcs: NpcsClient,
         tasks: TasksClient,
         grand_exchange: GrandExchangeClient,
-        server: ServerClient,
-        api: ArtifactApi,
     ) -> Self {
         Self(
             CharacterClientInner {
                 id,
-                handler: CharacterRequestHandler::new(api, data.clone(), account.clone(), server),
+                data: data.clone(),
+                handler,
                 inventory: InventoryClient::new(data),
                 bank: account.bank(),
                 account,
@@ -110,8 +105,9 @@ impl CharacterClient {
         self.id
     }
 
-    pub(crate) fn handler(&self) -> &CharacterRequestHandler {
-        &self.handler
+    #[must_use]
+    pub fn handler(&self) -> &dyn CharacterRequestHandler {
+        &*self.handler
     }
 
     pub fn pause(&self) {
@@ -557,7 +553,9 @@ impl CharacterClient {
         quantity: u32,
     ) -> Result<TaskTradeSchema, TaskTradeError> {
         self.can_trade_task_item(item_code, quantity)?;
-        Ok(self.handler.request_trade_task_item(item_code, quantity)?)
+        Ok(self
+            .handler()
+            .request_trade_task_item(item_code, quantity)?)
     }
 
     pub fn can_trade_task_item(
@@ -916,21 +914,6 @@ impl CharacterClient {
         self.maps
             .get_raw(&self.position())
             .expect("current position should always have a corresponding map")
-    }
-}
-
-pub trait CharacterStore {
-    fn refresh_data(&self);
-    fn update_data(&self, schema: CharacterSchema);
-}
-
-impl CharacterStore for CharacterClient {
-    fn refresh_data(&self) {
-        self.handler().refresh_data();
-    }
-
-    fn update_data(&self, schema: CharacterSchema) {
-        self.handler().update_data(schema);
     }
 }
 

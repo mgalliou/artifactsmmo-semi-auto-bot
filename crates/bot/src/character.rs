@@ -35,7 +35,7 @@ use sdk::{
     ItemsClient, Level, LimitedContainer, MapsClient, MonstersClient, NpcsClient, SlotLimited,
     SpaceLimited, TasksClient,
     bank::Bank,
-    character::{CharacterClient, CharacterStore, error::RestError},
+    character::{CharacterClient, error::RestError},
     consts::{
         BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, GOLDEN_EGG, GOLDEN_SHRIMP, MAX_LEVEL,
         TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE, TASKS_COIN,
@@ -1840,7 +1840,7 @@ impl CharacterController {
         self.config().toggle_idle();
         info!("{} toggled idle: {}.", self.name(), self.config().is_idle());
         if !self.config().is_idle() {
-            self.client.refresh_data();
+            self.client.handler().refresh_data();
         }
     }
 
