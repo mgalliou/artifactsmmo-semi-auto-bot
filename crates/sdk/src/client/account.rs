@@ -162,10 +162,10 @@ impl AccountClient {
         let Some(pending) = self
             .pending_items()
             .into_iter()
-            .find(|i| *i.read().id() == item.id)
+            .find(|i| *i.load().id() == item.id)
         else {
             return;
         };
-        pending.update(RawPendingItem::new(item));
+        pending.store(RawPendingItem::new(item));
     }
 }

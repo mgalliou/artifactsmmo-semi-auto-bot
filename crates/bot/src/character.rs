@@ -1857,8 +1857,8 @@ impl CharacterController {
 
     fn claim_pending_items(&self) -> anyhow::Result<()> {
         for pending in self.account.client().pending_items() {
-            if !pending.read().is_claimed() {
-                match self.client.claim_pending_item(pending.read().id()) {
+            if !pending.load().is_claimed() {
+                match self.client.claim_pending_item(pending.load().id()) {
                     Err(e) => {
                         error!("{}: failed to claim pending item: {e}", self.name());
                         return Err(anyhow::anyhow!(e));

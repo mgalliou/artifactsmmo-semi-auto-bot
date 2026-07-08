@@ -62,12 +62,12 @@ impl MapsClient {
 
     #[must_use]
     pub fn get_raw(&self, position: &(MapLayer, i32, i32)) -> Option<RawMap> {
-        Some(self.get(position)?.read())
+        Some(self.get(position)?.load())
     }
 
     #[must_use]
     pub fn all_raw(&self) -> Vec<RawMap> {
-        self.iter().map(|h| h.read()).collect_vec()
+        self.iter().map(|h| h.load()).collect_vec()
     }
 
     pub fn refresh_from_events(&self) {
@@ -75,7 +75,7 @@ impl MapsClient {
             if e.is_expired()
                 && let Some(map) = CollectionClient::get(self, &e.map().position())
             {
-                map.update(e.previous_map());
+                map.store(e.previous_map());
             }
         }
         self.events().refresh_active();
@@ -83,7 +83,7 @@ impl MapsClient {
             if !e.is_expired()
                 && let Some(map) = CollectionClient::get(self, &e.map().position())
             {
-                map.update(e.map());
+                map.store(e.map());
             }
         }
     }

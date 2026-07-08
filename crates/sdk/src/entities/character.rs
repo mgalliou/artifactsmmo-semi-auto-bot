@@ -142,12 +142,6 @@ impl From<CharacterSchema> for CharacterHandle {
     }
 }
 
-impl From<&CharacterSchema> for CharacterHandle {
-    fn from(value: &CharacterSchema) -> Self {
-        value.clone().into()
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RawCharacter {
     schema: Arc<CharacterSchema>,
@@ -333,12 +327,6 @@ impl From<CharacterSchema> for RawCharacter {
             inventory: value.inventory.clone().unwrap_or_default().into(),
             schema: value.into(),
         }
-    }
-}
-
-impl From<&CharacterSchema> for RawCharacter {
-    fn from(value: &CharacterSchema) -> Self {
-        value.clone().into()
     }
 }
 

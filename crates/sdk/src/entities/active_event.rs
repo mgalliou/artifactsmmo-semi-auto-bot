@@ -1,3 +1,4 @@
+use crate::entities::{EventSchemaExt, RawMap};
 use chrono::{
     Utc,
     prelude::{DateTime, FixedOffset},
@@ -6,11 +7,8 @@ use openapi::models::ActiveEventSchema;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{self, Display, Formatter},
-    ops::Deref,
     sync::Arc,
 };
-
-use crate::entities::{EventSchemaExt, RawMap};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ActiveEvent(Arc<ActiveEventSchema>);
@@ -31,12 +29,12 @@ impl ActiveEvent {
 
     #[must_use]
     pub fn map(&self) -> RawMap {
-        self.0.map.deref().into()
+        (*self.0.map).clone().into()
     }
 
     #[must_use]
     pub fn previous_map(&self) -> RawMap {
-        self.0.map.deref().into()
+        (*self.0.previous_map).clone().into()
     }
 }
 

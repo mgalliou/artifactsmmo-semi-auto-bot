@@ -717,14 +717,14 @@ impl CharacterClient {
             .account()
             .pending_items()
             .into_iter()
-            .find(|i| *i.read().id() == id)
+            .find(|i| *i.load().id() == id)
         else {
             return Err(ClaimPendingItemError::ItemNotFound);
         };
-        if pending.read().is_claimed() {
+        if pending.load().is_claimed() {
             return Err(ClaimPendingItemError::AlreadyClaimed);
         }
-        if !self.inventory().has_room_for_all(pending.read().items()) {
+        if !self.inventory().has_room_for_all(pending.load().items()) {
             return Err(ClaimPendingItemError::InsufficientInventorySpace);
         }
         Ok(())

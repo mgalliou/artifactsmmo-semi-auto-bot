@@ -7,35 +7,23 @@ pub struct PendingItemHandle(Arc<RwLock<RawPendingItem>>);
 
 impl PendingItemHandle {
     #[must_use]
-    pub fn read(&self) -> RawPendingItem {
+    pub fn load(&self) -> RawPendingItem {
         self.0.read().unwrap().clone()
     }
 
-    pub fn update(&self, data: RawPendingItem) {
+    pub fn store(&self, data: RawPendingItem) {
         *self.0.write().unwrap() = data;
     }
 }
 
 impl From<PendingItemSchema> for PendingItemHandle {
     fn from(value: PendingItemSchema) -> Self {
-        Self(Arc::new(RwLock::new(value.into())))
-    }
-}
-
-impl From<&PendingItemSchema> for PendingItemHandle {
-    fn from(value: &PendingItemSchema) -> Self {
-        value.clone().into()
+        Self(Arc::new(RwLock::new(RawPendingItem::from(value))))
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RawPendingItem(Arc<PendingItemSchema>);
-
-impl From<PendingItemSchema> for RawPendingItem {
-    fn from(value: PendingItemSchema) -> Self {
-        Self(Arc::new(value))
-    }
-}
 
 impl RawPendingItem {
     #[must_use]
@@ -56,5 +44,11 @@ impl RawPendingItem {
     #[must_use]
     pub fn is_claimed(&self) -> bool {
         self.0.claimed_at.is_some()
+    }
+}
+
+impl From<PendingItemSchema> for RawPendingItem {
+    fn from(value: PendingItemSchema) -> Self {
+        Self(Arc::new(value))
     }
 }
