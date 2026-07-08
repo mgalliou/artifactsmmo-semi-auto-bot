@@ -35,12 +35,104 @@ pub struct CharacterHandle(Arc<RwLock<RawCharacter>>);
 
 impl CharacterHandle {
     #[must_use]
-    pub fn read(&self) -> RawCharacter {
+    pub fn load(&self) -> RawCharacter {
         self.0.read().unwrap().clone()
     }
 
-    pub fn update(&self, data: RawCharacter) {
+    pub fn store(&self, data: RawCharacter) {
         *self.0.write().unwrap() = data;
+    }
+}
+
+impl Character for CharacterHandle {
+    fn name(&self) -> CharacterName {
+        self.0.read().unwrap().name()
+    }
+
+    fn position(&self) -> (MapLayer, i32, i32) {
+        self.0.read().unwrap().position()
+    }
+
+    fn skill_level(&self, skill: Skill) -> u32 {
+        self.0.read().unwrap().skill_level(skill)
+    }
+
+    fn skill_xp(&self, skill: Skill) -> i32 {
+        self.0.read().unwrap().skill_xp(skill)
+    }
+
+    fn skill_max_xp(&self, skill: Skill) -> i32 {
+        self.0.read().unwrap().skill_max_xp(skill)
+    }
+
+    fn hp(&self) -> i32 {
+        self.0.read().unwrap().hp()
+    }
+
+    fn max_hp(&self) -> i32 {
+        self.0.read().unwrap().max_hp()
+    }
+
+    fn missing_hp(&self) -> i32 {
+        self.0.read().unwrap().missing_hp()
+    }
+
+    fn task(&self) -> TaskCode {
+        self.0.read().unwrap().task()
+    }
+
+    fn task_type(&self) -> Option<TaskType> {
+        self.0.read().unwrap().task_type()
+    }
+
+    fn task_progress(&self) -> u32 {
+        self.0.read().unwrap().task_progress()
+    }
+
+    fn task_total(&self) -> u32 {
+        self.0.read().unwrap().task_total()
+    }
+
+    fn task_missing(&self) -> u32 {
+        self.0.read().unwrap().task_missing()
+    }
+
+    fn task_finished(&self) -> bool {
+        self.0.read().unwrap().task_finished()
+    }
+
+    fn inventory_items(&self) -> Arc<Vec<InventorySlotSchema>> {
+        self.0.read().unwrap().inventory_items()
+    }
+
+    fn inventory_max_items(&self) -> u32 {
+        self.0.read().unwrap().inventory_max_items()
+    }
+
+    fn gold(&self) -> u32 {
+        self.0.read().unwrap().gold()
+    }
+
+    fn equiped_in(&self, slot: Slot) -> String {
+        self.0.read().unwrap().equiped_in(slot)
+    }
+
+    fn has_equiped(&self, item_code: &str) -> u32 {
+        self.0.read().unwrap().has_equiped(item_code)
+    }
+
+    fn quantity_in_slot(&self, slot: Slot) -> u32 {
+        self.0.read().unwrap().quantity_in_slot(slot)
+    }
+
+    fn cooldown_expiration(&self) -> Option<DateTime<FixedOffset>> {
+        self.0.read().unwrap().cooldown_expiration()
+    }
+}
+
+impl Level for CharacterHandle {
+    fn level(&self) -> u32 {
+        self.0.read().unwrap().level()
     }
 }
 

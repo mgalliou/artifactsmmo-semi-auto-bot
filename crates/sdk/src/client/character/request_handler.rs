@@ -1,29 +1,30 @@
+use crate::entities::Character;
 use crate::{
-    AccountClient, Level, Skill,
+    AccountClient,
     bank::Bank,
     character::{CharacterHandle, responses::ResponseSchema},
     client::{
-        character::{HandleCharacterData, action_request::ActionRequest, error::RequestError},
+        character::{CharacterStore, action_request::ActionRequest, error::RequestError},
         server::ServerClient,
     },
-    entities::{Character, CharacterName, RawCharacter, RawMap, TaskCode},
+    entities::{RawMap},
     gear::Slot,
 };
 use api::ArtifactApi;
-use chrono::{DateTime, FixedOffset, Utc};
+use chrono::Utc;
 use log::{debug, error, info, warn};
+use openapi::models::CharacterRestResponseSchema;
 use openapi::models::{
     BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema,
     CharacterFightResponseSchema, CharacterFightSchema, CharacterMovementResponseSchema,
-    CharacterRestResponseSchema, CharacterSchema, CharacterTransitionResponseSchema,
-    ClaimPendingItemResponseSchema, DeleteItemResponseSchema,
-    GeCreateOrderTransactionResponseSchema, GeTransactionResponseSchema, GeTransactionSchema,
-    GiveGoldResponseSchema, GiveItemResponseSchema, InventorySlotSchema, MapLayer,
-    NpcItemTransactionSchema, NpcMerchantTransactionResponseSchema, RecyclingItemsSchema,
-    RecyclingResponseSchema, RewardDataResponseSchema, RewardsSchema, SimpleItemSchema,
-    SkillInfoSchema, SkillResponseSchema, TaskResponseSchema, TaskSchema, TaskTradeResponseSchema,
-    TaskTradeSchema, TaskType,
+    CharacterSchema, CharacterTransitionResponseSchema, ClaimPendingItemResponseSchema,
+    DeleteItemResponseSchema, GeCreateOrderTransactionResponseSchema, GeTransactionResponseSchema,
+    GeTransactionSchema, GiveGoldResponseSchema, GiveItemResponseSchema, NpcItemTransactionSchema,
+    NpcMerchantTransactionResponseSchema, RecyclingItemsSchema, RecyclingResponseSchema,
+    RewardDataResponseSchema, RewardsSchema, SimpleItemSchema, SkillInfoSchema,
+    SkillResponseSchema, TaskResponseSchema, TaskSchema, TaskTradeResponseSchema, TaskTradeSchema,
 };
+use std::ops::Deref;
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread::sleep;
 use std::time::Duration;
@@ -478,112 +479,25 @@ impl CharacterRequestHandler {
     }
 }
 
-impl HandleCharacterData for CharacterRequestHandler {
-    fn data(&self) -> RawCharacter {
-        self.data.read()
-    }
+impl CharacterStore for CharacterRequestHandler {
 
     fn refresh_data(&self) {
         let Ok(res) = self.api.character.get(&self.name()) else {
             return;
         };
-        self.data.update((*res.data).into());
+        self.data.store((*res.data).into());
     }
 
     fn update_data(&self, schema: CharacterSchema) {
-        self.data.update(schema.into());
+        self.data.store(schema.into());
     }
 }
 
-impl Level for CharacterRequestHandler {
-    fn level(&self) -> u32 {
-        self.data().level()
-    }
-}
+impl Deref for CharacterRequestHandler {
+    type Target = CharacterHandle;
 
-impl Character for CharacterRequestHandler {
-    fn name(&self) -> CharacterName {
-        self.data().name()
-    }
-
-    fn position(&self) -> (MapLayer, i32, i32) {
-        self.data().position()
-    }
-
-    fn skill_level(&self, skill: Skill) -> u32 {
-        self.data().skill_level(skill)
-    }
-
-    fn skill_xp(&self, skill: Skill) -> i32 {
-        self.data().skill_xp(skill)
-    }
-
-    fn skill_max_xp(&self, skill: Skill) -> i32 {
-        self.data().skill_max_xp(skill)
-    }
-
-    fn hp(&self) -> i32 {
-        self.data().hp()
-    }
-
-    fn max_hp(&self) -> i32 {
-        self.data().max_hp()
-    }
-
-    fn missing_hp(&self) -> i32 {
-        self.data().missing_hp()
-    }
-
-    fn task(&self) -> TaskCode {
-        self.data().task()
-    }
-
-    fn task_type(&self) -> Option<TaskType> {
-        self.data().task_type()
-    }
-
-    fn task_progress(&self) -> u32 {
-        self.data().task_progress()
-    }
-
-    fn task_total(&self) -> u32 {
-        self.data().task_total()
-    }
-
-    fn task_missing(&self) -> u32 {
-        self.data().task_missing()
-    }
-
-    fn task_finished(&self) -> bool {
-        self.data().task_finished()
-    }
-
-    fn inventory_items(&self) -> Arc<Vec<InventorySlotSchema>> {
-        self.data().inventory_items()
-    }
-
-    fn inventory_max_items(&self) -> u32 {
-        self.data().inventory_max_items()
-    }
-
-    fn gold(&self) -> u32 {
-        self.data().gold()
-    }
-
-    fn equiped_in(&self, slot: Slot) -> String {
-        self.data().equiped_in(slot)
-    }
-
-    fn has_equiped(&self, item_code: &str) -> u32 {
-        self.data().has_equiped(item_code)
-    }
-
-    fn quantity_in_slot(&self, slot: Slot) -> u32 {
-        self.data().quantity_in_slot(slot)
-    }
-
-    fn cooldown_expiration(&self) -> Option<DateTime<FixedOffset>> {
-        self.data().cooldown_expiration()
+    fn deref(&self) -> &Self::Target {
+        &self.data
     }
 }
 

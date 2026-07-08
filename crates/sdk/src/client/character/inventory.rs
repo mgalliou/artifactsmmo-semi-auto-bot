@@ -47,7 +47,7 @@ impl ItemContainer for InventoryClient {
 
     fn content(&self) -> Arc<Vec<Self::Slot>> {
         self.data
-            .read()
+            .load()
             .inventory_items()
             .iter()
             .cloned()
@@ -67,7 +67,7 @@ impl SlotLimited for InventoryClient {
 
 impl SpaceLimited for InventoryClient {
     fn max_items(&self) -> u32 {
-        self.data.read().inventory_max_items()
+        self.data.load().inventory_max_items()
     }
 }
 

@@ -24,22 +24,18 @@ use crate::{
         resources::ResourcesClient,
         server::ServerClient,
     },
-    entities::{
-        AccountAchievement, Character, CharacterHandle, CharacterName, Map, RawCharacter, RawMap,
-        TaskCode,
-    },
+    entities::{AccountAchievement, Character, CharacterHandle, CharacterName, Map, RawMap},
     gear::Slot,
     grand_exchange::GrandExchangeClient,
     simulator::HasEffects,
     skill::Skill,
 };
 use api::ArtifactApi;
-use chrono::{DateTime, FixedOffset};
 use derive_more::Deref;
 use openapi::models::{
     CharacterFightSchema, CharacterSchema, ConditionOperator, GeOrderType, GeTransactionSchema,
-    InventorySlotSchema, MapContentType, MapLayer, NpcItemTransactionSchema, RecyclingItemsSchema,
-    RewardsSchema, SimpleItemSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
+    MapContentType, NpcItemTransactionSchema, RecyclingItemsSchema, RewardsSchema,
+    SimpleItemSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
 };
 use std::{str::FromStr, sync::Arc, time::Duration};
 
@@ -56,8 +52,10 @@ pub mod responses;
 #[deref(forward)]
 pub struct CharacterClient(Arc<CharacterClientInner>);
 
+#[derive(Deref)]
 pub struct CharacterClientInner {
     pub id: usize,
+    #[deref]
     handler: CharacterRequestHandler,
     inventory: InventoryClient,
     account: AccountClient,
@@ -891,120 +889,18 @@ impl CharacterClient {
     }
 }
 
-pub trait HandleCharacterData: Character {
-    fn data(&self) -> RawCharacter;
+pub trait CharacterStore {
     fn refresh_data(&self);
     fn update_data(&self, schema: CharacterSchema);
 }
 
-impl HandleCharacterData for CharacterClient {
-    fn data(&self) -> RawCharacter {
-        self.handler().data()
-    }
-
+impl CharacterStore for CharacterClient {
     fn refresh_data(&self) {
         self.handler().refresh_data();
     }
 
     fn update_data(&self, schema: CharacterSchema) {
         self.handler().update_data(schema);
-    }
-}
-
-pub trait MeetsConditionsFor: Character {
-    fn account(&self) -> AccountClient;
-    fn inventory(&self) -> InventoryClient;
-}
-
-impl Character for CharacterClient {
-    fn name(&self) -> CharacterName {
-        self.data().name()
-    }
-
-    fn position(&self) -> (MapLayer, i32, i32) {
-        self.data().position()
-    }
-
-    fn skill_level(&self, skill: Skill) -> u32 {
-        self.data().skill_level(skill)
-    }
-
-    fn skill_xp(&self, skill: Skill) -> i32 {
-        self.data().skill_xp(skill)
-    }
-
-    fn skill_max_xp(&self, skill: Skill) -> i32 {
-        self.data().skill_max_xp(skill)
-    }
-
-    fn hp(&self) -> i32 {
-        self.data().hp()
-    }
-
-    fn max_hp(&self) -> i32 {
-        self.data().max_hp()
-    }
-
-    fn missing_hp(&self) -> i32 {
-        self.data().missing_hp()
-    }
-
-    fn task(&self) -> TaskCode {
-        self.data().task()
-    }
-
-    fn task_type(&self) -> Option<TaskType> {
-        self.data().task_type()
-    }
-
-    fn task_progress(&self) -> u32 {
-        self.data().task_progress()
-    }
-
-    fn task_total(&self) -> u32 {
-        self.data().task_total()
-    }
-
-    fn task_missing(&self) -> u32 {
-        self.data().task_missing()
-    }
-
-    fn task_finished(&self) -> bool {
-        self.data().task_finished()
-    }
-
-    fn inventory_items(&self) -> Arc<Vec<InventorySlotSchema>> {
-        self.data().inventory_items()
-    }
-
-    fn inventory_max_items(&self) -> u32 {
-        self.data().inventory_max_items()
-    }
-
-    fn gold(&self) -> u32 {
-        self.data().gold()
-    }
-
-    fn equiped_in(&self, slot: Slot) -> String {
-        self.data().equiped_in(slot)
-    }
-
-    fn has_equiped(&self, item_code: &str) -> u32 {
-        self.data().has_equiped(item_code)
-    }
-
-    fn quantity_in_slot(&self, slot: Slot) -> u32 {
-        self.data().quantity_in_slot(slot)
-    }
-
-    fn cooldown_expiration(&self) -> Option<DateTime<FixedOffset>> {
-        self.data().cooldown_expiration()
-    }
-}
-
-impl Level for CharacterClient {
-    fn level(&self) -> u32 {
-        self.data().level()
     }
 }
 
