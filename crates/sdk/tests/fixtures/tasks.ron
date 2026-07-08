@@ -1,0 +1,1409 @@
+{
+    "cultist_acolyte": ((
+        code: "cultist_acolyte",
+        level: 33,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 5,
+                ),
+            ],
+            gold: 500,
+        ),
+    )),
+    "goblin": ((
+        code: "goblin",
+        level: 35,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 5,
+                ),
+            ],
+            gold: 500,
+        ),
+    )),
+    "imp": ((
+        code: "imp",
+        level: 28,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 300,
+        ),
+    )),
+    "wolf": ((
+        code: "wolf",
+        level: 15,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 300,
+        ),
+    )),
+    "skeleton": ((
+        code: "skeleton",
+        level: 18,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 300,
+        ),
+    )),
+    "owlbear": ((
+        code: "owlbear",
+        level: 30,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 5,
+                ),
+            ],
+            gold: 500,
+        ),
+    )),
+    "dead_wood_plank": ((
+        code: "dead_wood_plank",
+        level: 30,
+        type: items,
+        min_quantity: 10,
+        max_quantity: 30,
+        skill: Some("woodcutting"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 350,
+        ),
+    )),
+    "cooked_swordfish": ((
+        code: "cooked_swordfish",
+        level: 50,
+        type: items,
+        min_quantity: 60,
+        max_quantity: 240,
+        skill: Some("cooking"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 300,
+        ),
+    )),
+    "gold_ore": ((
+        code: "gold_ore",
+        level: 30,
+        type: items,
+        min_quantity: 100,
+        max_quantity: 400,
+        skill: Some("mining"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 350,
+        ),
+    )),
+    "magical_plank": ((
+        code: "magical_plank",
+        level: 35,
+        type: items,
+        min_quantity: 10,
+        max_quantity: 30,
+        skill: Some("woodcutting"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 350,
+        ),
+    )),
+    "cursed_tree": ((
+        code: "cursed_tree",
+        level: 34,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 5,
+                ),
+            ],
+            gold: 500,
+        ),
+    )),
+    "shrimp": ((
+        code: "shrimp",
+        level: 10,
+        type: items,
+        min_quantity: 100,
+        max_quantity: 400,
+        skill: Some("fishing"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 2,
+                ),
+            ],
+            gold: 150,
+        ),
+    )),
+    "ogre": ((
+        code: "ogre",
+        level: 20,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 300,
+        ),
+    )),
+    "salmon": ((
+        code: "salmon",
+        level: 40,
+        type: items,
+        min_quantity: 100,
+        max_quantity: 400,
+        skill: Some("fishing"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 350,
+        ),
+    )),
+    "palm_plank": ((
+        code: "palm_plank",
+        level: 50,
+        type: items,
+        min_quantity: 10,
+        max_quantity: 30,
+        skill: Some("woodcutting"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 300,
+        ),
+    )),
+    "laval_fish": ((
+        code: "laval_fish",
+        level: 50,
+        type: items,
+        min_quantity: 100,
+        max_quantity: 400,
+        skill: Some("fishing"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 300,
+        ),
+    )),
+    "chicken": ((
+        code: "chicken",
+        level: 1,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 3,
+                ),
+            ],
+            gold: 200,
+        ),
+    )),
+    "copper_bar": ((
+        code: "copper_bar",
+        level: 1,
+        type: items,
+        min_quantity: 10,
+        max_quantity: 30,
+        skill: Some("mining"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 2,
+                ),
+            ],
+            gold: 150,
+        ),
+    )),
+    "pig": ((
+        code: "pig",
+        level: 19,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 300,
+        ),
+    )),
+    "trout": ((
+        code: "trout",
+        level: 20,
+        type: items,
+        min_quantity: 100,
+        max_quantity: 400,
+        skill: Some("fishing"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 3,
+                ),
+            ],
+            gold: 250,
+        ),
+    )),
+    "strangold_bar": ((
+        code: "strangold_bar",
+        level: 35,
+        type: items,
+        min_quantity: 10,
+        max_quantity: 30,
+        skill: Some("mining"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 350,
+        ),
+    )),
+    "enchanted_mushroom": ((
+        code: "enchanted_mushroom",
+        level: 40,
+        type: items,
+        min_quantity: 100,
+        max_quantity: 400,
+        skill: Some("alchemy"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 350,
+        ),
+    )),
+    "nettle_leaf": ((
+        code: "nettle_leaf",
+        level: 20,
+        type: items,
+        min_quantity: 100,
+        max_quantity: 400,
+        skill: Some("alchemy"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 3,
+                ),
+            ],
+            gold: 250,
+        ),
+    )),
+    "iron_bar": ((
+        code: "iron_bar",
+        level: 10,
+        type: items,
+        min_quantity: 10,
+        max_quantity: 30,
+        skill: Some("mining"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 2,
+                ),
+            ],
+            gold: 150,
+        ),
+    )),
+    "strange_ore": ((
+        code: "strange_ore",
+        level: 35,
+        type: items,
+        min_quantity: 100,
+        max_quantity: 400,
+        skill: Some("mining"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 350,
+        ),
+    )),
+    "blue_slime": ((
+        code: "blue_slime",
+        level: 6,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 3,
+                ),
+            ],
+            gold: 200,
+        ),
+    )),
+    "dryad": ((
+        code: "dryad",
+        level: 40,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 5,
+                ),
+            ],
+            gold: 500,
+        ),
+    )),
+    "goblin_wolfrider": ((
+        code: "goblin_wolfrider",
+        level: 40,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 5,
+                ),
+            ],
+            gold: 500,
+        ),
+    )),
+    "sand_snake": ((
+        code: "sand_snake",
+        level: 44,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 5,
+                ),
+            ],
+            gold: 500,
+        ),
+    )),
+    "palm_wood": ((
+        code: "palm_wood",
+        level: 50,
+        type: items,
+        min_quantity: 100,
+        max_quantity: 400,
+        skill: Some("woodcutting"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 300,
+        ),
+    )),
+    "ash_plank": ((
+        code: "ash_plank",
+        level: 1,
+        type: items,
+        min_quantity: 10,
+        max_quantity: 30,
+        skill: Some("woodcutting"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 2,
+                ),
+            ],
+            gold: 150,
+        ),
+    )),
+    "adamantite_bar": ((
+        code: "adamantite_bar",
+        level: 50,
+        type: items,
+        min_quantity: 10,
+        max_quantity: 30,
+        skill: Some("mining"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 300,
+        ),
+    )),
+    "flying_snake": ((
+        code: "flying_snake",
+        level: 12,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 3,
+                ),
+            ],
+            gold: 200,
+        ),
+    )),
+    "gudgeon": ((
+        code: "gudgeon",
+        level: 1,
+        type: items,
+        min_quantity: 100,
+        max_quantity: 400,
+        skill: Some("fishing"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 2,
+                ),
+            ],
+            gold: 150,
+        ),
+    )),
+    "green_slime": ((
+        code: "green_slime",
+        level: 4,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 3,
+                ),
+            ],
+            gold: 200,
+        ),
+    )),
+    "cooked_salmon": ((
+        code: "cooked_salmon",
+        level: 40,
+        type: items,
+        min_quantity: 60,
+        max_quantity: 240,
+        skill: Some("cooking"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 350,
+        ),
+    )),
+    "mithril_bar": ((
+        code: "mithril_bar",
+        level: 40,
+        type: items,
+        min_quantity: 10,
+        max_quantity: 30,
+        skill: Some("mining"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 350,
+        ),
+    )),
+    "bass": ((
+        code: "bass",
+        level: 30,
+        type: items,
+        min_quantity: 100,
+        max_quantity: 400,
+        skill: Some("fishing"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 350,
+        ),
+    )),
+    "spruce_wood": ((
+        code: "spruce_wood",
+        level: 10,
+        type: items,
+        min_quantity: 100,
+        max_quantity: 400,
+        skill: Some("woodcutting"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 2,
+                ),
+            ],
+            gold: 150,
+        ),
+    )),
+    "iron_ore": ((
+        code: "iron_ore",
+        level: 10,
+        type: items,
+        min_quantity: 100,
+        max_quantity: 400,
+        skill: Some("mining"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 2,
+                ),
+            ],
+            gold: 150,
+        ),
+    )),
+    "highwayman": ((
+        code: "highwayman",
+        level: 15,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 300,
+        ),
+    )),
+    "dead_wood": ((
+        code: "dead_wood",
+        level: 30,
+        type: items,
+        min_quantity: 100,
+        max_quantity: 400,
+        skill: Some("woodcutting"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 350,
+        ),
+    )),
+    "orc": ((
+        code: "orc",
+        level: 38,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 5,
+                ),
+            ],
+            gold: 500,
+        ),
+    )),
+    "hardwood_plank": ((
+        code: "hardwood_plank",
+        level: 20,
+        type: items,
+        min_quantity: 10,
+        max_quantity: 30,
+        skill: Some("woodcutting"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 3,
+                ),
+            ],
+            gold: 250,
+        ),
+    )),
+    "glowstem_leaf": ((
+        code: "glowstem_leaf",
+        level: 40,
+        type: items,
+        min_quantity: 100,
+        max_quantity: 400,
+        skill: Some("alchemy"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 350,
+        ),
+    )),
+    "maple_wood": ((
+        code: "maple_wood",
+        level: 40,
+        type: items,
+        min_quantity: 100,
+        max_quantity: 400,
+        skill: Some("woodcutting"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 350,
+        ),
+    )),
+    "cooked_shrimp": ((
+        code: "cooked_shrimp",
+        level: 10,
+        type: items,
+        min_quantity: 60,
+        max_quantity: 240,
+        skill: Some("cooking"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 2,
+                ),
+            ],
+            gold: 150,
+        ),
+    )),
+    "hellhound": ((
+        code: "hellhound",
+        level: 40,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 5,
+                ),
+            ],
+            gold: 500,
+        ),
+    )),
+    "fennec": ((
+        code: "fennec",
+        level: 50,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 5,
+                ),
+            ],
+            gold: 500,
+        ),
+    )),
+    "spruce_plank": ((
+        code: "spruce_plank",
+        level: 10,
+        type: items,
+        min_quantity: 10,
+        max_quantity: 30,
+        skill: Some("woodcutting"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 2,
+                ),
+            ],
+            gold: 150,
+        ),
+    )),
+    "adamantite_ore": ((
+        code: "adamantite_ore",
+        level: 50,
+        type: items,
+        min_quantity: 100,
+        max_quantity: 400,
+        skill: Some("mining"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 300,
+        ),
+    )),
+    "cooked_bass": ((
+        code: "cooked_bass",
+        level: 30,
+        type: items,
+        min_quantity: 60,
+        max_quantity: 240,
+        skill: Some("cooking"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 350,
+        ),
+    )),
+    "baby_red_dragon": ((
+        code: "baby_red_dragon",
+        level: 50,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 5,
+                ),
+            ],
+            gold: 500,
+        ),
+    )),
+    "cyclops": ((
+        code: "cyclops",
+        level: 25,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 300,
+        ),
+    )),
+    "mushmush": ((
+        code: "mushmush",
+        level: 10,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 3,
+                ),
+            ],
+            gold: 200,
+        ),
+    )),
+    "steel_bar": ((
+        code: "steel_bar",
+        level: 20,
+        type: items,
+        min_quantity: 10,
+        max_quantity: 30,
+        skill: Some("mining"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 3,
+                ),
+            ],
+            gold: 250,
+        ),
+    )),
+    "cooked_trout": ((
+        code: "cooked_trout",
+        level: 20,
+        type: items,
+        min_quantity: 60,
+        max_quantity: 240,
+        skill: Some("cooking"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 3,
+                ),
+            ],
+            gold: 250,
+        ),
+    )),
+    "sheep": ((
+        code: "sheep",
+        level: 5,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 3,
+                ),
+            ],
+            gold: 200,
+        ),
+    )),
+    "sunflower": ((
+        code: "sunflower",
+        level: 1,
+        type: items,
+        min_quantity: 100,
+        max_quantity: 400,
+        skill: Some("alchemy"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 2,
+                ),
+            ],
+            gold: 150,
+        ),
+    )),
+    "spider": ((
+        code: "spider",
+        level: 20,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 300,
+        ),
+    )),
+    "maple_plank": ((
+        code: "maple_plank",
+        level: 40,
+        type: items,
+        min_quantity: 10,
+        max_quantity: 30,
+        skill: Some("woodcutting"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 350,
+        ),
+    )),
+    "sandwarden": ((
+        code: "sandwarden",
+        level: 50,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 5,
+                ),
+            ],
+            gold: 500,
+        ),
+    )),
+    "rat": ((
+        code: "rat",
+        level: 25,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 300,
+        ),
+    )),
+    "flameche": ((
+        code: "flameche",
+        level: 50,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 5,
+                ),
+            ],
+            gold: 500,
+        ),
+    )),
+    "birch_wood": ((
+        code: "birch_wood",
+        level: 20,
+        type: items,
+        min_quantity: 100,
+        max_quantity: 400,
+        skill: Some("woodcutting"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 3,
+                ),
+            ],
+            gold: 250,
+        ),
+    )),
+    "red_slime": ((
+        code: "red_slime",
+        level: 7,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 3,
+                ),
+            ],
+            gold: 200,
+        ),
+    )),
+    "vampire": ((
+        code: "vampire",
+        level: 24,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 300,
+        ),
+    )),
+    "mithril_ore": ((
+        code: "mithril_ore",
+        level: 40,
+        type: items,
+        min_quantity: 100,
+        max_quantity: 400,
+        skill: Some("mining"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 350,
+        ),
+    )),
+    "swordfish": ((
+        code: "swordfish",
+        level: 50,
+        type: items,
+        min_quantity: 100,
+        max_quantity: 400,
+        skill: Some("fishing"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 300,
+        ),
+    )),
+    "cow": ((
+        code: "cow",
+        level: 8,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 3,
+                ),
+            ],
+            gold: 200,
+        ),
+    )),
+    "bat": ((
+        code: "bat",
+        level: 38,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 5,
+                ),
+            ],
+            gold: 500,
+        ),
+    )),
+    "torch_cactus_flower": ((
+        code: "torch_cactus_flower",
+        level: 50,
+        type: items,
+        min_quantity: 100,
+        max_quantity: 400,
+        skill: Some("alchemy"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 300,
+        ),
+    )),
+    "goblin_guard": ((
+        code: "goblin_guard",
+        level: 35,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 5,
+                ),
+            ],
+            gold: 500,
+        ),
+    )),
+    "cultist_alchemist": ((
+        code: "cultist_alchemist",
+        level: 40,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 5,
+                ),
+            ],
+            gold: 500,
+        ),
+    )),
+    "coal": ((
+        code: "coal",
+        level: 20,
+        type: items,
+        min_quantity: 100,
+        max_quantity: 400,
+        skill: Some("mining"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 3,
+                ),
+            ],
+            gold: 250,
+        ),
+    )),
+    "ash_wood": ((
+        code: "ash_wood",
+        level: 1,
+        type: items,
+        min_quantity: 100,
+        max_quantity: 400,
+        skill: Some("woodcutting"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 2,
+                ),
+            ],
+            gold: 150,
+        ),
+    )),
+    "yellow_slime": ((
+        code: "yellow_slime",
+        level: 2,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 3,
+                ),
+            ],
+            gold: 200,
+        ),
+    )),
+    "magic_wood": ((
+        code: "magic_wood",
+        level: 35,
+        type: items,
+        min_quantity: 100,
+        max_quantity: 400,
+        skill: Some("woodcutting"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 350,
+        ),
+    )),
+    "cooked_gudgeon": ((
+        code: "cooked_gudgeon",
+        level: 1,
+        type: items,
+        min_quantity: 60,
+        max_quantity: 240,
+        skill: Some("cooking"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 2,
+                ),
+            ],
+            gold: 150,
+        ),
+    )),
+    "desert_scorpion": ((
+        code: "desert_scorpion",
+        level: 50,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 5,
+                ),
+            ],
+            gold: 500,
+        ),
+    )),
+    "death_knight": ((
+        code: "death_knight",
+        level: 28,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 300,
+        ),
+    )),
+    "small_health_potion": ((
+        code: "small_health_potion",
+        level: 1,
+        type: items,
+        min_quantity: 10,
+        max_quantity: 30,
+        skill: Some("alchemy"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 2,
+                ),
+            ],
+            gold: 150,
+        ),
+    )),
+    "dusk_beetle": ((
+        code: "dusk_beetle",
+        level: 47,
+        type: monsters,
+        min_quantity: 50,
+        max_quantity: 400,
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 5,
+                ),
+            ],
+            gold: 500,
+        ),
+    )),
+    "gold_bar": ((
+        code: "gold_bar",
+        level: 30,
+        type: items,
+        min_quantity: 10,
+        max_quantity: 30,
+        skill: Some("mining"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 4,
+                ),
+            ],
+            gold: 350,
+        ),
+    )),
+    "copper_ore": ((
+        code: "copper_ore",
+        level: 1,
+        type: items,
+        min_quantity: 100,
+        max_quantity: 400,
+        skill: Some("mining"),
+        rewards: (
+            items: [
+                (
+                    code: "tasks_coin",
+                    quantity: 2,
+                ),
+            ],
+            gold: 150,
+        ),
+    )),
+}

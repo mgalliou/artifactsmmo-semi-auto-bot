@@ -21,7 +21,7 @@ use strum::IntoEnumIterator;
 use strum_macros::{EnumIs, EnumIter};
 use thiserror::Error;
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct OrderBoard {
     orders: Arc<RwLock<Vec<Arc<Order>>>>,
     items: ItemsClient,

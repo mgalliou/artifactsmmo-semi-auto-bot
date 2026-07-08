@@ -11,7 +11,7 @@ use std::{collections::HashMap, sync::Arc};
 pub struct NpcsItemsClient(Arc<NpcsItemsClientInner>);
 
 pub struct NpcsItemsClientInner {
-    path: Box<str>,
+    directory: Box<str>,
     data: ArcSwap<HashMap<String, NpcItem>>,
     fetch: Box<dyn Fn() -> HashMap<String, NpcItem> + Send + Sync>,
 }
@@ -19,7 +19,7 @@ pub struct NpcsItemsClientInner {
 impl Default for NpcsItemsClientInner {
     fn default() -> Self {
         Self {
-            path: ".cache/npcs_items.ron".into(),
+            directory: ".cache".into(),
             data: ArcSwap::default(),
             fetch: Box::new(|| panic!("NpcsItemsClient not initialized")),
         }
@@ -33,7 +33,7 @@ impl NpcsItemsClient {
     ) -> Self {
         Self(
             NpcsItemsClientInner {
-                path: path.into(),
+                directory: path.into(),
                 fetch,
                 data: ArcSwap::default(),
             }
@@ -58,8 +58,10 @@ impl NpcsItemsClient {
 }
 
 impl Cached<HashMap<String, NpcItem>> for NpcsItemsClient {
-    fn path(&self) -> &str {
-        &self.path
+    const FILE: &'static str = "npcs_items";
+
+    fn directory(&self) -> &str {
+        &self.directory
     }
 
     fn fetch_from_source(&self) -> HashMap<String, NpcItem> {

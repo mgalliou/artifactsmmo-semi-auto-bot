@@ -11,7 +11,7 @@ use std::{collections::HashMap, sync::Arc};
 pub struct NpcsClient(Arc<NpcsClientInner>);
 
 pub struct NpcsClientInner {
-    path: Box<str>,
+    directory: Box<str>,
     data: ArcSwap<HashMap<String, Npc>>,
     fetch: Box<dyn Fn() -> HashMap<String, Npc> + Send + Sync>,
     items: NpcsItemsClient,
@@ -20,7 +20,7 @@ pub struct NpcsClientInner {
 impl Default for NpcsClientInner {
     fn default() -> Self {
         Self {
-            path: Box::from(".cache/npcs.ron"),
+            directory: ".cache".into(),
             data: ArcSwap::default(),
             fetch: Box::new(|| panic!("NpcsClient not initialized")),
             items: NpcsItemsClient::default(),
@@ -30,15 +30,15 @@ impl Default for NpcsClientInner {
 
 impl NpcsClient {
     pub(crate) fn new(
-        path: &str,
+        directory: &str,
         fetch: Box<dyn Fn() -> HashMap<String, Npc> + Send + Sync>,
         items: NpcsItemsClient,
     ) -> Self {
         Self(
             NpcsClientInner {
-                path: path.into(),
-                fetch,
+                directory: directory.into(),
                 data: ArcSwap::default(),
+                fetch,
                 items,
             }
             .into(),
@@ -82,8 +82,10 @@ impl NpcsClient {
 }
 
 impl Cached<HashMap<String, Npc>> for NpcsClient {
-    fn path(&self) -> &str {
-        &self.path
+    const FILE: &'static str = "npcs";
+
+    fn directory(&self) -> &str {
+        &self.directory
     }
 
     fn fetch_from_source(&self) -> HashMap<String, Npc> {

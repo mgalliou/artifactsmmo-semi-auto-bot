@@ -155,7 +155,7 @@ impl Client {
         let events = {
             let api_fetch = api.clone();
             EventsClient::new(
-                ".cache/events.ron",
+                ".cache",
                 Box::new(move || {
                     api_fetch
                         .events
@@ -172,7 +172,7 @@ impl Client {
         let resources = {
             let api = api.clone();
             ResourcesClient::new(
-                ".cache/resources.ron",
+                ".cache",
                 Box::new(move || {
                     api.resources
                         .get_all()
@@ -188,7 +188,7 @@ impl Client {
         let monsters = {
             let api = api.clone();
             MonstersClient::new(
-                ".cache/monsters.ron",
+                ".cache",
                 Box::new(move || {
                     api.monsters
                         .get_all()
@@ -204,7 +204,7 @@ impl Client {
         let tasks_rewards = {
             let api = api.clone();
             TasksRewardsClient::new(
-                ".cache/tasks_rewards.ron",
+                ".cache",
                 Box::new(move || {
                     api.tasks
                         .get_rewards()
@@ -219,7 +219,7 @@ impl Client {
         let tasks = {
             let api = api.clone();
             TasksClient::new(
-                ".cache/tasks.ron",
+                ".cache",
                 Box::new(move || {
                     api.tasks
                         .get_all()
@@ -233,7 +233,7 @@ impl Client {
         };
 
         let npcs_items = NpcsItemsClient::new(
-            ".cache/npcs_items.ron",
+            ".cache",
             Box::new({
                 let api = api.clone();
                 move || {
@@ -250,7 +250,7 @@ impl Client {
         let npcs = {
             let api = api.clone();
             NpcsClient::new(
-                ".cache/npcs.ron",
+                ".cache",
                 Box::new(move || {
                     api.npcs
                         .get_all()
@@ -266,7 +266,7 @@ impl Client {
         let items = {
             let api = api.clone();
             ItemsClient::new(
-                ".cache/items.ron",
+                ".cache",
                 Box::new(move || {
                     api.items
                         .get_all()
@@ -285,7 +285,7 @@ impl Client {
         let maps = {
             let api = api.clone();
             MapsClient::new(
-                ".cache/maps.ron",
+                ".cache",
                 Box::new(move || {
                     api.maps
                         .get_all()

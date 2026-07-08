@@ -5,55 +5,33 @@ use log::info;
 use sdk_derive::CollectionClient;
 use std::{collections::HashMap, sync::Arc, thread};
 
-#[derive(Clone, Default, Deref, CollectionClient)]
+#[derive(Clone, Deref, CollectionClient)]
 #[deref(forward)]
 #[element(Task)]
 pub struct TasksClient(Arc<TasksClientInner>);
 
 pub struct TasksClientInner {
-    path: Box<str>,
+    directory: Box<str>,
     data: ArcSwap<HashMap<String, Task>>,
     fetch: Box<dyn Fn() -> HashMap<String, Task> + Send + Sync>,
     rewards: TasksRewardsClient,
 }
 
-impl Default for TasksClientInner {
-    fn default() -> Self {
-        Self {
-            path: Box::from(".cache/tasks.ron"),
-            data: ArcSwap::default(),
-            fetch: Box::new(|| panic!("TasksClient not initialized")),
-            rewards: TasksRewardsClient::default(),
-        }
-    }
-}
-
 impl TasksClient {
     pub(crate) fn new(
-        path: &str,
+        directory: &str,
         fetch: Box<dyn Fn() -> HashMap<String, Task> + Send + Sync>,
         reward: TasksRewardsClient,
     ) -> Self {
         Self(
             TasksClientInner {
-                path: path.into(),
+                directory: directory.into(),
                 fetch,
                 data: ArcSwap::default(),
                 rewards: reward,
             }
             .into(),
         )
-    }
-
-    #[must_use]
-    pub fn from_cache(path: &str) -> Self {
-        let client = Self::new(
-            path,
-            Box::new(|| unreachable!("TasksClient::from_cache has no API fallback")),
-            TasksRewardsClient::default(),
-        );
-        client.init();
-        client
     }
 
     pub fn init(&self) {
@@ -71,8 +49,10 @@ impl TasksClient {
 }
 
 impl Cached<HashMap<String, Task>> for TasksClient {
-    fn path(&self) -> &str {
-        &self.path
+    const FILE: &'static str = "tasks";
+
+    fn directory(&self) -> &str {
+        &self.directory
     }
 
     fn fetch_from_source(&self) -> HashMap<String, Task> {

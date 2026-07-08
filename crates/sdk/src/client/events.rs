@@ -21,21 +21,22 @@ use std::{
 pub struct EventsClient(Arc<EventsClientInner>);
 
 pub struct EventsClientInner {
-    api: ArtifactApi,
-    path: Box<str>,
+    directory: Box<str>,
     data: ArcSwap<HashMap<String, Event>>,
     fetch: Box<dyn Fn() -> HashMap<String, Event> + Send + Sync>,
+    api: ArtifactApi,
     active: RwLock<Vec<ActiveEvent>>,
     last_refresh: RwLock<DateTime<Utc>>,
 }
 
 impl Default for EventsClientInner {
+
     fn default() -> Self {
         Self {
-            api: ArtifactApi::default(),
-            path: Box::from(".cache/events.ron"),
+            directory: ".cache/".into(),
             data: ArcSwap::default(),
             fetch: Box::new(|| panic!("EventsClient not initialized")),
+            api: ArtifactApi::default(),
             active: RwLock::default(),
             last_refresh: RwLock::default(),
         }
@@ -50,10 +51,10 @@ impl EventsClient {
     ) -> Self {
         Self(
             EventsClientInner {
-                path: path.into(),
+                directory: path.into(),
+                data: ArcSwap::default(),
                 fetch,
                 api,
-                data: ArcSwap::default(),
                 active: RwLock::default(),
                 last_refresh: RwLock::default(),
             }
@@ -122,8 +123,10 @@ impl EventsClient {
 }
 
 impl Cached<HashMap<String, Event>> for EventsClient {
-    fn path(&self) -> &str {
-        &self.path
+    const FILE: &str = "event.ron";
+
+    fn directory(&self) -> &str {
+        &self.directory
     }
 
     fn fetch_from_source(&self) -> HashMap<String, Event> {

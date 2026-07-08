@@ -1,0 +1,641 @@
+{
+    "nomadic_merchant": ((
+        name: "Nomadic Merchant",
+        code: "nomadic_merchant",
+        description: "Everything has value to someone. I just make the exchange happen.",
+        type: merchant,
+        items: Some([
+            (
+                code: "backpack",
+                currency: "gold",
+                buy_price: Some(50000),
+            ),
+            (
+                code: "bandit_armor",
+                currency: "gold",
+                sell_price: Some(2000),
+            ),
+            (
+                code: "death_knight_sword",
+                currency: "gold",
+                sell_price: Some(1500),
+            ),
+            (
+                code: "desert_wrap",
+                currency: "gold",
+                sell_price: Some(2000),
+            ),
+            (
+                code: "forest_ring",
+                currency: "gold",
+                sell_price: Some(100),
+            ),
+            (
+                code: "goblin_guard_shield",
+                currency: "gold",
+                sell_price: Some(2000),
+            ),
+            (
+                code: "golden_egg",
+                currency: "gold",
+                sell_price: Some(1000),
+            ),
+            (
+                code: "highwayman_dagger",
+                currency: "gold",
+                sell_price: Some(350),
+            ),
+            (
+                code: "lich_crown",
+                currency: "gold",
+                sell_price: Some(2500),
+            ),
+            (
+                code: "lost_world_map",
+                currency: "gold",
+                buy_price: Some(15000),
+            ),
+            (
+                code: "minor_health_potion",
+                currency: "gold",
+                buy_price: Some(600),
+            ),
+            (
+                code: "old_boots",
+                currency: "gold",
+                sell_price: Some(350),
+            ),
+            (
+                code: "sanguine_edge_of_rosen",
+                currency: "gold",
+                sell_price: Some(2500),
+            ),
+            (
+                code: "small_antidote",
+                currency: "gold",
+                buy_price: Some(800),
+            ),
+            (
+                code: "wolf_ears",
+                currency: "gold",
+                sell_price: Some(300),
+            ),
+            (
+                code: "wooden_club",
+                currency: "gold",
+                sell_price: Some(350),
+            ),
+        ]),
+    )),
+    "gemstone_merchant": ((
+        name: "Gemstone Merchant",
+        code: "gemstone_merchant",
+        description: "Need mining tools or got some to sell? I handle all that stuff.",
+        type: merchant,
+        items: Some([
+            (
+                code: "adamantite_ore",
+                currency: "gold",
+                buy_price: Some(100),
+                sell_price: Some(1),
+            ),
+            (
+                code: "alexandrite",
+                currency: "gold",
+                buy_price: Some(75000),
+                sell_price: Some(8000),
+            ),
+            (
+                code: "coal",
+                currency: "gold",
+                buy_price: Some(35),
+                sell_price: Some(1),
+            ),
+            (
+                code: "copper_ore",
+                currency: "gold",
+                buy_price: Some(10),
+                sell_price: Some(1),
+            ),
+            (
+                code: "diamond",
+                currency: "gold",
+                buy_price: Some(50000),
+                sell_price: Some(5000),
+            ),
+            (
+                code: "emerald",
+                currency: "gold",
+                sell_price: Some(1500),
+            ),
+            (
+                code: "gold_ore",
+                currency: "gold",
+                buy_price: Some(50),
+                sell_price: Some(1),
+            ),
+            (
+                code: "iron_ore",
+                currency: "gold",
+                buy_price: Some(25),
+                sell_price: Some(1),
+            ),
+            (
+                code: "mithril_ore",
+                currency: "gold",
+                buy_price: Some(75),
+                sell_price: Some(1),
+            ),
+            (
+                code: "piece_of_obsidian",
+                currency: "gold",
+                buy_price: Some(350),
+            ),
+            (
+                code: "ruby",
+                currency: "gold",
+                sell_price: Some(1500),
+            ),
+            (
+                code: "sapphire",
+                currency: "gold",
+                sell_price: Some(1500),
+            ),
+            (
+                code: "strange_ore",
+                currency: "gold",
+                buy_price: Some(100),
+                sell_price: Some(1),
+            ),
+            (
+                code: "topaz",
+                currency: "gold",
+                sell_price: Some(1500),
+            ),
+            (
+                code: "voidstone_pickaxe",
+                currency: "gold",
+                buy_price: Some(250000),
+            ),
+        ]),
+    )),
+    "herbal_merchant": ((
+        name: "Herbal Merchant",
+        code: "herbal_merchant",
+        description: "Need potions, ingredients, or alchemy tools? I’ve got what you need — or I’ll buy what you’ve got!",
+        type: merchant,
+        items: Some([
+            (
+                code: "forest_bank_potion",
+                currency: "gold",
+                buy_price: Some(200),
+            ),
+            (
+                code: "glowstem_leaf",
+                currency: "gold",
+                buy_price: Some(75),
+                sell_price: Some(1),
+            ),
+            (
+                code: "nettle_leaf",
+                currency: "gold",
+                buy_price: Some(35),
+                sell_price: Some(1),
+            ),
+            (
+                code: "recall_potion",
+                currency: "gold",
+                buy_price: Some(200),
+            ),
+            (
+                code: "sunflower",
+                currency: "gold",
+                buy_price: Some(10),
+                sell_price: Some(1),
+            ),
+            (
+                code: "voidstone_gloves",
+                currency: "gold",
+                buy_price: Some(250000),
+            ),
+        ]),
+    )),
+    "sorceress": ((
+        name: "Sorceress",
+        code: "sorceress",
+        description: "A mysterious spellcaster versed in ancient underground magic. The Sorceress trades unique rewards for Sonnengott Coins earned by defeating Sonnengott, and has a particular fondness for Fire Dust.\n\n",
+        type: trader,
+        items: Some([
+            (
+                code: "fire_crystal",
+                currency: "fire_dust",
+                buy_price: Some(10),
+            ),
+            (
+                code: "powerful_rune",
+                currency: "sonnengott_coin",
+                buy_price: Some(200),
+            ),
+            (
+                code: "sonnengott_cloak",
+                currency: "sonnengott_coin",
+                buy_price: Some(245),
+            ),
+        ]),
+    )),
+    "cultist_wizard": ((
+        name: "Cultist Wizard",
+        code: "cultist_wizard",
+        description: "Bring me your corrupted gems! I’ll trade them for a selection of powerful treasures.",
+        type: trader,
+        items: Some([
+            (
+                code: "bag_of_gold",
+                currency: "corrupted_gem",
+                buy_price: Some(8),
+            ),
+            (
+                code: "corrupted_crown",
+                currency: "corrupted_gem",
+                buy_price: Some(220),
+            ),
+            (
+                code: "corrupted_fruit",
+                currency: "corrupted_gem",
+                buy_price: Some(1),
+            ),
+            (
+                code: "corrupted_skull",
+                currency: "corrupted_gem",
+                buy_price: Some(75),
+            ),
+            (
+                code: "diabolic_elixir",
+                currency: "corrupted_gem",
+                buy_price: Some(2),
+            ),
+        ]),
+    )),
+    "tailor": ((
+        name: "Tailor",
+        code: "tailor",
+        description: "I specialize in skins, hides, fabrics, and fibers. Bring me raw materials, and I’ll trade you refined, higher-quality ones.",
+        type: trader,
+        items: Some([
+            (
+                code: "cloth",
+                currency: "wool",
+                buy_price: Some(3),
+            ),
+            (
+                code: "hard_leather",
+                currency: "cowhide",
+                buy_price: Some(3),
+            ),
+            (
+                code: "sand_snakeskin",
+                currency: "sand_snake_hide",
+                buy_price: Some(4),
+            ),
+            (
+                code: "snakeskin",
+                currency: "snake_hide",
+                buy_price: Some(4),
+            ),
+            (
+                code: "vermin_leather",
+                currency: "rat_hide",
+                buy_price: Some(4),
+            ),
+        ]),
+    )),
+    "beastmaster": ((
+        name: "Beastmaster",
+        code: "beastmaster",
+        description: "A seasoned handler of wild and enchanted creatures. The Beastmaster trades unique rewards for Enchanted Coins earned by defeating Pixie.",
+        type: trader,
+        items: Some([
+            (
+                code: "enchanted_fabric",
+                currency: "enchanted_coin",
+                buy_price: Some(1),
+            ),
+            (
+                code: "enchanted_rune",
+                currency: "enchanted_coin",
+                buy_price: Some(200),
+            ),
+        ]),
+    )),
+    "tasks_trader": ((
+        name: "Tasks Trader",
+        code: "tasks_trader",
+        description: "Resources for task coins — fair trade, every time.",
+        type: trader,
+        items: Some([
+            (
+                code: "astralyte_crystal",
+                currency: "tasks_coin",
+                buy_price: Some(12),
+            ),
+            (
+                code: "jasper_crystal",
+                currency: "tasks_coin",
+                buy_price: Some(8),
+            ),
+            (
+                code: "magical_cure",
+                currency: "tasks_coin",
+                buy_price: Some(8),
+            ),
+            (
+                code: "prime_fabric",
+                currency: "tasks_coin",
+                buy_price: Some(14),
+            ),
+        ]),
+    )),
+    "timber_merchant": ((
+        name: "Timber Merchant",
+        code: "timber_merchant",
+        description: "Got logs or tools to trade? I buy and sell anything woodcutting-related!",
+        type: merchant,
+        items: Some([
+            (
+                code: "ash_wood",
+                currency: "gold",
+                buy_price: Some(10),
+                sell_price: Some(1),
+            ),
+            (
+                code: "birch_wood",
+                currency: "gold",
+                buy_price: Some(35),
+                sell_price: Some(1),
+            ),
+            (
+                code: "coconut",
+                currency: "gold",
+                sell_price: Some(5),
+            ),
+            (
+                code: "cursed_wood",
+                currency: "gold",
+                buy_price: Some(350),
+                sell_price: Some(15),
+            ),
+            (
+                code: "dead_wood",
+                currency: "gold",
+                buy_price: Some(50),
+                sell_price: Some(1),
+            ),
+            (
+                code: "magic_sap",
+                currency: "gold",
+                buy_price: Some(1500),
+                sell_price: Some(150),
+            ),
+            (
+                code: "magic_wood",
+                currency: "gold",
+                buy_price: Some(100),
+                sell_price: Some(1),
+            ),
+            (
+                code: "maple_sap",
+                currency: "gold",
+                buy_price: Some(500),
+                sell_price: Some(25),
+            ),
+            (
+                code: "maple_wood",
+                currency: "gold",
+                buy_price: Some(75),
+                sell_price: Some(1),
+            ),
+            (
+                code: "palm_wood",
+                currency: "gold",
+                buy_price: Some(100),
+                sell_price: Some(1),
+            ),
+            (
+                code: "sap",
+                currency: "gold",
+                buy_price: Some(300),
+                sell_price: Some(15),
+            ),
+            (
+                code: "spruce_wood",
+                currency: "gold",
+                buy_price: Some(25),
+                sell_price: Some(1),
+            ),
+            (
+                code: "voidstone_axe",
+                currency: "gold",
+                buy_price: Some(250000),
+            ),
+        ]),
+    )),
+    "sandwhisper_trader": ((
+        name: "Sandwhisper Trader",
+        code: "sandwhisper_trader",
+        description: "The Sandwhisper Trader swaps shiny loot for your hard-stolen Sandwhisper Coins, arrr!",
+        type: trader,
+        items: Some([
+            (
+                code: "greater_healing_rune",
+                currency: "sandwhisper_coin",
+                buy_price: Some(100),
+            ),
+            (
+                code: "greater_lifesteal_rune",
+                currency: "sandwhisper_coin",
+                buy_price: Some(100),
+            ),
+            (
+                code: "greater_protection_rune",
+                currency: "sandwhisper_coin",
+                buy_price: Some(100),
+            ),
+            (
+                code: "sandwhisper_bag",
+                currency: "sandwhisper_coin",
+                buy_price: Some(230),
+            ),
+            (
+                code: "sandwhisper_key",
+                currency: "sandwhisper_coin",
+                buy_price: Some(5),
+            ),
+            (
+                code: "vampiric_rune",
+                currency: "sandwhisper_coin",
+                buy_price: Some(100),
+            ),
+        ]),
+    )),
+    "archaeologist": ((
+        name: "Archaeologist",
+        code: "archaeologist",
+        description: "Fragments are remnants of the past… Trade them with me, and I’ll share artifacts of immense historical value — and the rarest of resources.",
+        type: trader,
+        items: Some([
+            (
+                code: "book_from_hell",
+                currency: "page_from_hell",
+                buy_price: Some(24),
+            ),
+            (
+                code: "emerald_book",
+                currency: "elemental_page",
+                buy_price: Some(30),
+            ),
+            (
+                code: "life_crystal",
+                currency: "life_crystal_shard",
+                buy_price: Some(24),
+            ),
+            (
+                code: "malefic_crystal",
+                currency: "malefic_shard",
+                buy_price: Some(24),
+            ),
+            (
+                code: "perfect_pearl",
+                currency: "small_pearls",
+                buy_price: Some(20),
+            ),
+            (
+                code: "ruby_book",
+                currency: "elemental_page",
+                buy_price: Some(30),
+            ),
+            (
+                code: "sandwhisper_codex",
+                currency: "codex_page",
+                buy_price: Some(24),
+            ),
+            (
+                code: "sapphire_book",
+                currency: "elemental_page",
+                buy_price: Some(30),
+            ),
+            (
+                code: "topaz_book",
+                currency: "elemental_page",
+                buy_price: Some(30),
+            ),
+        ]),
+    )),
+    "fish_merchant": ((
+        name: "Fish Merchant",
+        code: "fish_merchant",
+        description: "If it swims or helps catch what swims, I’ll buy it or sell it.",
+        type: merchant,
+        items: Some([
+            (
+                code: "algae",
+                currency: "gold",
+                buy_price: Some(50),
+                sell_price: Some(1),
+            ),
+            (
+                code: "bass",
+                currency: "gold",
+                buy_price: Some(75),
+                sell_price: Some(1),
+            ),
+            (
+                code: "golden_shrimp",
+                currency: "gold",
+                sell_price: Some(1000),
+            ),
+            (
+                code: "gudgeon",
+                currency: "gold",
+                buy_price: Some(10),
+                sell_price: Some(1),
+            ),
+            (
+                code: "holey_boot",
+                currency: "gold",
+                sell_price: Some(200),
+            ),
+            (
+                code: "salmon",
+                currency: "gold",
+                buy_price: Some(100),
+                sell_price: Some(1),
+            ),
+            (
+                code: "shell",
+                currency: "gold",
+                sell_price: Some(120),
+            ),
+            (
+                code: "shrimp",
+                currency: "gold",
+                buy_price: Some(30),
+                sell_price: Some(1),
+            ),
+            (
+                code: "small_pearls",
+                currency: "gold",
+                sell_price: Some(250),
+            ),
+            (
+                code: "swordfish",
+                currency: "gold",
+                buy_price: Some(150),
+                sell_price: Some(1),
+            ),
+            (
+                code: "trout",
+                currency: "gold",
+                buy_price: Some(50),
+                sell_price: Some(1),
+            ),
+            (
+                code: "voidstone_fishing_rod",
+                currency: "gold",
+                buy_price: Some(250000),
+            ),
+        ]),
+    )),
+    "rune_vendor": ((
+        name: "Rune Vendor",
+        code: "rune_vendor",
+        description: "Looking for runes? I’ve got what you need — just bring some gold!",
+        type: merchant,
+        items: Some([
+            (
+                code: "burn_rune",
+                currency: "gold",
+                buy_price: Some(30000),
+            ),
+            (
+                code: "healing_aura_rune",
+                currency: "gold",
+                buy_price: Some(25000),
+            ),
+            (
+                code: "healing_rune",
+                currency: "gold",
+                buy_price: Some(10000),
+            ),
+            (
+                code: "lifesteal_rune",
+                currency: "gold",
+                buy_price: Some(20000),
+            ),
+            (
+                code: "protection_rune",
+                currency: "gold",
+                buy_price: Some(30000),
+            ),
+        ]),
+    )),
+}

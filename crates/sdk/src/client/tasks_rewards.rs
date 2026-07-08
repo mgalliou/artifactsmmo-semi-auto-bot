@@ -10,7 +10,7 @@ use std::{collections::HashMap, sync::Arc};
 pub struct TasksRewardsClient(Arc<TasksRewardsClientInner>);
 
 pub struct TasksRewardsClientInner {
-    path: Box<str>,
+    directory: Box<str>,
     data: ArcSwap<HashMap<String, TaskReward>>,
     fetch: Box<dyn Fn() -> HashMap<String, TaskReward> + Send + Sync>,
 }
@@ -18,7 +18,7 @@ pub struct TasksRewardsClientInner {
 impl Default for TasksRewardsClientInner {
     fn default() -> Self {
         Self {
-            path: Box::from(".cache/tasks_rewards.ron"),
+            directory: ".cache".into(),
             data: ArcSwap::default(),
             fetch: Box::new(|| panic!("TasksRewardsClient not initialized")),
         }
@@ -27,31 +27,21 @@ impl Default for TasksRewardsClientInner {
 
 impl TasksRewardsClient {
     pub(crate) fn new(
-        path: &str,
+        directory: &str,
         fetch: Box<dyn Fn() -> HashMap<String, TaskReward> + Send + Sync>,
     ) -> Self {
         Self(
             TasksRewardsClientInner {
-                path: path.into(),
-                fetch,
+                directory: directory.into(),
                 data: ArcSwap::default(),
+                fetch,
             }
             .into(),
         )
     }
 
-    #[must_use]
-    pub fn from_cache(path: &str) -> Self {
-        let client = Self::new(
-            path,
-            Box::new(|| unreachable!("TasksRewardsClient::from_cache has no API fallback")),
-        );
-        client.init();
-        client
-    }
-
     pub fn init(&self) {
-        self.0.data.store(Arc::new(self.fetch()));
+        self.data.store(Arc::new(self.fetch()));
         info!("Tasks rewards client initilized");
     }
 
@@ -63,8 +53,10 @@ impl TasksRewardsClient {
 }
 
 impl Cached<HashMap<String, TaskReward>> for TasksRewardsClient {
-    fn path(&self) -> &str {
-        &self.path
+    const FILE: &'static str = "tasks_rewards";
+
+    fn directory(&self) -> &str {
+        &self.directory
     }
 
     fn fetch_from_source(&self) -> HashMap<String, TaskReward> {
@@ -72,6 +64,7 @@ impl Cached<HashMap<String, TaskReward>> for TasksRewardsClient {
     }
 
     fn refresh(&self) {
-        self.0.data.store(Arc::new(self.fetch_from_source()));
+        self.data.store(Arc::new(self.fetch_from_source()));
     }
+
 }

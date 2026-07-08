@@ -3,9 +3,11 @@ use openapi::models::{
     AccessSchema, CharacterFightSchema, ConditionSchema, DropRateSchema, DropSchema,
     InventorySlotSchema, RewardsSchema, SimpleItemSchema, SkillInfoSchema, TransitionSchema,
 };
+use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display, Formatter};
 use std::fs;
+use std::string::String;
 
 pub use openapi::models;
 pub use sdk_derive::CollectionClient;
@@ -31,7 +33,9 @@ pub(crate) trait Cached<D>
 where
     D: for<'a> Deserialize<'a> + Serialize,
 {
-    fn path(&self) -> &str;
+    const FILE: &'static str;
+
+    fn directory(&self) -> &str;
 
     /// Returns cached data, falling back to `fetch_from_source` when cache is unavailable
     fn fetch(&self) -> D {
@@ -46,15 +50,19 @@ where
 
     /// Reads and deserializes data from the local cache file
     fn fetch_from_cache<T: for<'a> Deserialize<'a>>(&self) -> anyhow::Result<T> {
-        Ok(ron::from_str(&fs::read_to_string(self.path())?)?)
+        Ok(ron::from_str(&fs::read_to_string(self.cache_path())?)?)
     }
 
     /// Writes data to the local cache file
     fn cache<T: Serialize>(&self, data: T) -> anyhow::Result<()> {
         Ok(fs::write(
-            self.path(),
-            &ron::ser::to_string_pretty(&data, ron::ser::PrettyConfig::default())?,
+            self.cache_path(),
+            &ron::ser::to_string_pretty(&data, PrettyConfig::default())?,
         )?)
+    }
+
+    fn cache_path(&self) -> String {
+        format!("{}/{}.{}", self.directory(), Self::FILE, "ron")
     }
 
     /// Returns data from the source of truth (e.g., the `ArtifactMMO` API)

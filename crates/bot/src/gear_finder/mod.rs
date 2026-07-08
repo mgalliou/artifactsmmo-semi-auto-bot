@@ -38,7 +38,7 @@ pub enum GearPurpose {
     Gathering(Resource),
 }
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct GearFinder {
     items: ItemsClient,
     account: AccountController,

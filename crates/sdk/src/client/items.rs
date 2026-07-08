@@ -24,7 +24,7 @@ use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
 pub struct ItemsClient(Arc<ItemsClientInner>);
 
 pub struct ItemsClientInner {
-    path: Box<str>,
+    directory: Box<str>,
     data: ArcSwap<HashMap<String, Item>>,
     fetch: Box<dyn Fn() -> HashMap<String, Item> + Send + Sync>,
     resources: ResourcesClient,
@@ -36,7 +36,7 @@ pub struct ItemsClientInner {
 impl Default for ItemsClientInner {
     fn default() -> Self {
         Self {
-            path: Box::from(".cache/items.ron"),
+            directory: Box::from(".cache"),
             data: ArcSwap::default(),
             fetch: Box::new(|| panic!("ItemsClient not initialized")),
             resources: ResourcesClient::default(),
@@ -58,7 +58,7 @@ impl ItemsClient {
     ) -> Self {
         Self(
             ItemsClientInner {
-                path: path.into(),
+                directory: path.into(),
                 fetch,
                 data: ArcSwap::default(),
                 resources,
@@ -68,20 +68,6 @@ impl ItemsClient {
             }
             .into(),
         )
-    }
-
-    #[must_use]
-    pub fn from_cache(path: &str) -> Self {
-        let client = Self::new(
-            path,
-            Box::new(|| unreachable!("ItemsClient::from_cache has no API fallback")),
-            ResourcesClient::default(),
-            MonstersClient::default(),
-            TasksRewardsClient::default(),
-            NpcsClient::default(),
-        );
-        client.init();
-        client
     }
 
     pub fn init(&self) {
@@ -313,8 +299,10 @@ impl ItemsClient {
 }
 
 impl Cached<HashMap<String, Item>> for ItemsClient {
-    fn path(&self) -> &str {
-        &self.path
+    const FILE: &'static str = "items";
+
+    fn directory(&self) -> &str {
+        &self.directory
     }
 
     fn fetch_from_source(&self) -> HashMap<String, Item> {
@@ -324,6 +312,7 @@ impl Cached<HashMap<String, Item>> for ItemsClient {
     fn refresh(&self) {
         self.data.store(Arc::new(self.fetch_from_source()));
     }
+
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Display, AsRefStr, EnumIter, EnumString, EnumIs)]

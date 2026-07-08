@@ -21,7 +21,7 @@ type MapsFetcher =
     Box<dyn Fn() -> HashMap<(MapLayer, i32, i32), MapHandle> + Send + Sync + 'static>;
 
 pub struct MapsClientInner {
-    path: Box<str>,
+    directory: Box<str>,
     fetch: MapsFetcher,
     data: ArcSwap<HashMap<(MapLayer, i32, i32), MapHandle>>,
     events: EventsClient,
@@ -30,7 +30,7 @@ pub struct MapsClientInner {
 impl Default for MapsClientInner {
     fn default() -> Self {
         Self {
-            path: Box::from(".cache/maps.ron"),
+            directory: ".cache".into(),
             data: ArcSwap::default(),
             fetch: Box::new(|| panic!("MapsClientInner not initialized")),
             events: EventsClient::default(),
@@ -42,7 +42,7 @@ impl MapsClient {
     pub(crate) fn new(path: &str, fetch: MapsFetcher, events: EventsClient) -> Self {
         Self(
             MapsClientInner {
-                path: path.into(),
+                directory: path.into(),
                 fetch,
                 data: ArcSwap::default(),
                 events,
@@ -177,8 +177,10 @@ impl MapsClient {
 }
 
 impl Cached<HashMap<(MapLayer, i32, i32), MapHandle>> for MapsClient {
-    fn path(&self) -> &str {
-        &self.path
+    const FILE: &'static str = "maps";
+
+    fn directory(&self) -> &str {
+        &self.directory
     }
 
     fn fetch_from_source(&self) -> HashMap<(MapLayer, i32, i32), MapHandle> {

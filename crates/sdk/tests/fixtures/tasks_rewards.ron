@@ -1,0 +1,74 @@
+{
+    "diamond": ((
+        code: "diamond",
+        rate: 200,
+        min_quantity: 1,
+        max_quantity: 1,
+    )),
+    "emerald": ((
+        code: "emerald",
+        rate: 100,
+        min_quantity: 1,
+        max_quantity: 1,
+    )),
+    "small_bag_of_gold": ((
+        code: "small_bag_of_gold",
+        rate: 20,
+        min_quantity: 1,
+        max_quantity: 1,
+    )),
+    "astralyte_crystal": ((
+        code: "astralyte_crystal",
+        rate: 8,
+        min_quantity: 1,
+        max_quantity: 2,
+    )),
+    "alexandrite": ((
+        code: "alexandrite",
+        rate: 200,
+        min_quantity: 1,
+        max_quantity: 1,
+    )),
+    "magical_cure": ((
+        code: "magical_cure",
+        rate: 3,
+        min_quantity: 1,
+        max_quantity: 2,
+    )),
+    "prime_fabric": ((
+        code: "prime_fabric",
+        rate: 10,
+        min_quantity: 1,
+        max_quantity: 2,
+    )),
+    "bag_of_gold": ((
+        code: "bag_of_gold",
+        rate: 50,
+        min_quantity: 1,
+        max_quantity: 1,
+    )),
+    "jasper_crystal": ((
+        code: "jasper_crystal",
+        rate: 3,
+        min_quantity: 1,
+        max_quantity: 2,
+    )),
+    "ruby": ((
+        code: "ruby",
+        rate: 100,
+        min_quantity: 1,
+        max_quantity: 1,
+    )),
+    "sapphire": ((
+        code: "sapphire",
+        rate: 100,
+        min_quantity: 1,
+        max_quantity: 1,
+    )),
+    "topaz": ((
+        code: "topaz",
+        rate: 100,
+        min_quantity: 1,
+        max_quantity: 1,
+    )),
+}

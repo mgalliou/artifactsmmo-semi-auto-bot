@@ -138,7 +138,7 @@ impl Level for CharacterHandle {
 
 impl From<CharacterSchema> for CharacterHandle {
     fn from(value: CharacterSchema) -> Self {
-        Self(Arc::new(RwLock::new(value.into())))
+        Self(Arc::new(RwLock::new(RawCharacter::from(value))))
     }
 }
 

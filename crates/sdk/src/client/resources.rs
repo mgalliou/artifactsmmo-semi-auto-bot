@@ -15,7 +15,7 @@ use std::{collections::HashMap, sync::Arc};
 pub struct ResourcesClient(Arc<ResourcesClientInner>);
 
 pub struct ResourcesClientInner {
-    path: Box<str>,
+    directory: Box<str>,
     data: ArcSwap<HashMap<String, Resource>>,
     fetch: Box<dyn Fn() -> HashMap<String, Resource> + Send + Sync>,
     events: EventsClient,
@@ -24,9 +24,9 @@ pub struct ResourcesClientInner {
 impl Default for ResourcesClientInner {
     fn default() -> Self {
         Self {
-            path: Box::from(".cache/resources.ron"),
-            data: ArcSwap::default(),
+            directory: ".cache".into(),
             fetch: Box::new(|| panic!("ResourcesClient not initialized")),
+            data: ArcSwap::default(),
             events: EventsClient::default(),
         }
     }
@@ -34,15 +34,15 @@ impl Default for ResourcesClientInner {
 
 impl ResourcesClient {
     pub(crate) fn new(
-        path: &str,
+        directory: &str,
         fetch: Box<dyn Fn() -> HashMap<String, Resource> + Send + Sync>,
         events: EventsClient,
     ) -> Self {
         Self(
             ResourcesClientInner {
-                path: path.into(),
-                fetch,
+                directory: directory.into(),
                 data: ArcSwap::default(),
+                fetch,
                 events,
             }
             .into(),
@@ -80,8 +80,10 @@ impl ResourcesClient {
 }
 
 impl Cached<HashMap<String, Resource>> for ResourcesClient {
-    fn path(&self) -> &str {
-        &self.path
+    const FILE: &'static str = "resources";
+
+    fn directory(&self) -> &str {
+        &self.directory
     }
 
     fn fetch_from_source(&self) -> HashMap<String, Resource> {

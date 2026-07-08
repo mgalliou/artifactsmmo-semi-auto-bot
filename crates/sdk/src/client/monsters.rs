@@ -15,7 +15,7 @@ use std::{collections::HashMap, sync::Arc};
 pub struct MonstersClient(Arc<MonstersClientInner>);
 
 pub struct MonstersClientInner {
-    path: Box<str>,
+    directory: Box<str>,
     data: ArcSwap<HashMap<String, Monster>>,
     fetch: Box<dyn Fn() -> HashMap<String, Monster> + Send + Sync>,
     events: EventsClient,
@@ -24,7 +24,7 @@ pub struct MonstersClientInner {
 impl Default for MonstersClientInner {
     fn default() -> Self {
         Self {
-            path: Box::from(".cache/monsters.ron"),
+            directory: ".cache".into(),
             data: ArcSwap::default(),
             fetch: Box::new(|| panic!("MonstersClient not initialized")),
             events: EventsClient::default(),
@@ -40,7 +40,7 @@ impl MonstersClient {
     ) -> Self {
         Self(
             MonstersClientInner {
-                path: path.into(),
+                directory: path.into(),
                 fetch,
                 data: ArcSwap::default(),
                 events,
@@ -94,8 +94,10 @@ impl MonstersClient {
 }
 
 impl Cached<HashMap<String, Monster>> for MonstersClient {
-    fn path(&self) -> &str {
-        &self.path
+    const FILE: &'static str = "monsters";
+
+    fn directory(&self) -> &str {
+        &self.directory
     }
 
     fn fetch_from_source(&self) -> HashMap<String, Monster> {

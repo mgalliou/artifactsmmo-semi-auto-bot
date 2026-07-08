@@ -9,7 +9,7 @@ use sdk::{
     skill::Skill,
 };
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct LevelingHelper {
     account: AccountController,
     bank: BankController,

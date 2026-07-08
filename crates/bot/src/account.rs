@@ -12,11 +12,10 @@ use sdk::{
 };
 use std::sync::{Arc, RwLock};
 
-#[derive(Default, Clone, Deref)]
+#[derive(Clone, Deref)]
 #[deref(forward)]
 pub struct AccountController(Arc<AccountControllerInner>);
 
-#[derive(Default)]
 pub struct AccountControllerInner {
     config: BotConfig,
     client: AccountClient,
