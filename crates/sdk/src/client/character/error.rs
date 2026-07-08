@@ -305,8 +305,8 @@ pub enum EquipError {
     InsufficientQuantity = MISSING_ITEM_OR_INSUFFICIENT_QUANTITY,
     #[error("item already equipped")]
     ItemAlreadyEquiped = ITEM_ALREADY_EQUIPED,
-    #[error("quantity greater than slot maximum")]
-    QuantityGreaterThanSlotMaxixum = SUPERFLOUS_UTILITY_QUANTITY,
+    #[error("insufficient slot space")]
+    InsufficientSlotSpace = SUPERFLOUS_UTILITY_QUANTITY,
     #[error("slot not empty")]
     SlotNotEmpty = INVALID_SLOT_STATE,
     #[error("conditions not met")]

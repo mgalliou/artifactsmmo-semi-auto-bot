@@ -7,13 +7,12 @@ use crate::{
         character::{CharacterStore, action_request::ActionRequest, error::RequestError},
         server::ServerClient,
     },
-    entities::{RawMap},
+    entities::RawMap,
     gear::Slot,
 };
 use api::ArtifactApi;
 use chrono::Utc;
 use log::{debug, error, info, warn};
-use openapi::models::CharacterRestResponseSchema;
 use openapi::models::{
     BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema,
     CharacterFightResponseSchema, CharacterFightSchema, CharacterMovementResponseSchema,
@@ -24,6 +23,7 @@ use openapi::models::{
     RewardDataResponseSchema, RewardsSchema, SimpleItemSchema, SkillInfoSchema,
     SkillResponseSchema, TaskResponseSchema, TaskSchema, TaskTradeResponseSchema, TaskTradeSchema,
 };
+use openapi::models::{CharacterRestResponseSchema, EquipSchema};
 use std::ops::Deref;
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread::sleep;
@@ -334,18 +334,9 @@ impl CharacterRequestHandler {
             .map(|r| r.data.transaction.price)
     }
 
-    pub fn request_equip(
-        &self,
-        item_code: &str,
-        slot: Slot,
-        quantity: u32,
-    ) -> Result<(), RequestError> {
-        self.request_action(ActionRequest::Equip {
-            item_code,
-            slot,
-            quantity,
-        })
-        .map(|_| ())
+    pub fn request_equip(&self, items: &[EquipSchema]) -> Result<(), RequestError> {
+        self.request_action(ActionRequest::Equip { items })
+            .map(|_| ())
     }
 
     pub fn request_unequip(&self, slot: Slot, quantity: u32) -> Result<(), RequestError> {
@@ -480,7 +471,6 @@ impl CharacterRequestHandler {
 }
 
 impl CharacterStore for CharacterRequestHandler {
-
     fn refresh_data(&self) {
         let Ok(res) = self.api.character.get(&self.name()) else {
             return;

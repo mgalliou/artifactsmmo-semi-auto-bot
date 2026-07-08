@@ -33,9 +33,9 @@ use crate::{
 use api::ArtifactApi;
 use derive_more::Deref;
 use openapi::models::{
-    CharacterFightSchema, CharacterSchema, ConditionOperator, GeOrderType, GeTransactionSchema,
-    MapContentType, NpcItemTransactionSchema, RecyclingItemsSchema, RewardsSchema,
-    SimpleItemSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
+    CharacterFightSchema, CharacterSchema, ConditionOperator, EquipSchema, GeOrderType,
+    GeTransactionSchema, MapContentType, NpcItemTransactionSchema, RecyclingItemsSchema,
+    RewardsSchema, SimpleItemSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
 };
 use std::{str::FromStr, sync::Arc, time::Duration};
 
@@ -408,34 +408,44 @@ impl CharacterClient {
         Ok(())
     }
 
-    pub fn equip(&self, item_code: &str, slot: Slot, quantity: u32) -> Result<(), EquipError> {
-        self.can_equip(item_code, slot, quantity)?;
-        Ok(self.handler().request_equip(item_code, slot, quantity)?)
+    pub fn equip(&self, items: &[EquipSchema]) -> Result<(), EquipError> {
+        self.can_equip(items)?;
+        Ok(self.handler().request_equip(items)?)
     }
 
-    pub fn can_equip(&self, item_code: &str, slot: Slot, quantity: u32) -> Result<(), EquipError> {
-        let Some(item) = self.items.get(item_code) else {
-            return Err(EquipError::ItemNotFound);
-        };
-        if self.inventory().total_of(item_code) < quantity {
-            return Err(EquipError::InsufficientQuantity);
-        }
-        if let Some(equiped) = self.items.get(&self.equiped_in(slot)) {
-            if equiped.code() != item_code {
-                return Err(EquipError::SlotNotEmpty);
+    pub fn can_equip(&self, items: &[EquipSchema]) -> Result<(), EquipError> {
+        let mut total_quantity = 0;
+        let mut inventory_space = 0;
+
+        for schema in items {
+            let Some(item) = self.items.get(&schema.code) else {
+                return Err(EquipError::ItemNotFound);
+            };
+            let quantity = schema.quantity.unwrap_or(1);
+            let slot = Slot::from(schema.slot);
+
+            total_quantity += quantity;
+            inventory_space += item.inventory_space();
+            if self.inventory().total_of(item.code()) < quantity {
+                return Err(EquipError::InsufficientQuantity);
+            } else if !self.meets_conditions_for(&item) {
+                return Err(EquipError::ConditionsNotMet);
             }
-            if slot.max_quantity() <= 1 {
+            let Some(equiped) = self.items.get(&self.equiped_in(slot)) else {
+                continue;
+            };
+            if equiped.code() != item.code() {
+                return Err(EquipError::SlotNotEmpty);
+            } else if slot.max_quantity() <= 1 {
                 return Err(EquipError::ItemAlreadyEquiped);
             } else if self.quantity_in_slot(slot) + quantity > slot.max_quantity() {
-                return Err(EquipError::QuantityGreaterThanSlotMaxixum);
+                return Err(EquipError::InsufficientSlotSpace);
             }
         }
-        if !self.meets_conditions_for(&item) {
-            return Err(EquipError::ConditionsNotMet);
-        }
-        if self.inventory().free_space() as i32 + item.inventory_space() <= 0 {
+        if self.inventory().free_space() as i32 + total_quantity as i32 + inventory_space <= 0 {
             return Err(EquipError::InsufficientInventorySpace);
         }
+
         Ok(())
     }
 

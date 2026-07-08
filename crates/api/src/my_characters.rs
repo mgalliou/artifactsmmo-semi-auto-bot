@@ -292,16 +292,12 @@ impl MyCharacterApi {
     pub fn equip(
         &self,
         name: &str,
-        item_code: &str,
-        slot: ItemSlot,
-        quantity: Option<u32>,
+        items: &[EquipSchema],
     ) -> Result<EquipmentResponseSchema, Error<ActionEquipItemMyNameActionEquipPostError>> {
-        let mut schema = EquipSchema::new(item_code.to_string(), slot);
-        schema.quantity = quantity;
         runtime().block_on(action_equip_item_my_name_action_equip_post(
             &self.configuration,
             name,
-            vec![schema],
+            items.to_vec(),
         ))
     }
 

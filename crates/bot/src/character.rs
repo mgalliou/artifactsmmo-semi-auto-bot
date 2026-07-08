@@ -29,6 +29,7 @@ use derive_more::Deref;
 use itertools::{Either, Itertools};
 use log::{debug, error, info, warn};
 use ordered_float::OrderedFloat;
+use sdk::models::EquipSchema;
 use sdk::{
     Client, Code, CollectionClient, DropsItems, HasConditions, HasDrops, ItemContainer, ItemList,
     ItemsClient, Level, LimitedContainer, MapsClient, MonstersClient, NpcsClient, SlotLimited,
@@ -1263,7 +1264,11 @@ impl CharacterController {
         {
             self.deposit_all_but(item.code())?;
         }
-        self.client.equip(item.code(), slot, quantity)?;
+        self.client.equip(&[EquipSchema {
+            code: item.code().to_owned(),
+            slot: slot.into(),
+            quantity: Some(quantity),
+        }])?;
         self.inventory.release(item.code(), quantity);
         Ok(())
     }

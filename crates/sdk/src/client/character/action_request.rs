@@ -4,7 +4,7 @@ use crate::{
     character::responses::ResponseSchema, client::character::error::RequestError, gear::Slot,
 };
 use api::ArtifactApi;
-use openapi::models::SimpleItemSchema;
+use openapi::models::{EquipSchema, SimpleItemSchema};
 use strum_macros::{Display, EnumIs};
 
 #[derive(Debug, EnumIs, Display)]
@@ -45,9 +45,7 @@ pub enum ActionRequest<'a> {
     },
     ExpandBank,
     Equip {
-        item_code: &'a str,
-        slot: Slot,
-        quantity: u32,
+        items: &'a [EquipSchema]
     },
     Unequip {
         slot: Slot,
@@ -181,12 +179,10 @@ impl ActionRequest<'_> {
                 .map(Into::into)
                 .map_err(Into::into),
             ActionRequest::Equip {
-                item_code: item,
-                slot,
-                quantity,
+                items
             } => api
                 .my_character
-                .equip(name, item, (*slot).into(), Some(*quantity))
+                .equip(name, items)
                 .map(Into::into)
                 .map_err(Into::into),
             ActionRequest::Unequip { slot, quantity } => {
