@@ -27,3 +27,8 @@ pub use pending_item::*;
 pub use resource::*;
 pub use task::*;
 pub use task_reward::*;
+
+pub trait EventSchemaExt {
+    fn content_code(&self) -> Option<&str>;
+    fn pretty(&self) -> String;
+}

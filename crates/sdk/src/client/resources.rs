@@ -73,9 +73,9 @@ impl ResourcesClient {
     }
 
     #[must_use]
-    pub fn is_event(&self, code: &str) -> bool {
+    pub fn is_event(&self, resource_code: &str) -> bool {
         self.events
-            .any(|e| e.content_code().is_some_and(|cc| cc == code))
+            .any(|e| e.content_code().is_some_and(|cc| cc == resource_code))
     }
 }
 

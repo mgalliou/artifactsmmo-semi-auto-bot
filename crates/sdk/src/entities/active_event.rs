@@ -3,7 +3,7 @@ use chrono::{
     Utc,
     prelude::{DateTime, FixedOffset},
 };
-use openapi::models::ActiveEventSchema;
+use openapi::models::{ActiveEventSchema, MapContentSchema};
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{self, Display, Formatter},
@@ -15,8 +15,9 @@ pub struct ActiveEvent(Arc<ActiveEventSchema>);
 
 impl ActiveEvent {
     pub(crate) fn new(schema: ActiveEventSchema) -> Self {
-        Self(schema.into())
+        Self(Arc::new(schema))
     }
+
     #[must_use]
     pub fn expiration(&self) -> DateTime<FixedOffset> {
         self.0.expiration
@@ -24,7 +25,7 @@ impl ActiveEvent {
 
     #[must_use]
     pub fn is_expired(&self) -> bool {
-        self.0.expiration < Utc::now()
+        self.expiration() < Utc::now()
     }
 
     #[must_use]
@@ -36,16 +37,16 @@ impl ActiveEvent {
     pub fn previous_map(&self) -> RawMap {
         (*self.0.previous_map).clone().into()
     }
+
+    #[must_use]
+    pub fn content(&self) -> Option<&MapContentSchema> {
+        self.0.map.interactions.content.as_deref()
+    }
 }
 
 impl EventSchemaExt for ActiveEvent {
     fn content_code(&self) -> Option<&str> {
-        self.0
-            .map
-            .interactions
-            .content
-            .as_deref()
-            .map(|c| c.code.as_str())
+        Some(&self.content()?.code)
     }
 
     fn pretty(&self) -> String {
