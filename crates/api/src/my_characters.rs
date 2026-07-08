@@ -64,7 +64,7 @@ use openapi::{
         DeleteItemResponseSchema, DepositWithdrawGoldSchema, DestinationSchema, EquipSchema,
         EquipmentResponseSchema, FightRequestSchema, GeBuyOrderSchema, GeCancelOrderSchema,
         GeCreateOrderTransactionResponseSchema, GeOrderCreationSchema, GeTransactionResponseSchema,
-        GiveGoldResponseSchema, GiveGoldSchema, GiveItemResponseSchema, GiveItemsSchema, ItemSlot,
+        GiveGoldResponseSchema, GiveGoldSchema, GiveItemResponseSchema, GiveItemsSchema,
         NpcMerchantBuySchema, NpcMerchantTransactionResponseSchema, RecyclingResponseSchema,
         RecyclingSchema, RewardDataResponseSchema, SimpleItemSchema, SkillResponseSchema,
         TaskCancelledResponseSchema, TaskResponseSchema, TaskTradeResponseSchema, UnequipSchema,
@@ -304,15 +304,12 @@ impl MyCharacterApi {
     pub fn unequip(
         &self,
         name: &str,
-        slot: ItemSlot,
-        quantity: Option<u32>,
+        slot: &[UnequipSchema],
     ) -> Result<EquipmentResponseSchema, Error<ActionUnequipItemMyNameActionUnequipPostError>> {
-        let mut schema = UnequipSchema::new(slot);
-        schema.quantity = quantity;
         runtime().block_on(action_unequip_item_my_name_action_unequip_post(
             &self.configuration,
             name,
-            vec![schema],
+            slot.to_vec(),
         ))
     }
 

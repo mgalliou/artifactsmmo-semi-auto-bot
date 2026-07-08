@@ -8,7 +8,6 @@ use crate::{
         server::ServerClient,
     },
     entities::RawMap,
-    gear::Slot,
 };
 use api::ArtifactApi;
 use chrono::Utc;
@@ -22,6 +21,7 @@ use openapi::models::{
     NpcMerchantTransactionResponseSchema, RecyclingItemsSchema, RecyclingResponseSchema,
     RewardDataResponseSchema, RewardsSchema, SimpleItemSchema, SkillInfoSchema,
     SkillResponseSchema, TaskResponseSchema, TaskSchema, TaskTradeResponseSchema, TaskTradeSchema,
+    UnequipSchema,
 };
 use openapi::models::{CharacterRestResponseSchema, EquipSchema};
 use std::ops::Deref;
@@ -339,8 +339,8 @@ impl CharacterRequestHandler {
             .map(|_| ())
     }
 
-    pub fn request_unequip(&self, slot: Slot, quantity: u32) -> Result<(), RequestError> {
-        self.request_action(ActionRequest::Unequip { slot, quantity })
+    pub fn request_unequip(&self, slots: &[UnequipSchema]) -> Result<(), RequestError> {
+        self.request_action(ActionRequest::Unequip { slots })
             .map(|_| ())
     }
 

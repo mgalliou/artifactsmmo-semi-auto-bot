@@ -1,10 +1,8 @@
 use std::convert::Into;
 
-use crate::{
-    character::responses::ResponseSchema, client::character::error::RequestError, gear::Slot,
-};
+use crate::{character::responses::ResponseSchema, client::character::error::RequestError};
 use api::ArtifactApi;
-use openapi::models::{EquipSchema, SimpleItemSchema};
+use openapi::models::{EquipSchema, SimpleItemSchema, UnequipSchema};
 use strum_macros::{Display, EnumIs};
 
 #[derive(Debug, EnumIs, Display)]
@@ -45,11 +43,10 @@ pub enum ActionRequest<'a> {
     },
     ExpandBank,
     Equip {
-        items: &'a [EquipSchema]
+        items: &'a [EquipSchema],
     },
     Unequip {
-        slot: Slot,
-        quantity: u32,
+        slots: &'a [UnequipSchema],
     },
     UseItem {
         item_code: &'a str,
@@ -178,19 +175,14 @@ impl ActionRequest<'_> {
                 .expand_bank(name)
                 .map(Into::into)
                 .map_err(Into::into),
-            ActionRequest::Equip {
-                items
-            } => api
+            ActionRequest::Equip { items } => api
                 .my_character
                 .equip(name, items)
                 .map(Into::into)
                 .map_err(Into::into),
-            ActionRequest::Unequip { slot, quantity } => {
-                api.my_character
-                    .unequip(name, (*slot).into(), Some(*quantity))
-            }
-            .map(Into::into)
-            .map_err(Into::into),
+            ActionRequest::Unequip { slots } => { api.my_character.unequip(name, slots) }
+                .map(Into::into)
+                .map_err(Into::into),
             ActionRequest::UseItem {
                 item_code: item,
                 quantity,

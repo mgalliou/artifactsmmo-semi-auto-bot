@@ -36,6 +36,7 @@ use openapi::models::{
     CharacterFightSchema, CharacterSchema, ConditionOperator, EquipSchema, GeOrderType,
     GeTransactionSchema, MapContentType, NpcItemTransactionSchema, RecyclingItemsSchema,
     RewardsSchema, SimpleItemSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
+    UnequipSchema,
 };
 use std::{str::FromStr, sync::Arc, time::Duration};
 
@@ -449,22 +450,41 @@ impl CharacterClient {
         Ok(())
     }
 
-    pub fn unequip(&self, slot: Slot, quantity: u32) -> Result<(), UnequipError> {
-        self.can_unequip(slot, quantity)?;
-        Ok(self.handler().request_unequip(slot, quantity)?)
+    pub fn unequip(&self, slots: &[UnequipSchema]) -> Result<(), UnequipError> {
+        self.can_unequip(slots)?;
+        Ok(self.handler().request_unequip(slots)?)
     }
 
-    pub fn can_unequip(&self, slot: Slot, quantity: u32) -> Result<(), UnequipError> {
-        let Some(equiped) = self.items.get(&self.equiped_in(slot)) else {
-            return Err(UnequipError::SlotEmpty);
-        };
-        if self.hp() <= equiped.health() {
+    pub fn can_unequip(&self, slots: &[UnequipSchema]) -> Result<(), UnequipError> {
+        let mut total_quantity = 0;
+        let mut health = 0;
+        let mut inventory_space = 0;
+        let mut items: Vec<SimpleItemSchema> = vec![];
+
+        for schema in slots {
+            let slot = Slot::from(schema.slot);
+            let Some(equiped) = self.items.get(&self.equiped_in(slot)) else {
+                return Err(UnequipError::SlotEmpty);
+            };
+            let quantity_in_slot = self.quantity_in_slot(slot);
+            let quantity = schema.quantity.unwrap_or(quantity_in_slot);
+
+            health += equiped.health();
+            if quantity_in_slot < quantity {
+                return Err(UnequipError::InsufficientQuantity);
+            }
+            total_quantity += quantity;
+            inventory_space += equiped.inventory_space();
+            items.push(SimpleItemSchema {
+                code: equiped.code().to_owned(),
+                quantity,
+            });
+        }
+        if self.hp() <= health {
             return Err(UnequipError::InsufficientHealth);
-        }
-        if self.quantity_in_slot(slot) < quantity {
-            return Err(UnequipError::InsufficientQuantity);
-        }
-        if !self.inventory().has_room_for((equiped.code(), quantity)) {
+        } else if !self.inventory().has_room_for_all(&items)
+            || self.inventory().free_space() as i32 - total_quantity as i32 - inventory_space <= 0
+        {
             return Err(UnequipError::InsufficientInventorySpace);
         }
         Ok(())

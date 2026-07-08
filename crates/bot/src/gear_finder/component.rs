@@ -75,8 +75,8 @@ impl Ord for ItemSlot {
 
 #[cfg(test)]
 mod tests {
-    use sdk::test_utils::item;
     use super::*;
+    use sdk::test_utils::item;
 
     #[test]
     fn item_slot_some_less_than_none() {

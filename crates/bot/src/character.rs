@@ -29,7 +29,7 @@ use derive_more::Deref;
 use itertools::{Either, Itertools};
 use log::{debug, error, info, warn};
 use ordered_float::OrderedFloat;
-use sdk::models::EquipSchema;
+use sdk::models::{EquipSchema, UnequipSchema};
 use sdk::{
     Client, Code, CollectionClient, DropsItems, HasConditions, HasDrops, ItemContainer, ItemList,
     ItemsClient, Level, LimitedContainer, MapsClient, MonstersClient, NpcsClient, SlotLimited,
@@ -1312,7 +1312,10 @@ impl CharacterController {
         if self.hp() <= equiped.health() {
             self.rest()?;
         }
-        self.client.unequip(slot, quantity)?;
+        self.client.unequip(&[UnequipSchema {
+            slot: slot.into(),
+            quantity: Some(quantity),
+        }])?;
         if let Err(e) = self.deposit_item(equiped.code(), quantity) {
             error!("{}: failed depositing unequiped item: {e}", self.name());
         }
