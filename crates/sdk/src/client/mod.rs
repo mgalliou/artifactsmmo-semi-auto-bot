@@ -148,7 +148,14 @@ impl Client {
     #[allow(clippy::too_many_lines)]
     pub fn new(url: String, token: String, account_name: String) -> Self {
         let api = ArtifactApi::new(url, token);
-        let bank = BankClient::new(api.clone());
+        let bank = {
+            let api_details = api.clone();
+            let api_content = api.clone();
+            BankClient::new(
+                Box::new(move || api_details.bank.get_details().unwrap()),
+                Box::new(move || api_content.bank.get_items().unwrap()),
+            )
+        };
         let account = AccountClient::new(account_name, bank, api.clone());
         let server = ServerClient::new(api.clone());
 

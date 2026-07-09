@@ -3,7 +3,6 @@ use crate::{
     container::{ItemContainer, LimitedContainer, SlotLimited, SpaceLimited},
     entities::{Character, CharacterHandle, Item},
 };
-use itertools::Itertools;
 use openapi::models::InventorySlotSchema;
 use std::sync::Arc;
 
@@ -46,13 +45,7 @@ impl ItemContainer for InventoryClient {
     type Slot = InventorySlotSchema;
 
     fn content(&self) -> Arc<Vec<Self::Slot>> {
-        self.data
-            .load()
-            .inventory_items()
-            .iter()
-            .cloned()
-            .collect_vec()
-            .into()
+        self.data.load().inventory_items().clone()
     }
 }
 
@@ -92,7 +85,7 @@ impl LimitedContainer for InventoryClient {
     }
 
     fn has_room_for_drops_from<H: DropsItems>(&self, entity: &H) -> bool {
-        self.free_slots() >= entity.average_drop_slots()
+        self.free_slots() >= entity.average_item_slots()
             && self.free_space() >= entity.min_drop_quantity()
     }
 }

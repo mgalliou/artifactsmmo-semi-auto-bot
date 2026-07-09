@@ -1,36 +1,39 @@
 use crate::{BANK_EXPANSION_SIZE, Code, ItemContainer, LimitedContainer, Quantity, SlotLimited};
-use api::ArtifactApi;
 use arc_swap::ArcSwap;
 use derive_more::Deref;
 use openapi::models::{BankSchema, SimpleItemSchema};
-use std::sync::Arc;
+use std::{sync::Arc, vec::Vec};
+
+type FetchContent = Box<dyn Fn() -> Vec<SimpleItemSchema> + Send + Sync + 'static>;
+type FetchDetails = Box<dyn Fn() -> BankSchema + Send + Sync + 'static>;
 
 #[derive(Clone, Default, Deref)]
 #[deref(forward)]
 pub struct BankClient(Arc<BankClientInner>);
 
-#[derive(Default)]
 pub struct BankClientInner {
     details: ArcSwap<BankSchema>,
     content: ArcSwap<Vec<SimpleItemSchema>>,
-    api: ArtifactApi,
+    fetch_details: FetchDetails,
+    fetch_content: FetchContent,
 }
 
 impl BankClient {
-    pub(crate) fn new(api: ArtifactApi) -> Self {
+    pub(crate) fn new(fetch_details: FetchDetails, fetch_content: FetchContent) -> Self {
         Self(
             BankClientInner {
                 details: ArcSwap::default(),
                 content: ArcSwap::default(),
-                api,
+                fetch_content,
+                fetch_details,
             }
             .into(),
         )
     }
 
     pub(crate) fn init(&self) {
-        self.set_details(self.api.bank.get_details().unwrap());
-        self.set_content(self.api.bank.get_items().unwrap());
+        self.set_details((self.fetch_details)());
+        self.set_content((self.fetch_content)());
     }
 
     pub fn set_gold(&self, gold: u32) {
@@ -52,6 +55,17 @@ impl BankClient {
 
     pub fn set_content(&self, content: Vec<SimpleItemSchema>) {
         self.content.store(Arc::new(content));
+    }
+}
+
+impl Default for BankClientInner {
+    fn default() -> Self {
+        Self {
+            details: ArcSwap::default(),
+            content: ArcSwap::default(),
+            fetch_details: Box::new(BankSchema::default),
+            fetch_content: Box::new(Vec::new),
+        }
     }
 }
 
