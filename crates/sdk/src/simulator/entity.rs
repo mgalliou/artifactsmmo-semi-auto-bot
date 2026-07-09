@@ -109,7 +109,7 @@ pub(super) trait SimulationEntity: HasEffects + DynClone {
     }
 
     fn health_percent(&self) -> i32 {
-        self.current_health() % self.max_hp() * 100
+        self.current_health() / self.max_hp() * 100
     }
 
     fn current_health(&self) -> i32;

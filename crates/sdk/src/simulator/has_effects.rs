@@ -115,6 +115,7 @@ pub trait HasEffects {
             .unwrap_or(0)
     }
 
+    /// Models one weapon swing where every element either crits or none do.
     fn hits_against(&self, target: &dyn HasEffects, averaged: bool) -> Vec<Hit> {
         let is_crit = if averaged {
             false
