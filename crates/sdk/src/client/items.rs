@@ -75,20 +75,14 @@ impl ItemsClient {
         info!("Items client initilized");
     }
 
-    /// Takes an item `code` and return the mats required to craft it.
-    pub fn mats_of(&self, code: &str) -> Vec<SimpleItemSchema> {
-        self.get(code)
-            .iter()
-            .flat_map(Item::mats)
-            .cloned()
-            .collect_vec()
-    }
-
     #[must_use]
     pub fn mats_for(&self, code: &str, quantity: u32) -> Vec<SimpleItemSchema> {
-        self.mats_of(code)
-            .into_iter()
-            .update(|m| m.quantity *= quantity)
+        self.get(code)
+            .iter()
+            .filter_map(|item| item.craft_schema())
+            .filter_map(|s| s.items.clone())
+            .flatten()
+            .update(|i| i.quantity *= quantity)
             .collect_vec()
     }
 
@@ -96,25 +90,30 @@ impl ItemsClient {
     /// required to craft it.
     #[must_use]
     pub fn base_mats_of(&self, code: &str) -> Vec<SimpleItemSchema> {
-        self.mats_of(code)
-            .iter()
-            .flat_map(|mat| {
-                if self.mats_of(&mat.code).is_empty() {
+        let Some(item) = self.get(code) else {
+            return vec![];
+        };
+        item.mats().iter().flat_map(|mat| {
+            self.get(mat.code())
+                .and_then(|sub| {
+                    let sub_mats = sub.mats();
+                    (!sub_mats.is_empty()).then(|| {
+                        sub_mats
+                            .iter()
+                            .map(|b| SimpleItemSchema {
+                                code: b.code.clone(),
+                                quantity: b.quantity * mat.quantity,
+                            })
+                            .collect_vec()
+                    })
+                })
+                .unwrap_or_else(|| {
                     vec![SimpleItemSchema {
                         code: mat.code.clone(),
                         quantity: mat.quantity,
                     }]
-                } else {
-                    self.mats_of(&mat.code)
-                        .iter()
-                        .map(|b| SimpleItemSchema {
-                            code: b.code.clone(),
-                            quantity: b.quantity * mat.quantity,
-                        })
-                        .collect_vec()
-                }
-            })
-            .collect_vec()
+                })
+        }).collect_vec()
     }
 
     /// Takes an `resource` code and returns the items that can be crafted
@@ -175,11 +174,14 @@ impl ItemsClient {
     }
 
     pub fn mats_mob_average_lvl(&self, code: &str) -> u32 {
-        let mob_mats = self
-            .mats_of(code)
+        let Some(item) = self.get(code) else {
+            return 0;
+        };
+        let mob_mats: Vec<Item> = item
+            .mats()
             .iter()
             .filter_map(|i| self.get(&i.code).filter(|i| i.subtype_is(SubType::Mob)))
-            .collect_vec();
+            .collect();
         let len = mob_mats.len() as u32;
         if len < 1 {
             return 0;
@@ -187,19 +189,23 @@ impl ItemsClient {
         mob_mats.iter().map(Level::level).sum::<u32>() / len
     }
 
+    #[must_use]
     pub fn mats_mob_max_lvl(&self, code: &str) -> u32 {
-        self.mats_of(code)
-            .iter()
-            .filter_map(|i| self.get(&i.code).filter(|i| i.subtype_is(SubType::Mob)))
-            .max_by_key(Level::level)
-            .map_or(0, |i| i.level())
+        self.get(code).map_or(1, |item| {
+            item.mats()
+                .iter()
+                .filter_map(|i| self.get(&i.code).filter(|i| i.subtype_is(SubType::Mob)))
+                .max_by_key(Level::level)
+                .map_or(1, |i| i.level())
+        })
     }
 
     /// Takes an item `code` and returns the amount of inventory space the mats
     /// required to craft it are taking.
     #[must_use]
     pub fn mats_quantity_for(&self, code: &str) -> u32 {
-        self.mats_of(code).iter().map(Quantity::quantity).sum()
+        self.get(code)
+            .map_or(0, |item| item.mats().iter().map(Quantity::quantity).sum())
     }
 
     #[must_use]
@@ -445,8 +451,11 @@ impl PartialEq<LevelConditionCode> for String {
 
 #[cfg(test)]
 mod tests {
-    use crate::simulator::{DamageType, HasEffects};
-    use crate::test_utils::{ITEMS, item, monster};
+    use crate::{
+        client::CollectionClient,
+        simulator::{DamageType, HasEffects},
+        test_utils::{ITEMS, item, monster},
+    };
 
     #[test]
     fn item_damage_against() {
@@ -489,7 +498,11 @@ mod tests {
 
     #[test]
     fn mats_methods() {
-        assert!(!ITEMS.mats_of("greater_dreadful_staff").is_empty());
+        assert!(
+            ITEMS
+                .get("greater_dreadful_staff")
+                .is_some_and(|item| !item.mats().is_empty())
+        );
         assert!(!ITEMS.base_mats_of("greater_dreadful_staff").is_empty());
     }
 }

@@ -1767,10 +1767,13 @@ impl CharacterController {
     }
 
     fn missing_mats_for(&self, item_code: &str, quantity: u32) -> Vec<SimpleItemSchema> {
-        self.items
-            .mats_of(item_code)
-            .into_iter()
-            .filter(|m| self.has_in_bank_or_inv(&m.code) < m.quantity * quantity)
+        let Some(item) = self.items.get(item_code) else {
+            return vec![];
+        };
+        item.mats()
+            .iter()
+            .filter(|&m| self.has_in_bank_or_inv(&m.code) < m.quantity * quantity)
+            .cloned()
             .update(|m| {
                 m.quantity *= quantity;
                 if !self.order_board.is_ordered(&m.code) {

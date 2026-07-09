@@ -165,7 +165,7 @@ impl AccountController {
                 }
             }
             ItemSource::Craft => {
-                for mat in &item.mats() {
+                for mat in item.mats() {
                     time += self.time_to_get(&mat.code)? * mat.quantity;
                 }
             }

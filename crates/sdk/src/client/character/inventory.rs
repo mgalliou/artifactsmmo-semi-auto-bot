@@ -22,7 +22,7 @@ pub trait Inventory: SlotLimited + SpaceLimited {
     /// Checks there is enough room to craft `item`.
     /// Returns `false` if `item` is not craftable or mats required are missing.
     fn has_room_to_craft(&self, item: &Item) -> bool {
-        if !item.is_craftable() || !self.contains_all(&item.mats()) {
+        if !item.is_craftable() || !self.contains_all(item.mats()) {
             return false;
         }
         let free_slot = self.free_slots();
