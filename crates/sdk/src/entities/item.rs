@@ -28,14 +28,14 @@ impl Item {
 
     #[must_use]
     pub fn mats_quantity(&self) -> u32 {
-        self.mats().iter().map(Quantity::quantity).sum()
+        self.mats().into_iter().map(Quantity::quantity).sum()
     }
 
     #[must_use]
-    pub fn mats(&self) -> Vec<SimpleItemSchema> {
+    pub fn mats(&self) -> Vec<&SimpleItemSchema> {
         self.craft_schema()
             .iter()
-            .filter_map(|i| i.items.clone())
+            .filter_map(|i| i.items.as_ref())
             .flatten()
             .collect_vec()
     }

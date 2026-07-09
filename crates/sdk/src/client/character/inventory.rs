@@ -1,5 +1,5 @@
 use crate::{
-    Code, DropsItems, Quantity,
+    Code, HasDropTable, Quantity,
     container::{ItemContainer, LimitedContainer, SlotLimited, SpaceLimited},
     entities::{Character, CharacterHandle, Item},
 };
@@ -45,7 +45,7 @@ impl ItemContainer for InventoryClient {
     type Slot = InventorySlotSchema;
 
     fn content(&self) -> Arc<Vec<Self::Slot>> {
-        self.data.load().inventory_items().clone()
+        self.data.load().inventory_items()
     }
 }
 
@@ -84,7 +84,7 @@ impl LimitedContainer for InventoryClient {
         true
     }
 
-    fn has_room_for_drops_from<H: DropsItems>(&self, entity: &H) -> bool {
+    fn has_room_for_drops_from(&self, entity: &impl HasDropTable) -> bool {
         self.free_slots() >= entity.average_item_slots()
             && self.free_space() >= entity.min_drop_quantity()
     }

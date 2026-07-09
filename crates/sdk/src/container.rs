@@ -1,4 +1,4 @@
-use crate::{Code, DropsItems, Quantity};
+use crate::{Code, HasDropTable, Quantity};
 use std::sync::Arc;
 
 pub trait ItemContainer {
@@ -27,7 +27,7 @@ pub trait ItemContainer {
 pub trait LimitedContainer: ItemContainer {
     fn is_full(&self) -> bool;
     fn has_room_for_all(&self, items: &[impl Code + Quantity]) -> bool;
-    fn has_room_for_drops_from<H: DropsItems>(&self, entity: &H) -> bool;
+    fn has_room_for_drops_from(&self, entity: &impl HasDropTable) -> bool;
 
     fn has_room_for(&self, item: impl Code + Quantity) -> bool {
         self.has_room_for_all(&[item])

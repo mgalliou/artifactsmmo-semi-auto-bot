@@ -215,9 +215,9 @@ pub trait HasEffects {
 
 impl<E> HasEffects for &E
 where
-    E: HasEffects,
+    E: HasEffects + ?Sized,
 {
     fn effects(&self) -> Vec<SimpleEffectSchema> {
-        (*self).effects()
+        (**self).effects()
     }
 }

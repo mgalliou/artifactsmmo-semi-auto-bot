@@ -4,7 +4,7 @@ use crate::{
 };
 use itertools::Itertools;
 use sdk::{
-    CharacterClient, Code, CollectionClient, DropsItems, ItemContainer, ItemsClient, Level,
+    CharacterClient, Code, CollectionClient, HasDropTable, ItemContainer, ItemsClient, Level,
     LimitedContainer, Quantity, SlotLimited, SpaceLimited,
     character::Inventory,
     entities::Item,
@@ -118,7 +118,7 @@ impl LimitedContainer for InventoryController {
         self.client.inventory().has_room_for_all(items)
     }
 
-    fn has_room_for_drops_from<H: DropsItems>(&self, entity: &H) -> bool {
+    fn has_room_for_drops_from(&self, entity: &impl HasDropTable) -> bool {
         self.client.inventory().has_room_for_drops_from(entity)
     }
 }

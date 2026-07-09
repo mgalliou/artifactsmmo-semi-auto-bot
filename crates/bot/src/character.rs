@@ -31,7 +31,7 @@ use log::{debug, error, info, warn};
 use ordered_float::OrderedFloat;
 use sdk::models::{EquipSchema, UnequipSchema};
 use sdk::{
-    Client, Code, CollectionClient, DropsItems, HasConditions, HasDrops, ItemContainer, ItemList,
+    Client, Code, CollectionClient, HasDropTable, HasConditions, HasDrops, ItemContainer, ItemList,
     ItemsClient, Level, LimitedContainer, MapsClient, MonstersClient, NpcsClient, SlotLimited,
     SpaceLimited, TasksClient,
     bank::Bank,
@@ -1694,7 +1694,7 @@ impl CharacterController {
                     ItemSource::Resource(r) => self.time_to_gather(r),
                     ItemSource::Monster(m) => self
                         .time_to_kill(m)
-                        .map(|time| time * (m.effective_drop_rate_of(item) * 100.0) as u32),
+                        .map(|time| time * (m.effective_rate_of(item) * 100.0) as u32),
                     ItemSource::Craft => self.can_craft(item).is_ok().then_some(CRAFT_TIME),
                     ItemSource::TaskReward | ItemSource::Task => Some(2000),
                     ItemSource::Npc(_) => Some(60),
@@ -1810,8 +1810,8 @@ impl CharacterController {
                 .iter()
                 .min_by_key(|s| {
                     OrderedFloat(match s {
-                        ItemSource::Resource(resource) => resource.drop_rate_of(code),
-                        ItemSource::Monster(monster) => monster.drop_rate_of(code),
+                        ItemSource::Resource(resource) => resource.percentage_of(code),
+                        ItemSource::Monster(monster) => monster.percentage_of(code),
                         _ => 0.0,
                     })
                 })

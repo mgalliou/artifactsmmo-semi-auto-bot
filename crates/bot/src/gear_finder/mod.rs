@@ -241,7 +241,7 @@ impl GearResolver {
             .iter()
             .filter(|i| !i.is_tool())
             // sort by damage descending (negate), then alphabetically by code as tiebreaker
-            .sorted_by_key(|i| (OrderedFloat(-i.average_dmg_against(monster)), i.code()))
+            .sorted_by_key(|&i| (OrderedFloat(-i.average_dmg_against(monster)), i.code()))
             .take(2)
             .collect_vec()
     }

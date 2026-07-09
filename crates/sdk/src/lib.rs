@@ -76,6 +76,15 @@ pub trait Code {
     fn code(&self) -> &str;
 }
 
+impl<T> Code for &T
+where
+    T: Code + ?Sized,
+{
+    fn code(&self) -> &str {
+        (**self).code()
+    }
+}
+
 impl Code for DropSchema {
     fn code(&self) -> &str {
         &self.code
@@ -110,6 +119,15 @@ pub trait Quantity {
     fn quantity(&self) -> u32;
 }
 
+impl<T> Quantity for &T
+where
+    T: Quantity + ?Sized,
+{
+    fn quantity(&self) -> u32 {
+        (**self).quantity()
+    }
+}
+
 impl Quantity for DropSchema {
     fn quantity(&self) -> u32 {
         self.quantity as u32
@@ -134,6 +152,7 @@ impl<T: AsRef<str>> Quantity for (T, u32) {
     }
 }
 
+/// Trait used on struct containing droped items
 pub trait HasDrops {
     fn amount_of(&self, item_code: &str) -> u32;
 }
@@ -181,8 +200,10 @@ where
     }
 }
 
-pub trait DropsItems {
-    fn average_drop_quantity(&self) -> u32 {
+/// Trait used on struct containing a drop table
+pub trait HasDropTable {
+    /// Returns the average quantity of item per drop, rounded to the upper integer
+    fn average_item_quantity(&self) -> u32 {
         self.drops()
             .iter()
             .map(DropRateSchemaExt::effective_rate)
@@ -190,37 +211,45 @@ pub trait DropsItems {
             .ceil() as u32
     }
 
-    fn drop_rate_of(&self, item_code: &str) -> f32 {
+    /// Returns the percentage of an item per drop
+    fn percentage_of(&self, item_code: &str) -> f32 {
         self.drops()
             .iter()
             .find(|d| d.code() == item_code)
-            .map_or(0.0, DropRateSchemaExt::rate)
+            .map_or(0.0, DropRateSchemaExt::percentage)
     }
 
-    fn effective_drop_rate_of(&self, item_code: &str) -> f32 {
+    fn effective_rate_of(&self, item_code: &str) -> f32 {
         self.drops()
             .iter()
             .find(|d| d.code() == item_code)
             .map_or(0.0, DropRateSchemaExt::effective_rate)
     }
 
-    fn average_drop_slots(&self) -> u32 {
+    /// Returns the average slot taken by the item drop, rounded to the upper integer
+    fn average_item_slots(&self) -> u32 {
         self.drops()
             .iter()
-            .map(DropRateSchemaExt::rate)
+            .map(DropRateSchemaExt::percentage)
             .sum::<f32>()
             .ceil() as u32
     }
 
     fn min_drop_quantity(&self) -> u32 {
-        self.drops().iter().map(|i| i.min_quantity).sum()
+        self.drops()
+            .iter()
+            .map(DropRateSchemaExt::min_quantity)
+            .sum()
     }
 
     fn max_drop_quantity(&self) -> u32 {
-        self.drops().iter().map(|i| i.max_quantity).sum()
+        self.drops()
+            .iter()
+            .map(DropRateSchemaExt::max_quantity)
+            .sum()
     }
 
-    fn drops(&self) -> &Vec<DropRateSchema>;
+    fn drops(&self) -> &[impl DropRateSchemaExt];
 }
 
 pub trait HasConditions {
@@ -249,18 +278,29 @@ pub trait CanProvideXp: Level {
     }
 }
 
-pub trait DropRateSchemaExt {
-    fn effective_rate(&self) -> f32 {
-        self.rate() * self.average_quantity()
+pub trait DropRateSchemaExt: Code {
+    fn min_quantity(&self) -> u32;
+
+    fn max_quantity(&self) -> u32;
+
+    fn rate(&self) -> u32;
+
+    fn percentage(&self) -> f32 {
+        self.rate() as f32 / 100.0
     }
 
+    /// Returns the average item quantity when the item drops
     fn average_quantity(&self) -> f32 {
         (self.min_quantity() + self.max_quantity()) as f32 / 2.0
     }
 
-    fn rate(&self) -> f32;
-    fn min_quantity(&self) -> u32;
-    fn max_quantity(&self) -> u32;
+    fn effective_rate(&self) -> f32 {
+        self.rate() as f32 * self.average_quantity()
+    }
+
+    fn effective_percentage(&self) -> f32 {
+        self.percentage() * self.average_quantity()
+    }
 }
 
 impl DropRateSchemaExt for DropRateSchema {
@@ -272,8 +312,8 @@ impl DropRateSchemaExt for DropRateSchema {
         self.max_quantity
     }
 
-    fn rate(&self) -> f32 {
-        self.rate as f32 / 100.0
+    fn rate(&self) -> u32 {
+        self.rate
     }
 }
 

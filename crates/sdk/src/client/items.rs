@@ -1,5 +1,5 @@
 use crate::{
-    Cached, Code, CollectionClient, DropsItems, Level, Quantity,
+    Cached, Code, CollectionClient, HasDropTable, Level, Quantity,
     client::{
         monsters::MonstersClient, npcs::NpcsClient, resources::ResourcesClient,
         tasks_rewards::TasksRewardsClient,
@@ -77,7 +77,7 @@ impl ItemsClient {
 
     /// Takes an item `code` and return the mats required to craft it.
     pub fn mats_of(&self, code: &str) -> Vec<SimpleItemSchema> {
-        self.get(code).iter().flat_map(Item::mats).collect_vec()
+        self.get(code).iter().flat_map(Item::mats).cloned().collect_vec()
     }
 
     #[must_use]
@@ -123,7 +123,7 @@ impl ItemsClient {
             .flat_map(|r| {
                 r.drops()
                     .iter()
-                    .map(|drop| self.crafted_with_base_mat(&drop.code))
+                    .map(|drop| self.crafted_with_base_mat(drop.code()))
                     .collect_vec()
             })
             .flatten()

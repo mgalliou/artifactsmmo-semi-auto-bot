@@ -1,5 +1,5 @@
 use crate::{
-    Cached, CollectionClient, DropsItems,
+    Cached, Code, CollectionClient, HasDropTable,
     client::events::EventsClient,
     entities::{EventSchemaExt, Resource},
 };
@@ -68,7 +68,7 @@ impl ResourcesClient {
     #[must_use]
     pub fn dropping(&self, item_code: &str) -> Vec<Resource> {
         self.iter()
-            .filter(|r| r.drops().iter().any(|d| d.code == item_code))
+            .filter(|r| r.drops().iter().any(|d| d.code() == item_code))
             .collect_vec()
     }
 

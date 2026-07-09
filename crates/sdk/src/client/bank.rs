@@ -1,4 +1,4 @@
-use crate::{BANK_EXPANSION_SIZE, Code, ItemContainer, LimitedContainer, Quantity, SlotLimited};
+use crate::{BANK_EXPANSION_SIZE, Code, HasDropTable, ItemContainer, LimitedContainer, Quantity, SlotLimited};
 use arc_swap::ArcSwap;
 use derive_more::Deref;
 use openapi::models::{BankSchema, SimpleItemSchema};
@@ -129,7 +129,7 @@ impl LimitedContainer for BankClient {
         true
     }
 
-    fn has_room_for_drops_from<H: crate::DropsItems>(&self, entity: &H) -> bool {
-        self.free_slots() >= entity.average_drop_slots()
+    fn has_room_for_drops_from(&self, entity: &impl HasDropTable) -> bool {
+        self.free_slots() >= entity.average_item_slots()
     }
 }

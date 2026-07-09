@@ -1,9 +1,9 @@
 use crate::{
-    CanProvideXp, Code, DropsItems, Level,
+    CanProvideXp, Code, DropRateSchemaExt, HasDropTable, Level,
     simulator::{DamageType, HasEffects},
 };
 use itertools::Itertools;
-use openapi::models::{DropRateSchema, MonsterSchema, MonsterType, SimpleEffectSchema};
+use openapi::models::{MonsterSchema, MonsterType, SimpleEffectSchema};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -26,8 +26,8 @@ impl Monster {
     }
 }
 
-impl DropsItems for Monster {
-    fn drops(&self) -> &Vec<DropRateSchema> {
+impl HasDropTable for Monster {
+    fn drops(&self) -> &[impl DropRateSchemaExt] {
         &self.0.drops
     }
 }

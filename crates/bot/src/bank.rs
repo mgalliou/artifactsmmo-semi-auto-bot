@@ -5,7 +5,7 @@ use crate::{
 use derive_more::Deref;
 use itertools::Itertools;
 use sdk::{
-    BankClient, Code, CollectionClient, DropsItems, ItemContainer, ItemsClient, Level,
+    BankClient, Code, CollectionClient, HasDropTable, ItemContainer, ItemsClient, Level,
     LimitedContainer, Quantity, SlotLimited,
     bank::Bank,
     entities::{CharacterName, Item},
@@ -177,7 +177,7 @@ impl LimitedContainer for BankController {
         self.client.has_room_for_all(items)
     }
 
-    fn has_room_for_drops_from<H: DropsItems>(&self, entity: &H) -> bool {
+    fn has_room_for_drops_from(&self, entity: &impl HasDropTable) -> bool {
         self.client.has_room_for_drops_from(entity)
     }
 }

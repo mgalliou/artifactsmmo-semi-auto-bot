@@ -1,5 +1,5 @@
 use crate::{
-    Cached, CanProvideXp, CollectionClient, DropsItems, Level,
+    Cached, CanProvideXp, Code, CollectionClient, HasDropTable, Level,
     client::events::EventsClient,
     entities::{EventSchemaExt, Monster},
 };
@@ -68,7 +68,7 @@ impl MonstersClient {
     #[must_use]
     pub fn dropping(&self, item_code: &str) -> Vec<Monster> {
         self.iter()
-            .filter(|m| m.drops().iter().any(|d| d.code == item_code))
+            .filter(|m| m.drops().iter().any(|d| d.code() == item_code))
             .collect_vec()
     }
 
