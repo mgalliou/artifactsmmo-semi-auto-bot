@@ -2,8 +2,7 @@ use crate::{
     CanProvideXp, Code, DropRateSchemaExt, HasDropTable, Level,
     simulator::{DamageType, HasEffects},
 };
-use itertools::Itertools;
-use openapi::models::{MonsterSchema, MonsterType, SimpleEffectSchema};
+use openapi::models::{MonsterSchema, MonsterType};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -75,9 +74,13 @@ impl HasEffects for Monster {
         self.0.initiative
     }
 
-    fn effects(&self) -> Vec<SimpleEffectSchema> {
-        // TODO: remove this clone
-        self.0.effects.iter().flatten().cloned().collect_vec()
+    fn effect_value(&self, effect: &str) -> i32 {
+        self.0
+            .effects
+            .iter()
+            .flatten()
+            .find(|e| e.code == effect)
+            .map_or(0, |e| e.value)
     }
 }
 

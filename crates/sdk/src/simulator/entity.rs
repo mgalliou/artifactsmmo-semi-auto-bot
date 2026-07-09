@@ -7,7 +7,6 @@ use crate::{
     },
 };
 use dyn_clone::DynClone;
-use openapi::models::SimpleEffectSchema;
 use std::{cell::RefCell, rc::Rc};
 
 pub(super) trait SimulationEntity: HasEffects + DynClone {
@@ -325,10 +324,6 @@ impl HasEffects for SimulationCharacter {
     fn effect_value(&self, effect: &str) -> i32 {
         self.0.borrow().gear.effect_value(effect)
     }
-
-    fn effects(&self) -> Vec<SimpleEffectSchema> {
-        self.0.borrow().gear.effects()
-    }
 }
 
 #[derive(Clone)]
@@ -451,7 +446,7 @@ impl HasEffects for SimulationMonster {
         }
     }
 
-    fn effects(&self) -> Vec<SimpleEffectSchema> {
-        self.0.borrow().monster.effects()
+    fn effect_value(&self, effect: &str) -> i32 {
+        self.0.borrow().monster.effect_value(effect)
     }
 }

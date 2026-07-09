@@ -165,6 +165,11 @@ impl Item {
     pub fn name(&self) -> &str {
         &self.0.name
     }
+
+    #[must_use]
+    pub fn effects(&self) -> &[SimpleEffectSchema] {
+        self.0.effects.as_deref().unwrap_or_default()
+    }
 }
 
 impl Eq for Item {}
@@ -182,8 +187,13 @@ impl Ord for Item {
 }
 
 impl HasEffects for Item {
-    fn effects(&self) -> Vec<SimpleEffectSchema> {
-        self.0.effects.iter().flatten().cloned().collect_vec()
+    fn effect_value(&self, effect: &str) -> i32 {
+        self.0
+            .effects
+            .iter()
+            .flatten()
+            .find(|e| e.code == effect)
+            .map_or(0, |e| e.value)
     }
 }
 

@@ -3,7 +3,6 @@ use crate::{
     simulator::{DamageType, Hit, average_dmg},
 };
 use itertools::Itertools;
-use openapi::models::SimpleEffectSchema;
 use strum::IntoEnumIterator;
 
 const HP: &str = "hp";
@@ -108,12 +107,7 @@ pub trait HasEffects {
         self.effect_value(INVENTORY_SPACE)
     }
 
-    fn effect_value(&self, effect: &str) -> i32 {
-        self.effects()
-            .iter()
-            .find_map(|e| (e.code == effect).then_some(e.value))
-            .unwrap_or(0)
-    }
+    fn effect_value(&self, effect: &str) -> i32;
 
     /// Models one weapon swing where every element either crits or none do.
     fn hits_against(&self, target: &dyn HasEffects, averaged: bool) -> Vec<Hit> {
@@ -210,15 +204,10 @@ pub trait HasEffects {
             })
             .sum()
     }
-
-    fn effects(&self) -> Vec<SimpleEffectSchema>;
 }
 
-impl<E> HasEffects for &E
-where
-    E: HasEffects + ?Sized,
-{
-    fn effects(&self) -> Vec<SimpleEffectSchema> {
-        (**self).effects()
+impl<E: HasEffects + ?Sized> HasEffects for &E {
+    fn effect_value(&self, effect: &str) -> i32 {
+        (**self).effect_value(effect)
     }
 }

@@ -1,11 +1,7 @@
-use crate::{
-    Code,
-    entities::Item,
-    simulator::{EffectCode, HasEffects},
-};
+use crate::{Code, entities::Item, simulator::HasEffects};
 use ::std::hash::BuildHasher;
 use itertools::Itertools;
-use openapi::models::{ItemSlot, SimpleEffectSchema, SimpleItemSchema};
+use openapi::models::{ItemSlot, SimpleItemSchema};
 use std::{
     cell::RefCell,
     collections::HashMap,
@@ -267,8 +263,8 @@ impl Gear {
 }
 
 impl Gear {
-    fn invalidate_cache(&mut self) {
-        self.effects_cache = RefCell::default();
+    fn invalidate_cache(&self) {
+        self.effects_cache.borrow_mut().clear();
     }
 
     fn get_or_compute_effect(&self, effect: &str) -> i32 {
@@ -287,19 +283,6 @@ impl Gear {
 impl HasEffects for Gear {
     fn effect_value(&self, effect: &str) -> i32 {
         self.get_or_compute_effect(effect)
-    }
-
-    fn effects(&self) -> Vec<SimpleEffectSchema> {
-        EffectCode::iter()
-            .filter_map(|code| {
-                let value = self.get_or_compute_effect(code.as_ref());
-                (value != 0).then(|| SimpleEffectSchema {
-                    code: code.to_string(),
-                    value,
-                    description: String::new(),
-                })
-            })
-            .collect_vec()
     }
 }
 
