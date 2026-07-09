@@ -77,7 +77,11 @@ impl ItemsClient {
 
     /// Takes an item `code` and return the mats required to craft it.
     pub fn mats_of(&self, code: &str) -> Vec<SimpleItemSchema> {
-        self.get(code).iter().flat_map(Item::mats).cloned().collect_vec()
+        self.get(code)
+            .iter()
+            .flat_map(Item::mats)
+            .cloned()
+            .collect_vec()
     }
 
     #[must_use]
@@ -312,7 +316,6 @@ impl Cached<HashMap<String, Item>> for ItemsClient {
     fn refresh(&self) {
         self.data.store(Arc::new(self.fetch_from_source()));
     }
-
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Display, AsRefStr, EnumIter, EnumString, EnumIs)]

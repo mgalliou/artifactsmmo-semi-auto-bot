@@ -1,7 +1,4 @@
-use crate::{
-    client::character::error::RequestError,
-    entities::RawMap,
-};
+use crate::{client::character::error::RequestError, entities::RawMap};
 use openapi::models::{
     CharacterFightSchema, EquipSchema, GeTransactionSchema, NpcItemTransactionSchema,
     RecyclingItemsSchema, RewardsSchema, SimpleItemSchema, SkillInfoSchema, TaskSchema,

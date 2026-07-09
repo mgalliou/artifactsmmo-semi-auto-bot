@@ -1,7 +1,15 @@
-use openapi::models::{CharacterFightSchema, CharacterSchema, EquipSchema, GeTransactionSchema, NpcItemTransactionSchema, RecyclingItemsSchema, RewardsSchema, SimpleItemSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, UnequipSchema};
+use openapi::models::{
+    CharacterFightSchema, CharacterSchema, EquipSchema, GeTransactionSchema,
+    NpcItemTransactionSchema, RecyclingItemsSchema, RewardsSchema, SimpleItemSchema,
+    SkillInfoSchema, TaskSchema, TaskTradeSchema, UnequipSchema,
+};
 
 use crate::{
-    AccountClient, CharacterClient, CollectionClient, EventsClient, GrandExchangeClient, MapsClient, NpcsClient, NpcsItemsClient, ResourcesClient, TasksClient, TasksRewardsClient, character::{CharacterRequestHandler, error::RequestError}, client::{items::ItemsClient, monsters::MonstersClient}, entities::{Item, Monster},
+    AccountClient, CharacterClient, CollectionClient, EventsClient, GrandExchangeClient,
+    MapsClient, NpcsClient, NpcsItemsClient, ResourcesClient, TasksClient, TasksRewardsClient,
+    character::{CharacterRequestHandler, error::RequestError},
+    client::{items::ItemsClient, monsters::MonstersClient},
+    entities::{Item, Monster},
 };
 use std::{
     collections::HashMap,
@@ -100,17 +108,11 @@ impl CharacterRequestHandler for MockCharacterRequestHandler {
         todo!()
     }
 
-    fn request_move(
-        &self,
-        _x: i32,
-        _y: i32,
-    ) -> Result<crate::entities::RawMap, RequestError> {
+    fn request_move(&self, _x: i32, _y: i32) -> Result<crate::entities::RawMap, RequestError> {
         todo!()
     }
 
-    fn request_transition(
-        &self,
-    ) -> Result<crate::entities::RawMap, RequestError> {
+    fn request_transition(&self) -> Result<crate::entities::RawMap, RequestError> {
         todo!()
     }
 
@@ -125,9 +127,7 @@ impl CharacterRequestHandler for MockCharacterRequestHandler {
         todo!()
     }
 
-    fn request_gather(
-        &self,
-    ) -> Result<SkillInfoSchema, RequestError> {
+    fn request_gather(&self) -> Result<SkillInfoSchema, RequestError> {
         todo!()
     }
 
@@ -155,31 +155,19 @@ impl CharacterRequestHandler for MockCharacterRequestHandler {
         todo!()
     }
 
-    fn request_deposit_item(
-        &self,
-        _items: &[SimpleItemSchema],
-    ) -> Result<(), RequestError> {
+    fn request_deposit_item(&self, _items: &[SimpleItemSchema]) -> Result<(), RequestError> {
         todo!()
     }
 
-    fn request_withdraw_item(
-        &self,
-        _items: &[SimpleItemSchema],
-    ) -> Result<(), RequestError> {
+    fn request_withdraw_item(&self, _items: &[SimpleItemSchema]) -> Result<(), RequestError> {
         todo!()
     }
 
-    fn request_deposit_gold(
-        &self,
-        _quantity: u32,
-    ) -> Result<u32, RequestError> {
+    fn request_deposit_gold(&self, _quantity: u32) -> Result<u32, RequestError> {
         todo!()
     }
 
-    fn request_withdraw_gold(
-        &self,
-        _quantity: u32,
-    ) -> Result<u32, RequestError> {
+    fn request_withdraw_gold(&self, _quantity: u32) -> Result<u32, RequestError> {
         todo!()
     }
 
@@ -187,37 +175,23 @@ impl CharacterRequestHandler for MockCharacterRequestHandler {
         todo!()
     }
 
-    fn request_equip(
-        &self,
-        _items: &[EquipSchema],
-    ) -> Result<(), RequestError> {
+    fn request_equip(&self, _items: &[EquipSchema]) -> Result<(), RequestError> {
         todo!()
     }
 
-    fn request_unequip(
-        &self,
-        _slots: &[UnequipSchema],
-    ) -> Result<(), RequestError> {
+    fn request_unequip(&self, _slots: &[UnequipSchema]) -> Result<(), RequestError> {
         todo!()
     }
 
-    fn request_use_item(
-        &self,
-        _item_code: &str,
-        _quantity: u32,
-    ) -> Result<(), RequestError> {
+    fn request_use_item(&self, _item_code: &str, _quantity: u32) -> Result<(), RequestError> {
         todo!()
     }
 
-    fn request_accept_task(
-        &self,
-    ) -> Result<TaskSchema, RequestError> {
+    fn request_accept_task(&self) -> Result<TaskSchema, RequestError> {
         todo!()
     }
 
-    fn request_complete_task(
-        &self,
-    ) -> Result<RewardsSchema, RequestError> {
+    fn request_complete_task(&self) -> Result<RewardsSchema, RequestError> {
         todo!()
     }
 
@@ -233,9 +207,7 @@ impl CharacterRequestHandler for MockCharacterRequestHandler {
         todo!()
     }
 
-    fn request_exchange_tasks_coin(
-        &self,
-    ) -> Result<RewardsSchema, RequestError> {
+    fn request_exchange_tasks_coin(&self) -> Result<RewardsSchema, RequestError> {
         todo!()
     }
 
@@ -243,8 +215,7 @@ impl CharacterRequestHandler for MockCharacterRequestHandler {
         &self,
         _item_code: &str,
         _quantity: u32,
-    ) -> Result<NpcItemTransactionSchema, RequestError>
-    {
+    ) -> Result<NpcItemTransactionSchema, RequestError> {
         todo!()
     }
 
@@ -252,8 +223,7 @@ impl CharacterRequestHandler for MockCharacterRequestHandler {
         &self,
         _item_code: &str,
         _quantity: u32,
-    ) -> Result<NpcItemTransactionSchema, RequestError>
-    {
+    ) -> Result<NpcItemTransactionSchema, RequestError> {
         todo!()
     }
 
@@ -265,18 +235,11 @@ impl CharacterRequestHandler for MockCharacterRequestHandler {
         todo!()
     }
 
-    fn request_give_gold(
-        &self,
-        _quantity: u32,
-        _character: &str,
-    ) -> Result<(), RequestError> {
+    fn request_give_gold(&self, _quantity: u32, _character: &str) -> Result<(), RequestError> {
         todo!()
     }
 
-    fn request_claim_pending_item(
-        &self,
-        _id: &str,
-    ) -> Result<(), RequestError> {
+    fn request_claim_pending_item(&self, _id: &str) -> Result<(), RequestError> {
         todo!()
     }
 
@@ -297,10 +260,7 @@ impl CharacterRequestHandler for MockCharacterRequestHandler {
         todo!()
     }
 
-    fn request_ge_cancel_order(
-        &self,
-        _id: &str,
-    ) -> Result<GeTransactionSchema, RequestError> {
+    fn request_ge_cancel_order(&self, _id: &str) -> Result<GeTransactionSchema, RequestError> {
         todo!()
     }
 }

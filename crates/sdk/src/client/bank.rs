@@ -1,4 +1,6 @@
-use crate::{BANK_EXPANSION_SIZE, Code, HasDropTable, ItemContainer, LimitedContainer, Quantity, SlotLimited};
+use crate::{
+    BANK_EXPANSION_SIZE, Code, HasDropTable, ItemContainer, LimitedContainer, Quantity, SlotLimited,
+};
 use arc_swap::ArcSwap;
 use derive_more::Deref;
 use openapi::models::{BankSchema, SimpleItemSchema};

@@ -7,6 +7,7 @@ use ::std::hash::BuildHasher;
 use itertools::Itertools;
 use openapi::models::{ItemSlot, SimpleEffectSchema, SimpleItemSchema};
 use std::{
+    cell::RefCell,
     collections::HashMap,
     convert::Into,
     default::Default,
@@ -16,7 +17,7 @@ use std::{
 use strum::IntoEnumIterator;
 use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
 
-#[derive(Default, Debug, PartialEq, Eq, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct Gear {
     pub weapon: Option<Item>,
     pub helmet: Option<Item>,
@@ -34,7 +35,31 @@ pub struct Gear {
     pub artifact3: Option<Item>,
     pub rune: Option<Item>,
     pub bag: Option<Item>,
+    pub(crate) effects_cache: RefCell<HashMap<String, i32>>,
 }
+
+impl PartialEq for Gear {
+    fn eq(&self, other: &Self) -> bool {
+        self.weapon == other.weapon
+            && self.helmet == other.helmet
+            && self.shield == other.shield
+            && self.body_armor == other.body_armor
+            && self.leg_armor == other.leg_armor
+            && self.boots == other.boots
+            && self.amulet == other.amulet
+            && self.ring1 == other.ring1
+            && self.ring2 == other.ring2
+            && self.utility1 == other.utility1
+            && self.utility2 == other.utility2
+            && self.artifact1 == other.artifact1
+            && self.artifact2 == other.artifact2
+            && self.artifact3 == other.artifact3
+            && self.rune == other.rune
+            && self.bag == other.bag
+    }
+}
+
+impl Eq for Gear {}
 
 impl Gear {
     #[allow(clippy::too_many_arguments)]
@@ -82,6 +107,7 @@ impl Gear {
                 artifact3,
                 rune,
                 bag,
+                effects_cache: RefCell::new(HashMap::new()),
             })
         }
     }
@@ -89,96 +115,112 @@ impl Gear {
     #[must_use]
     pub fn with_weapon(mut self, item: Item) -> Self {
         self.weapon = Some(item);
+        self.invalidate_cache();
         self
     }
 
     #[must_use]
     pub fn with_helmet(mut self, item: Item) -> Self {
         self.helmet = Some(item);
+        self.invalidate_cache();
         self
     }
 
     #[must_use]
     pub fn with_shield(mut self, item: Item) -> Self {
         self.shield = Some(item);
+        self.invalidate_cache();
         self
     }
 
     #[must_use]
     pub fn with_body_armor(mut self, item: Item) -> Self {
         self.body_armor = Some(item);
+        self.invalidate_cache();
         self
     }
 
     #[must_use]
     pub fn with_leg_armor(mut self, item: Item) -> Self {
         self.leg_armor = Some(item);
+        self.invalidate_cache();
         self
     }
 
     #[must_use]
     pub fn with_boots(mut self, item: Item) -> Self {
         self.boots = Some(item);
+        self.invalidate_cache();
         self
     }
 
     #[must_use]
     pub fn with_amulet(mut self, item: Item) -> Self {
         self.amulet = Some(item);
+        self.invalidate_cache();
         self
     }
 
     #[must_use]
     pub fn with_ring1(mut self, item: Item) -> Self {
         self.ring1 = Some(item);
+        self.invalidate_cache();
         self
     }
 
     #[must_use]
     pub fn with_ring2(mut self, item: Item) -> Self {
         self.ring2 = Some(item);
+        self.invalidate_cache();
         self
     }
 
     #[must_use]
     pub fn with_utility1(mut self, item: Item) -> Self {
         self.utility1 = Some(item);
+        self.invalidate_cache();
         self
     }
 
     #[must_use]
     pub fn with_utility2(mut self, item: Item) -> Self {
         self.utility2 = Some(item);
+        self.invalidate_cache();
         self
     }
 
     #[must_use]
     pub fn with_artifact1(mut self, item: Item) -> Self {
         self.artifact1 = Some(item);
+        self.invalidate_cache();
         self
     }
 
     #[must_use]
     pub fn with_artifact2(mut self, item: Item) -> Self {
         self.artifact2 = Some(item);
+        self.invalidate_cache();
         self
     }
 
     #[must_use]
     pub fn with_artifact3(mut self, item: Item) -> Self {
         self.artifact3 = Some(item);
+        self.invalidate_cache();
         self
     }
 
     #[must_use]
     pub fn with_rune(mut self, item: Item) -> Self {
         self.rune = Some(item);
+        self.invalidate_cache();
         self
     }
 
     #[must_use]
     pub fn with_bag(mut self, item: Item) -> Self {
         self.bag = Some(item);
+        self.invalidate_cache();
         self
     }
 
@@ -220,23 +262,42 @@ impl Gear {
         if self.artifact2 == other.artifact3 || self.artifact3 == other.artifact2 {
             swap(&mut self.artifact2, &mut self.artifact3);
         }
+        self.invalidate_cache();
+    }
+}
+
+impl Gear {
+    fn invalidate_cache(&mut self) {
+        self.effects_cache = RefCell::default();
+    }
+
+    fn get_or_compute_effect(&self, effect: &str) -> i32 {
+        let mut cache = self.effects_cache.borrow_mut();
+        if let Some(&value) = cache.get(effect) {
+            return value;
+        }
+        let value = Slot::iter()
+            .map(|slot| self.item_in(slot).map_or(0, |i| i.effect_value(effect)))
+            .sum();
+        cache.insert(effect.to_owned(), value);
+        value
     }
 }
 
 impl HasEffects for Gear {
     fn effect_value(&self, effect: &str) -> i32 {
-        Slot::iter()
-            .map(|slot| self.item_in(slot).map_or(0, |i| i.effect_value(effect)))
-            .sum()
+        self.get_or_compute_effect(effect)
     }
 
     fn effects(&self) -> Vec<SimpleEffectSchema> {
         EffectCode::iter()
-            .filter(|code| self.effect_value(code.as_ref()) != 0)
-            .map(|code| SimpleEffectSchema {
-                code: code.to_string(),
-                value: self.effect_value(code.as_ref()),
-                description: String::new(),
+            .filter_map(|code| {
+                let value = self.get_or_compute_effect(code.as_ref());
+                (value != 0).then(|| SimpleEffectSchema {
+                    code: code.to_string(),
+                    value,
+                    description: String::new(),
+                })
             })
             .collect_vec()
     }

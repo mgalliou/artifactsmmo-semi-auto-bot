@@ -28,9 +28,15 @@ use crate::{
 };
 use derive_more::Deref;
 use openapi::models::{
-    CharacterFightSchema, ConditionOperator, EquipSchema, GeOrderType, GeTransactionSchema, MapContentType, NpcItemTransactionSchema, RecyclingItemsSchema, RewardsSchema, SimpleItemSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType, UnequipSchema,
+    CharacterFightSchema, ConditionOperator, EquipSchema, GeOrderType, GeTransactionSchema,
+    MapContentType, NpcItemTransactionSchema, RecyclingItemsSchema, RewardsSchema,
+    SimpleItemSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType, UnequipSchema,
 };
-use std::{str::FromStr, sync::Arc, time::Duration};
+use std::{
+    str::FromStr,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 pub use handler::CharacterRequestHandler;
 pub use inventory::{Inventory, InventoryClient};
@@ -63,6 +69,7 @@ pub struct CharacterClientInner {
     npcs: NpcsClient,
     tasks: TasksClient,
     grand_exchange: GrandExchangeClient,
+    gear_cache: Mutex<Option<Gear>>,
 }
 
 impl CharacterClient {
@@ -95,6 +102,7 @@ impl CharacterClient {
                 npcs,
                 tasks,
                 grand_exchange,
+                gear_cache: Mutex::new(None),
             }
             .into(),
         )
@@ -407,7 +415,9 @@ impl CharacterClient {
 
     pub fn equip(&self, items: &[EquipSchema]) -> Result<(), EquipError> {
         self.can_equip(items)?;
-        Ok(self.handler().request_equip(items)?)
+        self.handler().request_equip(items)?;
+        self.invalidate_gear_cache();
+        Ok(())
     }
 
     pub fn can_equip(&self, items: &[EquipSchema]) -> Result<(), EquipError> {
@@ -448,7 +458,9 @@ impl CharacterClient {
 
     pub fn unequip(&self, slots: &[UnequipSchema]) -> Result<(), UnequipError> {
         self.can_unequip(slots)?;
-        Ok(self.handler().request_unequip(slots)?)
+        self.handler().request_unequip(slots)?;
+        self.invalidate_gear_cache();
+        Ok(())
     }
 
     pub fn can_unequip(&self, slots: &[UnequipSchema]) -> Result<(), UnequipError> {
@@ -848,9 +860,16 @@ impl CharacterClient {
         Ok(())
     }
 
+    fn invalidate_gear_cache(&self) {
+        *self.gear_cache.lock().unwrap() = None;
+    }
+
     #[must_use]
     pub fn gear(&self) -> Gear {
-        Gear {
+        if let Some(ref cached) = *self.gear_cache.lock().unwrap() {
+            return cached.clone();
+        }
+        let gear = Gear {
             weapon: self.items.get(&self.equiped_in(Slot::Weapon)),
             shield: self.items.get(&self.equiped_in(Slot::Shield)),
             helmet: self.items.get(&self.equiped_in(Slot::Helmet)),
@@ -867,7 +886,10 @@ impl CharacterClient {
             utility2: self.items.get(&self.equiped_in(Slot::Utility2)),
             rune: self.items.get(&self.equiped_in(Slot::Rune)),
             bag: self.items.get(&self.equiped_in(Slot::Bag)),
-        }
+            ..Default::default()
+        };
+        *self.gear_cache.lock().unwrap() = Some(gear.clone());
+        gear
     }
 
     pub fn meets_conditions_for(&self, entity: &impl HasConditions) -> bool {

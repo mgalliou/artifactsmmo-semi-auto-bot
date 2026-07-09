@@ -31,7 +31,7 @@ use log::{debug, error, info, warn};
 use ordered_float::OrderedFloat;
 use sdk::models::{EquipSchema, UnequipSchema};
 use sdk::{
-    Client, Code, CollectionClient, HasDropTable, HasConditions, HasDrops, ItemContainer, ItemList,
+    Client, Code, CollectionClient, HasConditions, HasDropTable, HasDrops, ItemContainer, ItemList,
     ItemsClient, Level, LimitedContainer, MapsClient, MonstersClient, NpcsClient, SlotLimited,
     SpaceLimited, TasksClient,
     bank::Bank,

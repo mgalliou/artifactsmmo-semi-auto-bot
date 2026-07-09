@@ -30,7 +30,6 @@ pub struct EventsClientInner {
 }
 
 impl Default for EventsClientInner {
-
     fn default() -> Self {
         Self {
             directory: ".cache/".into(),

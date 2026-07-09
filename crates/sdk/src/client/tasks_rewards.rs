@@ -66,5 +66,4 @@ impl Cached<HashMap<String, TaskReward>> for TasksRewardsClient {
     fn refresh(&self) {
         self.data.store(Arc::new(self.fetch_from_source()));
     }
-
 }

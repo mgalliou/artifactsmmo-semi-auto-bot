@@ -15,9 +15,9 @@ use log::{debug, error, info, warn};
 use openapi::models::{
     BankExtensionTransactionResponseSchema, BankGoldTransactionResponseSchema,
     CharacterFightResponseSchema, CharacterFightSchema, CharacterMovementResponseSchema,
-    CharacterTransitionResponseSchema, ClaimPendingItemResponseSchema,
-    DeleteItemResponseSchema, GeCreateOrderTransactionResponseSchema, GeTransactionResponseSchema,
-    GeTransactionSchema, GiveGoldResponseSchema, GiveItemResponseSchema, NpcItemTransactionSchema,
+    CharacterTransitionResponseSchema, ClaimPendingItemResponseSchema, DeleteItemResponseSchema,
+    GeCreateOrderTransactionResponseSchema, GeTransactionResponseSchema, GeTransactionSchema,
+    GiveGoldResponseSchema, GiveItemResponseSchema, NpcItemTransactionSchema,
     NpcMerchantTransactionResponseSchema, RecyclingItemsSchema, RecyclingResponseSchema,
     RewardDataResponseSchema, RewardsSchema, SimpleItemSchema, SkillInfoSchema,
     SkillResponseSchema, TaskResponseSchema, TaskSchema, TaskTradeResponseSchema, TaskTradeSchema,
