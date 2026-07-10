@@ -1,14 +1,8 @@
 use crate::{
-    Cached, Code, CollectionClient, HasDropTable, Level, Quantity,
-    client::{
+    Cached, Code, CollectionClient, HasDropTable, Level, Quantity, client::{
         monsters::MonstersClient, npcs::NpcsClient, resources::ResourcesClient,
         tasks_rewards::TasksRewardsClient,
-    },
-    consts::{TASKS_COIN, TASKS_REWARDS_SPECIFICS},
-    entities::{Item, Monster, Npc, Resource},
-    gear::Slot,
-    simulator::{EffectCode, HasEffects},
-    skill::Skill,
+    }, consts::{TASKS_COIN, TASKS_REWARDS_SPECIFICS}, entities::{Item, Monster, Npc, NpcItem, Resource}, gear::Slot, simulator::HasEffects, skill::Skill,
 };
 use arc_swap::ArcSwap;
 use derive_more::Deref;
@@ -93,30 +87,24 @@ impl ItemsClient {
         let Some(item) = self.get(code) else {
             return vec![];
         };
-        item.mats().iter().flat_map(|mat| {
-            self.get(mat.code())
-                .and_then(|sub| {
-                    let sub_mats = sub.mats();
-                    (!sub_mats.is_empty()).then(|| {
-                        sub_mats
-                            .iter()
-                            .map(|b| SimpleItemSchema {
-                                code: b.code.clone(),
-                                quantity: b.quantity * mat.quantity,
-                            })
-                            .collect_vec()
-                    })
-                })
-                .unwrap_or_else(|| {
-                    vec![SimpleItemSchema {
-                        code: mat.code.clone(),
-                        quantity: mat.quantity,
-                    }]
-                })
-        }).collect_vec()
+        let mut consolidated: HashMap<String, u32> = HashMap::new();
+        for mat in item.mats() {
+            let sub_bases = self.base_mats_of(&mat.code);
+            if sub_bases.is_empty() {
+                *consolidated.entry(mat.code.clone()).or_default() += mat.quantity;
+            } else {
+                for b in sub_bases {
+                    *consolidated.entry(b.code).or_default() += b.quantity * mat.quantity;
+                }
+            }
+        }
+        consolidated
+            .into_iter()
+            .map(|(code, quantity)| SimpleItemSchema { code, quantity })
+            .collect_vec()
     }
 
-    /// Takes an `resource` code and returns the items that can be crafted
+    /// Takes a `resource` code and returns the items that can be crafted
     /// from the base mats it drops.
     #[must_use]
     pub fn crafted_from_resource(&self, resource_code: &str) -> Vec<Item> {
@@ -170,7 +158,7 @@ impl ItemsClient {
     /// material.
     #[must_use]
     pub fn is_crafted_with_base_mat(&self, code: &str, mat: &str) -> bool {
-        self.base_mats_of(code).iter().any(|m| m.code == mat)
+        self.base_mats_of(code).iter().any(|m| m.code() == mat)
     }
 
     pub fn mats_mob_average_lvl(&self, code: &str) -> u32 {
@@ -222,27 +210,13 @@ impl ItemsClient {
     }
 
     #[must_use]
-    pub fn upgrades_of(&self, item_code: &str) -> Vec<Item> {
-        let Some(item) = self.get(item_code) else {
+    pub fn upgrades_of(&self, code: &str) -> Vec<Item> {
+        let Some(item) = self.get(code) else {
             return vec![];
         };
         self.iter()
-            .filter(|i| {
-                i.code() != item.code()
-                    && i.type_is(item.r#type())
-                    && item.effects().iter().all(|e| {
-                        if e.code == EffectCode::InventorySpace
-                            || e.code == EffectCode::Mining
-                            || e.code == EffectCode::Woodcutting
-                            || e.code == EffectCode::Fishing
-                            || e.code == EffectCode::Alchemy
-                        {
-                            e.value >= i.effect_value(&e.code)
-                        } else {
-                            e.value <= i.effect_value(&e.code)
-                        }
-                    })
-            })
+            .filter(|other| other.code() != item.code())
+            .filter(|other| other.is_upgrade_of(&item))
             .collect_vec()
     }
 
@@ -300,11 +274,8 @@ impl ItemsClient {
     }
 
     #[must_use]
-    pub fn is_salable(&self, item_code: &str) -> bool {
-        self.npcs
-            .items()
-            .get(item_code)
-            .is_some_and(|i| i.is_salable())
+    pub fn is_salable(&self, code: &str) -> bool {
+        self.npcs.items().get(code).is_some_and(|i| i.is_salable())
     }
 }
 
@@ -452,6 +423,7 @@ impl PartialEq<LevelConditionCode> for String {
 #[cfg(test)]
 mod tests {
     use crate::{
+        Code, Quantity,
         client::CollectionClient,
         simulator::{DamageType, HasEffects},
         test_utils::{ITEMS, item, monster},
@@ -497,12 +469,28 @@ mod tests {
     }
 
     #[test]
-    fn mats_methods() {
-        assert!(
-            ITEMS
-                .get("greater_dreadful_staff")
-                .is_some_and(|item| !item.mats().is_empty())
+    fn base_mats_of() {
+        let base_mats = ITEMS.base_mats_of("greater_dreadful_staff");
+        assert_eq!(
+            base_mats
+                .iter()
+                .find(|i| i.code() == "ash_wood")
+                .map_or(0, Quantity::quantity),
+            24
         );
-        assert!(!ITEMS.base_mats_of("greater_dreadful_staff").is_empty());
+        assert_eq!(
+            base_mats
+                .iter()
+                .find(|i| i.code() == "jasper_crystal")
+                .map_or(0, Quantity::quantity),
+            1
+        );
+        assert_eq!(
+            base_mats
+                .iter()
+                .find(|i| i.code() == "cyclops_eye")
+                .map_or(0, Quantity::quantity),
+            9
+        );
     }
 }

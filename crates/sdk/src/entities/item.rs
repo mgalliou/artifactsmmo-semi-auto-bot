@@ -1,7 +1,7 @@
 use crate::{
     CanProvideXp, Code, HasConditions, Level, Quantity, Skill, TASKS_REWARDS_SPECIFICS,
     items::{SubType, Type},
-    simulator::HasEffects,
+    simulator::{EffectCode, HasEffects},
     yields_xp,
 };
 use core::cmp::Ordering;
@@ -167,6 +167,23 @@ impl Item {
     #[must_use]
     pub fn effects(&self) -> &[SimpleEffectSchema] {
         self.0.effects.as_deref().unwrap_or_default()
+    }
+
+    #[must_use]
+    pub fn is_upgrade_of(&self, other: &Self) -> bool {
+        self.type_is(other.r#type())
+            && other.effects().iter().all(|e| {
+                if e.code == EffectCode::InventorySpace
+                    || e.code == EffectCode::Mining
+                    || e.code == EffectCode::Woodcutting
+                    || e.code == EffectCode::Fishing
+                    || e.code == EffectCode::Alchemy
+                {
+                    self.effect_value(&e.code) <= e.value
+                } else {
+                    self.effect_value(&e.code) >= e.value
+                }
+            })
     }
 }
 
