@@ -1,4 +1,6 @@
 use crate::{Cached, TasksRewardsClient, entities::Task};
+type TasksSource = Box<dyn Fn() -> HashMap<String, Task> + Send + Sync + 'static>;
+
 use arc_swap::ArcSwap;
 use derive_more::Deref;
 use log::info;
@@ -11,24 +13,24 @@ use std::{collections::HashMap, sync::Arc, thread};
 pub struct TasksClient(Arc<TasksClientInner>);
 
 pub struct TasksClientInner {
-    directory: Box<str>,
+    cache_dir: Box<str>,
     data: ArcSwap<HashMap<String, Task>>,
-    fetch: Box<dyn Fn() -> HashMap<String, Task> + Send + Sync>,
+    fetch: TasksSource,
     rewards: TasksRewardsClient,
 }
 
 impl TasksClient {
     #[must_use]
     pub(crate) fn new(
-        directory: &str,
-        fetch: Box<dyn Fn() -> HashMap<String, Task> + Send + Sync>,
-        reward: TasksRewardsClient,
+        cache_dir: &str,
+        fetch: TasksSource,
+        rewards: TasksRewardsClient,
     ) -> Self {
         Self(Arc::new(TasksClientInner {
-            directory: directory.into(),
-            fetch,
+            cache_dir: cache_dir.into(),
             data: ArcSwap::default(),
-            rewards: reward,
+            fetch,
+            rewards,
         }))
     }
 
@@ -49,8 +51,8 @@ impl TasksClient {
 impl Cached<HashMap<String, Task>> for TasksClient {
     const FILE: &'static str = "tasks";
 
-    fn directory(&self) -> &str {
-        &self.directory
+    fn cache_dir(&self) -> &str {
+        &self.cache_dir
     }
 
     fn fetch_from_source(&self) -> HashMap<String, Task> {

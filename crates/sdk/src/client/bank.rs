@@ -6,8 +6,8 @@ use derive_more::Deref;
 use openapi::models::{BankSchema, SimpleItemSchema};
 use std::{sync::Arc, vec::Vec};
 
-type FetchContent = Box<dyn Fn() -> Vec<SimpleItemSchema> + Send + Sync + 'static>;
-type FetchDetails = Box<dyn Fn() -> BankSchema + Send + Sync + 'static>;
+type BankContentSource = Box<dyn Fn() -> Vec<SimpleItemSchema> + Send + Sync + 'static>;
+type BankDetailsSource = Box<dyn Fn() -> BankSchema + Send + Sync + 'static>;
 
 #[derive(Clone, Default, Deref)]
 #[deref(forward)]
@@ -16,18 +16,18 @@ pub struct BankClient(Arc<BankClientInner>);
 pub struct BankClientInner {
     details: ArcSwap<BankSchema>,
     content: ArcSwap<Vec<SimpleItemSchema>>,
-    fetch_details: FetchDetails,
-    fetch_content: FetchContent,
+    fetch_details: BankDetailsSource,
+    fetch_content: BankContentSource,
 }
 
 impl BankClient {
     #[must_use]
-    pub(crate) fn new(fetch_details: FetchDetails, fetch_content: FetchContent) -> Self {
+    pub(crate) fn new(fetch_details: BankDetailsSource, fetch_content: BankContentSource) -> Self {
         Self(Arc::new(BankClientInner {
             details: ArcSwap::default(),
             content: ArcSwap::default(),
-            fetch_content,
             fetch_details,
+            fetch_content,
         }))
     }
 

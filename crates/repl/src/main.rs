@@ -12,6 +12,7 @@ fn main() -> Result<()> {
         "https://api.artifactsmmo.com".into(),
         env::var("ARTIFACTSMMO_TOKEN").unwrap_or_default(),
         "podJio".into(),
+        ".cache",
     );
     client.init();
     let bot = Bot::new(client);

@@ -14,41 +14,28 @@ use std::{
     thread,
 };
 
-type FetchData = Box<dyn Fn() -> HashMap<String, Event> + Send + Sync + 'static>;
-type FetchActive = Box<dyn Fn() -> Vec<ActiveEvent> + Send + Sync + 'static>;
+type EventsSource = Box<dyn Fn() -> HashMap<String, Event> + Send + Sync + 'static>;
+type EventsActiveSource = Box<dyn Fn() -> Vec<ActiveEvent> + Send + Sync + 'static>;
 
-#[derive(Clone, Default, Deref, CollectionClient)]
+#[derive(Clone, Deref, CollectionClient)]
 #[deref(forward)]
 #[element(Event)]
 pub struct EventsClient(Arc<EventsClientInner>);
 
 pub struct EventsClientInner {
-    directory: Box<str>,
+    cache_dir: Box<str>,
     data: ArcSwap<HashMap<String, Event>>,
-    fetch: FetchData,
-    fetch_active: FetchActive,
+    fetch: EventsSource,
+    fetch_active: EventsActiveSource,
     active: RwLock<Vec<ActiveEvent>>,
     last_refresh: RwLock<DateTime<Utc>>,
 }
 
-impl Default for EventsClientInner {
-    fn default() -> Self {
-        Self {
-            directory: ".cache/".into(),
-            data: ArcSwap::default(),
-            fetch: Box::new(|| panic!("EventsClient not initialized")),
-            fetch_active: Box::new(|| panic!("EventsClient not initialized")),
-            active: RwLock::default(),
-            last_refresh: RwLock::default(),
-        }
-    }
-}
-
 impl EventsClient {
     #[must_use]
-    pub(crate) fn new(path: &str, fetch: FetchData, fetch_active: FetchActive) -> Self {
+    pub(crate) fn new(cache_dir: &str, fetch: EventsSource, fetch_active: EventsActiveSource) -> Self {
         Self(Arc::new(EventsClientInner {
-            directory: path.into(),
+            cache_dir: cache_dir.into(),
             data: ArcSwap::default(),
             fetch,
             fetch_active,
@@ -117,8 +104,8 @@ impl EventsClient {
 impl Cached<HashMap<String, Event>> for EventsClient {
     const FILE: &str = "events";
 
-    fn directory(&self) -> &str {
-        &self.directory
+    fn cache_dir(&self) -> &str {
+        &self.cache_dir
     }
 
     fn fetch_from_source(&self) -> HashMap<String, Event> {

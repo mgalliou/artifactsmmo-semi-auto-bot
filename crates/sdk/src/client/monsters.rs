@@ -3,46 +3,37 @@ use crate::{
     client::events::EventsClient,
     entities::{EventSchemaExt, Monster},
 };
+type MonstersSource = Box<dyn Fn() -> HashMap<String, Monster> + Send + Sync + 'static>;
+
 use arc_swap::ArcSwap;
 use derive_more::Deref;
 use itertools::Itertools;
 use log::info;
 use std::{collections::HashMap, sync::Arc};
 
-#[derive(Clone, Default, Deref, CollectionClient)]
+#[derive(Clone, Deref, CollectionClient)]
 #[deref(forward)]
 #[element(Monster)]
 pub struct MonstersClient(Arc<MonstersClientInner>);
 
 pub struct MonstersClientInner {
-    directory: Box<str>,
+    cache_dir: Box<str>,
     data: ArcSwap<HashMap<String, Monster>>,
-    fetch: Box<dyn Fn() -> HashMap<String, Monster> + Send + Sync>,
+    fetch: MonstersSource,
     events: EventsClient,
-}
-
-impl Default for MonstersClientInner {
-    fn default() -> Self {
-        Self {
-            directory: ".cache".into(),
-            data: ArcSwap::default(),
-            fetch: Box::new(|| panic!("MonstersClient not initialized")),
-            events: EventsClient::default(),
-        }
-    }
 }
 
 impl MonstersClient {
     #[must_use]
     pub(crate) fn new(
-        path: &str,
-        fetch: Box<dyn Fn() -> HashMap<String, Monster> + Send + Sync>,
+        cache_dir: &str,
+        fetch: MonstersSource,
         events: EventsClient,
     ) -> Self {
         Self(Arc::new(MonstersClientInner {
-            directory: path.into(),
-            fetch,
+            cache_dir: cache_dir.into(),
             data: ArcSwap::default(),
+            fetch,
             events,
         }))
     }
@@ -52,7 +43,7 @@ impl MonstersClient {
         let client = Self::new(
             path,
             Box::new(|| unreachable!("MonstersClient::from_cache has no API fallback")),
-            EventsClient::default(),
+            EventsClient::from_cache(path),
         );
         client.init();
         client
@@ -94,8 +85,8 @@ impl MonstersClient {
 impl Cached<HashMap<String, Monster>> for MonstersClient {
     const FILE: &'static str = "monsters";
 
-    fn directory(&self) -> &str {
-        &self.directory
+    fn cache_dir(&self) -> &str {
+        &self.cache_dir
     }
 
     fn fetch_from_source(&self) -> HashMap<String, Monster> {

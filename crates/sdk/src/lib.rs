@@ -35,7 +35,7 @@ where
 {
     const FILE: &'static str;
 
-    fn directory(&self) -> &str;
+    fn cache_dir(&self) -> &str;
 
     /// Returns cached data, falling back to `fetch_from_source` when cache is unavailable
     fn fetch(&self) -> D {
@@ -62,7 +62,7 @@ where
     }
 
     fn cache_path(&self) -> String {
-        format!("{}/{}.{}", self.directory(), Self::FILE, "ron")
+        format!("{}/{}.{}", self.cache_dir(), Self::FILE, "ron")
     }
 
     /// Returns data from the source of truth (e.g., the `ArtifactMMO` API)

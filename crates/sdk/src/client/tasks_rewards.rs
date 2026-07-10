@@ -1,38 +1,30 @@
 use crate::{Cached, CollectionClient, entities::TaskReward};
+type TasksRewardsSource = Box<dyn Fn() -> HashMap<String, TaskReward> + Send + Sync + 'static>;
+
 use arc_swap::ArcSwap;
 use derive_more::Deref;
 use log::info;
 use std::{collections::HashMap, sync::Arc};
 
-#[derive(Clone, Default, Deref, CollectionClient)]
+#[derive(Clone, Deref, CollectionClient)]
 #[deref(forward)]
 #[element(TaskReward)]
 pub struct TasksRewardsClient(Arc<TasksRewardsClientInner>);
 
 pub struct TasksRewardsClientInner {
-    directory: Box<str>,
+    cache_dir: Box<str>,
     data: ArcSwap<HashMap<String, TaskReward>>,
-    fetch: Box<dyn Fn() -> HashMap<String, TaskReward> + Send + Sync>,
-}
-
-impl Default for TasksRewardsClientInner {
-    fn default() -> Self {
-        Self {
-            directory: ".cache".into(),
-            data: ArcSwap::default(),
-            fetch: Box::new(|| panic!("TasksRewardsClient not initialized")),
-        }
-    }
+    fetch: TasksRewardsSource,
 }
 
 impl TasksRewardsClient {
     #[must_use]
     pub(crate) fn new(
-        directory: &str,
-        fetch: Box<dyn Fn() -> HashMap<String, TaskReward> + Send + Sync>,
+        cache_dir: &str,
+        fetch: TasksRewardsSource,
     ) -> Self {
         Self(Arc::new(TasksRewardsClientInner {
-            directory: directory.into(),
+            cache_dir: cache_dir.into(),
             data: ArcSwap::default(),
             fetch,
         }))
@@ -53,8 +45,8 @@ impl TasksRewardsClient {
 impl Cached<HashMap<String, TaskReward>> for TasksRewardsClient {
     const FILE: &'static str = "tasks_rewards";
 
-    fn directory(&self) -> &str {
-        &self.directory
+    fn cache_dir(&self) -> &str {
+        &self.cache_dir
     }
 
     fn fetch_from_source(&self) -> HashMap<String, TaskReward> {

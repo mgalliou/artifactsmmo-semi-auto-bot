@@ -11,40 +11,29 @@ use log::info;
 use openapi::models::{MapContentSchema, MapContentType, MapLayer, TaskType};
 use std::{collections::HashMap, sync::Arc};
 
-#[derive(Clone, Default, Deref, CollectionClient)]
+#[derive(Clone, Deref, CollectionClient)]
 #[deref(forward)]
 #[key((MapLayer, i32, i32))]
 #[element(MapHandle)]
 pub struct MapsClient(Arc<MapsClientInner>);
 
-type MapsFetcher =
+type MapsSource =
     Box<dyn Fn() -> HashMap<(MapLayer, i32, i32), MapHandle> + Send + Sync + 'static>;
 
 pub struct MapsClientInner {
-    directory: Box<str>,
-    fetch: MapsFetcher,
+    cache_dir: Box<str>,
     data: ArcSwap<HashMap<(MapLayer, i32, i32), MapHandle>>,
+    fetch: MapsSource,
     events: EventsClient,
-}
-
-impl Default for MapsClientInner {
-    fn default() -> Self {
-        Self {
-            directory: ".cache".into(),
-            data: ArcSwap::default(),
-            fetch: Box::new(|| panic!("MapsClientInner not initialized")),
-            events: EventsClient::default(),
-        }
-    }
 }
 
 impl MapsClient {
     #[must_use]
-    pub(crate) fn new(path: &str, fetch: MapsFetcher, events: EventsClient) -> Self {
+    pub(crate) fn new(cache_dir: &str, fetch: MapsSource, events: EventsClient) -> Self {
         Self(Arc::new(MapsClientInner {
-            directory: path.into(),
-            fetch,
+            cache_dir: cache_dir.into(),
             data: ArcSwap::default(),
+            fetch,
             events,
         }))
     }
@@ -177,8 +166,8 @@ impl MapsClient {
 impl Cached<HashMap<(MapLayer, i32, i32), MapHandle>> for MapsClient {
     const FILE: &'static str = "maps";
 
-    fn directory(&self) -> &str {
-        &self.directory
+    fn cache_dir(&self) -> &str {
+        &self.cache_dir
     }
 
     fn fetch_from_source(&self) -> HashMap<(MapLayer, i32, i32), MapHandle> {

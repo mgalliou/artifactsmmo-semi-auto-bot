@@ -1,41 +1,33 @@
 use crate::{Cached, entities::NpcItem};
+type NpcsItemsSource = Box<dyn Fn() -> HashMap<String, NpcItem> + Send + Sync + 'static>;
+
 use arc_swap::ArcSwap;
 use derive_more::Deref;
 use log::info;
 use sdk_derive::CollectionClient;
 use std::{collections::HashMap, sync::Arc};
 
-#[derive(Clone, Default, Deref, CollectionClient)]
+#[derive(Clone, Deref, CollectionClient)]
 #[deref(forward)]
 #[element(NpcItem)]
 pub struct NpcsItemsClient(Arc<NpcsItemsClientInner>);
 
 pub struct NpcsItemsClientInner {
-    directory: Box<str>,
+    cache_dir: Box<str>,
     data: ArcSwap<HashMap<String, NpcItem>>,
-    fetch: Box<dyn Fn() -> HashMap<String, NpcItem> + Send + Sync>,
-}
-
-impl Default for NpcsItemsClientInner {
-    fn default() -> Self {
-        Self {
-            directory: ".cache".into(),
-            data: ArcSwap::default(),
-            fetch: Box::new(|| panic!("NpcsItemsClient not initialized")),
-        }
-    }
+    fetch: NpcsItemsSource,
 }
 
 impl NpcsItemsClient {
     #[must_use]
     pub(crate) fn new(
-        path: &str,
-        fetch: Box<dyn Fn() -> HashMap<String, NpcItem> + Send + Sync>,
+        cache_dir: &str,
+        fetch: NpcsItemsSource,
     ) -> Self {
         Self(Arc::new(NpcsItemsClientInner {
-            directory: path.into(),
-            fetch,
+            cache_dir: cache_dir.into(),
             data: ArcSwap::default(),
+            fetch,
         }))
     }
 
@@ -58,8 +50,8 @@ impl NpcsItemsClient {
 impl Cached<HashMap<String, NpcItem>> for NpcsItemsClient {
     const FILE: &'static str = "npcs_items";
 
-    fn directory(&self) -> &str {
-        &self.directory
+    fn cache_dir(&self) -> &str {
+        &self.cache_dir
     }
 
     fn fetch_from_source(&self) -> HashMap<String, NpcItem> {

@@ -4,6 +4,8 @@ use crate::{
         tasks_rewards::TasksRewardsClient,
     }, consts::{TASKS_COIN, TASKS_REWARDS_SPECIFICS}, entities::{Item, Monster, Npc, Resource}, gear::Slot, simulator::HasEffects, skill::Skill,
 };
+type ItemsSource = Box<dyn Fn() -> HashMap<String, Item> + Send + Sync + 'static>;
+
 use arc_swap::ArcSwap;
 use derive_more::Deref;
 use itertools::Itertools;
@@ -12,49 +14,35 @@ use openapi::models::SimpleItemSchema;
 use std::{collections::HashMap, fmt, sync::Arc, vec::Vec};
 use strum_macros::{AsRefStr, Display, EnumIs, EnumIter, EnumString};
 
-#[derive(Clone, Default, Deref, CollectionClient)]
+#[derive(Clone, Deref, CollectionClient)]
 #[deref(forward)]
 #[element(Item)]
 pub struct ItemsClient(Arc<ItemsClientInner>);
 
 pub struct ItemsClientInner {
-    directory: Box<str>,
+    cache_dir: Box<str>,
     data: ArcSwap<HashMap<String, Item>>,
-    fetch: Box<dyn Fn() -> HashMap<String, Item> + Send + Sync>,
+    fetch: ItemsSource,
     resources: ResourcesClient,
     monsters: MonstersClient,
     tasks_rewards: TasksRewardsClient,
     npcs: NpcsClient,
 }
 
-impl Default for ItemsClientInner {
-    fn default() -> Self {
-        Self {
-            directory: Box::from(".cache"),
-            data: ArcSwap::default(),
-            fetch: Box::new(|| panic!("ItemsClient not initialized")),
-            resources: ResourcesClient::default(),
-            monsters: MonstersClient::default(),
-            tasks_rewards: TasksRewardsClient::default(),
-            npcs: NpcsClient::default(),
-        }
-    }
-}
-
 impl ItemsClient {
     #[must_use]
     pub(crate) fn new(
-        path: &str,
-        fetch: Box<dyn Fn() -> HashMap<String, Item> + Send + Sync>,
+        cache_dir: &str,
+        fetch: ItemsSource,
         resources: ResourcesClient,
         monsters: MonstersClient,
         tasks_rewards: TasksRewardsClient,
         npcs: NpcsClient,
     ) -> Self {
         Self(Arc::new(ItemsClientInner {
-            directory: path.into(),
-            fetch,
+            cache_dir: cache_dir.into(),
             data: ArcSwap::default(),
+            fetch,
             resources,
             monsters,
             tasks_rewards,
@@ -280,8 +268,8 @@ impl ItemsClient {
 impl Cached<HashMap<String, Item>> for ItemsClient {
     const FILE: &'static str = "items";
 
-    fn directory(&self) -> &str {
-        &self.directory
+    fn cache_dir(&self) -> &str {
+        &self.cache_dir
     }
 
     fn fetch_from_source(&self) -> HashMap<String, Item> {

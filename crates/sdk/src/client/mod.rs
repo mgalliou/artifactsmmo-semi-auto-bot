@@ -29,6 +29,13 @@ pub mod server;
 pub mod tasks;
 pub mod tasks_rewards;
 
+fn make_fetcher<F, T>(api: ArtifactApi, fetch: F) -> Box<dyn Fn() -> T + Send + Sync>
+where
+    F: Fn(ArtifactApi) -> T + Send + Sync + 'static,
+{
+    Box::new(move || fetch(api.clone()))
+}
+
 pub use crate::client::{
     account::AccountClient, bank::BankClient, character::CharacterClient, error::ClientError,
     events::EventsClient, grand_exchange::GrandExchangeClient, items::ItemsClient,
@@ -146,189 +153,143 @@ pub struct ClientInner {
 impl Client {
     #[must_use]
     #[allow(clippy::too_many_lines)]
-    pub fn new(url: String, token: String, account_name: String) -> Self {
+    pub fn new(url: String, token: String, account_name: String, cache_dir: &str) -> Self {
         let api = ArtifactApi::new(url, token);
-        let bank = {
-            let api_details = api.clone();
-            let api_content = api.clone();
-            BankClient::new(
-                Box::new(move || api_details.bank.get_details().unwrap()),
-                Box::new(move || api_content.bank.get_items().unwrap()),
-            )
-        };
+        let bank = BankClient::new(
+            make_fetcher(api.clone(), |api| api.bank.get_details().unwrap()),
+            make_fetcher(api.clone(), |api| api.bank.get_items().unwrap()),
+        );
         let account = AccountClient::new(account_name, bank, api.clone());
         let server = ServerClient::new(api.clone());
-
-        let events = {
-            let api_fetch = api.clone();
-            let api_active = api.clone();
-            EventsClient::new(
-                ".cache",
-                Box::new(move || {
-                    api_fetch
-                        .events
-                        .get_all()
-                        .unwrap()
-                        .into_iter()
-                        .map(|event| (event.code.clone(), Event::new(event)))
-                        .collect()
-                }),
-                Box::new(move || {
-                    api_active
-                        .events
-                        .get_active()
-                        .unwrap()
-                        .into_iter()
-                        .map(ActiveEvent::new)
-                        .collect()
-                }),
-            )
-        };
-
-        let resources = {
-            let api = api.clone();
-            ResourcesClient::new(
-                ".cache",
-                Box::new(move || {
-                    api.resources
-                        .get_all()
-                        .unwrap()
-                        .into_iter()
-                        .map(|r| (r.code.clone(), Resource::new(r)))
-                        .collect()
-                }),
-                events.clone(),
-            )
-        };
-
-        let monsters = {
-            let api = api.clone();
-            MonstersClient::new(
-                ".cache",
-                Box::new(move || {
-                    api.monsters
-                        .get_all()
-                        .unwrap()
-                        .into_iter()
-                        .map(|m| (m.code.clone(), Monster::new(m)))
-                        .collect()
-                }),
-                events.clone(),
-            )
-        };
-
-        let tasks_rewards = {
-            let api = api.clone();
-            TasksRewardsClient::new(
-                ".cache",
-                Box::new(move || {
-                    api.tasks
-                        .get_rewards()
-                        .unwrap()
-                        .into_iter()
-                        .map(|tr| (tr.code.clone(), TaskReward::new(tr)))
-                        .collect()
-                }),
-            )
-        };
-
-        let tasks = {
-            let api = api.clone();
-            TasksClient::new(
-                ".cache",
-                Box::new(move || {
-                    api.tasks
-                        .get_all()
-                        .unwrap()
-                        .into_iter()
-                        .map(|task| (task.code.clone(), Task::new(task)))
-                        .collect()
-                }),
-                tasks_rewards.clone(),
-            )
-        };
-
-        let npcs_items = NpcsItemsClient::new(
-            ".cache",
-            Box::new({
-                let api = api.clone();
-                move || {
-                    api.npcs
-                        .get_items()
-                        .unwrap()
-                        .into_iter()
-                        .map(|npc| (npc.code.clone(), crate::entities::NpcItem::new(npc)))
-                        .collect()
-                }
+        let events = EventsClient::new(
+            cache_dir,
+            make_fetcher(api.clone(), |api| {
+                api.events
+                    .get_all()
+                    .unwrap()
+                    .into_iter()
+                    .map(|event| (event.code.clone(), Event::new(event)))
+                    .collect()
+            }),
+            make_fetcher(api.clone(), |api| {
+                api.events
+                    .get_active()
+                    .unwrap()
+                    .into_iter()
+                    .map(ActiveEvent::new)
+                    .collect()
             }),
         );
-
-        let npcs = {
-            let api = api.clone();
-            NpcsClient::new(
-                ".cache",
-                Box::new(move || {
-                    api.npcs
-                        .get_all()
-                        .unwrap()
-                        .into_iter()
-                        .map(|npc| (npc.code.clone(), Npc::new(npc)))
-                        .collect()
-                }),
-                npcs_items,
-            )
-        };
-
-        let items = {
-            let api = api.clone();
-            ItemsClient::new(
-                ".cache",
-                Box::new(move || {
-                    api.items
-                        .get_all()
-                        .unwrap()
-                        .into_iter()
-                        .map(|i| (i.code.clone(), Item::new(i)))
-                        .collect()
-                }),
-                resources.clone(),
-                monsters.clone(),
-                tasks_rewards,
-                npcs.clone(),
-            )
-        };
-
-        let maps = {
-            let api = api.clone();
-            MapsClient::new(
-                ".cache",
-                Box::new(move || {
-                    api.maps
-                        .get_all()
-                        .unwrap()
-                        .into_iter()
-                        .map(|m| ((m.layer, m.x, m.y), MapHandle::new(m)))
-                        .collect::<HashMap<(MapLayer, i32, i32), MapHandle>>()
-                }),
-                events.clone(),
-            )
-        };
+        let resources = ResourcesClient::new(
+            cache_dir,
+            make_fetcher(api.clone(), |api| {
+                api.resources
+                    .get_all()
+                    .unwrap()
+                    .into_iter()
+                    .map(|r| (r.code.clone(), Resource::new(r)))
+                    .collect()
+            }),
+            events.clone(),
+        );
+        let monsters = MonstersClient::new(
+            cache_dir,
+            make_fetcher(api.clone(), |api| {
+                api.monsters
+                    .get_all()
+                    .unwrap()
+                    .into_iter()
+                    .map(|m| (m.code.clone(), Monster::new(m)))
+                    .collect()
+            }),
+            events.clone(),
+        );
+        let tasks_rewards = TasksRewardsClient::new(
+            cache_dir,
+            make_fetcher(api.clone(), |api| {
+                api.tasks
+                    .get_rewards()
+                    .unwrap()
+                    .into_iter()
+                    .map(|tr| (tr.code.clone(), TaskReward::new(tr)))
+                    .collect()
+            }),
+        );
+        let tasks = TasksClient::new(
+            cache_dir,
+            make_fetcher(api.clone(), |api| {
+                api.tasks
+                    .get_all()
+                    .unwrap()
+                    .into_iter()
+                    .map(|task| (task.code.clone(), Task::new(task)))
+                    .collect()
+            }),
+            tasks_rewards.clone(),
+        );
+        let npcs_items = NpcsItemsClient::new(
+            cache_dir,
+            make_fetcher(api.clone(), |api| {
+                api.npcs
+                    .get_items()
+                    .unwrap()
+                    .into_iter()
+                    .map(|npc| (npc.code.clone(), crate::entities::NpcItem::new(npc)))
+                    .collect()
+            }),
+        );
+        let npcs = NpcsClient::new(
+            cache_dir,
+            make_fetcher(api.clone(), |api| {
+                api.npcs
+                    .get_all()
+                    .unwrap()
+                    .into_iter()
+                    .map(|npc| (npc.code.clone(), Npc::new(npc)))
+                    .collect()
+            }),
+            npcs_items,
+        );
+        let items = ItemsClient::new(
+            cache_dir,
+            make_fetcher(api.clone(), |api| {
+                api.items
+                    .get_all()
+                    .unwrap()
+                    .into_iter()
+                    .map(|i| (i.code.clone(), Item::new(i)))
+                    .collect()
+            }),
+            resources.clone(),
+            monsters.clone(),
+            tasks_rewards,
+            npcs.clone(),
+        );
+        let maps = MapsClient::new(
+            cache_dir,
+            make_fetcher(api.clone(), |api| {
+                api.maps
+                    .get_all()
+                    .unwrap()
+                    .into_iter()
+                    .map(|m| ((m.layer, m.x, m.y), MapHandle::new(m)))
+                    .collect::<HashMap<(MapLayer, i32, i32), MapHandle>>()
+            }),
+            events.clone(),
+        );
         let grand_exchange = GrandExchangeClient::new(api);
-        Self(
-            ClientInner {
-                account,
-                server,
-                events,
-                resources,
-                monsters,
-                items,
-                tasks,
-                maps,
-                npcs,
-                grand_exchange,
-            }
-            .into(),
-        )
+        Self(Arc::new(ClientInner {
+            account,
+            server,
+            events,
+            resources,
+            monsters,
+            items,
+            tasks,
+            maps,
+            npcs,
+            grand_exchange,
+        }))
     }
 
     pub fn init(&self) {

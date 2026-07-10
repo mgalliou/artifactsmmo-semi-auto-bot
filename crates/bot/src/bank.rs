@@ -18,7 +18,6 @@ use std::{
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, TryLockError},
 };
 
-#[derive(Default)]
 pub struct BankControllerInner {
     client: BankClient,
     items: ItemsClient,
@@ -27,7 +26,7 @@ pub struct BankControllerInner {
     pub being_expanded: RwLock<()>,
 }
 
-#[derive(Default, Clone, Deref)]
+#[derive(Clone, Deref)]
 #[deref(forward)]
 pub struct BankController(Arc<BankControllerInner>);
 
@@ -228,18 +227,24 @@ impl<T: AsRef<str>> Code for BankKey<T> {
 
 #[cfg(test)]
 mod tests {
+    use sdk::test_utils::ITEMS;
+
     use super::*;
+
+    fn bank_controller() -> BankController {
+        BankController::new(BankClient::default(), ITEMS.clone())
+    }
 
     #[test]
     fn reserv_with_not_item() {
-        let bank = BankController::default();
+        let bank = bank_controller();
         let result = bank.inc_reservation(("iron_ore", "char1"), 50);
         assert_eq!(Err(ReservationError::QuantityUnavailable(50)), result);
     }
 
     #[test]
     fn reserv_with_item_available() {
-        let bank = BankController::default();
+        let bank = bank_controller();
         bank.client.set_content(vec![SimpleItemSchema {
             code: "copper_ore".to_owned(),
             quantity: 100,
@@ -251,7 +256,7 @@ mod tests {
 
     #[test]
     fn reserv_if_not_with_item_available() {
-        let bank = BankController::default();
+        let bank = bank_controller();
         bank.client.set_content(vec![SimpleItemSchema {
             code: "gold_ore".into(),
             quantity: 100,
