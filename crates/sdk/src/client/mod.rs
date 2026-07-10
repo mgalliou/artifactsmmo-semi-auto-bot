@@ -1,6 +1,6 @@
 use crate::{
     Cached,
-    entities::{Event, Item, MapHandle, Monster, Npc, Resource, Task, TaskReward},
+    entities::{ActiveEvent, Event, Item, MapHandle, Monster, Npc, Resource, Task, TaskReward},
 };
 use api::ArtifactApi;
 use derive_more::Deref;
@@ -161,6 +161,7 @@ impl Client {
 
         let events = {
             let api_fetch = api.clone();
+            let api_active = api.clone();
             EventsClient::new(
                 ".cache",
                 Box::new(move || {
@@ -172,7 +173,15 @@ impl Client {
                         .map(|event| (event.code.clone(), Event::new(event)))
                         .collect()
                 }),
-                api.clone(),
+                Box::new(move || {
+                    api_active
+                        .events
+                        .get_active()
+                        .unwrap()
+                        .into_iter()
+                        .map(ActiveEvent::new)
+                        .collect()
+                }),
             )
         };
 

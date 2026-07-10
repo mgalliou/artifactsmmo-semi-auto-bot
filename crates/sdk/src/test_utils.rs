@@ -5,7 +5,11 @@ use openapi::models::{
 };
 
 use crate::{
-    AccountClient, CharacterClient, CollectionClient, EventsClient, GrandExchangeClient, MapsClient, NpcsClient, NpcsItemsClient, ResourcesClient, TasksClient, TasksRewardsClient, character::{CharacterRequestHandler, error::RequestError}, client::{items::ItemsClient, monsters::MonstersClient}, entities::{CharacterHandle, Item, Monster},
+    AccountClient, CharacterClient, CollectionClient, EventsClient, GrandExchangeClient,
+    MapsClient, NpcsClient, NpcsItemsClient, ResourcesClient, TasksClient, TasksRewardsClient,
+    character::{CharacterRequestHandler, error::RequestError},
+    client::{items::ItemsClient, monsters::MonstersClient},
+    entities::{CharacterHandle, Item, Monster},
 };
 use std::{
     collections::HashMap,
@@ -27,20 +31,26 @@ pub static ITEMS: LazyLock<ItemsClient> = LazyLock::new(|| {
     client
 });
 
+pub static EVENTS: LazyLock<EventsClient> = LazyLock::new(|| {
+    let client = EventsClient::new(PATH, Box::new(HashMap::new), Box::new(Vec::new));
+    client.init();
+    client
+});
+
 pub static MAPS: LazyLock<MapsClient> = LazyLock::new(|| {
-    let client = MapsClient::new(PATH, Box::new(HashMap::new), EventsClient::default());
+    let client = MapsClient::new(PATH, Box::new(HashMap::new), EVENTS.clone());
     client.init();
     client
 });
 
 pub static RESOURCES: LazyLock<ResourcesClient> = LazyLock::new(|| {
-    let client = ResourcesClient::new(PATH, Box::new(HashMap::new), EventsClient::default());
+    let client = ResourcesClient::new(PATH, Box::new(HashMap::new), EVENTS.clone());
     client.init();
     client
 });
 
 pub static MONSTERS: LazyLock<MonstersClient> = LazyLock::new(|| {
-    let client = MonstersClient::new(PATH, Box::new(HashMap::new), EventsClient::default());
+    let client = MonstersClient::new(PATH, Box::new(HashMap::new), EVENTS.clone());
     client.init();
     client
 });

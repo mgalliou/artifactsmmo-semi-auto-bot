@@ -2,7 +2,6 @@ use crate::{
     Cached,
     entities::{ActiveEvent, Event},
 };
-use api::ArtifactApi;
 use arc_swap::ArcSwap;
 use chrono::{DateTime, Duration, Utc};
 use derive_more::Deref;
@@ -15,6 +14,9 @@ use std::{
     thread,
 };
 
+type FetchData = Box<dyn Fn() -> HashMap<String, Event> + Send + Sync + 'static>;
+type FetchActive = Box<dyn Fn() -> Vec<ActiveEvent> + Send + Sync + 'static>;
+
 #[derive(Clone, Default, Deref, CollectionClient)]
 #[deref(forward)]
 #[element(Event)]
@@ -23,8 +25,8 @@ pub struct EventsClient(Arc<EventsClientInner>);
 pub struct EventsClientInner {
     directory: Box<str>,
     data: ArcSwap<HashMap<String, Event>>,
-    fetch: Box<dyn Fn() -> HashMap<String, Event> + Send + Sync>,
-    api: ArtifactApi,
+    fetch: FetchData,
+    fetch_active: FetchActive,
     active: RwLock<Vec<ActiveEvent>>,
     last_refresh: RwLock<DateTime<Utc>>,
 }
@@ -35,7 +37,7 @@ impl Default for EventsClientInner {
             directory: ".cache/".into(),
             data: ArcSwap::default(),
             fetch: Box::new(|| panic!("EventsClient not initialized")),
-            api: ArtifactApi::default(),
+            fetch_active: Box::new(|| panic!("EventsClient not initialized")),
             active: RwLock::default(),
             last_refresh: RwLock::default(),
         }
@@ -44,16 +46,12 @@ impl Default for EventsClientInner {
 
 impl EventsClient {
     #[must_use]
-    pub(crate) fn new(
-        path: &str,
-        fetch: Box<dyn Fn() -> HashMap<String, Event> + Send + Sync>,
-        api: ArtifactApi,
-    ) -> Self {
+    pub(crate) fn new(path: &str, fetch: FetchData, fetch_active: FetchActive) -> Self {
         Self(Arc::new(EventsClientInner {
             directory: path.into(),
             data: ArcSwap::default(),
             fetch,
-            api,
+            fetch_active,
             active: RwLock::default(),
             last_refresh: RwLock::default(),
         }))
@@ -64,7 +62,7 @@ impl EventsClient {
         let client = Self::new(
             path,
             Box::new(|| unreachable!("EventsClient::from_cache has no API fallback")),
-            ArtifactApi::default(),
+            Box::new(|| unreachable!("EventsClient::from_cache has no API fallback")),
         );
         client.init();
         client
@@ -96,10 +94,7 @@ impl EventsClient {
             return;
         }
         self.update_last_refresh(now);
-        let Ok(new_schemas) = self.api.events.get_active() else {
-            return;
-        };
-        *events = new_schemas.into_iter().map(ActiveEvent::new).collect_vec();
+        *events = (self.fetch_active)();
         debug!("events refreshed.");
     }
 
@@ -120,7 +115,7 @@ impl EventsClient {
 }
 
 impl Cached<HashMap<String, Event>> for EventsClient {
-    const FILE: &str = "event.ron";
+    const FILE: &str = "events";
 
     fn directory(&self) -> &str {
         &self.directory
