@@ -257,6 +257,10 @@ pub enum DepositItemCommandError {
 pub enum EquipGearCommandError {
     #[error("failed to reserve item from bank: {0}")]
     BankReservationError(#[from] ReservationError),
+    #[error("failed to withdraw item(s) from bank: {0}")]
+    WithdrawItemCommandError(#[from] WithdrawItemCommandError),
+    #[error("failed to deposit item(s) to the bank: {0}")]
+    DepositItemCommandError(#[from] DepositItemCommandError),
     #[error("failed to equip an item: {0}")]
     EquipCommandError(#[from] EquipCommandError),
     #[error("failed to unequip an item: {0}")]

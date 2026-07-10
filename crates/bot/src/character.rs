@@ -1225,6 +1225,9 @@ impl CharacterController {
     }
 
     fn equip_gear(&self, gear: &mut Gear) -> Result<(), EquipGearCommandError> {
+        if self.inventory.free_space() < 10 {
+            self.deposit_all()?;
+        }
         self.reserv_gear(gear)?;
         gear.align_to(&self.gear());
         for slot in Slot::iter() {
