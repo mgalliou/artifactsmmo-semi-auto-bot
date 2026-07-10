@@ -1,5 +1,6 @@
 use crate::{
     Cached,
+    client::character::request_handler::CharacterHttpRequestHandler,
     entities::{ActiveEvent, Event, Item, MapHandle, Monster, Npc, Resource, Task, TaskReward},
 };
 use api::ArtifactApi;
@@ -159,7 +160,43 @@ impl Client {
             make_fetcher(api.clone(), |api| api.bank.get_details().unwrap()),
             make_fetcher(api.clone(), |api| api.bank.get_items().unwrap()),
         );
-        let account = AccountClient::new(account_name, bank, api.clone());
+        let account = {
+            let api_characters = api.clone();
+            let api_achievements = api.clone();
+            let api_pending = api.clone();
+            let api_handler = api.clone();
+            AccountClient::new(
+                account_name,
+                bank,
+                Box::new(move |name| {
+                    api_characters
+                        .account
+                        .characters(name)
+                        .map(|res| res.data)
+                        .map_err(|e| ClientError::Api(Box::new(e)))
+                }),
+                Box::new(move |name| {
+                    api_achievements
+                        .account
+                        .achievements(name)
+                        .map_err(|e| ClientError::Api(Box::new(e)))
+                }),
+                Box::new(move || {
+                    api_pending
+                        .account
+                        .pending_items()
+                        .map_err(|e| ClientError::Api(Box::new(e)))
+                }),
+                Box::new(move |data, account, server| {
+                    Arc::new(CharacterHttpRequestHandler::new(
+                        api_handler.clone(),
+                        data,
+                        account,
+                        server,
+                    ))
+                }),
+            )
+        };
         let server = ServerClient::new(api.clone());
         let events = EventsClient::new(
             cache_dir,

@@ -3,46 +3,84 @@ use crate::{
     ServerClient, TasksClient,
     client::{
         bank::BankClient,
-        character::{
-            CharacterClient, CharacterRequestHandler, request_handler::CharacterHttpRequestHandler,
-        },
+        character::{CharacterClient, CharacterRequestHandler},
     },
     entities::{AccountAchievement, Character, CharacterHandle, PendingItemHandle, RawPendingItem},
     grand_exchange::GrandExchangeClient,
 };
-use ::api::ArtifactApi;
 use arc_swap::ArcSwap;
 use derive_more::Deref;
 use itertools::Itertools;
 use log::info;
-use openapi::models::PendingItemSchema;
+use openapi::models::{AccountAchievementSchema, CharacterSchema, PendingItemSchema};
 use std::sync::{Arc, RwLock};
+
+pub(crate) type CharactersSource =
+    Box<dyn Fn(&str) -> Result<Vec<CharacterSchema>, ClientError> + Send + Sync + 'static>;
+pub(crate) type AccountAchievementsSource =
+    Box<dyn Fn(&str) -> Result<Vec<AccountAchievementSchema>, ClientError> + Send + Sync + 'static>;
+pub(crate) type PendingItemsSource =
+    Box<dyn Fn() -> Result<Vec<PendingItemSchema>, ClientError> + Send + Sync + 'static>;
+pub(crate) type CharacterHandlerBuilder = Box<
+    dyn Fn(CharacterHandle, AccountClient, ServerClient) -> Arc<dyn CharacterRequestHandler>
+        + Send
+        + Sync
+        + 'static,
+>;
 
 #[derive(Clone, Default, Deref)]
 #[deref(forward)]
 pub struct AccountClient(Arc<AccountClientInner>);
 
 /// Hold and manage data related to a specific account
-#[derive(Default)]
 pub struct AccountClientInner {
-    api: ArtifactApi,
     name: String,
     bank: BankClient,
     characters: RwLock<Vec<CharacterClient>>,
     achievements: RwLock<Vec<AccountAchievement>>,
     pending_items: ArcSwap<Vec<PendingItemHandle>>,
+    fetch_characters: CharactersSource,
+    fetch_achievements: AccountAchievementsSource,
+    fetch_pending_items: PendingItemsSource,
+    create_handler: CharacterHandlerBuilder,
+}
+
+impl Default for AccountClientInner {
+    fn default() -> Self {
+        Self {
+            name: String::default(),
+            bank: BankClient::default(),
+            characters: RwLock::default(),
+            achievements: RwLock::default(),
+            pending_items: ArcSwap::default(),
+            fetch_characters: Box::new(|_| panic!("AccountClient not initialized")),
+            fetch_achievements: Box::new(|_| panic!("AccountClient not initialized")),
+            fetch_pending_items: Box::new(|| panic!("AccountClient not initialized")),
+            create_handler: Box::new(|_, _, _| panic!("AccountClient not initialized")),
+        }
+    }
 }
 
 impl AccountClient {
     #[must_use]
-    pub(crate) fn new(name: String, bank: BankClient, api: ArtifactApi) -> Self {
+    pub(crate) fn new(
+        name: String,
+        bank: BankClient,
+        fetch_characters: CharactersSource,
+        fetch_achievements: AccountAchievementsSource,
+        fetch_pending_items: PendingItemsSource,
+        create_handler: CharacterHandlerBuilder,
+    ) -> Self {
         Self(Arc::new(AccountClientInner {
-            api,
             name,
             bank,
             characters: RwLock::default(),
             achievements: RwLock::default(),
             pending_items: ArcSwap::default(),
+            fetch_characters,
+            fetch_achievements,
+            fetch_pending_items,
+            create_handler,
         }))
     }
 
@@ -74,23 +112,12 @@ impl AccountClient {
         server: &ServerClient,
         grand_exchange: &GrandExchangeClient,
     ) -> Result<(), ClientError> {
-        *self.characters.write().unwrap() = self
-            .api
-            .account
-            .characters(self.name())
-            .map_err(|e| ClientError::Api(Box::new(e)))?
-            .data
+        *self.characters.write().unwrap() = (self.fetch_characters)(self.name())?
             .into_iter()
             .enumerate()
             .map(|(id, data)| {
                 let data = CharacterHandle::new(data);
-                let handler: Arc<dyn CharacterRequestHandler> =
-                    Arc::new(CharacterHttpRequestHandler::new(
-                        self.api.clone(),
-                        data.clone(),
-                        self.clone(),
-                        server.clone(),
-                    ));
+                let handler = (self.create_handler)(data.clone(), self.clone(), server.clone());
                 CharacterClient::new(
                     id,
                     data,
@@ -110,24 +137,17 @@ impl AccountClient {
         Ok(())
     }
 
-    pub fn load_achievements(&self) -> Result<(), ClientError> {
-        *self.achievements.write().unwrap() = self
-            .api
-            .account
-            .achievements(self.name())
-            .map_err(|e| ClientError::Api(Box::new(e)))?
+    fn load_achievements(&self) -> Result<(), ClientError> {
+        *self.achievements.write().unwrap() = (self.fetch_achievements)(self.name())?
             .into_iter()
             .map(AccountAchievement::new)
             .collect_vec();
         Ok(())
     }
 
-    pub fn load_pending_items(&self) -> Result<(), ClientError> {
+    fn load_pending_items(&self) -> Result<(), ClientError> {
         self.pending_items.store(Arc::new(
-            self.api
-                .account
-                .pending_items()
-                .map_err(|e| ClientError::Api(Box::new(e)))?
+            (self.fetch_pending_items)()?
                 .into_iter()
                 .map(PendingItemHandle::new)
                 .collect_vec(),
