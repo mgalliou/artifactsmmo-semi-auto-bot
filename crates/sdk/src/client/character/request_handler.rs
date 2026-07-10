@@ -1,4 +1,4 @@
-use crate::entities::Character;
+use crate::entities::{Character, RawCharacter};
 use crate::{
     AccountClient,
     bank::Bank,
@@ -76,7 +76,7 @@ impl CharacterHttpRequestHandler {
         info!("{res}");
         res.characters().into_iter().for_each(|c| {
             if let Some(char_client) = self.account.get_character(&c.name) {
-                char_client.store(c.clone().into());
+                char_client.store(RawCharacter::new(c.clone()));
             }
         });
         if let Some(content) = res.bank_content() {
@@ -221,13 +221,13 @@ impl CharacterRequestHandler for CharacterHttpRequestHandler {
     fn request_move(&self, x: i32, y: i32) -> Result<RawMap, RequestError> {
         self.request_action(ActionRequest::Move { x, y })
             .and_then(downcast_response::<CharacterMovementResponseSchema>)
-            .map(|s| RawMap::from(*s.data.destination))
+            .map(|s| RawMap::new(*s.data.destination))
     }
 
     fn request_transition(&self) -> Result<RawMap, RequestError> {
         self.request_action(ActionRequest::Transition)
             .and_then(downcast_response::<CharacterTransitionResponseSchema>)
-            .map(|s| RawMap::from(*s.data.destination))
+            .map(|s| RawMap::new(*s.data.destination))
     }
 
     fn request_fight(
@@ -457,7 +457,7 @@ impl CharacterRequestHandler for CharacterHttpRequestHandler {
         let Ok(res) = self.api.character.get(&self.data.name()) else {
             return;
         };
-        self.data.store((*res.data).into());
+        self.data.store(RawCharacter::new(*res.data));
     }
 }
 

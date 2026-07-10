@@ -34,6 +34,7 @@ pub struct AccountClientInner {
 }
 
 impl AccountClient {
+    #[must_use]
     pub(crate) fn new(name: String, bank: BankClient, api: ArtifactApi) -> Self {
         Self(Arc::new(AccountClientInner {
             api,
@@ -82,7 +83,7 @@ impl AccountClient {
             .into_iter()
             .enumerate()
             .map(|(id, data)| {
-                let data: CharacterHandle = data.into();
+                let data = CharacterHandle::new(data);
                 let handler: Arc<dyn CharacterRequestHandler> =
                     Arc::new(CharacterHttpRequestHandler::new(
                         self.api.clone(),
@@ -128,7 +129,7 @@ impl AccountClient {
                 .pending_items()
                 .map_err(|e| ClientError::Api(Box::new(e)))?
                 .into_iter()
-                .map(PendingItemHandle::from)
+                .map(PendingItemHandle::new)
                 .collect_vec(),
         ));
         Ok(())

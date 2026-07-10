@@ -8,8 +8,8 @@ pub struct Npc(Arc<NpcSchema>);
 
 impl Npc {
     #[must_use]
-    pub fn new(schema: NpcSchema) -> Self {
-        Self(schema.into())
+    pub(crate) fn new(schema: NpcSchema) -> Self {
+        Self(Arc::new(schema))
     }
 
     #[must_use]

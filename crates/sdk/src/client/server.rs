@@ -17,6 +17,7 @@ pub struct ServerClientInner {
 }
 
 impl ServerClient {
+    #[must_use]
     pub(crate) fn new(api: ArtifactApi) -> Self {
         Self(Arc::new(ServerClientInner {
             api,

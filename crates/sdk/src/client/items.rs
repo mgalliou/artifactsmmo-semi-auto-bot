@@ -2,7 +2,7 @@ use crate::{
     Cached, Code, CollectionClient, HasDropTable, Level, Quantity, client::{
         monsters::MonstersClient, npcs::NpcsClient, resources::ResourcesClient,
         tasks_rewards::TasksRewardsClient,
-    }, consts::{TASKS_COIN, TASKS_REWARDS_SPECIFICS}, entities::{Item, Monster, Npc, NpcItem, Resource}, gear::Slot, simulator::HasEffects, skill::Skill,
+    }, consts::{TASKS_COIN, TASKS_REWARDS_SPECIFICS}, entities::{Item, Monster, Npc, Resource}, gear::Slot, simulator::HasEffects, skill::Skill,
 };
 use arc_swap::ArcSwap;
 use derive_more::Deref;
@@ -42,6 +42,7 @@ impl Default for ItemsClientInner {
 }
 
 impl ItemsClient {
+    #[must_use]
     pub(crate) fn new(
         path: &str,
         fetch: Box<dyn Fn() -> HashMap<String, Item> + Send + Sync>,
@@ -50,18 +51,15 @@ impl ItemsClient {
         tasks_rewards: TasksRewardsClient,
         npcs: NpcsClient,
     ) -> Self {
-        Self(
-            ItemsClientInner {
-                directory: path.into(),
-                fetch,
-                data: ArcSwap::default(),
-                resources,
-                monsters,
-                tasks_rewards,
-                npcs,
-            }
-            .into(),
-        )
+        Self(Arc::new(ItemsClientInner {
+            directory: path.into(),
+            fetch,
+            data: ArcSwap::default(),
+            resources,
+            monsters,
+            tasks_rewards,
+            npcs,
+        }))
     }
 
     pub fn init(&self) {
@@ -424,7 +422,6 @@ impl PartialEq<LevelConditionCode> for String {
 mod tests {
     use crate::{
         Code, Quantity,
-        client::CollectionClient,
         simulator::{DamageType, HasEffects},
         test_utils::{ITEMS, item, monster},
     };

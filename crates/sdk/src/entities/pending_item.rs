@@ -1,3 +1,4 @@
+use chrono::Utc;
 use openapi::models::{PendingItemSchema, SimpleItemSchema};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, RwLock};
@@ -6,6 +7,11 @@ use std::sync::{Arc, RwLock};
 pub struct PendingItemHandle(Arc<RwLock<RawPendingItem>>);
 
 impl PendingItemHandle {
+    #[must_use]
+    pub(crate) fn new(schema: PendingItemSchema) -> Self {
+        Self(Arc::new(RwLock::new(RawPendingItem::from(schema))))
+    }
+
     #[must_use]
     pub fn load(&self) -> RawPendingItem {
         self.0.read().unwrap().clone()
@@ -16,19 +22,13 @@ impl PendingItemHandle {
     }
 }
 
-impl From<PendingItemSchema> for PendingItemHandle {
-    fn from(value: PendingItemSchema) -> Self {
-        Self(Arc::new(RwLock::new(RawPendingItem::from(value))))
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RawPendingItem(Arc<PendingItemSchema>);
 
 impl RawPendingItem {
     #[must_use]
-    pub(crate) fn new(pending_item_schema: PendingItemSchema) -> Self {
-        Self(Arc::new(pending_item_schema))
+    pub(crate) fn new(schema: PendingItemSchema) -> Self {
+        Self(Arc::new(schema))
     }
 
     #[must_use]
@@ -43,7 +43,7 @@ impl RawPendingItem {
 
     #[must_use]
     pub fn is_claimed(&self) -> bool {
-        self.0.claimed_at.is_some()
+        self.0.claimed_at.is_some_and(|t| t < Utc::now())
     }
 }
 

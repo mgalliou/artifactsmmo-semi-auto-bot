@@ -35,6 +35,11 @@ pub struct CharacterHandle(Arc<RwLock<RawCharacter>>);
 
 impl CharacterHandle {
     #[must_use]
+    pub(crate) fn new(value: CharacterSchema) -> Self {
+        Self(Arc::new(RwLock::new(RawCharacter::new(value))))
+    }
+
+    #[must_use]
     pub fn load(&self) -> RawCharacter {
         self.0.read().unwrap().clone()
     }
@@ -136,18 +141,24 @@ impl Level for CharacterHandle {
     }
 }
 
-impl From<CharacterSchema> for CharacterHandle {
-    fn from(value: CharacterSchema) -> Self {
-        Self(Arc::new(RwLock::new(RawCharacter::from(value))))
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RawCharacter {
     schema: Arc<CharacterSchema>,
     name: CharacterName,
     task: TaskCode,
     inventory: Arc<Vec<InventorySlotSchema>>,
+}
+
+impl RawCharacter {
+    #[must_use]
+    pub(crate) fn new(value: CharacterSchema) -> Self {
+        Self {
+            name: CharacterName::from(value.name.clone()),
+            task: TaskCode::from(value.task.clone()),
+            inventory: Arc::new(value.inventory.clone().unwrap_or_default()),
+            schema: Arc::new(value),
+        }
+    }
 }
 
 impl Character for RawCharacter {
@@ -316,17 +327,6 @@ impl Character for RawCharacter {
 impl Level for RawCharacter {
     fn level(&self) -> u32 {
         self.schema.level as u32
-    }
-}
-
-impl From<CharacterSchema> for RawCharacter {
-    fn from(value: CharacterSchema) -> Self {
-        Self {
-            name: value.name.clone().into(),
-            task: value.task.clone().into(),
-            inventory: value.inventory.clone().unwrap_or_default().into(),
-            schema: value.into(),
-        }
     }
 }
 

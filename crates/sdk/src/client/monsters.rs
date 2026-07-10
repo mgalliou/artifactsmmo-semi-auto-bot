@@ -33,20 +33,18 @@ impl Default for MonstersClientInner {
 }
 
 impl MonstersClient {
+    #[must_use]
     pub(crate) fn new(
         path: &str,
         fetch: Box<dyn Fn() -> HashMap<String, Monster> + Send + Sync>,
         events: EventsClient,
     ) -> Self {
-        Self(
-            MonstersClientInner {
-                directory: path.into(),
-                fetch,
-                data: ArcSwap::default(),
-                events,
-            }
-            .into(),
-        )
+        Self(Arc::new(MonstersClientInner {
+            directory: path.into(),
+            fetch,
+            data: ArcSwap::default(),
+            events,
+        }))
     }
 
     #[must_use]

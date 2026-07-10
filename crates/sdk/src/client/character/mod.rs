@@ -74,6 +74,7 @@ pub struct CharacterClientInner {
 
 impl CharacterClient {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub(crate) fn new(
         id: usize,
         data: CharacterHandle,
@@ -87,25 +88,22 @@ impl CharacterClient {
         tasks: TasksClient,
         grand_exchange: GrandExchangeClient,
     ) -> Self {
-        Self(
-            CharacterClientInner {
-                id,
-                data: data.clone(),
-                handler,
-                inventory: InventoryClient::new(data),
-                bank: account.bank(),
-                account,
-                items,
-                resources,
-                monsters,
-                maps,
-                npcs,
-                tasks,
-                grand_exchange,
-                gear_cache: Mutex::new(None),
-            }
-            .into(),
-        )
+        Self(Arc::new(CharacterClientInner {
+            id,
+            data: data.clone(),
+            handler,
+            inventory: InventoryClient::new(data),
+            bank: account.bank(),
+            account,
+            items,
+            resources,
+            monsters,
+            maps,
+            npcs,
+            tasks,
+            grand_exchange,
+            gear_cache: Mutex::new(None),
+        }))
     }
 
     #[must_use]

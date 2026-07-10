@@ -8,6 +8,7 @@ pub struct GrandExchangeClient {
 }
 
 impl GrandExchangeClient {
+    #[must_use]
     pub(crate) const fn new(api: ArtifactApi) -> Self {
         Self { api }
     }

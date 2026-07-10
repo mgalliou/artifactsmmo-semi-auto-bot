@@ -8,8 +8,9 @@ use crate::Code;
 pub struct TaskReward(Arc<DropRateSchema>);
 
 impl TaskReward {
+    #[must_use]
     pub(crate) fn new(schema: DropRateSchema) -> Self {
-        Self(schema.into())
+        Self(Arc::new(schema))
     }
 
     #[must_use]

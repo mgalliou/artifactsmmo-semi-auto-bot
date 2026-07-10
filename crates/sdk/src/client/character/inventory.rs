@@ -6,7 +6,7 @@ use crate::{
 use openapi::models::InventorySlotSchema;
 use std::sync::Arc;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct InventoryClient {
     data: CharacterHandle,
 }

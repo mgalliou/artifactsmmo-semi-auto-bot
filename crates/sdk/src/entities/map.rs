@@ -87,6 +87,11 @@ pub struct MapHandle(Arc<RwLock<RawMap>>);
 
 impl MapHandle {
     #[must_use]
+    pub(crate) fn new(schema: MapSchema) -> Self {
+        Self(Arc::new(RwLock::new(RawMap::new(schema))))
+    }
+
+    #[must_use]
     pub fn load(&self) -> RawMap {
         self.0.read().unwrap().clone()
     }
@@ -96,14 +101,15 @@ impl MapHandle {
     }
 }
 
-impl From<MapSchema> for MapHandle {
-    fn from(value: MapSchema) -> Self {
-        Self(Arc::new(RwLock::new(RawMap::from(value))))
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RawMap(Arc<MapSchema>);
+
+impl RawMap {
+    #[must_use]
+    pub(crate) fn new(schema: MapSchema) -> Self {
+        Self(Arc::new(schema))
+    }
+}
 
 impl Map for RawMap {
     fn id(&self) -> i32 {
@@ -132,12 +138,6 @@ impl Map for RawMap {
 
     fn access(&self) -> &AccessSchema {
         &self.0.access
-    }
-}
-
-impl From<MapSchema> for RawMap {
-    fn from(value: MapSchema) -> Self {
-        Self(value.into())
     }
 }
 

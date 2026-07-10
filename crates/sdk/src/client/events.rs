@@ -43,22 +43,20 @@ impl Default for EventsClientInner {
 }
 
 impl EventsClient {
+    #[must_use]
     pub(crate) fn new(
         path: &str,
         fetch: Box<dyn Fn() -> HashMap<String, Event> + Send + Sync>,
         api: ArtifactApi,
     ) -> Self {
-        Self(
-            EventsClientInner {
-                directory: path.into(),
-                data: ArcSwap::default(),
-                fetch,
-                api,
-                active: RwLock::default(),
-                last_refresh: RwLock::default(),
-            }
-            .into(),
-        )
+        Self(Arc::new(EventsClientInner {
+            directory: path.into(),
+            data: ArcSwap::default(),
+            fetch,
+            api,
+            active: RwLock::default(),
+            last_refresh: RwLock::default(),
+        }))
     }
 
     #[must_use]

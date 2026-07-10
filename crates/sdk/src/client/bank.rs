@@ -21,16 +21,14 @@ pub struct BankClientInner {
 }
 
 impl BankClient {
+    #[must_use]
     pub(crate) fn new(fetch_details: FetchDetails, fetch_content: FetchContent) -> Self {
-        Self(
-            BankClientInner {
-                details: ArcSwap::default(),
-                content: ArcSwap::default(),
-                fetch_content,
-                fetch_details,
-            }
-            .into(),
-        )
+        Self(Arc::new(BankClientInner {
+            details: ArcSwap::default(),
+            content: ArcSwap::default(),
+            fetch_content,
+            fetch_details,
+        }))
     }
 
     pub(crate) fn init(&self) {

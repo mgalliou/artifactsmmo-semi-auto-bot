@@ -33,20 +33,18 @@ impl Default for ResourcesClientInner {
 }
 
 impl ResourcesClient {
+    #[must_use]
     pub(crate) fn new(
         directory: &str,
         fetch: Box<dyn Fn() -> HashMap<String, Resource> + Send + Sync>,
         events: EventsClient,
     ) -> Self {
-        Self(
-            ResourcesClientInner {
-                directory: directory.into(),
-                data: ArcSwap::default(),
-                fetch,
-                events,
-            }
-            .into(),
-        )
+        Self(Arc::new(ResourcesClientInner {
+            directory: directory.into(),
+            data: ArcSwap::default(),
+            fetch,
+            events,
+        }))
     }
 
     #[must_use]

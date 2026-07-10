@@ -39,16 +39,14 @@ impl Default for MapsClientInner {
 }
 
 impl MapsClient {
+    #[must_use]
     pub(crate) fn new(path: &str, fetch: MapsFetcher, events: EventsClient) -> Self {
-        Self(
-            MapsClientInner {
-                directory: path.into(),
-                fetch,
-                data: ArcSwap::default(),
-                events,
-            }
-            .into(),
-        )
+        Self(Arc::new(MapsClientInner {
+            directory: path.into(),
+            fetch,
+            data: ArcSwap::default(),
+            events,
+        }))
     }
 
     pub fn init(&self) {

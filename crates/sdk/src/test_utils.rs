@@ -5,11 +5,7 @@ use openapi::models::{
 };
 
 use crate::{
-    AccountClient, CharacterClient, CollectionClient, EventsClient, GrandExchangeClient,
-    MapsClient, NpcsClient, NpcsItemsClient, ResourcesClient, TasksClient, TasksRewardsClient,
-    character::{CharacterRequestHandler, error::RequestError},
-    client::{items::ItemsClient, monsters::MonstersClient},
-    entities::{Item, Monster},
+    AccountClient, CharacterClient, CollectionClient, EventsClient, GrandExchangeClient, MapsClient, NpcsClient, NpcsItemsClient, ResourcesClient, TasksClient, TasksRewardsClient, character::{CharacterRequestHandler, error::RequestError}, client::{items::ItemsClient, monsters::MonstersClient}, entities::{CharacterHandle, Item, Monster},
 };
 use std::{
     collections::HashMap,
@@ -268,7 +264,7 @@ impl CharacterRequestHandler for MockCharacterRequestHandler {
 pub fn character(schema: CharacterSchema) -> CharacterClient {
     CharacterClient::new(
         1,
-        schema.into(),
+        CharacterHandle::new(schema),
         Arc::new(MockCharacterRequestHandler),
         AccountClient::default(),
         ITEMS.clone(),

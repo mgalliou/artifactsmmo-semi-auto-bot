@@ -4,7 +4,7 @@ use derive_more::Deref;
 use log::info;
 use std::{collections::HashMap, sync::Arc};
 
-#[derive(Clone, Deref, Default, CollectionClient)]
+#[derive(Clone, Default, Deref, CollectionClient)]
 #[deref(forward)]
 #[element(TaskReward)]
 pub struct TasksRewardsClient(Arc<TasksRewardsClientInner>);
@@ -26,18 +26,16 @@ impl Default for TasksRewardsClientInner {
 }
 
 impl TasksRewardsClient {
+    #[must_use]
     pub(crate) fn new(
         directory: &str,
         fetch: Box<dyn Fn() -> HashMap<String, TaskReward> + Send + Sync>,
     ) -> Self {
-        Self(
-            TasksRewardsClientInner {
-                directory: directory.into(),
-                data: ArcSwap::default(),
-                fetch,
-            }
-            .into(),
-        )
+        Self(Arc::new(TasksRewardsClientInner {
+            directory: directory.into(),
+            data: ArcSwap::default(),
+            fetch,
+        }))
     }
 
     pub fn init(&self) {

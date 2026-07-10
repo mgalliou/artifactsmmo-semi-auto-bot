@@ -298,7 +298,7 @@ impl Client {
                         .get_all()
                         .unwrap()
                         .into_iter()
-                        .map(|m| ((m.layer, m.x, m.y), m.into()))
+                        .map(|m| ((m.layer, m.x, m.y), MapHandle::new(m)))
                         .collect::<HashMap<(MapLayer, i32, i32), MapHandle>>()
                 }),
                 events.clone(),

@@ -10,6 +10,7 @@ use std::{
 pub struct Event(Arc<EventSchema>);
 
 impl Event {
+    #[must_use]
     pub(crate) fn new(schema: EventSchema) -> Self {
         Self(Arc::new(schema))
     }

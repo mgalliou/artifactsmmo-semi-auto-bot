@@ -7,8 +7,9 @@ use std::sync::Arc;
 pub struct NpcItem(Arc<models::NpcItemSchema>);
 
 impl NpcItem {
-    pub(crate) fn new(shema: models::NpcItemSchema) -> Self {
-        Self(shema.into())
+    #[must_use]
+    pub(crate) fn new(schema: models::NpcItemSchema) -> Self {
+        Self(Arc::new(schema))
     }
 
     #[must_use]

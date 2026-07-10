@@ -7,8 +7,9 @@ use std::sync::Arc;
 pub struct Resource(Arc<ResourceSchema>);
 
 impl Resource {
+    #[must_use]
     pub(crate) fn new(schema: ResourceSchema) -> Self {
-        Self(schema.into())
+        Self(Arc::new(schema))
     }
 
     #[must_use]

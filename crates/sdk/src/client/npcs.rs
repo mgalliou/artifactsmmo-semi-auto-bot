@@ -29,20 +29,18 @@ impl Default for NpcsClientInner {
 }
 
 impl NpcsClient {
+    #[must_use]
     pub(crate) fn new(
         directory: &str,
         fetch: Box<dyn Fn() -> HashMap<String, Npc> + Send + Sync>,
         items: NpcsItemsClient,
     ) -> Self {
-        Self(
-            NpcsClientInner {
-                directory: directory.into(),
-                data: ArcSwap::default(),
-                fetch,
-                items,
-            }
-            .into(),
-        )
+        Self(Arc::new(NpcsClientInner {
+            directory: directory.into(),
+            data: ArcSwap::default(),
+            fetch,
+            items,
+        }))
     }
 
     #[must_use]

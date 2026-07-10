@@ -5,7 +5,7 @@ use log::info;
 use sdk_derive::CollectionClient;
 use std::{collections::HashMap, sync::Arc};
 
-#[derive(Clone, Deref, Default, CollectionClient)]
+#[derive(Clone, Default, Deref, CollectionClient)]
 #[deref(forward)]
 #[element(NpcItem)]
 pub struct NpcsItemsClient(Arc<NpcsItemsClientInner>);
@@ -27,18 +27,16 @@ impl Default for NpcsItemsClientInner {
 }
 
 impl NpcsItemsClient {
+    #[must_use]
     pub(crate) fn new(
         path: &str,
         fetch: Box<dyn Fn() -> HashMap<String, NpcItem> + Send + Sync>,
     ) -> Self {
-        Self(
-            NpcsItemsClientInner {
-                directory: path.into(),
-                fetch,
-                data: ArcSwap::default(),
-            }
-            .into(),
-        )
+        Self(Arc::new(NpcsItemsClientInner {
+            directory: path.into(),
+            fetch,
+            data: ArcSwap::default(),
+        }))
     }
 
     #[must_use]

@@ -46,7 +46,7 @@ impl ResponseSchema for CharacterMovementResponseSchema {
         format!(
             "{}: moved to {}. {}s",
             self.data.character.name,
-            RawMap::from(*self.data.destination.clone()),
+            RawMap::new(*self.data.destination.clone()),
             self.data.cooldown.remaining_seconds
         )
     }
@@ -61,7 +61,7 @@ impl ResponseSchema for CharacterTransitionResponseSchema {
         format!(
             "{}: transitioned to {}. {}s",
             self.data.character.name,
-            RawMap::from(*self.data.destination.clone()),
+            RawMap::new(*self.data.destination.clone()),
             self.data.cooldown.remaining_seconds
         )
     }

@@ -14,6 +14,7 @@ use std::{
 pub struct ActiveEvent(Arc<ActiveEventSchema>);
 
 impl ActiveEvent {
+    #[must_use]
     pub(crate) fn new(schema: ActiveEventSchema) -> Self {
         Self(Arc::new(schema))
     }
@@ -30,12 +31,12 @@ impl ActiveEvent {
 
     #[must_use]
     pub fn map(&self) -> RawMap {
-        (*self.0.map).clone().into()
+        RawMap::new((*self.0.map).clone())
     }
 
     #[must_use]
     pub fn previous_map(&self) -> RawMap {
-        (*self.0.previous_map).clone().into()
+        RawMap::new((*self.0.previous_map).clone())
     }
 
     #[must_use]

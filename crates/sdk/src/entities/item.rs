@@ -17,8 +17,9 @@ use std::{str::FromStr, sync::Arc};
 pub struct Item(Arc<ItemSchema>);
 
 impl Item {
+    #[must_use]
     pub(crate) fn new(schema: ItemSchema) -> Self {
-        Self(schema.into())
+        Self(Arc::new(schema))
     }
 
     #[must_use]

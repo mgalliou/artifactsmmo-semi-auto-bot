@@ -8,8 +8,9 @@ use std::sync::Arc;
 pub struct AccountAchievement(Arc<AccountAchievementSchema>);
 
 impl AccountAchievement {
+    #[must_use]
     pub(crate) fn new(schema: AccountAchievementSchema) -> Self {
-        Self(schema.into())
+        Self(Arc::new(schema))
     }
 
     #[must_use]

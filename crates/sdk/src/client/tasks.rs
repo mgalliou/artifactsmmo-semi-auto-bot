@@ -18,20 +18,18 @@ pub struct TasksClientInner {
 }
 
 impl TasksClient {
+    #[must_use]
     pub(crate) fn new(
         directory: &str,
         fetch: Box<dyn Fn() -> HashMap<String, Task> + Send + Sync>,
         reward: TasksRewardsClient,
     ) -> Self {
-        Self(
-            TasksClientInner {
-                directory: directory.into(),
-                fetch,
-                data: ArcSwap::default(),
-                rewards: reward,
-            }
-            .into(),
-        )
+        Self(Arc::new(TasksClientInner {
+            directory: directory.into(),
+            fetch,
+            data: ArcSwap::default(),
+            rewards: reward,
+        }))
     }
 
     pub fn init(&self) {
