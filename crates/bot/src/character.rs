@@ -426,11 +426,11 @@ impl CharacterController {
     fn progress_resource_order(
         &self,
         order: &Order,
-        ressource: &Resource,
+        resource: &Resource,
     ) -> Result<u32, GatherCommandError> {
         order.inc_in_progress(1);
         let result = self
-            .gather_resource(ressource)
+            .gather_resource(resource)
             .map(|gather| gather.amount_of(&order.item));
         order.dec_in_progress(1);
         result
@@ -1194,7 +1194,7 @@ impl CharacterController {
     }
 
     pub fn expand_bank(&self) -> Result<u32, BankExpansionCommandError> {
-        let Ok(_being_expanded) = self.bank.expension_lock() else {
+        let Ok(_being_expanded) = self.bank.expansion_lock() else {
             return Err(BankExpansionCommandError::BankUnavailable);
         };
         if self.bank.gold() + self.gold() < self.bank.next_expansion_cost() {
@@ -1228,7 +1228,7 @@ impl CharacterController {
         if self.inventory.free_space() < 10 {
             self.deposit_all()?;
         }
-        self.reserv_gear(gear)?;
+        self.reserve_gear(gear)?;
         gear.align_to(&self.gear());
         for slot in Slot::iter() {
             match gear.item_in(slot) {
@@ -1649,33 +1649,33 @@ impl CharacterController {
             .is_ok()
     }
 
-    fn reserv_gear(&self, gear: &mut Gear) -> Result<(), ReservationError> {
+    fn reserve_gear(&self, gear: &mut Gear) -> Result<(), ReservationError> {
         //TODO: unreserv already reserved items on failure
         gear.align_to(&self.gear());
         for slot in Slot::iter() {
             if let Some(item) = gear.item_in(slot)
                 && !slot.is_ring()
             {
-                self.reserv_if_needed_and_available(item.code(), slot.max_quantity(), slot)?;
+                self.reserve_if_needed_and_available(item.code(), slot.max_quantity(), slot)?;
             }
         }
         if let Some(ref ring1) = gear.ring1
             && gear.ring1 == gear.ring2
         {
-            self.reserv_if_needed_and_available(ring1.code(), 2, Slot::Ring1)?;
+            self.reserve_if_needed_and_available(ring1.code(), 2, Slot::Ring1)?;
         } else {
             if let Some(ref ring1) = gear.ring1 {
-                self.reserv_if_needed_and_available(ring1.code(), 1, Slot::Ring1)?;
+                self.reserve_if_needed_and_available(ring1.code(), 1, Slot::Ring1)?;
             }
             if let Some(ref ring2) = gear.ring2 {
-                self.reserv_if_needed_and_available(ring2.code(), 1, Slot::Ring2)?;
+                self.reserve_if_needed_and_available(ring2.code(), 1, Slot::Ring2)?;
             }
         }
         Ok(())
     }
 
     /// Reserves the given `quantity` of the `item` if needed and available.
-    fn reserv_if_needed_and_available(
+    fn reserve_if_needed_and_available(
         &self,
         item: &str,
         quantity: u32,

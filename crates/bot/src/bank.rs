@@ -50,7 +50,7 @@ impl BankController {
         )
     }
 
-    pub fn expension_lock(
+    pub fn expansion_lock(
         &self,
     ) -> Result<RwLockWriteGuard<'_, ()>, TryLockError<RwLockWriteGuard<'_, ()>>> {
         self.being_expanded.try_write()
