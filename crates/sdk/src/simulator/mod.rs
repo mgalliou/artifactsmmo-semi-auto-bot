@@ -94,6 +94,17 @@ impl Simulator {
             cd: compute_fight_cd(char.haste(), turn),
         }
     }
+
+    pub fn fight_win_rate(participant: &Participant, monster: &Monster) -> f64 {
+        const SAMPLES: u32 = 1000;
+        let wins = (0..SAMPLES)
+            .filter(|_| {
+                Self::fight(participant.clone(), None, monster, &FightParams::default())
+                    .is_winning()
+            })
+            .count();
+        wins as f64 / f64::from(SAMPLES)
+    }
 }
 
 fn get_next_fighter(fighters: &[Box<dyn SimulationEntity>]) -> Option<Box<dyn SimulationEntity>> {
@@ -128,6 +139,7 @@ fn pick_monster_target(chars: &[SimulationCharacter]) -> Option<SimulationCharac
         .map(|&&c| c.clone())
 }
 
+#[derive(Clone)]
 pub struct Participant {
     name: CharacterName,
     level: u32,

@@ -69,6 +69,8 @@ use std::{
 };
 use strum::IntoEnumIterator;
 
+const KILL_CONFIDENCE: f64 = 0.95;
+
 #[derive(Clone, Deref)]
 #[deref(forward)]
 pub struct CharacterController(Arc<CharacterControllerInner>);
@@ -810,38 +812,21 @@ impl CharacterController {
         }
     }
 
-    /// Checks if the `Character` could kill the given `monster` with the given
-    /// `gear`
     fn can_kill_with(&self, monster: &Monster, gear: &Gear) -> bool {
-        (1..=1000)
-            .filter(|_| {
-                Simulator::fight(
-                    Participant::new(self.name())
-                        .with_level(self.level())
-                        .with_gear(gear.clone()),
-                    None,
-                    monster,
-                    &FightParams::default(),
-                )
-                .is_winning()
-            })
-            .count()
-            >= 950
+        let participant = Participant::new(self.name())
+            .with_level(self.level())
+            .with_gear(gear.clone());
+        Simulator::fight_win_rate(&participant, monster) >= KILL_CONFIDENCE
     }
 
     fn can_kill_now(&self, monster: &Monster) -> bool {
-        (1..=1000)
-            .filter(|_| {
-                Simulator::fight(
-                    (&self.client).into(),
-                    None,
-                    monster,
-                    &FightParams::default(),
-                )
-                .is_winning()
-            })
-            .count()
-            >= 950
+        let participant = Participant::new(self.name())
+            .with_level(self.level())
+            .with_gear(self.gear())
+            .with_utility1_quantity(self.quantity_in_slot(Slot::Utility1))
+            .with_utility2_quantity(self.quantity_in_slot(Slot::Utility2))
+            .with_missing_hp(self.missing_hp());
+        Simulator::fight_win_rate(&participant, monster) >= KILL_CONFIDENCE
     }
 
     /// Crafts the given `quantity` of the given item `code` if the required
