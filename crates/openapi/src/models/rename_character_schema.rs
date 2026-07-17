@@ -12,16 +12,16 @@ use crate::models;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
-pub struct CombatSimulationResponseSchema {
-    /// Combat simulation results.
-    #[serde(rename = "data")]
-    pub data: Box<models::CombatSimulationDataSchema>,
+pub struct RenameCharacterSchema {
+    /// Your desired character name. It's unique and all players can see it.
+    #[serde(rename = "name")]
+    pub name: String,
 }
 
-impl CombatSimulationResponseSchema {
-    pub fn new(data: models::CombatSimulationDataSchema) -> CombatSimulationResponseSchema {
-        CombatSimulationResponseSchema {
-            data: Box::new(data),
+impl RenameCharacterSchema {
+    pub fn new(name: String) -> RenameCharacterSchema {
+        RenameCharacterSchema {
+            name,
         }
     }
 }

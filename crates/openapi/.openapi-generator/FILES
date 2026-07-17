@@ -229,6 +229,9 @@ src/models/recycling_data_schema.rs
 src/models/recycling_items_schema.rs
 src/models/recycling_response_schema.rs
 src/models/recycling_schema.rs
+src/models/rename_character_data_schema.rs
+src/models/rename_character_schema.rs
+src/models/rename_response_schema.rs
 src/models/resource_response_schema.rs
 src/models/resource_schema.rs
 src/models/response_schema.rs

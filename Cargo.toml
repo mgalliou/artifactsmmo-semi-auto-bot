@@ -46,7 +46,6 @@ rand = "0.10.1"
 rayon = "1.12.0"
 reqwest = { version = "0.13.4", default-features = false, features = [
   "json",
-  "blocking",
   "multipart",
   "query",
   "form",

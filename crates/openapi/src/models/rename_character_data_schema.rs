@@ -12,27 +12,27 @@ use crate::models;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
-pub struct CharacterMovementDataSchema {
-    /// Cooldown details
+pub struct RenameCharacterDataSchema {
+    /// Cooldown details.
     #[serde(rename = "cooldown")]
     pub cooldown: Box<models::CooldownSchema>,
-    /// Destination details.
-    #[serde(rename = "destination")]
-    pub destination: Box<models::MapSchema>,
-    /// Path taken from start to destination (list of coordinates)
-    #[serde(rename = "path")]
-    pub path: Vec<Vec<i32>>,
-    /// Character details.
+    /// Previous character name.
+    #[serde(rename = "old_name")]
+    pub old_name: String,
+    /// New character name.
+    #[serde(rename = "new_name")]
+    pub new_name: String,
+    /// Player details.
     #[serde(rename = "character")]
     pub character: Box<models::CharacterSchema>,
 }
 
-impl CharacterMovementDataSchema {
-    pub fn new(cooldown: models::CooldownSchema, destination: models::MapSchema, path: Vec<Vec<i32>>, character: models::CharacterSchema) -> CharacterMovementDataSchema {
-        CharacterMovementDataSchema {
+impl RenameCharacterDataSchema {
+    pub fn new(cooldown: models::CooldownSchema, old_name: String, new_name: String, character: models::CharacterSchema) -> RenameCharacterDataSchema {
+        RenameCharacterDataSchema {
             cooldown: Box::new(cooldown),
-            destination: Box::new(destination),
-            path,
+            old_name,
+            new_name,
             character: Box::new(character),
         }
     }

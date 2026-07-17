@@ -268,12 +268,12 @@ impl ResponseSchema for EquipmentResponseSchema {
         if self.data.cooldown.reason == ActionType::Equip {
             format!(
                 "{}: equipped '{item_codes:?}'. {}s",
-                &self.data.character.name, self.data.cooldown.remaining_seconds
+                self.data.character.name, self.data.cooldown.remaining_seconds
             )
         } else {
             format!(
                 "{}: unequipped '{item_codes:?}'. {}s",
-                &self.data.character.name, self.data.cooldown.remaining_seconds
+                self.data.character.name, self.data.cooldown.remaining_seconds
             )
         }
     }

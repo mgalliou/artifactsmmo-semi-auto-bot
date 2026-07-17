@@ -12,15 +12,14 @@ use crate::models;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
-pub struct CombatSimulationResponseSchema {
-    /// Combat simulation results.
+pub struct RenameResponseSchema {
     #[serde(rename = "data")]
-    pub data: Box<models::CombatSimulationDataSchema>,
+    pub data: Box<models::RenameCharacterDataSchema>,
 }
 
-impl CombatSimulationResponseSchema {
-    pub fn new(data: models::CombatSimulationDataSchema) -> CombatSimulationResponseSchema {
-        CombatSimulationResponseSchema {
+impl RenameResponseSchema {
+    pub fn new(data: models::RenameCharacterDataSchema) -> RenameResponseSchema {
+        RenameResponseSchema {
             data: Box::new(data),
         }
     }
