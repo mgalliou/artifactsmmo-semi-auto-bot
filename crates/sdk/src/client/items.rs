@@ -1,8 +1,14 @@
 use crate::{
-    Cached, Code, CollectionClient, HasDropTable, Level, Quantity, client::{
+    Cached, Code, CollectionClient, HasDropTable, Level, Quantity,
+    client::{
         monsters::MonstersClient, npcs::NpcsClient, resources::ResourcesClient,
         tasks_rewards::TasksRewardsClient,
-    }, consts::{TASKS_COIN, TASKS_REWARDS_SPECIFICS}, entities::{Item, Monster, Npc, Resource}, gear::Slot, simulator::HasEffects, skill::Skill,
+    },
+    consts::{TASKS_COIN, TASKS_REWARDS_SPECIFICS},
+    entities::{Item, Monster, Npc, Resource},
+    gear::Slot,
+    simulator::HasEffects,
+    skill::Skill,
 };
 type ItemsSource = Box<dyn Fn() -> HashMap<String, Item> + Send + Sync + 'static>;
 

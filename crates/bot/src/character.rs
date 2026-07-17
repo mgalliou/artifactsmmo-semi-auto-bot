@@ -47,9 +47,7 @@ use sdk::{
         CharacterFightSchema, DropSchema, MapContentType, RecyclingItemsSchema, RewardsSchema,
         SimpleItemSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
     },
-    simulator::{
-        FightParams, HasEffects, Participant, Simulator, compute_gathering_cd, time_to_rest,
-    },
+    simulator::{FightSimulation, HasEffects, Participant, compute_gathering_cd, time_to_rest},
     skill::Skill,
 };
 use std::collections::HashMap;
@@ -813,20 +811,26 @@ impl CharacterController {
     }
 
     fn can_kill_with(&self, monster: &Monster, gear: &Gear) -> bool {
-        let participant = Participant::new(self.name())
-            .with_level(self.level())
-            .with_gear(gear.clone());
-        Simulator::fight_win_rate(&participant, monster) >= KILL_CONFIDENCE
+        let sim = FightSimulation::new(
+            Participant::new(self.name())
+                .with_level(self.level())
+                .with_gear(gear.clone()),
+            monster.clone(),
+        );
+        sim.win_rate(1000) >= KILL_CONFIDENCE
     }
 
     fn can_kill_now(&self, monster: &Monster) -> bool {
-        let participant = Participant::new(self.name())
-            .with_level(self.level())
-            .with_gear(self.gear())
-            .with_utility1_quantity(self.quantity_in_slot(Slot::Utility1))
-            .with_utility2_quantity(self.quantity_in_slot(Slot::Utility2))
-            .with_missing_hp(self.missing_hp());
-        Simulator::fight_win_rate(&participant, monster) >= KILL_CONFIDENCE
+        let sim = FightSimulation::new(
+            Participant::new(self.name())
+                .with_level(self.level())
+                .with_gear(self.gear())
+                .with_utility1_quantity(self.quantity_in_slot(Slot::Utility1))
+                .with_utility2_quantity(self.quantity_in_slot(Slot::Utility2))
+                .with_missing_hp(self.missing_hp()),
+            monster.clone(),
+        );
+        sim.win_rate(1000) >= KILL_CONFIDENCE
     }
 
     /// Crafts the given `quantity` of the given item `code` if the required
@@ -1694,14 +1698,13 @@ impl CharacterController {
 
     pub fn time_to_kill(&self, monster: &Monster) -> Option<u32> {
         let gear = self.can_kill(monster).ok()?;
-        let fight = Simulator::fight(
+        let fight = FightSimulation::new(
             Participant::new(self.name())
                 .with_level(self.level())
                 .with_gear(gear),
-            None,
-            monster,
-            &FightParams::default(),
-        );
+            monster.clone(),
+        )
+        .run();
         Some(fight.cd + (fight.hp_lost / 5 + i32::from(fight.hp_lost % 5 > 0)) as u32)
     }
 

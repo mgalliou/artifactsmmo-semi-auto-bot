@@ -25,11 +25,7 @@ pub struct ResourcesClientInner {
 
 impl ResourcesClient {
     #[must_use]
-    pub(crate) fn new(
-        cache_dir: &str,
-        fetch: ResourcesSource,
-        events: EventsClient,
-    ) -> Self {
+    pub(crate) fn new(cache_dir: &str, fetch: ResourcesSource, events: EventsClient) -> Self {
         Self(Arc::new(ResourcesClientInner {
             cache_dir: cache_dir.into(),
             data: ArcSwap::default(),

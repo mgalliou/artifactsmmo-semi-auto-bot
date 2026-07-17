@@ -36,27 +36,47 @@ const BURN_MULTIPLIER: f32 = 0.90;
 const THREAT_TARGET_CHANCE: u32 = 90;
 const HEAL_INTERVAL: u32 = 3;
 
-pub struct Simulator {}
+#[derive(Clone)]
+pub struct FightSimulation {
+    participants: Vec<Participant>,
+    monster: Monster,
+    params: FightParams,
+}
 
-impl Simulator {
-    pub fn fight(
-        initiator: Participant,
-        participants: Option<Vec<Participant>>,
-        monster: &Monster,
-        params: &FightParams,
-    ) -> FightReport {
-        let char = SimulationCharacter::from(initiator);
-        let mut chars = vec![char.clone()];
-        if let Some(participants) = participants {
-            participants
-                .into_iter()
-                .map(SimulationCharacter::from)
-                .for_each(|c| chars.push(c));
+impl FightSimulation {
+    #[must_use]
+    pub fn new(initiator: Participant, monster: Monster) -> Self {
+        Self {
+            participants: vec![initiator],
+            monster,
+            params: FightParams::default(),
         }
-        let mut monster = SimulationMonster::from(monster.clone());
+    }
+
+    #[must_use]
+    pub fn with_participants(mut self, participants: Vec<Participant>) -> Self {
+        self.participants.extend(participants);
+        self
+    }
+
+    #[must_use]
+    pub const fn with_params(mut self, params: FightParams) -> Self {
+        self.params = params;
+        self
+    }
+
+    #[must_use]
+    pub fn run(&self) -> FightReport {
+        let chars = self
+            .participants
+            .iter()
+            .map(SimulationCharacter::from)
+            .collect_vec();
+        let initiator = chars[0].clone();
+        let mut monster = SimulationMonster::from(&self.monster);
         let mut fighters: Vec<Box<dyn SimulationEntity>> = vec![Box::new(monster.clone())];
-        for c in &chars {
-            fighters.push(Box::new(c.clone()));
+        for char in &chars {
+            fighters.push(Box::new(char.clone()));
         }
         let mut remaining_fighters = Vec::with_capacity(fighters.len());
         remaining_fighters.clone_from(&fighters);
@@ -66,44 +86,39 @@ impl Simulator {
             if remaining_fighters.is_empty() {
                 remaining_fighters.clone_from(&fighters);
             }
-            let Some(mut fighter) = get_next_fighter(&remaining_fighters) else {
+            let Some(mut next_fighter) = get_next_fighter(&remaining_fighters) else {
                 break;
             };
-            remaining_fighters.retain(|f| f.name() != fighter.name());
-            if fighter.is_monster() {
+            remaining_fighters.retain(|f| f.name() != next_fighter.name());
+            if next_fighter.is_monster() {
                 let Some(mut target) = pick_monster_target(&chars) else {
                     break;
                 };
-                monster.turn_against(&mut target, turn, params.averaged);
+                monster.turn_against(&mut target, turn, self.params.averaged);
             } else {
-                fighter.turn_against(&mut monster, turn, params.averaged);
+                next_fighter.turn_against(&mut monster, turn, self.params.averaged);
             }
             turn += 1;
         }
         FightReport {
             turns: turn,
-            hp: char.current_health(),
-            hp_percent: char.health_percent(),
-            hp_lost: char.starting_hp() - char.current_health(),
+            hp: initiator.current_health(),
+            hp_percent: initiator.health_percent(),
+            hp_lost: initiator.starting_hp() - initiator.current_health(),
             monster_hp: monster.current_health(),
             result: if monster.is_dead() {
                 FightResult::Win
             } else {
                 FightResult::Loss
             },
-            cd: compute_fight_cd(char.haste(), turn),
+            cd: compute_fight_cd(initiator.haste(), turn),
         }
     }
 
-    pub fn fight_win_rate(participant: &Participant, monster: &Monster) -> f64 {
-        const SAMPLES: u32 = 1000;
-        let wins = (0..SAMPLES)
-            .filter(|_| {
-                Self::fight(participant.clone(), None, monster, &FightParams::default())
-                    .is_winning()
-            })
-            .count();
-        wins as f64 / f64::from(SAMPLES)
+    #[must_use]
+    pub fn win_rate(&self, samples: u32) -> f64 {
+        let wins = (0..samples).filter(|_| self.run().is_winning()).count();
+        wins as f64 / f64::from(samples)
     }
 }
 
@@ -125,10 +140,7 @@ fn pick_monster_target(chars: &[SimulationCharacter]) -> Option<SimulationCharac
     }
     let use_threat = rand::random_ratio(THREAT_TARGET_CHANCE, 100);
     let targets = if use_threat {
-        chars_alive
-            .iter()
-            .copied()
-            .max_set_by_key(HasEffects::threat)
+        chars_alive.into_iter().max_set_by_key(HasEffects::threat)
     } else {
         chars_alive
     };
@@ -215,7 +227,7 @@ impl From<&CharacterClient> for Participant {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct FightParams {
     averaged: bool,
     ignore_death: bool,
@@ -223,9 +235,11 @@ pub struct FightParams {
 
 impl FightParams {
     #[must_use]
-    pub const fn averaged(mut self) -> Self {
-        self.averaged = true;
-        self
+    pub const fn averaged() -> Self {
+        Self {
+            averaged: true,
+            ignore_death: false,
+        }
     }
 
     #[must_use]

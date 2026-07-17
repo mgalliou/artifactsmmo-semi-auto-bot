@@ -12,7 +12,7 @@ use sdk::{
         ItemSource,
         Type::{self, Rune},
     },
-    simulator::{FightParams, HasEffects, Participant, Simulator, time_to_rest},
+    simulator::{FightParams, FightSimulation, HasEffects, Participant, time_to_rest},
     skill::Skill,
     yields_xp,
 };
@@ -184,14 +184,14 @@ impl GearResolver {
     fn best_to_kill(&self, monster: &Monster) -> Option<Gear> {
         self.gen_combat_gears(monster)
             .filter_map(|g| {
-                let fight = Simulator::fight(
+                let sim = FightSimulation::new(
                     Participant::new("char1".into())
                         .with_level(self.level)
                         .with_gear(g.clone()),
-                    None,
-                    monster,
-                    &FightParams::default().averaged(),
-                );
+                    monster.clone(),
+                )
+                .with_params(FightParams::averaged());
+                let fight = sim.run();
                 fight.is_winning().then_some((fight, g))
             })
             .min_set_by_key(|(f, _)| f.cd + time_to_rest(f.hp_lost as u32))

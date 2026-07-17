@@ -11,7 +11,7 @@ use rustyline::{DefaultEditor, error::ReadlineError};
 use sdk::{
     CollectionClient, ItemContainer, Level,
     entities::Character,
-    simulator::{FightParams, Participant, Simulator},
+    simulator::{FightSimulation, Participant},
     skill::Skill,
 };
 use std::process::exit;
@@ -258,15 +258,14 @@ fn respond(line: &str, bot: &Bot, character: &mut Option<CharacterController>) -
                 .best_for(GearPurpose::Combat(monster.clone()), char, filter);
             if let Some(gear) = gear {
                 println!("{gear}");
-                let fight = Simulator::fight(
+                #[allow(clippy::redundant_clone)]
+                let sim = FightSimulation::new(
                     Participant::new(char.name())
                         .with_level(char.level())
                         .with_gear(gear),
-                    None,
-                    &monster,
-                    &FightParams::default(),
+                    monster.clone(),
                 );
-                println!("{fight:?}");
+                println!("{:?}", sim.run());
             } else {
                 println!("no winning gear found");
             }

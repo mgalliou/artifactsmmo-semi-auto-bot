@@ -21,11 +21,7 @@ pub struct NpcsClientInner {
 
 impl NpcsClient {
     #[must_use]
-    pub(crate) fn new(
-        cache_dir: &str,
-        fetch: NpcsSource,
-        items: NpcsItemsClient,
-    ) -> Self {
+    pub(crate) fn new(cache_dir: &str, fetch: NpcsSource, items: NpcsItemsClient) -> Self {
         Self(Arc::new(NpcsClientInner {
             cache_dir: cache_dir.into(),
             data: ArcSwap::default(),

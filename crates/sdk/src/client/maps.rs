@@ -17,8 +17,7 @@ use std::{collections::HashMap, sync::Arc};
 #[element(MapHandle)]
 pub struct MapsClient(Arc<MapsClientInner>);
 
-type MapsSource =
-    Box<dyn Fn() -> HashMap<(MapLayer, i32, i32), MapHandle> + Send + Sync + 'static>;
+type MapsSource = Box<dyn Fn() -> HashMap<(MapLayer, i32, i32), MapHandle> + Send + Sync + 'static>;
 
 pub struct MapsClientInner {
     cache_dir: Box<str>,

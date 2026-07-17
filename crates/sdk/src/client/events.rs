@@ -33,7 +33,11 @@ pub struct EventsClientInner {
 
 impl EventsClient {
     #[must_use]
-    pub(crate) fn new(cache_dir: &str, fetch: EventsSource, fetch_active: EventsActiveSource) -> Self {
+    pub(crate) fn new(
+        cache_dir: &str,
+        fetch: EventsSource,
+        fetch_active: EventsActiveSource,
+    ) -> Self {
         Self(Arc::new(EventsClientInner {
             cache_dir: cache_dir.into(),
             data: ArcSwap::default(),

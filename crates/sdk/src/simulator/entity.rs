@@ -209,12 +209,12 @@ impl BaseSimulationCharacter {
     }
 }
 
-impl From<Participant> for SimulationCharacter {
-    fn from(value: Participant) -> Self {
+impl From<&Participant> for SimulationCharacter {
+    fn from(value: &Participant) -> Self {
         Self(Rc::new(RefCell::new(BaseSimulationCharacter::new(
-            value.name,
+            value.name.clone(),
             value.level,
-            value.gear,
+            value.gear.clone(),
             value.utility1_quantity,
             value.utility2_quantity,
             value.missing_hp,
@@ -346,8 +346,8 @@ struct BaseSimulationMonster {
     poisoned: i32,
 }
 
-impl From<Monster> for SimulationMonster {
-    fn from(monster: Monster) -> Self {
+impl From<&Monster> for SimulationMonster {
+    fn from(monster: &Monster) -> Self {
         Self(Rc::new(RefCell::new(BaseSimulationMonster {
             current_health: monster.health(),
             current_turn: 1,
@@ -357,7 +357,7 @@ impl From<Monster> for SimulationMonster {
             earth_res: monster.res(DamageType::Earth),
             water_res: monster.res(DamageType::Water),
             air_res: monster.res(DamageType::Air),
-            monster,
+            monster: monster.clone(),
         })))
     }
 }

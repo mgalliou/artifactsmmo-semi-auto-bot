@@ -21,11 +21,7 @@ pub struct TasksClientInner {
 
 impl TasksClient {
     #[must_use]
-    pub(crate) fn new(
-        cache_dir: &str,
-        fetch: TasksSource,
-        rewards: TasksRewardsClient,
-    ) -> Self {
+    pub(crate) fn new(cache_dir: &str, fetch: TasksSource, rewards: TasksRewardsClient) -> Self {
         Self(Arc::new(TasksClientInner {
             cache_dir: cache_dir.into(),
             data: ArcSwap::default(),

@@ -25,11 +25,7 @@ pub struct MonstersClientInner {
 
 impl MonstersClient {
     #[must_use]
-    pub(crate) fn new(
-        cache_dir: &str,
-        fetch: MonstersSource,
-        events: EventsClient,
-    ) -> Self {
+    pub(crate) fn new(cache_dir: &str, fetch: MonstersSource, events: EventsClient) -> Self {
         Self(Arc::new(MonstersClientInner {
             cache_dir: cache_dir.into(),
             data: ArcSwap::default(),
