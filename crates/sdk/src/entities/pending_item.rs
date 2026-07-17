@@ -9,7 +9,7 @@ pub struct PendingItemHandle(Arc<RwLock<RawPendingItem>>);
 impl PendingItemHandle {
     #[must_use]
     pub(crate) fn new(schema: PendingItemSchema) -> Self {
-        Self(Arc::new(RwLock::new(RawPendingItem::from(schema))))
+        Self(Arc::new(RwLock::new(RawPendingItem::new(schema))))
     }
 
     #[must_use]
@@ -17,8 +17,8 @@ impl PendingItemHandle {
         self.0.read().unwrap().clone()
     }
 
-    pub fn store(&self, data: RawPendingItem) {
-        *self.0.write().unwrap() = data;
+    pub fn store(&self, raw: RawPendingItem) {
+        *self.0.write().unwrap() = raw;
     }
 }
 
@@ -32,7 +32,7 @@ impl RawPendingItem {
     }
 
     #[must_use]
-    pub fn id(&self) -> &String {
+    pub fn id(&self) -> &str {
         &self.0.id
     }
 
@@ -44,11 +44,5 @@ impl RawPendingItem {
     #[must_use]
     pub fn is_claimed(&self) -> bool {
         self.0.claimed_at.is_some_and(|t| t < Utc::now())
-    }
-}
-
-impl From<PendingItemSchema> for RawPendingItem {
-    fn from(value: PendingItemSchema) -> Self {
-        Self(Arc::new(value))
     }
 }

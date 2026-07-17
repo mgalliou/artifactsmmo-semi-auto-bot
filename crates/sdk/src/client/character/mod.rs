@@ -755,7 +755,7 @@ impl CharacterClient {
             .account()
             .pending_items()
             .into_iter()
-            .find(|i| *i.load().id() == id)
+            .find(|i| i.load().id() == id)
         else {
             return Err(ClaimPendingItemError::ItemNotFound);
         };

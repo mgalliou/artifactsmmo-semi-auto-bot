@@ -1,7 +1,9 @@
 use crate::{
     Cached,
     client::character::request_handler::CharacterHttpRequestHandler,
-    entities::{ActiveEvent, Event, Item, MapHandle, Monster, Npc, Resource, Task, TaskReward},
+    entities::{
+        ActiveEvent, Event, Item, MapHandle, Monster, Npc, NpcItem, Resource, Task, TaskReward,
+    },
 };
 use api::ArtifactApi;
 use derive_more::Deref;
@@ -29,13 +31,6 @@ pub mod resources;
 pub mod server;
 pub mod tasks;
 pub mod tasks_rewards;
-
-fn make_fetcher<F, T>(api: ArtifactApi, fetch: F) -> Box<dyn Fn() -> T + Send + Sync>
-where
-    F: Fn(ArtifactApi) -> T + Send + Sync + 'static,
-{
-    Box::new(move || fetch(api.clone()))
-}
 
 pub use crate::client::{
     account::AccountClient, bank::BankClient, character::CharacterClient, error::ClientError,
@@ -271,7 +266,7 @@ impl Client {
                     .get_items()
                     .unwrap()
                     .into_iter()
-                    .map(|npc| (npc.code.clone(), crate::entities::NpcItem::new(npc)))
+                    .map(|npc| (npc.code.clone(), NpcItem::new(npc)))
                     .collect()
             }),
         );
@@ -363,7 +358,7 @@ impl Client {
         // self.account.refresh();
         // self.account.bank().refresh();
         // self.account.characters().refresh();
-        // self.maps.refresh();
+        self.maps.refresh();
         self.items.refresh();
         self.resources.refresh();
         self.monsters.refresh();
@@ -400,3 +395,10 @@ impl<K: Clone + Hash + Eq, V: Clone> Iterator for CollectionIter<K, V> {
 }
 
 impl<K: Clone + Hash + Eq, V: Clone> ExactSizeIterator for CollectionIter<K, V> {}
+
+fn make_fetcher<F, T>(api: ArtifactApi, fetch: F) -> Box<dyn Fn() -> T + Send + Sync>
+where
+    F: Fn(ArtifactApi) -> T + Send + Sync + 'static,
+{
+    Box::new(move || fetch(api.clone()))
+}

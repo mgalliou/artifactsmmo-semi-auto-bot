@@ -35,8 +35,8 @@ pub struct CharacterHandle(Arc<RwLock<RawCharacter>>);
 
 impl CharacterHandle {
     #[must_use]
-    pub(crate) fn new(value: CharacterSchema) -> Self {
-        Self(Arc::new(RwLock::new(RawCharacter::new(value))))
+    pub(crate) fn new(schema: CharacterSchema) -> Self {
+        Self(Arc::new(RwLock::new(RawCharacter::new(schema))))
     }
 
     #[must_use]
@@ -44,8 +44,8 @@ impl CharacterHandle {
         self.0.read().unwrap().clone()
     }
 
-    pub(crate) fn store(&self, data: RawCharacter) {
-        *self.0.write().unwrap() = data;
+    pub(crate) fn store(&self, raw: RawCharacter) {
+        *self.0.write().unwrap() = raw;
     }
 }
 
@@ -151,12 +151,12 @@ pub struct RawCharacter {
 
 impl RawCharacter {
     #[must_use]
-    pub(crate) fn new(value: CharacterSchema) -> Self {
+    pub(crate) fn new(schema: CharacterSchema) -> Self {
         Self {
-            name: CharacterName::from(value.name.clone()),
-            task: TaskCode::from(value.task.clone()),
-            inventory: Arc::new(value.inventory.clone().unwrap_or_default()),
-            schema: Arc::new(value),
+            name: CharacterName::from(schema.name.clone()),
+            task: TaskCode::from(schema.task.clone()),
+            inventory: Arc::new(schema.inventory.clone().unwrap_or_default()),
+            schema: Arc::new(schema),
         }
     }
 }

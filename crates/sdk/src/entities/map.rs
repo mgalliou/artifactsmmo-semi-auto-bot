@@ -96,8 +96,8 @@ impl MapHandle {
         self.0.read().unwrap().clone()
     }
 
-    pub fn store(&self, data: RawMap) {
-        *self.0.write().unwrap() = data;
+    pub fn store(&self, raw: RawMap) {
+        *self.0.write().unwrap() = raw;
     }
 }
 

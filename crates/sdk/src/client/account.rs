@@ -115,8 +115,8 @@ impl AccountClient {
         *self.characters.write().unwrap() = (self.fetch_characters)(self.name())?
             .into_iter()
             .enumerate()
-            .map(|(id, data)| {
-                let data = CharacterHandle::new(data);
+            .map(|(id, schema)| {
+                let data = CharacterHandle::new(schema);
                 let handler = (self.create_handler)(data.clone(), self.clone(), server.clone());
                 CharacterClient::new(
                     id,
@@ -195,7 +195,7 @@ impl AccountClient {
         let Some(pending) = self
             .pending_items()
             .into_iter()
-            .find(|i| *i.load().id() == item.id)
+            .find(|i| i.load().id() == item.id)
         else {
             return;
         };
