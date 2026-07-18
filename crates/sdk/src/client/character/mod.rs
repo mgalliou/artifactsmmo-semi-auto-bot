@@ -49,6 +49,13 @@ pub mod error;
 pub mod inventory;
 pub mod responses;
 
+/// Client for handling the actions and accessing the state of an
+/// `ArtifactsMMO` character.
+///
+/// Delegates API calls through a pluggable request handler. Every action
+/// follows a **validate-then-execute** pattern: a `can_*` method checks all
+/// preconditions locally and returns a typed error, so invalid requests are
+/// caught early without hitting the API, reducing latency and usage.
 #[derive(Clone, Deref)]
 #[deref(forward)]
 pub struct CharacterClient(Arc<CharacterClientInner>);
