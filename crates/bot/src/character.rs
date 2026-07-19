@@ -28,6 +28,7 @@ use derive_more::Deref;
 use itertools::{Either, Itertools};
 use log::{debug, error, info, warn};
 use ordered_float::OrderedFloat;
+use sdk::Quantity;
 use sdk::models::{EquipSchema, UnequipSchema};
 use sdk::{
     Client, Code, CollectionClient, HasConditions, HasDropTable, HasDrops, ItemContainer, ItemList,
@@ -575,7 +576,7 @@ impl CharacterController {
     fn trade_task(&self) -> Result<TaskTradeSchema, TaskTradeCommandError> {
         self.can_trade_task()?;
         let quantity = min(self.task_missing(), self.inventory.max_items());
-        self.lock_in_inventory(&self.task(), quantity)?;
+        self.lock_in_inventory(&[(self.task().to_string(), quantity)])?;
         self.move_to_closest_taskmaster(self.task_type())?;
         let res = self.client.trade_task_item(&self.task(), quantity);
         self.inventory.release(self.task(), quantity);
@@ -651,7 +652,7 @@ impl CharacterController {
         );
         quantity = quantity.saturating_sub(quantity % TASK_EXCHANGE_PRICE);
         if self.inventory.total_of(TASKS_COIN) < TASK_EXCHANGE_PRICE {
-            self.lock_in_inventory(TASKS_COIN, quantity)?;
+            self.lock_in_inventory(&[(TASKS_COIN, quantity)])?;
         }
         self.move_to_closest_taskmaster(self.task_type())?;
         let result = self.client.exchange_tasks_coins().map_err(Into::into);
@@ -665,7 +666,7 @@ impl CharacterController {
         {
             return Err(TaskCancellationCommandError::MissingCoins);
         }
-        self.lock_in_inventory(TASKS_COIN, TASK_CANCEL_PRICE)?;
+        self.lock_in_inventory(&[(TASKS_COIN, TASK_CANCEL_PRICE)])?;
         self.move_to_closest_taskmaster(self.task_type())?;
         let result = self.client.cancel_task().map_err(Into::into);
         self.inventory.release(TASKS_COIN, TASK_CANCEL_PRICE);
@@ -906,7 +907,7 @@ impl CharacterController {
     ) -> Result<RecyclingItemsSchema, RecycleCommandError> {
         let skill = self.can_recycle(item, quantity)?;
         info!("{}: going to recycle '{item}'x{quantity}", self.name());
-        self.lock_in_inventory(item, quantity)?;
+        self.lock_in_inventory(&[(item, quantity)])?;
         self.move_to_closest_map_with_content_code(skill.as_ref())?;
         let result = self.client.recycle(item, quantity);
         self.inventory.release(item, quantity);
@@ -956,7 +957,7 @@ impl CharacterController {
             return Err(DeleteCommandError::InvalidQuantity);
         }
         info!("{}: going to delete '{item}'x{quantity}.", self.name());
-        self.lock_in_inventory(item, quantity)?;
+        self.lock_in_inventory(&[(item, quantity)])?;
         let result = self.client.delete(item, quantity);
         self.inventory.release(item, quantity);
         Ok(result?)
@@ -964,28 +965,39 @@ impl CharacterController {
 
     pub fn lock_in_inventory(
         &self,
-        item: &str,
-        quantity: u32,
+        items: &[impl Code + Quantity],
     ) -> Result<(), WithdrawItemCommandError> {
-        let in_inventory = self.inventory.total_of(item);
-        if in_inventory > 0
-            && let Err(e) = self.inventory.reserve(item, min(in_inventory, quantity))
-        {
-            error!(
-                "{}: failed reserving '{item}' already in inventory: {e}",
-                self.name(),
-            );
-        }
-        if in_inventory >= quantity {
+        if items.is_empty() {
             return Ok(());
         }
-        let missing = quantity.saturating_sub(in_inventory);
-        if missing > 0 {
-            self.bank.reserve((item, self.name()), missing)?;
-            if !self.inventory.has_room_for((item, missing)) {
+        let mut missing_items: Vec<SimpleItemSchema> = Vec::new();
+        for item in items {
+            let in_inventory = self.inventory.total_of(item.code());
+            if in_inventory > 0
+                && let Err(e) = self
+                    .inventory
+                    .reserve(item.code(), min(in_inventory, item.quantity()))
+            {
+                error!(
+                    "{}: failed reserving '{}' already in inventory: {e}",
+                    self.name(),
+                    item.code(),
+                );
+            }
+            let missing = item.quantity().saturating_sub(in_inventory);
+            if missing > 0 {
+                self.bank.reserve((&item.code(), self.name()), missing)?;
+                missing_items.push(SimpleItemSchema {
+                    code: item.code().to_owned(),
+                    quantity: missing,
+                });
+            }
+        }
+        if !missing_items.is_empty() {
+            if !self.inventory.has_room_for_all(&missing_items) {
                 self.deposit_all_but_reserved()?;
             }
-            self.withdraw_item(item, missing)?;
+            self.withdraw_items(&missing_items)?;
         }
         Ok(())
     }
@@ -1112,7 +1124,7 @@ impl CharacterController {
             ((self.inventory.max_items() as f32) * 0.90).round() as u32,
             self.bank.has_available((food.code(), self.name())),
         );
-        self.lock_in_inventory(food.code(), quantity)
+        self.lock_in_inventory(&[(food.code(), quantity)])
     }
 
     pub fn withdraw_item(&self, item: &str, quantity: u32) -> Result<(), WithdrawItemCommandError> {
@@ -1274,7 +1286,7 @@ impl CharacterController {
     fn equip(&self, items: &[EquipSchema]) -> Result<(), EquipCommandError> {
         let mut to_equip: Vec<EquipSchema> = vec![];
         let mut to_unequip: Vec<UnequipSchema> = vec![];
-        let mut locked_items: Vec<SimpleItemSchema> = vec![];
+        let mut to_lock: HashMap<String, u32> = HashMap::new();
 
         for schema in items {
             let slot = Slot::from(schema.slot);
@@ -1287,25 +1299,16 @@ impl CharacterController {
             let quantity = schema
                 .quantity
                 .unwrap_or_else(|| min(slot.max_quantity(), self.has_in_bank_or_inv(item.code())));
-            self.lock_in_inventory(item.code(), quantity)?;
-            locked_items.push(SimpleItemSchema {
-                code: item.code().to_owned(),
-                quantity,
-            });
             if !self.equiped_in(slot).is_empty() {
                 to_unequip.push(UnequipSchema {
                     slot: schema.slot,
                     quantity: Some(self.quantity_in_slot(slot)),
                 });
             }
-            if self
-                .inventory
-                .free_space()
-                .saturating_add_signed(item.inventory_space())
-                == 0
-            {
-                self.deposit_all_but_reserved()?;
-            }
+            to_lock
+                .entry(item.code().to_owned())
+                .and_modify(|q| *q += quantity)
+                .or_insert(quantity);
             to_equip.push(EquipSchema {
                 code: item.code().to_owned(),
                 slot: schema.slot,
@@ -1315,9 +1318,11 @@ impl CharacterController {
         if !to_unequip.is_empty() {
             self.unequip(&to_unequip)?;
         }
+        let to_lock = to_lock.into_iter().collect_vec();
+        self.lock_in_inventory(&to_lock)?;
         if !to_equip.is_empty() {
             self.client.equip(&to_equip)?;
-            self.inventory.release_all(&locked_items);
+            self.inventory.release_all(&to_lock);
         }
         Ok(())
     }
@@ -1506,7 +1511,7 @@ impl CharacterController {
                 self.withdraw_gold(missing_quantity)?;
             }
         } else {
-            self.lock_in_inventory(npc_item.currency(), total_price)?;
+            self.lock_in_inventory(&[(npc_item.currency(), total_price)])?;
         }
         self.move_to_closest_map_with_content_code(npc_item.npc_code())?;
         self.client.npc_buy(item_code, quantity)?;
@@ -1555,7 +1560,7 @@ impl CharacterController {
 
     fn sell_item(&self, item: &str, quantity: u32) -> Result<(), SellNpcCommandError> {
         let npc_item = self.can_sell_item(item, quantity)?;
-        self.lock_in_inventory(item, quantity)?;
+        self.lock_in_inventory(&[(item, quantity)])?;
         self.move_to_closest_map_with_content_code(npc_item.npc_code())?;
         self.client.npc_sell(item, quantity)?;
         self.inventory.release(item, quantity);

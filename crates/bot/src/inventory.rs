@@ -85,9 +85,9 @@ impl InventoryController {
     }
 
     /// Decrease the reserved quantity of `item`
-    pub fn release_all(&self, items: &[SimpleItemSchema]) {
+    pub fn release_all(&self, items: &[impl Code + Quantity]) {
         for item in items {
-            self.release(item.code.as_str(), item.quantity);
+            self.release(item.code(), item.quantity());
         }
     }
 

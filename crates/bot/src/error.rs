@@ -237,7 +237,7 @@ pub enum WithdrawItemCommandError {
     DepositItemCommandError(#[from] DepositItemCommandError),
     #[error("failed to move to bank: {0}")]
     MoveCommandError(#[from] MoveCommandError),
-    #[error("failed to request item withdrawal: {0}")]
+    #[error("failed to request item(s) withdrawal: {0}")]
     ClientError(#[from] WithdrawError),
 }
 
@@ -249,7 +249,7 @@ pub enum DepositItemCommandError {
     MoveCommandError(#[from] MoveCommandError),
     #[error("insufficient bank space")]
     InsufficientBankSpace,
-    #[error("failed to request item deposit: {0}")]
+    #[error("failed to request item(s) deposit: {0}")]
     ClientError(#[from] DepositError),
 }
 
@@ -261,9 +261,9 @@ pub enum EquipGearCommandError {
     WithdrawItemCommandError(#[from] WithdrawItemCommandError),
     #[error("failed to deposit item(s) to the bank: {0}")]
     DepositItemCommandError(#[from] DepositItemCommandError),
-    #[error("failed to equip an item: {0}")]
+    #[error("failed to equip item(s): {0}")]
     EquipCommandError(#[from] EquipCommandError),
-    #[error("failed to unequip an item: {0}")]
+    #[error("failed to unequip item(s): {0}")]
     UnequipCommandError(#[from] UnequipCommandError),
 }
 
@@ -277,9 +277,9 @@ pub enum EquipCommandError {
     WithdrawItemCommandError(#[from] WithdrawItemCommandError),
     #[error("failed to deposit all before equipping item: {0}")]
     DepositItemCommandError(#[from] DepositItemCommandError),
-    #[error("failed to unequip equipped item before equipping item: {0}")]
+    #[error("failed to unequip item(s): {0}")]
     UnequipCommandError(#[from] UnequipCommandError),
-    #[error("failed to request equip item: {0}")]
+    #[error("failed to request equip item(s): {0}")]
     ClientError(#[from] EquipError),
 }
 
@@ -291,7 +291,7 @@ pub enum UnequipCommandError {
     DepositItemCommandError(#[from] DepositItemCommandError),
     #[error("failed to rest: {0}")]
     RestError(#[from] RestError),
-    #[error("failed to unequip item: {0}")]
+    #[error("failed to request unequip item(s): {0}")]
     ClientError(#[from] UnequipError),
 }
 
