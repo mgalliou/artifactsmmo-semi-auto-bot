@@ -24,7 +24,6 @@ use crate::{
     reservable::Reservable,
 };
 use anyhow::{Result, bail};
-
 use derive_more::Deref;
 use itertools::{Either, Itertools};
 use log::{debug, error, info, warn};
@@ -984,7 +983,7 @@ impl CharacterController {
         if missing > 0 {
             self.bank.reserve((item, self.name()), missing)?;
             if !self.inventory.has_room_for((item, missing)) {
-                self.deposit_all_but(item)?;
+                self.deposit_all_but_reserved()?;
             }
             self.withdraw_item(item, missing)?;
         }
@@ -1213,103 +1212,190 @@ impl CharacterController {
             .collect_vec()
     }
 
+    /// Equips a full gear set on the character.
+    ///
+    /// Iterates all slots, collecting items to equip and slots to unequip,
+    /// then delegates to [`Self::unequip`] and [`Self::equip`] for batch processing.
     fn equip_gear(&self, gear: &mut Gear) -> Result<(), EquipGearCommandError> {
-        if self.inventory.free_space() < 10 {
-            self.deposit_all()?;
-        }
         self.reserve_gear(gear)?;
         gear.align_to(&self.gear());
+
+        let mut to_equip = vec![];
+        let mut to_unequip = vec![];
+
         for slot in Slot::iter() {
             match gear.item_in(slot) {
-                Some(item) => self.equip_item(item.code(), slot)?,
-                // TODO: improve unequip condition: check number of character that can use the
-                // item
+                Some(item) => {
+                    if self.equiped_in(slot) == item.code() {
+                        continue;
+                    }
+                    to_equip.push(EquipSchema {
+                        code: item.code().to_owned(),
+                        slot: slot.into(),
+                        quantity: Some(min(
+                            slot.max_quantity(),
+                            self.has_in_bank_or_inv(item.code()),
+                        )),
+                    });
+                }
+                // TODO: improve unequip condition: check number of character that can use the item
                 None => {
                     if let Some(item) = self.items.get(&self.equiped_in(slot))
                         && !item.r#type().is_utility()
                         && self.account.total_of(item.code())
                             < if item.r#type().is_ring() { 10 } else { 5 }
                     {
-                        self.unequip_slot(slot, self.quantity_in_slot(slot))?;
+                        to_unequip.push(UnequipSchema {
+                            slot: slot.into(),
+                            quantity: Some(self.quantity_in_slot(slot)),
+                        });
                     }
                 }
             }
         }
+        if !to_unequip.is_empty() {
+            self.unequip(&to_unequip)?;
+        }
+        if !to_equip.is_empty() {
+            self.equip(&to_equip)?;
+        }
         Ok(())
     }
 
-    fn equip_item(&self, item: &str, slot: Slot) -> Result<(), EquipCommandError> {
-        if self.equiped_in(slot) == item {
-            return Ok(());
+    /// Equips items on the character.
+    ///
+    /// For each schema, skips slots that already hold the desired item, then
+    /// locks the item in inventory, unequips the current occupant if any,
+    /// and deposits excess inventory to make room.
+    ///
+    /// All slots are prepared individually, then equipped in a single batch API call.
+    /// Inventory locks are released after the batch completes.
+    /// If `quantity` is `None`, the maximum fitting quantity is used.
+    fn equip(&self, items: &[EquipSchema]) -> Result<(), EquipCommandError> {
+        let mut to_equip: Vec<EquipSchema> = vec![];
+        let mut to_unequip: Vec<UnequipSchema> = vec![];
+        let mut locked_items: Vec<SimpleItemSchema> = vec![];
+
+        for schema in items {
+            let slot = Slot::from(schema.slot);
+            if self.equiped_in(slot) == schema.code {
+                continue;
+            }
+            let Some(item) = self.items.get(&schema.code) else {
+                return Err(EquipCommandError::ItemNotFound);
+            };
+            let quantity = schema
+                .quantity
+                .unwrap_or_else(|| min(slot.max_quantity(), self.has_in_bank_or_inv(item.code())));
+            self.lock_in_inventory(item.code(), quantity)?;
+            locked_items.push(SimpleItemSchema {
+                code: item.code().to_owned(),
+                quantity,
+            });
+            if !self.equiped_in(slot).is_empty() {
+                to_unequip.push(UnequipSchema {
+                    slot: schema.slot,
+                    quantity: Some(self.quantity_in_slot(slot)),
+                });
+            }
+            if self
+                .inventory
+                .free_space()
+                .saturating_add_signed(item.inventory_space())
+                == 0
+            {
+                self.deposit_all_but_reserved()?;
+            }
+            to_equip.push(EquipSchema {
+                code: item.code().to_owned(),
+                slot: schema.slot,
+                quantity: Some(quantity),
+            });
         }
-        let Some(item) = self.items.get(item) else {
-            return Err(EquipCommandError::ItemNotFound);
-        };
-        let quantity = min(slot.max_quantity(), self.has_in_bank_or_inv(item.code()));
-        self.lock_in_inventory(item.code(), quantity)?;
-        self.unequip_slot(slot, self.quantity_in_slot(slot))?;
-        if self
-            .inventory
-            .free_space()
-            .saturating_add_signed(item.inventory_space())
-            == 0
-        {
-            self.deposit_all_but(item.code())?;
+        if !to_unequip.is_empty() {
+            self.unequip(&to_unequip)?;
         }
-        self.client.equip(&[EquipSchema {
-            code: item.code().to_owned(),
-            slot: slot.into(),
-            quantity: Some(quantity),
-        }])?;
-        self.inventory.release(item.code(), quantity);
+        if !to_equip.is_empty() {
+            self.client.equip(&to_equip)?;
+            self.inventory.release_all(&locked_items);
+        }
         Ok(())
     }
 
-    //TODO: move, comment, or ?
     pub fn unequip_and_deposit_all(&self) {
-        for slot in Slot::iter() {
-            let Some(item) = self.items.get(&self.equiped_in(slot)) else {
+        let to_unequip = Slot::iter()
+            .filter_map(|slot| {
+                self.items.get(&self.equiped_in(slot))?;
+                let quantity = self.quantity_in_slot(slot);
+                Some(UnequipSchema {
+                    slot: slot.into(),
+                    quantity: Some(quantity),
+                })
+            })
+            .collect_vec();
+
+        if let Err(e) = self.unequip(&to_unequip) {
+            error!(
+                "{}: failed to batch unequip during unequip_and_deposit_all: {e}",
+                self.name()
+            );
+        }
+    }
+
+    /// Unequips items from the character.
+    ///
+    /// For each schema, validates the slot is occupied and the quantity is valid,
+    /// then ensures inventory space and sufficient HP (eating food or resting
+    /// if needed to survive the combined health cost).
+    ///
+    /// All slots are validated and prepared individually, then unequipped in a single
+    /// batch API call. Unequipped items are deposited into the bank afterward.
+    fn unequip(&self, slots: &[UnequipSchema]) -> Result<(), UnequipCommandError> {
+        let mut to_unequip = vec![];
+        let mut to_deposit = vec![];
+
+        for schema in slots {
+            let slot = Slot::from(schema.slot);
+            let Some(equiped) = self.items.get(&self.equiped_in(slot)) else {
                 continue;
             };
-            let quantity = self.quantity_in_slot(slot);
-            if let Err(e) = self.unequip_slot(slot, quantity) {
-                error!(
-                    "{}: failed to unequip '{}'x{quantity} during unequip_and_deposit_all: {e}",
-                    self.name(),
-                    item.code(),
-                );
-            } else if let Err(e) = self.deposit_item(item.code(), quantity) {
-                error!(
-                    "{}: failed depositing '{}'x{quantity} during `unequip_and_deposit_all`: {e}",
-                    self.name(),
-                    item.code(),
-                );
+            let quantity = schema
+                .quantity
+                .unwrap_or_else(|| self.quantity_in_slot(slot));
+            if quantity == 0 || quantity > self.quantity_in_slot(slot) {
+                return Err(UnequipCommandError::InvalidQuantity(quantity));
             }
+            to_unequip.push(UnequipSchema {
+                slot: schema.slot,
+                quantity: Some(quantity),
+            });
+            to_deposit.push(SimpleItemSchema {
+                code: equiped.code().to_owned(),
+                quantity,
+            });
         }
-    }
-
-    fn unequip_slot(&self, slot: Slot, quantity: u32) -> Result<(), UnequipCommandError> {
-        let Some(equiped) = self.items.get(&self.equiped_in(slot)) else {
+        if to_unequip.is_empty() {
             return Ok(());
-        };
-        if quantity == 0 || quantity > self.quantity_in_slot(slot) {
-            return Err(UnequipCommandError::InvalidQuantity(quantity));
         }
-        if !self.inventory.has_room_for((equiped.code(), quantity)) {
-            self.deposit_all()?;
-        }
-        if self.hp() <= equiped.health() {
+        let total_health: i32 = to_unequip
+            .iter()
+            .filter_map(|s| {
+                let slot = Slot::from(s.slot);
+                self.items.get(&self.equiped_in(slot)).map(|i| i.health())
+            })
+            .sum();
+        if self.hp() <= total_health {
             self.eat_food_from_inventory();
         }
-        if self.hp() <= equiped.health() {
+        if self.hp() <= total_health {
             self.rest()?;
         }
-        self.client.unequip(&[UnequipSchema {
-            slot: slot.into(),
-            quantity: Some(quantity),
-        }])?;
-        if let Err(e) = self.deposit_item(equiped.code(), quantity) {
-            error!("{}: failed depositing unequiped item: {e}", self.name());
+        if !self.inventory.has_room_for_all(&to_deposit) {
+            self.deposit_all_but_reserved()?;
+        }
+        self.client.unequip(&to_unequip)?;
+        if let Err(e) = self.deposit_items(&to_deposit) {
+            warn!("{}: failed depositing unequipped item(s): {e}", self.name());
         }
         Ok(())
     }
