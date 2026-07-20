@@ -137,6 +137,16 @@ impl AccountClient {
         Ok(())
     }
 
+    #[cfg(any(test, feature = "test-utils"))]
+    pub fn add_character(&self, character: CharacterClient) {
+        self.characters.write().unwrap().push(character);
+    }
+
+    #[cfg(any(test, feature = "test-utils"))]
+    pub fn add_achievement(&self, achievement: AccountAchievement) {
+        self.achievements.write().unwrap().push(achievement);
+    }
+
     fn load_achievements(&self) -> Result<(), ClientError> {
         *self.achievements.write().unwrap() = (self.fetch_achievements)(self.name())?
             .into_iter()

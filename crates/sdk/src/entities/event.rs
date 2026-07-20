@@ -1,5 +1,5 @@
 use crate::entities::EventSchemaExt;
-use openapi::models::{EventContentSchema, EventSchema};
+use openapi::models::{EventContentSchema, EventMapSchema, EventSchema};
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{self, Display, Formatter},
@@ -18,6 +18,11 @@ impl Event {
     #[must_use]
     pub fn content(&self) -> Option<&EventContentSchema> {
         self.0.content.as_deref()
+    }
+
+    #[must_use]
+    pub fn maps(&self) -> &Vec<EventMapSchema> {
+        &self.0.maps
     }
 }
 

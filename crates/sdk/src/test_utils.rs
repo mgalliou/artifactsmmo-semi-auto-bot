@@ -8,12 +8,13 @@ use crate::{
     AccountClient, CharacterClient, CollectionClient, EventsClient, GrandExchangeClient,
     MapsClient, NpcsClient, NpcsItemsClient, ResourcesClient, TasksClient, TasksRewardsClient,
     character::{CharacterRequestHandler, error::RequestError},
-    client::{items::ItemsClient, monsters::MonstersClient},
-    entities::{CharacterHandle, Item, Monster},
+    client::{bank::BankClient, items::ItemsClient, monsters::MonstersClient},
+    entities::{CharacterHandle, Item, Monster, RawMap},
 };
 use std::{
     collections::HashMap,
     sync::{Arc, LazyLock},
+    time::Duration,
 };
 
 const PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures");
@@ -87,6 +88,24 @@ pub fn monster(code: &str) -> Monster {
     MONSTERS.get(code).unwrap()
 }
 
+pub static BANK: LazyLock<BankClient> = LazyLock::new(|| {
+    BankClient::new(
+        Box::new(|| panic!("test bank")),
+        Box::new(|| panic!("test bank")),
+    )
+});
+
+pub static ACCOUNT: LazyLock<AccountClient> = LazyLock::new(|| {
+    AccountClient::new(
+        "test_account".into(),
+        BANK.clone(),
+        Box::new(|_| panic!("test account")),
+        Box::new(|_| panic!("test account")),
+        Box::new(|| panic!("test account")),
+        Box::new(|_, _, _| panic!("test account")),
+    )
+});
+
 struct MockCharacterRequestHandler;
 
 impl CharacterRequestHandler for MockCharacterRequestHandler {
@@ -110,15 +129,15 @@ impl CharacterRequestHandler for MockCharacterRequestHandler {
         todo!()
     }
 
-    fn remaining_cooldown(&self) -> std::time::Duration {
+    fn remaining_cooldown(&self) -> Duration {
         todo!()
     }
 
-    fn request_move(&self, _x: i32, _y: i32) -> Result<crate::entities::RawMap, RequestError> {
+    fn request_move(&self, _x: i32, _y: i32) -> Result<RawMap, RequestError> {
         todo!()
     }
 
-    fn request_transition(&self) -> Result<crate::entities::RawMap, RequestError> {
+    fn request_transition(&self) -> Result<RawMap, RequestError> {
         todo!()
     }
 
@@ -272,11 +291,11 @@ impl CharacterRequestHandler for MockCharacterRequestHandler {
 }
 
 pub fn character(schema: CharacterSchema) -> CharacterClient {
-    CharacterClient::new(
+    let char = CharacterClient::new(
         1,
         CharacterHandle::new(schema),
         Arc::new(MockCharacterRequestHandler),
-        AccountClient::default(),
+        ACCOUNT.clone(),
         ITEMS.clone(),
         RESOURCES.clone(),
         MONSTERS.clone(),
@@ -284,5 +303,7 @@ pub fn character(schema: CharacterSchema) -> CharacterClient {
         NPCS.clone(),
         TASKS.clone(),
         GrandExchangeClient::default(),
-    )
+    );
+    ACCOUNT.add_character(char.clone());
+    char
 }

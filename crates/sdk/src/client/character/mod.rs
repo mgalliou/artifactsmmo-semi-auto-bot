@@ -1,6 +1,7 @@
 use crate::{
     AccountClient, Code, CollectionClient, GOLD, Gear, HasConditions, ItemContainer, Level,
-    LimitedContainer, SlotLimited, SpaceLimited, TASK_EXCHANGE_PRICE, TASKS_COIN, TasksClient,
+    LimitedContainer, Quantity, SlotLimited, SpaceLimited, TASK_EXCHANGE_PRICE, TASKS_COIN,
+    TasksClient,
     character::error::{
         ClaimPendingItemError, GeBuyOrderError, GeCancelOrderError, GeCreateOrderError,
         GiveGoldError, GiveItemError, TransitionError,
@@ -339,7 +340,7 @@ impl CharacterClient {
             if self.items.get(&item.code).is_none() {
                 return Err(DepositError::ItemNotFound);
             }
-            if self.inventory().total_of(&item.code) < item.quantity {
+            if self.inventory().total_of(&item.code) < item.quantity() {
                 return Err(DepositError::InsufficientQuantity);
             }
         }
@@ -360,7 +361,7 @@ impl CharacterClient {
     pub fn can_withdraw_items(&self, items: &[SimpleItemSchema]) -> Result<(), WithdrawError> {
         if items
             .iter()
-            .any(|i| self.bank.total_of(&i.code) < i.quantity)
+            .any(|i| self.bank.total_of(&i.code) < i.quantity())
         {
             return Err(WithdrawError::InsufficientQuantity);
         }
@@ -670,6 +671,9 @@ impl CharacterClient {
         } else if self.inventory().total_of(item.currency()) < total_price {
             return Err(BuyNpcError::InsufficientQuantity);
         }
+        if !self.current_map().content_code_is(item.npc_code()) {
+            return Err(BuyNpcError::NpcNotFound);
+        }
         Ok(())
     }
 
@@ -686,6 +690,12 @@ impl CharacterClient {
         if self.items.get(item_code).is_none() {
             return Err(SellNpcError::ItemNotFound);
         }
+        let Some(item) = self.npcs.items().get(item_code) else {
+            return Err(SellNpcError::ItemNotSalable);
+        };
+        if item.sell_price().is_none() {
+            return Err(SellNpcError::ItemNotSalable);
+        }
         if self
             .npcs
             .items()
@@ -696,6 +706,9 @@ impl CharacterClient {
         }
         if self.inventory().total_of(item_code) < quantity {
             return Err(SellNpcError::InsufficientQuantity);
+        }
+        if !self.current_map().content_code_is(item.npc_code()) {
+            return Err(SellNpcError::NpcNotFound);
         }
         Ok(())
     }
@@ -718,7 +731,7 @@ impl CharacterClient {
             if self.items.get(item.code()).is_none() {
                 return Err(GiveItemError::ItemNotFound);
             }
-            if self.inventory().total_of(item.code()) < item.quantity {
+            if self.inventory().total_of(item.code()) < item.quantity() {
                 return Err(GiveItemError::InsufficientQuantity);
             }
         }
@@ -835,7 +848,7 @@ impl CharacterClient {
         if self.inventory().total_of(item.code()) < quantity {
             return Err(GeCreateOrderError::InsufficientQuantity);
         }
-        if self.gold() < ((price * quantity) as f32 * 0.03) as u32 {
+        if self.gold() < ((quantity * price) as f32 * 0.03).round() as u32 {
             return Err(GeCreateOrderError::InsufficientGold);
         }
         if !self.current_map().is_grand_exchange() {
@@ -946,359 +959,1173 @@ impl CharacterClient {
 
 #[cfg(test)]
 mod tests {
-    // use super::*;
-    // use openapi::models::InventorySlot;
+    use super::*;
+    use crate::{
+        CollectionClient,
+        entities::{AccountAchievement, MapHandle, RawMap},
+        test_utils::{ACCOUNT, MAPS, character},
+    };
+    use chrono::Utc;
+    use itertools::Itertools;
+    use openapi::models::{
+        AccessSchema, AccountAchievementSchema, AchievementRewardsSchema, BankSchema,
+        CharacterSchema, InteractionSchema, InventorySlotSchema, ItemSlot, MapAccessType,
+        MapContentSchema, MapContentType, MapLayer, MapSchema,
+    };
+    use std::assert_matches;
 
-    // impl From<CharacterSchema> for CharacterClient {
-    //     fn from(value: CharacterSchema) -> Self {
-    //         Self::new(
-    //             1,
-    //             Arc::new(RwLock::new(Arc::new(value))),
-    //             Default::default(),
-    //             Default::default(),
-    //             Default::default(),
-    //             Default::default(),
-    //             Default::default(),
-    //             Default::default(),
-    //             Default::default(),
-    //             Default::default(),
-    //             Default::default(),
-    //             Default::default(),
-    //         )
-    //     }
-    // }
+    #[allow(clippy::unnecessary_wraps)]
+    fn empty_inventory() -> Option<Vec<InventorySlotSchema>> {
+        Some(
+            (1..21)
+                .map(|slot| InventorySlotSchema::new(slot, String::new(), 0))
+                .collect(),
+        )
+    }
 
-    //TODO: fix test
-    // #[test]
-    // fn can_fight() {
-    //     // monster on 0,2 is "cow"
-    //     let char = BaseCharacter::from(CharacterSchema {
-    //         x: 0,
-    //         y: 2,
-    //         inventory_max_items: 100,
-    //         ..Default::default()
-    //     });
-    //     assert!(char.can_fight().is_ok());
-    //     let char = BaseCharacter::from(CharacterSchema {
-    //         x: 0,
-    //         y: 2,
-    //         inventory_max_items: &char.map().monster().unwrap().max_drop_quantity() - 1,
-    //         ..Default::default()
-    //     });
-    //     assert!(matches!(
-    //         char.can_fight(),
-    //         Err(FightError::InsufficientInventorySpace)
-    //     ));
-    // }
+    fn default_schema() -> CharacterSchema {
+        CharacterSchema {
+            x: 0,
+            y: 0,
+            layer: MapLayer::Overworld,
+            inventory_max_items: 100,
+            inventory: empty_inventory(),
+            ..Default::default()
+        }
+    }
 
-    //TODO: fix test
-    // #[test]
-    // fn can_gather() {
-    //     let char = BaseCharacter::from(CharacterSchema {
-    //         x: 2,
-    //         y: 0,
-    //         mining_level: 1,
-    //         inventory_max_items: 100,
-    //         ..Default::default()
-    //     });
-    //     assert!(char.can_gather().is_ok());
-    //     let char = BaseCharacter::from(CharacterSchema {
-    //         x: 0,
-    //         y: 0,
-    //         mining_level: 1,
-    //         ..Default::default()
-    //     });
-    //     assert!(matches!(
-    //         char.can_gather(),
-    //         Err(GatherError::NoResourceOnMap)
-    //     ));
-    //     let char = BaseCharacter::from(CharacterSchema {
-    //         x: 1,
-    //         y: 7,
-    //         mining_level: 1,
-    //         ..Default::default()
-    //     });
-    //     assert!(matches!(
-    //         char.can_gather(),
-    //         Err(GatherError::SkillLevelInsufficient)
-    //     ));
-    //     let char = BaseCharacter::from(CharacterSchema {
-    //         x: 2,
-    //         y: 0,
-    //         mining_level: 1,
-    //         inventory_max_items: char
-    //             .0.maps
-    //             .get(2, 0)
-    //             .unwrap()
-    //             .resource()
-    //             .unwrap()
-    //             .max_drop_quantity()
-    //             - 1,
-    //         ..Default::default()
-    //     });
-    //     assert!(matches!(
-    //         char.can_gather(),
-    //         Err(GatherError::InsufficientInventorySpace)
-    //     ));
-    // }
+    fn empty_bank_details() -> BankSchema {
+        BankSchema {
+            slots: 100,
+            expansions: 0,
+            next_expansion_cost: 100,
+            gold: 0,
+        }
+    }
 
-    // #[test]
-    // fn can_move() {
-    //     let char = CharacterClient::from(CharacterSchema::default());
-    //     assert!(char.can_move(0, 0).is_ok());
-    //     assert!(matches!(
-    //         char.can_move(1000, 0),
-    //         Err(MoveError::MapNotFound)
-    //     ));
-    // }
+    #[test]
+    fn can_move() {
+        let char = character(default_schema());
+        assert_matches!(char.can_move(0, 2), Ok(()));
+        assert_matches!(char.can_move(0, 0), Err(MoveError::AlreadyOnMap));
+        assert_matches!(char.can_move(1000, 0), Err(MoveError::MapNotFound));
+        assert_matches!(char.can_move(3, 20), Err(MoveError::ConditionsNotMet));
+    }
 
-    // #[test]
-    // fn can_use() {
-    //     let item1 = "cooked_chicken";
-    //     let item2 = "cooked_shrimp";
-    //     let char = CharacterClient::from(CharacterSchema {
-    //         level: 5,
-    //         inventory: Some(vec![
-    //             InventorySlot {
-    //                 slot: 0,
-    //                 code: item1.to_owned(),
-    //                 quantity: 1,
-    //             },
-    //             InventorySlot {
-    //                 slot: 1,
-    //                 code: item2.to_owned(),
-    //                 quantity: 1,
-    //             },
-    //         ]),
-    //         ..Default::default()
-    //     });
-    //     assert!(matches!(
-    //         char.can_use_item("random_item", 1),
-    //         Err(UseError::ItemNotFound)
-    //     ));
-    //     assert!(matches!(
-    //         char.can_use_item("copper", 1),
-    //         Err(UseError::ItemNotConsumable)
-    //     ));
-    //     assert!(matches!(
-    //         char.can_use_item(item1, 5),
-    //         Err(UseError::InsufficientQuantity)
-    //     ));
-    //     assert!(matches!(
-    //         char.can_use_item(item2, 1),
-    //         Err(UseError::InsufficientCharacterLevel)
-    //     ));
-    //     assert!(char.can_use_item(item1, 1).is_ok());
-    // }
+    #[test]
+    fn can_move_achievement_unlocked() {
+        let char = character(default_schema());
+        assert_matches!(char.can_move(-2, 19), Err(MoveError::ConditionsNotMet));
 
-    // #[test]
-    // fn can_craft() {
-    //     let char = CharacterClient::from(CharacterSchema {
-    //         cooking_level: 1,
-    //         inventory: Some(vec![
-    //             InventorySlot {
-    //                 slot: 0,
-    //                 code: "gudgeon".to_string(),
-    //                 quantity: 1,
-    //             },
-    //             InventorySlot {
-    //                 slot: 1,
-    //                 code: "shrimp".to_string(),
-    //                 quantity: 1,
-    //             },
-    //         ]),
-    //         inventory_max_items: 100,
-    //         ..Default::default()
-    //     });
-    //     assert!(matches!(
-    //         char.can_craft("random_item", 1),
-    //         Err(CraftError::ItemNotFound)
-    //     ));
-    //     assert!(matches!(
-    //         char.can_craft("copper_ore", 1),
-    //         Err(CraftError::ItemNotCraftable)
-    //     ));
-    //     assert!(matches!(
-    //         char.can_craft("cooked_chicken", 1),
-    //         Err(CraftError::InsufficientMaterials)
-    //     ));
-    //     assert!(matches!(
-    //         char.can_craft("cooked_gudgeon", 5),
-    //         Err(CraftError::InsufficientMaterials)
-    //     ));
-    //     assert!(matches!(
-    //         char.can_craft("cooked_shrimp", 1),
-    //         Err(CraftError::InsufficientSkillLevel)
-    //     ));
-    //     assert!(matches!(
-    //         char.can_craft("cooked_gudgeon", 1),
-    //         Err(CraftError::NoWorkshopOnMap)
-    //     ));
-    //     let char = CharacterClient::from(CharacterSchema {
-    //         cooking_level: 1,
-    //         inventory: Some(vec![InventorySlot {
-    //             slot: 0,
-    //             code: "gudgeon".to_string(),
-    //             quantity: 1,
-    //         }]),
-    //         inventory_max_items: 100,
-    //         x: 1,
-    //         y: 1,
-    //         ..Default::default()
-    //     });
-    //     assert!(char.can_craft("cooked_gudgeon", 1).is_ok());
-    // }
+        let achievement = AccountAchievement::new(AccountAchievementSchema {
+            name: String::new(),
+            code: "secure_the_island".into(),
+            description: String::new(),
+            points: 0,
+            objectives: vec![],
+            rewards: Box::new(AchievementRewardsSchema::new()),
+            completed_at: Some(Utc::now().fixed_offset()),
+        });
+        ACCOUNT.add_achievement(achievement);
 
-    // #[test]
-    // fn can_recycle() {
-    //     let char = CharacterClient::from(CharacterSchema {
-    //         cooking_level: 1,
-    //         weaponcrafting_level: 1,
-    //         inventory: Some(vec![
-    //             InventorySlot {
-    //                 slot: 0,
-    //                 code: "copper_dagger".to_string(),
-    //                 quantity: 1,
-    //             },
-    //             InventorySlot {
-    //                 slot: 1,
-    //                 code: "iron_sword".to_string(),
-    //                 quantity: 1,
-    //             },
-    //             InventorySlot {
-    //                 slot: 2,
-    //                 code: "cooked_gudgeon".to_string(),
-    //                 quantity: 1,
-    //             },
-    //         ]),
-    //         inventory_max_items: 100,
-    //         ..Default::default()
-    //     });
-    //     assert!(matches!(
-    //         char.can_recycle("random_item", 1),
-    //         Err(RecycleError::ItemNotFound)
-    //     ));
-    //     assert!(matches!(
-    //         char.can_recycle("cooked_gudgeon", 1),
-    //         Err(RecycleError::ItemNotRecyclable)
-    //     ));
-    //     assert!(matches!(
-    //         char.can_recycle("wooden_staff", 1),
-    //         Err(RecycleError::InsufficientQuantity)
-    //     ));
-    //     assert!(matches!(
-    //         char.can_recycle("iron_sword", 1),
-    //         Err(RecycleError::InsufficientSkillLevel)
-    //     ));
-    //     assert!(matches!(
-    //         char.can_recycle("copper_dagger", 1),
-    //         Err(RecycleError::NoWorkshopOnMap)
-    //     ));
-    //     let char = CharacterClient::from(CharacterSchema {
-    //         weaponcrafting_level: 1,
-    //         inventory: Some(vec![InventorySlot {
-    //             slot: 0,
-    //             code: "copper_dagger".to_string(),
-    //             quantity: 1,
-    //         }]),
-    //         inventory_max_items: 1,
-    //         x: 2,
-    //         y: 1,
-    //         ..Default::default()
-    //     });
-    //     assert!(matches!(
-    //         char.can_recycle("copper_dagger", 1),
-    //         Err(RecycleError::InsufficientInventorySpace)
-    //     ));
-    //     let char = CharacterClient::from(CharacterSchema {
-    //         weaponcrafting_level: 1,
-    //         inventory: Some(vec![InventorySlot {
-    //             slot: 0,
-    //             code: "copper_dagger".to_string(),
-    //             quantity: 1,
-    //         }]),
-    //         inventory_max_items: 100,
-    //         x: 2,
-    //         y: 1,
-    //         ..Default::default()
-    //     });
-    //     assert!(char.can_recycle("copper_dagger", 1).is_ok());
-    // }
+        assert_matches!(char.can_move(-2, 19), Ok(()));
+    }
 
-    // #[test]
-    // fn can_delete() {
-    //     let char = CharacterClient::from(CharacterSchema {
-    //         cooking_level: 1,
-    //         weaponcrafting_level: 1,
-    //         inventory: Some(vec![InventorySlot {
-    //             slot: 0,
-    //             code: "copper_dagger".to_string(),
-    //             quantity: 1,
-    //         }]),
-    //         inventory_max_items: 100,
-    //         ..Default::default()
-    //     });
-    //     assert!(matches!(
-    //         char.can_delete("random_item", 1),
-    //         Err(DeleteError::ItemNotFound)
-    //     ));
-    //     assert!(matches!(
-    //         char.can_delete("copper_dagger", 2),
-    //         Err(DeleteError::InsufficientQuantity)
-    //     ));
-    //     assert!(char.can_delete("copper_dagger", 1).is_ok());
-    // }
+    #[test]
+    fn can_fight() {
+        let schema = CharacterSchema {
+            y: 2,
+            mining_level: 1,
+            ..default_schema()
+        };
 
-    // #[test]
-    // fn can_withdraw() {
-    //     let char = CharacterClient::from(CharacterSchema {
-    //         inventory_max_items: 100,
-    //         ..Default::default()
-    //     });
-    //     char.bank.update_content(vec![
-    //         SimpleItemSchema {
-    //             code: "copper_dagger".to_string(),
-    //             quantity: 1,
-    //         },
-    //         SimpleItemSchema {
-    //             code: "iron_sword".to_string(),
-    //             quantity: 101,
-    //         },
-    //     ]);
-    //     // TODO: rewrite these tests
-    //     // assert!(matches!(
-    //     //     char.can_withdraw_items("random_item", 1),
-    //     //     Err(WithdrawError::ItemNotFound)
-    //     // ));
-    //     // assert!(matches!(
-    //     //     char.can_withdraw_item("copper_dagger", 2),
-    //     //     Err(WithdrawError::InsufficientQuantity)
-    //     // ));
-    //     // assert!(matches!(
-    //     //     char.can_withdraw_item("iron_sword", 101),
-    //     //     Err(WithdrawError::InsufficientInventorySpace)
-    //     // ));
-    //     // assert!(matches!(
-    //     //     char.can_withdraw_item("iron_sword", 10),
-    //     //     Err(WithdrawError::NoBankOnMap)
-    //     // ));
-    //     // let char = CharacterClient::from(CharacterSchema {
-    //     //     inventory_max_items: 100,
-    //     //     x: 4,
-    //     //     y: 1,
-    //     //     ..Default::default()
-    //     // });
-    //     char.bank.update_content(vec![
-    //         SimpleItemSchema {
-    //             code: "copper_dagger".to_string(),
-    //             quantity: 1,
-    //         },
-    //         SimpleItemSchema {
-    //             code: "iron_sword".to_string(),
-    //             quantity: 101,
-    //         },
-    //     ]);
-    //     // assert!(char.can_withdraw_item("iron_sword", 10).is_ok());
-    // }
-    //TODO: add more tests
+        let char = character(schema.clone());
+        assert_matches!(char.can_fight(None), Ok(()));
+
+        let _partner = character(CharacterSchema {
+            x: 3,
+            y: -1,
+            name: "partner".into(),
+            ..default_schema()
+        });
+        let _partner2 = character(CharacterSchema {
+            x: 3,
+            y: -1,
+            name: "partner2".into(),
+            ..default_schema()
+        });
+        let char = character(CharacterSchema {
+            x: 3,
+            y: -1,
+            ..default_schema()
+        });
+        assert_matches!(
+            char.can_fight(Some(&["partner".into(), "partner2".into()])),
+            Ok(())
+        );
+
+        let char = character(CharacterSchema {
+            inventory_max_items: 1,
+            ..schema.clone()
+        });
+        assert_matches!(
+            char.can_fight(None),
+            Err(FightError::InsufficientInventorySpace)
+        );
+
+        let char = character(CharacterSchema {
+            x: 0,
+            y: 0,
+            ..schema.clone()
+        });
+        assert_matches!(char.can_fight(None), Err(FightError::NoMonsterOnMap));
+
+        let char = character(schema.clone());
+        assert_matches!(
+            char.can_fight(Some(&["p".into(), "q".into()])),
+            Err(FightError::MonsterIsNotABoss)
+        );
+
+        let char = character(CharacterSchema {
+            x: 3,
+            y: -1,
+            ..schema
+        });
+        assert_matches!(
+            char.can_fight(Some(&["nonexistent".into(), "also_missing".into()])),
+            Err(FightError::CharacterNotFound)
+        );
+    }
+
+    #[test]
+    fn can_gather() {
+        let schema = CharacterSchema {
+            x: 2,
+            mining_level: 1,
+            ..default_schema()
+        };
+
+        let char = character(schema.clone());
+        assert_matches!(char.can_gather(), Ok(()));
+
+        let char = character(CharacterSchema {
+            inventory_max_items: 1,
+            ..schema.clone()
+        });
+        assert_matches!(
+            char.can_gather(),
+            Err(GatherError::InsufficientInventorySpace)
+        );
+
+        let char = character(CharacterSchema {
+            x: 0,
+            y: 0,
+            ..schema.clone()
+        });
+        assert_matches!(char.can_gather(), Err(GatherError::NoResourceOnMap));
+
+        let char = character(CharacterSchema {
+            x: 1,
+            y: 7,
+            ..schema
+        });
+        assert_matches!(char.can_gather(), Err(GatherError::SkillLevelInsufficient));
+    }
+
+    #[test]
+    fn can_use_item() {
+        let char = character(CharacterSchema {
+            level: 5,
+            inventory: Some(vec![
+                InventorySlotSchema::new(1, "cooked_chicken".into(), 1),
+                InventorySlotSchema::new(2, "cooked_shrimp".into(), 1),
+            ]),
+            ..default_schema()
+        });
+        assert_matches!(char.can_use_item("cooked_chicken", 1), Ok(()));
+        assert_matches!(char.can_use_item("unknown", 1), Err(UseError::ItemNotFound));
+        assert_matches!(
+            char.can_use_item("copper_ore", 1),
+            Err(UseError::ItemNotConsumable)
+        );
+        assert_matches!(
+            char.can_use_item("cooked_chicken", 5),
+            Err(UseError::InsufficientQuantity)
+        );
+        assert_matches!(
+            char.can_use_item("cooked_shrimp", 1),
+            Err(UseError::InsufficientCharacterLevel)
+        );
+    }
+
+    #[test]
+    fn can_craft() {
+        let schema = CharacterSchema {
+            x: 1,
+            y: 1,
+            cooking_level: 1,
+            inventory: Some(vec![
+                InventorySlotSchema::new(1, "gudgeon".into(), 1),
+                InventorySlotSchema::new(2, "shrimp".into(), 1),
+            ]),
+            ..default_schema()
+        };
+        let char = character(schema.clone());
+        assert_matches!(char.can_craft("cooked_gudgeon", 1), Ok(()));
+
+        let char = character(schema.clone());
+        assert_matches!(char.can_craft("unknown", 1), Err(CraftError::ItemNotFound));
+        assert_matches!(
+            char.can_craft("copper_ore", 1),
+            Err(CraftError::ItemNotCraftable)
+        );
+        assert_matches!(
+            char.can_craft("cooked_chicken", 1),
+            Err(CraftError::InsufficientMaterials)
+        );
+        assert_matches!(
+            char.can_craft("cooked_gudgeon", 5),
+            Err(CraftError::InsufficientMaterials)
+        );
+        assert_matches!(
+            char.can_craft("cooked_shrimp", 1),
+            Err(CraftError::InsufficientSkillLevel)
+        );
+
+        let char = character(CharacterSchema {
+            x: 0,
+            y: 0,
+            ..schema
+        });
+        assert_matches!(
+            char.can_craft("cooked_gudgeon", 1),
+            Err(CraftError::NoWorkshopOnMap)
+        );
+    }
+
+    #[test]
+    fn can_recycle() {
+        let schema = CharacterSchema {
+            x: 2,
+            y: 1,
+            weaponcrafting_level: 1,
+            inventory: Some(vec![
+                InventorySlotSchema::new(1, "copper_dagger".into(), 1),
+                InventorySlotSchema::new(2, "iron_sword".into(), 1),
+                InventorySlotSchema::new(3, "cooked_gudgeon".into(), 1),
+            ]),
+            ..default_schema()
+        };
+        let char = character(schema.clone());
+        assert_matches!(char.can_recycle("copper_dagger", 1), Ok(()));
+
+        let char = character(schema.clone());
+        assert_matches!(
+            char.can_recycle("random_item", 1),
+            Err(RecycleError::ItemNotFound)
+        );
+        assert_matches!(
+            char.can_recycle("cooked_gudgeon", 1),
+            Err(RecycleError::ItemNotRecyclable)
+        );
+        assert_matches!(
+            char.can_recycle("wooden_staff", 1),
+            Err(RecycleError::InsufficientQuantity)
+        );
+        assert_matches!(
+            char.can_recycle("iron_sword", 1),
+            Err(RecycleError::InsufficientSkillLevel)
+        );
+
+        let char = character(CharacterSchema {
+            inventory_max_items: 3,
+            ..schema.clone()
+        });
+        assert_matches!(
+            char.can_recycle("copper_dagger", 1),
+            Err(RecycleError::InsufficientInventorySpace)
+        );
+
+        let char = character(CharacterSchema {
+            x: 0,
+            y: 0,
+            ..schema
+        });
+        assert_matches!(
+            char.can_recycle("copper_dagger", 1),
+            Err(RecycleError::NoWorkshopOnMap)
+        );
+    }
+
+    #[test]
+    fn can_delete() {
+        let char = character(CharacterSchema {
+            inventory: Some(vec![InventorySlotSchema {
+                slot: 1,
+                code: "copper_dagger".into(),
+                quantity: 1,
+            }]),
+            ..default_schema()
+        });
+        assert_matches!(char.can_delete("copper_dagger", 1), Ok(()));
+        assert_matches!(
+            char.can_delete("random_item", 1),
+            Err(DeleteError::ItemNotFound)
+        );
+        assert_matches!(
+            char.can_delete("copper_dagger", 2),
+            Err(DeleteError::InsufficientQuantity)
+        );
+    }
+
+    #[test]
+    fn can_withdraw() {
+        let char = character(CharacterSchema {
+            x: 4,
+            y: 1,
+            ..default_schema()
+        });
+        char.bank.set_content(vec![
+            SimpleItemSchema::new("copper_dagger".into(), 1),
+            SimpleItemSchema::new("iron_sword".into(), 101),
+        ]);
+
+        assert_matches!(
+            char.can_withdraw_items(&[SimpleItemSchema::new("iron_sword".into(), 10)]),
+            Ok(())
+        );
+        assert_matches!(
+            char.can_withdraw_items(&[SimpleItemSchema::new("random_item".into(), 1)]),
+            // TODO: add ItemNotFound variant
+            Err(WithdrawError::InsufficientQuantity)
+        );
+        assert_matches!(
+            char.can_withdraw_items(&[SimpleItemSchema::new("copper_dagger".into(), 2)]),
+            Err(WithdrawError::InsufficientQuantity)
+        );
+        assert_matches!(
+            char.can_withdraw_items(&[SimpleItemSchema::new("iron_sword".into(), 101)]),
+            Err(WithdrawError::InsufficientInventorySpace)
+        );
+
+        let char = character(default_schema());
+        char.bank
+            .set_content(vec![SimpleItemSchema::new("copper_dagger".into(), 1)]);
+        assert_matches!(
+            char.can_withdraw_items(&[SimpleItemSchema::new("copper_dagger".into(), 1)]),
+            Err(WithdrawError::NoBankOnMap)
+        );
+    }
+
+    #[test]
+    fn can_transition() {
+        let schema = CharacterSchema {
+            x: -4,
+            y: 9,
+            ..default_schema()
+        };
+
+        let char = character(CharacterSchema {
+            gold: 5000,
+            ..schema.clone()
+        });
+        assert_matches!(char.can_transition(), Ok(()));
+
+        let char = character(schema.clone());
+        assert_matches!(
+            char.can_transition(),
+            Err(TransitionError::ConditionsNotMet)
+        );
+        let char = character(CharacterSchema {
+            x: 0,
+            y: 0,
+            ..schema
+        });
+        assert_matches!(
+            char.can_transition(),
+            Err(TransitionError::TransitionNotFound)
+        );
+    }
+
+    #[test]
+    fn can_transition_cost_non_gold() {
+        let char = character(CharacterSchema {
+            x: 7,
+            y: 3,
+            layer: MapLayer::Underground,
+            inventory: Some(vec![InventorySlotSchema::new(
+                1,
+                "sonnengott_key".into(),
+                1,
+            )]),
+            ..default_schema()
+        });
+        assert_matches!(char.can_transition(), Ok(()));
+
+        let char = character(CharacterSchema {
+            x: 7,
+            y: 3,
+            layer: MapLayer::Underground,
+            ..default_schema()
+        });
+        assert_matches!(
+            char.can_transition(),
+            Err(TransitionError::ConditionsNotMet)
+        );
+    }
+
+    #[test]
+    fn can_transition_has_item() {
+        let char = character(CharacterSchema {
+            x: 0,
+            y: 13,
+            weapon_slot: "cultist_cloak".into(),
+            ..default_schema()
+        });
+        assert_matches!(char.can_transition(), Ok(()));
+
+        let char = character(CharacterSchema {
+            x: 0,
+            y: 13,
+            ..default_schema()
+        });
+        assert_matches!(
+            char.can_transition(),
+            Err(TransitionError::ConditionsNotMet)
+        );
+    }
+
+    #[test]
+    fn can_deposit_items() {
+        let char = character(CharacterSchema {
+            x: 4,
+            y: 1,
+            inventory: Some(vec![InventorySlotSchema::new(0, "copper_ore".into(), 5)]),
+            ..default_schema()
+        });
+        char.bank.set_details(empty_bank_details());
+        char.bank.set_content(vec![]);
+
+        assert_matches!(
+            char.can_deposit_items(&[SimpleItemSchema::new("copper_ore".into(), 1)]),
+            Ok(())
+        );
+        assert_matches!(
+            char.can_deposit_items(&[SimpleItemSchema::new("none".into(), 1)]),
+            Err(DepositError::ItemNotFound)
+        );
+        assert_matches!(
+            char.can_deposit_items(&[SimpleItemSchema {
+                code: "copper_ore".into(),
+                quantity: 10,
+            }]),
+            Err(DepositError::InsufficientQuantity)
+        );
+
+        char.bank.set_details(BankSchema {
+            slots: 0,
+            ..empty_bank_details()
+        });
+        assert_matches!(
+            char.can_deposit_items(&[SimpleItemSchema {
+                code: "copper_ore".into(),
+                quantity: 1,
+            }]),
+            Err(DepositError::InsufficientBankSpace)
+        );
+
+        let char_no_bank = character(CharacterSchema {
+            inventory: Some(vec![InventorySlotSchema::new(0, "copper_ore".into(), 5)]),
+            ..default_schema()
+        });
+        char_no_bank.bank.set_details(empty_bank_details());
+        char_no_bank.bank.set_content(vec![]);
+        assert_matches!(
+            char_no_bank.can_deposit_items(&[SimpleItemSchema::new("copper_ore".into(), 1)]),
+            Err(DepositError::NoBankOnMap)
+        );
+    }
+
+    #[test]
+    fn can_deposit_gold() {
+        let schema = CharacterSchema {
+            x: 4,
+            y: 1,
+            gold: 0,
+            ..default_schema()
+        };
+
+        let char = character(CharacterSchema {
+            gold: 100,
+            ..schema.clone()
+        });
+        assert_matches!(char.can_deposit_gold(100), Ok(()));
+
+        let char = character(schema.clone());
+        assert_matches!(
+            char.can_deposit_gold(100),
+            Err(GoldDepositError::InsufficientGold)
+        );
+
+        let char_no_bank = character(CharacterSchema {
+            x: 0,
+            y: 0,
+            gold: 100,
+            ..schema
+        });
+        assert_matches!(
+            char_no_bank.can_deposit_gold(100),
+            Err(GoldDepositError::NoBankOnMap)
+        );
+    }
+
+    #[test]
+    fn can_withdraw_gold() {
+        let schema = CharacterSchema {
+            x: 4,
+            y: 1,
+            ..default_schema()
+        };
+
+        let char = character(schema.clone());
+        char.bank.set_details(BankSchema {
+            gold: 100,
+            ..empty_bank_details()
+        });
+        assert_matches!(char.can_withdraw_gold(100), Ok(()));
+
+        let char = character(schema.clone());
+        char.bank.set_details(empty_bank_details());
+        assert_matches!(
+            char.can_withdraw_gold(100),
+            Err(GoldWithdrawError::InsufficientGold)
+        );
+
+        let char_no_bank = character(CharacterSchema {
+            x: 0,
+            y: 0,
+            ..schema
+        });
+        char_no_bank.bank.set_details(BankSchema {
+            gold: 100,
+            ..empty_bank_details()
+        });
+        assert_matches!(
+            char_no_bank.can_withdraw_gold(100),
+            Err(GoldWithdrawError::NoBankOnMap)
+        );
+    }
+
+    #[test]
+    fn can_expand_bank() {
+        let schema = CharacterSchema {
+            x: 4,
+            y: 1,
+            gold: 0,
+            ..default_schema()
+        };
+        let bank = BankSchema {
+            next_expansion_cost: 5000,
+            ..empty_bank_details()
+        };
+
+        let char = character(CharacterSchema {
+            gold: 5000,
+            ..schema.clone()
+        });
+        char.bank.set_details(bank.clone());
+        assert_matches!(char.can_expand_bank(), Ok(()));
+
+        let char = character(schema.clone());
+        char.bank.set_details(bank.clone());
+        assert_matches!(
+            char.can_expand_bank(),
+            Err(BankExpansionError::InsufficientGold)
+        );
+
+        let char_no_bank = character(CharacterSchema {
+            x: 0,
+            y: 0,
+            gold: 5000,
+            ..schema
+        });
+        char_no_bank.bank.set_details(bank);
+        assert_matches!(
+            char_no_bank.can_expand_bank(),
+            Err(BankExpansionError::NoBankOnMap)
+        );
+    }
+
+    #[test]
+    fn can_accept_task() {
+        let schema = CharacterSchema {
+            x: 1,
+            y: 2,
+            ..default_schema()
+        };
+
+        let char = character(schema.clone());
+        assert_matches!(char.can_accept_task(), Ok(()));
+
+        let char = character(CharacterSchema {
+            task: "chicken".into(),
+            task_type: "monsters".into(),
+            ..schema.clone()
+        });
+        assert_matches!(
+            char.can_accept_task(),
+            Err(TaskAcceptationError::TaskAlreadyInProgress)
+        );
+
+        let char = character(CharacterSchema {
+            x: 0,
+            y: 0,
+            ..schema
+        });
+        assert_matches!(
+            char.can_accept_task(),
+            Err(TaskAcceptationError::NoTasksMasterOnMap)
+        );
+    }
+
+    #[test]
+    fn can_cancel_task() {
+        let schema = CharacterSchema {
+            x: 1,
+            y: 2,
+            ..default_schema()
+        };
+
+        let char = character(CharacterSchema {
+            task: "chicken".into(),
+            task_type: "monsters".into(),
+            inventory: Some(vec![InventorySlotSchema {
+                slot: 0,
+                code: TASKS_COIN.into(),
+                quantity: 1,
+            }]),
+            ..schema.clone()
+        });
+        assert_matches!(char.can_cancel_task(), Ok(()));
+
+        let char = character(schema.clone());
+        assert_matches!(
+            char.can_cancel_task(),
+            Err(TaskCancellationError::NoCurrentTask)
+        );
+
+        let char = character(CharacterSchema {
+            task: "chicken".into(),
+            task_type: "monsters".into(),
+            ..schema.clone()
+        });
+        assert_matches!(
+            char.can_cancel_task(),
+            Err(TaskCancellationError::InsufficientTasksCoinQuantity)
+        );
+
+        let char = character(CharacterSchema {
+            x: 0,
+            y: 0,
+            task: "chicken".into(),
+            task_type: "monsters".into(),
+            inventory: Some(vec![InventorySlotSchema {
+                slot: 0,
+                code: TASKS_COIN.into(),
+                quantity: 1,
+            }]),
+            ..schema
+        });
+        assert_matches!(
+            char.can_cancel_task(),
+            Err(TaskCancellationError::WrongOrNoTasksMasterOnMap)
+        );
+    }
+
+    #[test]
+    fn can_trade_task_item() {
+        let schema = CharacterSchema {
+            x: 4,
+            y: 13,
+            task: "copper_ore".into(),
+            task_type: "items".into(),
+            task_progress: 0,
+            task_total: 100,
+            inventory: Some(vec![InventorySlotSchema::new(0, "copper_ore".into(), 50)]),
+            ..default_schema()
+        };
+
+        let char = character(schema.clone());
+        assert_matches!(char.can_trade_task_item("copper_ore", 10), Ok(()));
+
+        let char = character(schema.clone());
+        assert_matches!(
+            char.can_trade_task_item("none", 1),
+            Err(TaskTradeError::ItemNotFound)
+        );
+        assert_matches!(
+            char.can_trade_task_item("iron_ore", 1),
+            Err(TaskTradeError::WrongTask)
+        );
+        assert_matches!(
+            char.can_trade_task_item("copper_ore", 100),
+            Err(TaskTradeError::InsufficientQuantity)
+        );
+
+        let char = character(CharacterSchema {
+            task_progress: 95,
+            inventory: Some(vec![InventorySlotSchema::new(0, "copper_ore".into(), 10)]),
+            ..schema.clone()
+        });
+        assert_matches!(
+            char.can_trade_task_item("copper_ore", 10),
+            Err(TaskTradeError::SuperfluousQuantity)
+        );
+
+        let char = character(CharacterSchema {
+            x: 0,
+            y: 0,
+            ..schema
+        });
+        assert_matches!(
+            char.can_trade_task_item("copper_ore", 10),
+            Err(TaskTradeError::WrongOrNoTasksMasterOnMap)
+        );
+    }
+
+    #[test]
+    fn can_complete_task() {
+        let schema = CharacterSchema {
+            x: 1,
+            y: 2,
+            ..default_schema()
+        };
+
+        let char = character(CharacterSchema {
+            task: "chicken".into(),
+            task_type: "monsters".into(),
+            task_progress: 100,
+            task_total: 100,
+            ..schema.clone()
+        });
+        assert_matches!(char.can_complete_task(), Ok(()));
+
+        let char = character(schema.clone());
+        assert_matches!(
+            char.can_complete_task(),
+            Err(TaskCompletionError::NoCurrentTask)
+        );
+
+        let char = character(CharacterSchema {
+            task: "chicken".into(),
+            task_type: "monsters".into(),
+            task_progress: 0,
+            task_total: 100,
+            ..schema.clone()
+        });
+        assert_matches!(
+            char.can_complete_task(),
+            Err(TaskCompletionError::TaskNotFullfilled)
+        );
+
+        let char = character(CharacterSchema {
+            x: 4,
+            y: 13,
+            task: "copper_ore".into(),
+            task_type: "items".into(),
+            task_progress: 100,
+            task_total: 100,
+            inventory_max_items: 1,
+            ..schema.clone()
+        });
+        assert_matches!(
+            char.can_complete_task(),
+            Err(TaskCompletionError::InsufficientInventorySpace)
+        );
+
+        let char = character(CharacterSchema {
+            x: 0,
+            y: 0,
+            task: "chicken".into(),
+            task_type: "monsters".into(),
+            task_progress: 100,
+            task_total: 100,
+            ..schema
+        });
+        assert_matches!(
+            char.can_complete_task(),
+            Err(TaskCompletionError::WrongOrNoTasksMasterOnMap)
+        );
+    }
+
+    #[test]
+    fn can_exchange_tasks_coins() {
+        let schema = default_schema();
+
+        let mut modified_schema = schema.clone();
+        modified_schema
+            .inventory
+            .as_mut()
+            .unwrap()
+            .push(InventorySlotSchema::new(1, TASKS_COIN.into(), 6));
+        let char = character(CharacterSchema {
+            x: 1,
+            y: 2,
+            ..modified_schema.clone()
+        });
+        assert_matches!(char.can_exchange_tasks_coins(), Ok(()));
+
+        let char = character(CharacterSchema {
+            inventory: Some(vec![InventorySlotSchema::new(1, TASKS_COIN.into(), 3)]),
+            ..schema.clone()
+        });
+        assert_matches!(
+            char.can_exchange_tasks_coins(),
+            Err(TasksCoinExchangeError::InsufficientTasksCoinQuantity)
+        );
+
+        let char = character(CharacterSchema {
+            x: 1,
+            y: 2,
+            inventory: Some({
+                let mut slots = (1..21)
+                    .map(|slot| InventorySlotSchema::new(slot, "copper_ore".into(), 1))
+                    .collect_vec();
+                slots.push(InventorySlotSchema::new(1, TASKS_COIN.into(), 10));
+                slots
+            }),
+            inventory_max_items: 20,
+            ..schema
+        });
+        assert_matches!(
+            char.can_exchange_tasks_coins(),
+            Err(TasksCoinExchangeError::InsufficientInventorySpace)
+        );
+
+        let char = character(modified_schema);
+        assert_matches!(
+            char.can_exchange_tasks_coins(),
+            Err(TasksCoinExchangeError::NoTasksMasterOnMap)
+        );
+    }
+
+    #[test]
+    fn can_equip() {
+        let char = character(CharacterSchema {
+            level: 5,
+            inventory: Some(vec![
+                InventorySlotSchema::new(1, "small_health_potion".into(), 1),
+                InventorySlotSchema::new(2, "iron_sword".into(), 1),
+                InventorySlotSchema::new(3, "wooden_stick".into(), 1),
+                InventorySlotSchema::new(4, "copper_boots".into(), 1),
+                InventorySlotSchema::new(4, "copper_dagger".into(), 1),
+            ]),
+            weapon_slot: "copper_dagger".into(),
+            ..default_schema()
+        });
+
+        assert_matches!(
+            char.can_equip(&[EquipSchema::new("copper_boots".into(), ItemSlot::Boots)]),
+            Ok(())
+        );
+        assert_matches!(
+            char.can_equip(&[EquipSchema::new("none".into(), ItemSlot::Weapon)]),
+            Err(EquipError::ItemNotFound)
+        );
+        assert_matches!(
+            char.can_equip(&[EquipSchema {
+                code: "small_health_potion".into(),
+                slot: ItemSlot::Weapon,
+                quantity: Some(5),
+            }]),
+            Err(EquipError::InsufficientQuantity)
+        );
+        assert_matches!(
+            char.can_equip(&[EquipSchema::new("iron_sword".into(), ItemSlot::Weapon)]),
+            Err(EquipError::ConditionsNotMet)
+        );
+        assert_matches!(
+            char.can_equip(&[EquipSchema::new("copper_dagger".into(), ItemSlot::Weapon)]),
+            Err(EquipError::ItemAlreadyEquiped)
+        );
+        assert_matches!(
+            char.can_equip(&[EquipSchema::new("wooden_stick".into(), ItemSlot::Weapon,)]),
+            Err(EquipError::SlotNotEmpty)
+        );
+    }
+
+    #[test]
+    fn can_unequip() {
+        let char = character(CharacterSchema {
+            inventory_max_items: 50,
+            level: 10,
+            hp: 5,
+            max_hp: 100,
+            utility1_slot: "small_health_potion".into(),
+            utility1_slot_quantity: 5,
+            helmet_slot: "copper_helmet".into(),
+            weapon_slot: "copper_dagger".into(),
+            utility2_slot: "water_boost_potion".into(),
+            utility2_slot_quantity: 100,
+            ..default_schema()
+        });
+        assert_matches!(
+            char.can_unequip(&[UnequipSchema::new(ItemSlot::Weapon)]),
+            Ok(())
+        );
+        assert_matches!(
+            char.can_unequip(&[UnequipSchema::new(ItemSlot::Boots)]),
+            Err(UnequipError::SlotEmpty)
+        );
+        assert_matches!(
+            char.can_unequip(&[UnequipSchema {
+                slot: ItemSlot::Utility1,
+                quantity: Some(10),
+            }]),
+            Err(UnequipError::InsufficientQuantity)
+        );
+        assert_matches!(
+            char.can_unequip(&[UnequipSchema::new(ItemSlot::Helmet)]),
+            Err(UnequipError::InsufficientHealth)
+        );
+        assert_matches!(
+            char.can_unequip(&[UnequipSchema {
+                slot: ItemSlot::Utility2,
+                quantity: Some(100)
+            }]),
+            Err(UnequipError::InsufficientInventorySpace)
+        );
+    }
+
+    #[test]
+    fn can_npc_buy() {
+        let schema = CharacterSchema {
+            gold: 100,
+            inventory: Some(vec![InventorySlotSchema::new(1, "wool".into(), 3)]),
+            ..default_schema()
+        };
+
+        let char = character(CharacterSchema {
+            x: 3,
+            y: 3,
+            gold: 1000,
+            ..schema.clone()
+        });
+        assert_matches!(char.can_npc_buy("cloth", 1), Ok(()));
+
+        let char = character(schema);
+        assert_matches!(char.can_npc_buy("none", 1), Err(BuyNpcError::ItemNotFound));
+        assert_matches!(
+            char.can_npc_buy("holey_boot", 1),
+            Err(BuyNpcError::ItemNotBuyable)
+        );
+        assert_matches!(
+            char.can_npc_buy("gold_ore", 200),
+            Err(BuyNpcError::InsufficientGold)
+        );
+        assert_matches!(
+            char.can_npc_buy("cloth", 2),
+            Err(BuyNpcError::InsufficientQuantity)
+        );
+        assert_matches!(char.can_npc_buy("cloth", 1), Err(BuyNpcError::NpcNotFound));
+    }
+
+    #[test]
+    fn can_npc_sell() {
+        let handle: MapHandle =
+            CollectionClient::get(&*MAPS, &(MapLayer::Overworld, 2, 8)).unwrap();
+        handle.store(RawMap::new(MapSchema::new(
+            0,
+            "test_npc_map".into(),
+            "default".into(),
+            2,
+            8,
+            MapLayer::Overworld,
+            AccessSchema::new(MapAccessType::Standard),
+            InteractionSchema {
+                content: Some(Box::new(MapContentSchema::new(
+                    MapContentType::Npc,
+                    "gemstone_merchant".into(),
+                ))),
+                transition: None,
+            },
+        )));
+        let char = character(CharacterSchema {
+            x: 2,
+            y: 8,
+            inventory: Some(vec![InventorySlotSchema::new(1, "copper_ore".into(), 5)]),
+            ..default_schema()
+        });
+        assert_matches!(char.can_npc_sell("copper_ore", 1), Ok(()));
+
+        let char = character(CharacterSchema {
+            inventory: Some(vec![InventorySlotSchema::new(1, "gold_ore".into(), 5)]),
+            ..default_schema()
+        });
+        assert_matches!(
+            char.can_npc_sell("nonexistent_item", 1),
+            Err(SellNpcError::ItemNotFound)
+        );
+        assert_matches!(
+            char.can_npc_sell("burn_rune", 1),
+            Err(SellNpcError::ItemNotSalable)
+        );
+        assert_matches!(
+            char.can_npc_sell("gold_ore", 10),
+            Err(SellNpcError::InsufficientQuantity)
+        );
+    }
+
+    #[test]
+    fn can_ge_create_order() {
+        let schema = CharacterSchema {
+            gold: 50,
+            inventory: Some(vec![
+                InventorySlotSchema::new(1, "gold_ore".into(), 5),
+                InventorySlotSchema::new(2, "tasks_coin".into(), 1),
+            ]),
+            ..default_schema()
+        };
+
+        let char = character(CharacterSchema {
+            x: 5,
+            y: 1,
+            ..schema.clone()
+        });
+        assert_matches!(char.can_ge_create_order("gold_ore", 1, 1), Ok(()));
+
+        let char = character(schema);
+        assert_matches!(
+            char.can_ge_create_order("none", 1, 1),
+            Err(GeCreateOrderError::ItemNotFound)
+        );
+        assert_matches!(
+            char.can_ge_create_order("tasks_coin", 1, 1),
+            Err(GeCreateOrderError::ItemNotSalable)
+        );
+        assert_matches!(
+            char.can_ge_create_order("gold_ore", 10, 1),
+            Err(GeCreateOrderError::InsufficientQuantity)
+        );
+        assert_matches!(
+            char.can_ge_create_order("gold_ore", 1, 1_000_000_000),
+            Err(GeCreateOrderError::InsufficientGold)
+        );
+        assert_matches!(
+            char.can_ge_create_order("gold_ore", 1, 1),
+            Err(GeCreateOrderError::NoGrandExchangeOnMap)
+        );
+    }
+
+    #[test]
+    fn can_give_gold() {
+        let char = character(CharacterSchema {
+            gold: 100,
+            ..default_schema()
+        });
+        let _receiver = character(CharacterSchema {
+            name: "receiver".into(),
+            ..default_schema()
+        });
+        assert_matches!(char.can_give_gold(50, "receiver"), Ok(()));
+        assert_matches!(
+            char.can_give_gold(50, "nonexistent"),
+            Err(GiveGoldError::CharacterNotFound)
+        );
+
+        let no_gold = character(CharacterSchema {
+            gold: 0,
+            ..default_schema()
+        });
+        assert_matches!(
+            no_gold.can_give_gold(50, "receiver"),
+            Err(GiveGoldError::InsufficientGold)
+        );
+
+        let far_away = character(CharacterSchema {
+            gold: 100,
+            x: 1,
+            y: 2,
+            ..default_schema()
+        });
+        assert_matches!(
+            far_away.can_give_gold(50, "receiver"),
+            Err(GiveGoldError::CharacterNotFound)
+        );
+    }
+
+    #[test]
+    fn can_give_item() {
+        let char = character(CharacterSchema {
+            inventory: Some(vec![InventorySlotSchema::new(1, "copper_ore".into(), 5)]),
+            ..default_schema()
+        });
+        let _receiver = character(CharacterSchema {
+            name: "receiver".into(),
+            ..default_schema()
+        });
+        let _full_receiver = character(CharacterSchema {
+            name: "full_receiver".into(),
+            inventory_max_items: 1,
+            inventory: Some(vec![InventorySlotSchema::new(1, "iron_sword".into(), 1)]),
+            ..default_schema()
+        });
+
+        assert_matches!(
+            char.can_give_item(
+                &[SimpleItemSchema::new("copper_ore".into(), 3)],
+                &"receiver".into()
+            ),
+            Ok(())
+        );
+        assert_matches!(
+            char.can_give_item(
+                &[SimpleItemSchema::new("copper_ore".into(), 1)],
+                &"nonexistent".into()
+            ),
+            Err(GiveItemError::CharacterNotFound)
+        );
+        assert_matches!(
+            char.can_give_item(
+                &[SimpleItemSchema::new("copper_ore".into(), 1)],
+                &"full_receiver".into()
+            ),
+            Err(GiveItemError::InsufficientInventorySpace)
+        );
+
+        let empty = character(default_schema());
+        assert_matches!(
+            empty.can_give_item(
+                &[SimpleItemSchema::new("unknown".into(), 1)],
+                &"receiver".into()
+            ),
+            Err(GiveItemError::ItemNotFound)
+        );
+
+        let small_inv = character(CharacterSchema {
+            inventory: Some(vec![InventorySlotSchema::new(1, "copper_ore".into(), 2)]),
+            ..default_schema()
+        });
+        assert_matches!(
+            small_inv.can_give_item(
+                &[SimpleItemSchema::new("copper_ore".into(), 5)],
+                &"receiver".into()
+            ),
+            Err(GiveItemError::InsufficientQuantity)
+        );
+
+        let far_away = character(CharacterSchema {
+            x: 1,
+            y: 2,
+            inventory: Some(vec![InventorySlotSchema::new(1, "copper_ore".into(), 5)]),
+            ..default_schema()
+        });
+        assert_matches!(
+            far_away.can_give_item(
+                &[SimpleItemSchema::new("copper_ore".into(), 1)],
+                &"receiver".into()
+            ),
+            Err(GiveItemError::CharacterNotFound)
+        );
+    }
 }
