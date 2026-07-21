@@ -7,6 +7,7 @@ pub struct UtilitySet {
 }
 
 impl UtilitySet {
+    #[must_use]
     pub fn new(utilities: [Option<Item>; 2]) -> Option<Self> {
         if utilities[0].is_none() && utilities[1].is_none() {
             return None;
@@ -20,6 +21,7 @@ impl UtilitySet {
         Some(Self { utilities: slots })
     }
 
+    #[must_use]
     pub const fn slot(&self, slot: Slot) -> Option<&Item> {
         match slot {
             Slot::Utility1 => self.utility1(),
@@ -28,10 +30,12 @@ impl UtilitySet {
         }
     }
 
+    #[must_use]
     pub const fn utility1(&self) -> Option<&Item> {
         self.utilities[0].0.as_ref()
     }
 
+    #[must_use]
     pub const fn utility2(&self) -> Option<&Item> {
         self.utilities[1].0.as_ref()
     }

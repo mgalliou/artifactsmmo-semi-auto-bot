@@ -27,6 +27,7 @@ pub struct InventoryController {
 pub struct InventoryKey<T = String>(T);
 
 impl InventoryController {
+    #[must_use]
     pub fn new(client: CharacterClient, items: ItemsClient) -> Self {
         Self {
             client,

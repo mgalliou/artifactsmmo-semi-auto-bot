@@ -21,6 +21,7 @@ pub struct BotConfig {
 }
 
 impl BotConfig {
+    #[must_use]
     pub fn from_file() -> Self {
         Self {
             inner: RwLock::new(BotConfigInner::from_file().into()).into(),
@@ -31,10 +32,12 @@ impl BotConfig {
         *self.inner.write().unwrap() = BotConfigInner::from_file().into();
     }
 
+    #[must_use]
     pub fn order_gear(&self) -> bool {
         self.inner().order_gear
     }
 
+    #[must_use]
     pub fn get_char_config(&self, i: usize) -> Option<Arc<CharConfig>> {
         self.inner().get_char_config(i)
     }
@@ -54,6 +57,7 @@ pub struct BotConfigInner {
 }
 
 impl BotConfigInner {
+    #[must_use]
     pub fn from_file() -> Self {
         Figment::new()
             .merge(Toml::file_exact("ArtifactsMMO.toml"))

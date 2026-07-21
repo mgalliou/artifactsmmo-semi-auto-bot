@@ -20,6 +20,7 @@ pub struct LevelingHelper {
 }
 
 impl LevelingHelper {
+    #[must_use]
     pub const fn new(
         items: ItemsClient,
         monsters: MonstersClient,
@@ -60,6 +61,7 @@ impl LevelingHelper {
             .max_set_by_key(Level::level)
     }
 
+    #[must_use]
     pub fn best_craft(&self, level: u32, skill: Skill, char: &CharacterController) -> Option<Item> {
         self.best_crafts_hardcoded(level, skill)
             .into_iter()
@@ -89,6 +91,7 @@ impl LevelingHelper {
     }
 
     /// Returns the best items to level the given `skill` at the given `level`.
+    #[must_use]
     pub fn best_crafts_hardcoded(&self, level: u32, skill: Skill) -> Vec<Item> {
         match skill {
             Skill::Gearcrafting => {

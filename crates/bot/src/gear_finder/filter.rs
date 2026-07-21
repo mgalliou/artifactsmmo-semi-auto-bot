@@ -23,6 +23,7 @@ impl Default for Filter {
 }
 
 impl Filter {
+    #[must_use]
     pub const fn available_only() -> Self {
         Self {
             available_only: true,
@@ -34,6 +35,7 @@ impl Filter {
         }
     }
 
+    #[must_use]
     pub const fn everything() -> Self {
         Self {
             available_only: false,

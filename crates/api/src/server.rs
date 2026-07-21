@@ -15,6 +15,7 @@ impl ServerApi {
     }
 
     //TODO: return result
+    #[must_use]
     pub fn status(&self) -> Option<StatusResponseSchema> {
         crate::runtime()
             .block_on(get_server_details_get(&self.configuration))

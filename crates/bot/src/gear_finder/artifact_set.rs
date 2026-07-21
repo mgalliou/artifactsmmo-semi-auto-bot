@@ -7,6 +7,7 @@ pub struct ArtifactSet {
 }
 
 impl ArtifactSet {
+    #[must_use]
     pub fn new(artifacts: [Option<Item>; 3]) -> Option<Self> {
         if artifacts[0].is_none() && artifacts[1].is_none() && artifacts[2].is_none() {
             return None;
@@ -20,6 +21,7 @@ impl ArtifactSet {
         Some(Self { artifacts: slots })
     }
 
+    #[must_use]
     pub const fn slot(&self, slot: Slot) -> Option<&Item> {
         match slot {
             Slot::Artifact1 => self.artifact1(),
@@ -29,14 +31,17 @@ impl ArtifactSet {
         }
     }
 
+    #[must_use]
     pub const fn artifact1(&self) -> Option<&Item> {
         self.artifacts[0].0.as_ref()
     }
 
+    #[must_use]
     pub const fn artifact2(&self) -> Option<&Item> {
         self.artifacts[1].0.as_ref()
     }
 
+    #[must_use]
     pub const fn artifact3(&self) -> Option<&Item> {
         self.artifacts[2].0.as_ref()
     }

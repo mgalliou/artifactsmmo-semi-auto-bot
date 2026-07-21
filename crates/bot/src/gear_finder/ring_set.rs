@@ -7,6 +7,7 @@ pub struct RingSet {
 }
 
 impl RingSet {
+    #[must_use]
     pub fn new(rings: [Option<Item>; 2]) -> Option<Self> {
         if rings[0].is_none() && rings[1].is_none() {
             return None;
@@ -17,6 +18,7 @@ impl RingSet {
         Some(Self { rings: slots })
     }
 
+    #[must_use]
     pub const fn slot(&self, slot: Slot) -> Option<&Item> {
         match slot {
             Slot::Ring1 => self.ring1(),
@@ -25,10 +27,12 @@ impl RingSet {
         }
     }
 
+    #[must_use]
     pub const fn ring1(&self) -> Option<&Item> {
         self.rings[0].0.as_ref()
     }
 
+    #[must_use]
     pub const fn ring2(&self) -> Option<&Item> {
         self.rings[1].0.as_ref()
     }

@@ -37,6 +37,7 @@ pub struct BankKey<T = String> {
 }
 
 impl BankController {
+    #[must_use]
     pub fn new(client: BankClient, items: ItemsClient) -> Self {
         Self(
             BankControllerInner {
@@ -62,6 +63,7 @@ impl BankController {
 
     /// Returns the quantity of each of the missing materials required to craft the `quantity` of the  item `code`
     /// for the given `owner`.
+    #[must_use]
     pub fn missing_among(
         &self,
         items: &[SimpleItemSchema],
@@ -78,6 +80,7 @@ impl BankController {
             .collect_vec()
     }
 
+    #[must_use]
     pub fn consumable_food(&self, level: u32) -> Vec<Item> {
         self.content()
             .iter()
@@ -91,6 +94,7 @@ impl BankController {
             .collect_vec()
     }
 
+    #[must_use]
     pub fn has_all_available(&self, items: &[SimpleItemSchema], owner: &CharacterName) -> bool {
         items
             .iter()

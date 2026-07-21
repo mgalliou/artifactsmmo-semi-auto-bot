@@ -1,7 +1,6 @@
 [workspace]
 resolver = "3"
 members = [
-  #
   "crates/openapi",
   "crates/api",
   "crates/sdk",
@@ -25,49 +24,66 @@ bot = { path = "crates/bot" }
 repl = { path = "crates/repl" }
 
 # external
-anyhow = "1.0.102"
-arc-swap = "1.9.1"
-chrono = { version = "0.4.45", features = ["serde"] }
-clap = { version = "4.6.1", features = ["derive"] }
-derive_more = { version = "2.1.1", features = [
+anyhow = "1.0"
+arc-swap = "1.9"
+async-trait = "0.1"
+chrono = { version = "0.4", features = ["serde"] }
+clap = { version = "4.6", features = ["derive"] }
+derive_more = { version = "2.1", features = [
   "deref",
   "display",
   "from",
   "try_from",
 ] }
-downcast-rs = "2.0.2"
-dyn-clone = "1.0.20"
-figment = { version = "0.10.19", features = ["toml"] }
-itertools = "0.15.0"
-log = "0.4.32"
-ordered-float = "5.3.0"
-quote = "1.0.45"
-rand = "0.10.1"
-rayon = "1.12.0"
-reqwest = { version = "0.13.4", default-features = false, features = [
+downcast-rs = "2.0"
+dyn-clone = "1.0"
+figment = { version = "0.10", features = ["toml"] }
+governor = "0.10"
+http = "1.4"
+itertools = "0.15"
+log = "0.4"
+ordered-float = "5.3"
+quote = "1.0"
+rand = "0.10"
+rayon = "1.12"
+reqwest = { version = "0.13", default-features = false, features = [
   "json",
   "multipart",
   "query",
   "form",
 ] }
-reqwest-middleware = { version = "0.5.2", features = ["json", "multipart", "query", "form"] }
-rustyline = "18.0.0"
-async-trait = "0.1"
-governor = "0.10"
-http = "1.4"
-serde = { version = "1.0.228", features = ["derive", "rc"] }
-ron = "0.12.2"
-serde_json = "1.0.150"
-serde_repr = "0.1.20"
-serde_with = { version = "3.21.0", default-features = false, features = [
+reqwest-middleware = { version = "0.5", features = [
+  "json",
+  "multipart",
+  "query",
+  "form",
+] }
+ron = "0.12"
+rustyline = "18.0"
+serde = { version = "1.0", features = ["derive", "rc"] }
+serde_json = "1.0"
+serde_repr = "0.1"
+serde_with = { version = "3.21", default-features = false, features = [
   "base64",
   "std",
   "macros",
 ] }
-simple-logging = "2.0.2"
-strum = "0.28.0"
-strum_macros = "0.28.0"
-syn = "2.0.118"
-thiserror = "2.0.18"
-tokio = { version = "1", features = ["rt-multi-thread"] }
-url = "2.5.8"
+simple-logging = "2.0"
+strum = "0.28"
+strum_macros = "0.28"
+syn = "3.0"
+thiserror = "2.0"
+tokio = { version = "1.53", features = ["rt-multi-thread"] }
+url = "2.5"
+
+[workspace.lints.clippy]
+cargo = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+missing_panics_doc = { level = "allow" }
+missing_errors_doc = { level = "allow" }
+cast_possible_truncation = { level = "allow" }
+cast_sign_loss = { level = "allow" }
+cast_possible_wrap = { level = "allow" }
+cast_precision_loss = { level = "allow" }
+multiple_crate_versions = { level = "allow" }

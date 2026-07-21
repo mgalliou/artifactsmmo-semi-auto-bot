@@ -8,23 +8,10 @@ publish.workspace = true
 bot.workspace = true
 sdk.workspace = true
 anyhow.workspace = true
-chrono.workspace = true
 clap.workspace = true
-figment.workspace = true
-itertools.workspace = true
 log.workspace = true
 rustyline.workspace = true
 simple-logging.workspace = true
-thiserror.workspace = true
-derive_more.workspace = true
 
-[lints.clippy]
-pedantic = { level = "warn" }
-nursery = { level = "warn" }
-missing_panics_doc = { level = "allow" }
-missing_errors_doc = { level = "allow" }
-cast_possible_truncation = { level = "allow" }
-cast_sign_loss = { level = "allow" }
-cast_possible_wrap = { level = "allow" }
-cast_precision_loss = { level = "allow" }
-must_use_candidate = { level = "allow" }
+[lints]
+workspace = true

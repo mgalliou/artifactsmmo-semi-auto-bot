@@ -59,6 +59,7 @@ pub struct Bot {
 }
 
 impl Bot {
+    #[must_use]
     pub fn new(client: Client) -> Self {
         let config = BotConfig::from_file();
         let bank = BankController::new(client.account.bank(), client.items.clone());
@@ -129,6 +130,7 @@ pub struct CommandQueue {
 }
 
 impl CommandQueue {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             commands: RwLock::default(),

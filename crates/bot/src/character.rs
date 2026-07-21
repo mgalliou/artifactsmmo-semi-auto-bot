@@ -93,6 +93,7 @@ pub struct CharacterControllerInner {
 }
 
 impl CharacterController {
+    #[must_use]
     pub fn new(
         char_client: CharacterClient,
         bot_cfg: BotConfig,
@@ -137,6 +138,7 @@ impl CharacterController {
         self.client.cancel();
     }
 
+    #[must_use]
     pub fn is_paused(&self) -> bool {
         self.client.is_paused()
     }
@@ -1191,6 +1193,7 @@ impl CharacterController {
         Ok(self.client.expand_bank()?)
     }
 
+    #[must_use]
     pub fn empty_bank(&self) -> Vec<Result<()>> {
         self.bank
             .content()
@@ -1753,6 +1756,7 @@ impl CharacterController {
         Ok(())
     }
 
+    #[must_use]
     pub fn time_to_get(&self, item: &str) -> Option<(ItemSource, u32)> {
         self.best_source_of(item)
             .iter()
@@ -1771,6 +1775,7 @@ impl CharacterController {
             .min_by_key(|(_, t)| *t)
     }
 
+    #[must_use]
     pub fn time_to_kill(&self, monster: &Monster) -> Option<u32> {
         let gear = self.can_kill(monster).ok()?;
         let fight = FightSimulation::new(
@@ -1783,6 +1788,7 @@ impl CharacterController {
         Some(fight.cd + (fight.hp_lost / 5 + i32::from(fight.hp_lost % 5 > 0)) as u32)
     }
 
+    #[must_use]
     pub fn time_to_gather(&self, resource: &Resource) -> Option<u32> {
         self.can_gather(resource).ok()?;
         let reduction = self
@@ -1802,6 +1808,7 @@ impl CharacterController {
 
     /// Calculates the maximum number of items that can be crafted in one go based on
     /// inventory max items
+    #[must_use]
     pub fn max_craftable_items(&self, item: &str) -> u32 {
         self.inventory.max_items() / self.items.mats_quantity_for(item)
     }
@@ -1817,11 +1824,13 @@ impl CharacterController {
     //     )
     // }
 
+    #[must_use]
     pub fn gold_available(&self) -> u32 {
         self.gold() + self.bank.gold()
     }
 
     /// Returns the amount of the given item `code` available in bank, inventory and gear.
+    #[must_use]
     pub fn has_available(&self, item: &str) -> u32 {
         self.has_equiped(item) + self.has_in_bank_or_inv(item)
     }
@@ -1889,14 +1898,17 @@ impl CharacterController {
         sources.first().cloned()
     }
 
+    #[must_use]
     pub fn gear(&self) -> Gear {
         self.client.gear()
     }
 
+    #[must_use]
     pub fn current_map(&self) -> RawMap {
         self.client.current_map()
     }
 
+    #[must_use]
     pub fn skill_enabled(&self, s: Skill) -> bool {
         self.config().skill_is_enabled(s)
     }
@@ -1913,10 +1925,12 @@ impl CharacterController {
         }
     }
 
+    #[must_use]
     pub fn config(&self) -> Arc<CharConfig> {
         self.bot_config.get_char_config(self.client.id()).unwrap()
     }
 
+    #[must_use]
     pub fn available_items(&self) -> HashMap<String, u32> {
         let in_bank = self.bank.available_for(&self.name());
         let in_inventory = self.inventory.available_items();

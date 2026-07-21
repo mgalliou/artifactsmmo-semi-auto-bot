@@ -45,6 +45,7 @@ pub struct GearFinder {
 }
 
 impl GearFinder {
+    #[must_use]
     pub const fn new(items: ItemsClient, account: AccountController) -> Self {
         Self { items, account }
     }

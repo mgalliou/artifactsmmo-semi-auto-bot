@@ -26,6 +26,7 @@ pub struct AccountControllerInner {
 }
 
 impl AccountController {
+    #[must_use]
     pub fn new(
         config: BotConfig,
         client: AccountClient,
@@ -46,10 +47,12 @@ impl AccountController {
         )
     }
 
+    #[must_use]
     pub fn client(&self) -> AccountClient {
         self.client.clone()
     }
 
+    #[must_use]
     pub fn bank(&self) -> BankController {
         self.bank.clone()
     }
@@ -84,6 +87,7 @@ impl AccountController {
             .collect_vec();
     }
 
+    #[must_use]
     pub fn characters(&self) -> Vec<CharacterController> {
         self.characters
             .read()
@@ -93,10 +97,12 @@ impl AccountController {
             .collect_vec()
     }
 
+    #[must_use]
     pub fn get_character(&self, index: usize) -> Option<CharacterController> {
         self.characters().get(index).cloned()
     }
 
+    #[must_use]
     pub fn get_character_by_name(&self, name: &str) -> Option<CharacterController> {
         self.characters()
             .iter()
@@ -104,6 +110,7 @@ impl AccountController {
             .cloned()
     }
 
+    #[must_use]
     pub fn available_in_inventories(&self, item: &str) -> u32 {
         self.characters()
             .iter()
@@ -111,6 +118,7 @@ impl AccountController {
             .sum()
     }
 
+    #[must_use]
     pub fn total_of(&self, item: &str) -> u32 {
         self.bank.total_of(item)
             + self
@@ -120,6 +128,7 @@ impl AccountController {
                 .sum::<u32>()
     }
 
+    #[must_use]
     pub fn meets_conditions(&self, item: &Item) -> usize {
         self.characters()
             .iter()
@@ -127,10 +136,12 @@ impl AccountController {
             .count()
     }
 
+    #[must_use]
     pub fn can_craft(&self, item: &str) -> bool {
         self.characters().iter().any(|c| c.can_craft(item).is_ok())
     }
 
+    #[must_use]
     pub fn max_skill_level(&self, skill: Skill) -> u32 {
         self.characters()
             .iter()
@@ -139,6 +150,7 @@ impl AccountController {
             .unwrap_or(0)
     }
 
+    #[must_use]
     pub fn fisher_max_items(&self) -> u32 {
         self.characters()
             .iter()
@@ -148,6 +160,7 @@ impl AccountController {
             .unwrap_or(0)
     }
 
+    #[must_use]
     pub fn time_to_get(&self, code: &str) -> Option<u32> {
         let item = self.items.get(code)?;
         let (source, mut time) = self

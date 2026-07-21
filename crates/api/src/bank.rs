@@ -18,6 +18,7 @@ pub struct BankApi {
 }
 
 impl BankApi {
+    #[must_use]
     pub const fn new(configuration: Arc<Configuration>) -> Self {
         Self { configuration }
     }

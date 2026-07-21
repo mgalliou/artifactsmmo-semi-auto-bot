@@ -29,6 +29,7 @@ pub struct OrderBoard {
 }
 
 impl OrderBoard {
+    #[must_use]
     pub fn new(items: ItemsClient, account: AccountController) -> Self {
         Self {
             orders: RwLock::default().into(),
@@ -37,6 +38,7 @@ impl OrderBoard {
         }
     }
 
+    #[must_use]
     pub fn get(
         &self,
         item: &str,
@@ -51,6 +53,7 @@ impl OrderBoard {
             .cloned()
     }
 
+    #[must_use]
     pub fn orders(&self) -> Vec<Arc<Order>> {
         self.orders.read().unwrap().iter().cloned().collect_vec()
     }
@@ -62,10 +65,12 @@ impl OrderBoard {
         self.orders().into_iter().filter(f).collect_vec()
     }
 
+    #[must_use]
     pub fn is_ordered(&self, item: &str) -> bool {
         self.orders().iter().any(|o| o.item == item)
     }
 
+    #[must_use]
     pub fn quantity_ordered(&self, item: &str) -> u32 {
         self.orders()
             .iter()
@@ -74,6 +79,7 @@ impl OrderBoard {
             .sum()
     }
 
+    #[must_use]
     pub fn orders_by_priority(&self) -> Vec<Arc<Order>> {
         let mut orders: Vec<Arc<Order>> = vec![];
         Purpose::iter().for_each(|p| {

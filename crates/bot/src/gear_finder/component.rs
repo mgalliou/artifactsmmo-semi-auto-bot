@@ -33,6 +33,7 @@ impl From<&Item> for GearComponent {
 pub struct ItemSlot(pub Option<Item>);
 
 impl ItemSlot {
+    #[must_use]
     pub const fn slot(&self) -> Option<&Item> {
         self.0.as_ref()
     }
