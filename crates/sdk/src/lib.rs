@@ -1,7 +1,8 @@
 use log::error;
 use openapi::models::{
     AccessSchema, CharacterFightSchema, ConditionSchema, DropRateSchema, DropSchema,
-    InventorySlotSchema, RewardsSchema, SimpleItemSchema, SkillInfoSchema, TransitionSchema,
+    InventorySlotSchema, RewardsSchema, SimpleItemSchema, SkillInfoSchema, TaskTradeSchema,
+    TransitionSchema,
 };
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
@@ -109,6 +110,12 @@ impl Code for DropRateSchema {
     }
 }
 
+impl Code for TaskTradeSchema {
+    fn code(&self) -> &str {
+        &self.code
+    }
+}
+
 impl<T: AsRef<str>> Code for (T, u32) {
     fn code(&self) -> &str {
         self.0.as_ref()
@@ -143,6 +150,12 @@ impl Quantity for InventorySlotSchema {
 impl Quantity for SimpleItemSchema {
     fn quantity(&self) -> u32 {
         self.quantity
+    }
+}
+
+impl Quantity for TaskTradeSchema {
+    fn quantity(&self) -> u32 {
+        self.quantity as u32
     }
 }
 
@@ -185,7 +198,7 @@ impl HasDrops for RewardsSchema {
         self.items
             .iter()
             .find(|i| i.code() == item_code)
-            .map_or(0, |i| i.quantity)
+            .map_or(0, Quantity::quantity)
     }
 }
 

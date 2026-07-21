@@ -224,7 +224,7 @@ impl ActionRequest<'_> {
                 quantity,
             } => api
                 .my_character
-                .npc_buy(name, (*item).to_string(), *quantity)
+                .npc_buy(name, (*item).to_owned(), *quantity)
                 .map(Into::into)
                 .map_err(Into::into),
             ActionRequest::NpcSell {

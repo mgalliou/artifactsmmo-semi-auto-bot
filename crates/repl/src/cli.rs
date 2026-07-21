@@ -9,7 +9,7 @@ use bot::{
 use clap::{Parser, Subcommand, value_parser};
 use rustyline::{DefaultEditor, error::ReadlineError};
 use sdk::{
-    CollectionClient, ItemContainer, Level,
+    Code, CollectionClient, ItemContainer, Level, Quantity,
     entities::Character,
     simulator::{FightSimulation, Participant},
     skill::Skill,
@@ -25,14 +25,14 @@ pub fn run(bot: &Bot) -> Result<()> {
                 "{} >> ",
                 chars
                     .as_ref()
-                    .map_or_else(|| "none".to_string(), |c| c.name().to_string())
+                    .map_or_else(|| "none".to_owned(), |c| c.name().to_string())
             )
             .as_str(),
         );
         match readline {
             Ok(line) => match respond(&line, bot, &mut chars) {
                 Ok(()) => {
-                    if let Err(e) = rl.add_history_entry(line.as_str()) {
+                    if let Err(e) = rl.add_history_entry(&line) {
                         eprintln!("failed to add history entry: {e}");
                     }
                 }
@@ -89,7 +89,7 @@ fn respond(line: &str, bot: &Bot, character: &mut Option<CharacterController>) -
                 bot.bank
                     .content()
                     .iter()
-                    .for_each(|i| println!("{}: {}", i.code, i.quantity));
+                    .for_each(|i| println!("{}: {}", i.code(), i.quantity()));
             }
             BankAction::Empty => {
                 bail!("not yet implemented");
@@ -122,7 +122,7 @@ fn respond(line: &str, bot: &Bot, character: &mut Option<CharacterController>) -
                     skill,
                     bot.leveling_helper
                         .best_craft(char.skill_level(skill), skill, char)
-                        .map_or_else(|| "none".to_string(), |i| i.name().to_string())
+                        .map_or_else(|| "none".to_owned(), |i| i.name().to_owned())
                 );
             }
             ItemsAction::BestCrafts { skill } => {

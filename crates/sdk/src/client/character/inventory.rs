@@ -66,7 +66,7 @@ impl SpaceLimited for InventoryClient {
 
 impl LimitedContainer for InventoryClient {
     fn is_full(&self) -> bool {
-        self.total_items() >= self.max_items() || self.free_slots() == 0
+        self.total_items() >= self.max_items() && self.free_slots() == 0
     }
 
     fn has_room_for_all(&self, items: &[impl Code + Quantity]) -> bool {

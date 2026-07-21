@@ -1,8 +1,7 @@
+use crate::{Code, Quantity};
 use openapi::models::{RewardsSchema, TaskFullSchema, TaskType};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-
-use crate::Code;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Task(Arc<TaskFullSchema>);
@@ -20,7 +19,7 @@ impl Task {
 
     #[must_use]
     pub fn rewards_quantity(&self) -> u32 {
-        self.rewards().items.iter().map(|i| i.quantity).sum()
+        self.rewards().items.iter().map(Quantity::quantity).sum()
     }
 
     #[must_use]

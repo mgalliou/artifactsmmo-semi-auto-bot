@@ -1,4 +1,4 @@
-use crate::{Code, entities::Item, simulator::HasEffects};
+use crate::{Code, Quantity, entities::Item, simulator::HasEffects};
 use ::std::hash::BuildHasher;
 use itertools::Itertools;
 use openapi::models::{ItemSlot, SimpleItemSchema};
@@ -292,7 +292,7 @@ impl Display for Gear {
             writeln!(
                 f,
                 "{slot}: {}",
-                self.item_in(slot).map_or("empty", |i| i.code())
+                self.item_in(slot).map_or("empty", Code::code)
             )?;
         }
         Ok(())
@@ -304,27 +304,19 @@ impl From<Gear> for Vec<SimpleItemSchema> {
         let mut items = Slot::iter()
             .filter_map(|slot| {
                 gear.item_in(slot).and_then(|i| {
-                    (!slot.is_ring()).then(|| SimpleItemSchema {
-                        code: i.code().to_owned(),
-                        quantity: slot.max_quantity(),
-                    })
+                    (!slot.is_ring())
+                        .then(|| SimpleItemSchema::new(i.code().to_owned(), slot.max_quantity()))
                 })
             })
             .collect_vec();
         let quantity = if gear.ring1 == gear.ring2 { 2 } else { 1 };
         if let Some(ring1) = gear.ring1 {
-            items.push(SimpleItemSchema {
-                code: ring1.code().to_owned(),
-                quantity,
-            });
+            items.push(SimpleItemSchema::new(ring1.code().to_owned(), quantity));
         }
         if quantity == 1
             && let Some(ring2) = gear.ring2
         {
-            items.push(SimpleItemSchema {
-                code: ring2.code().to_owned(),
-                quantity,
-            });
+            items.push(SimpleItemSchema::new(ring2.code().to_owned(), quantity));
         }
         items
     }
@@ -334,7 +326,7 @@ impl<S: BuildHasher + Default> From<Gear> for HashMap<String, u32, S> {
     fn from(value: Gear) -> Self {
         Into::<Vec<SimpleItemSchema>>::into(value)
             .iter()
-            .map(|i| (i.code().to_owned(), i.quantity))
+            .map(|i| (i.code().to_owned(), i.quantity()))
             .collect()
     }
 }

@@ -361,7 +361,7 @@ impl CharacterClient {
     pub fn can_withdraw_items(&self, items: &[SimpleItemSchema]) -> Result<(), WithdrawError> {
         if items
             .iter()
-            .any(|i| self.bank.total_of(&i.code) < i.quantity())
+            .any(|i| self.bank.total_of(i.code()) < i.quantity())
         {
             return Err(WithdrawError::InsufficientQuantity);
         }
@@ -489,10 +489,7 @@ impl CharacterClient {
             }
             total_quantity += quantity;
             inventory_space += equiped.inventory_space();
-            items.push(SimpleItemSchema {
-                code: equiped.code().to_owned(),
-                quantity,
-            });
+            items.push(SimpleItemSchema::new(equiped.code().to_owned(), quantity));
         }
         if self.hp() <= health {
             return Err(UnequipError::InsufficientHealth);
@@ -1415,10 +1412,7 @@ mod tests {
             Err(DepositError::ItemNotFound)
         );
         assert_matches!(
-            char.can_deposit_items(&[SimpleItemSchema {
-                code: "copper_ore".into(),
-                quantity: 10,
-            }]),
+            char.can_deposit_items(&[SimpleItemSchema::new("copper_ore".into(), 10)]),
             Err(DepositError::InsufficientQuantity)
         );
 
@@ -1427,10 +1421,7 @@ mod tests {
             ..empty_bank_details()
         });
         assert_matches!(
-            char.can_deposit_items(&[SimpleItemSchema {
-                code: "copper_ore".into(),
-                quantity: 1,
-            }]),
+            char.can_deposit_items(&[SimpleItemSchema::new("copper_ore".into(), 1)]),
             Err(DepositError::InsufficientBankSpace)
         );
 

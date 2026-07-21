@@ -53,7 +53,6 @@ use sdk::{
 use std::collections::HashMap;
 use std::{
     cmp::min,
-    convert::Into,
     option::Option,
     sync::{
         Arc, Mutex,
@@ -146,6 +145,7 @@ impl CharacterController {
         info!("{}: started !", self.name());
         loop {
             if self.config().is_idle() {
+                sleep(Duration::from_secs(5));
                 continue;
             }
             self.maps.refresh_from_events();
@@ -539,21 +539,15 @@ impl CharacterController {
         if self.task_finished() {
             return Ok(self.complete_task().map(|i| {
                 i.items
-                    .iter()
-                    .map(|i| DropSchema {
-                        code: i.code.clone(),
-                        quantity: i.quantity as i32,
-                    })
+                    .into_iter()
+                    .map(|i| DropSchema::new(i.code, i.quantity as i32))
                     .collect()
             })?);
         }
         let Some(monster) = self.monsters.get::<str>(&self.task()) else {
-            return Ok(self.trade_task().map(|r| {
-                vec![DropSchema {
-                    code: r.code,
-                    quantity: r.quantity,
-                }]
-            })?);
+            return Ok(self
+                .trade_task()
+                .map(|i| vec![DropSchema::new(i.code, i.quantity)])?);
         };
         match self.kill_monster(&monster) {
             Ok(fight) => Ok(fight
@@ -987,10 +981,7 @@ impl CharacterController {
             let missing = item.quantity().saturating_sub(in_inventory);
             if missing > 0 {
                 self.bank.reserve((&item.code(), self.name()), missing)?;
-                missing_items.push(SimpleItemSchema {
-                    code: item.code().to_owned(),
-                    quantity: missing,
-                });
+                missing_items.push(SimpleItemSchema::new(item.code().to_owned(), missing));
             }
         }
         if !missing_items.is_empty() {
@@ -1043,8 +1034,8 @@ impl CharacterController {
         let inv_items = self
             .inventory
             .simple_content()
-            .iter_mut()
-            .filter_map(|slot| {
+            .into_iter()
+            .filter_map(|mut slot| {
                 for item in items {
                     if slot.code == item.code {
                         if slot.quantity > item.quantity {
@@ -1054,17 +1045,14 @@ impl CharacterController {
                         }
                     }
                 }
-                Some(slot.clone())
+                Some(slot)
             })
             .collect_vec();
         self.deposit_items(&inv_items)
     }
 
     pub fn deposit_item(&self, item: &str, quantity: u32) -> Result<(), DepositItemCommandError> {
-        self.deposit_items(&[SimpleItemSchema {
-            code: item.to_string(),
-            quantity,
-        }])
+        self.deposit_items(&[SimpleItemSchema::new(item.to_owned(), quantity)])
     }
 
     pub fn deposit_items(&self, items: &[SimpleItemSchema]) -> Result<(), DepositItemCommandError> {
@@ -1128,10 +1116,7 @@ impl CharacterController {
     }
 
     pub fn withdraw_item(&self, item: &str, quantity: u32) -> Result<(), WithdrawItemCommandError> {
-        self.withdraw_items(&[SimpleItemSchema {
-            code: item.into(),
-            quantity,
-        }])
+        self.withdraw_items(&[SimpleItemSchema::new(item.into(), quantity)])
     }
 
     /// Withdraw items from bank.
@@ -1374,10 +1359,7 @@ impl CharacterController {
                 slot: schema.slot,
                 quantity: Some(quantity),
             });
-            to_deposit.push(SimpleItemSchema {
-                code: equiped.code().to_owned(),
-                quantity,
-            });
+            to_deposit.push(SimpleItemSchema::new(equiped.code().to_owned(), quantity));
         }
         if to_unequip.is_empty() {
             return Ok(());
@@ -1451,18 +1433,20 @@ impl CharacterController {
     }
 
     fn r#move(&self, destination: &Either<(i32, i32), i32>) -> Result<RawMap, MoveCommandError> {
-        match destination {
+        match *destination {
             Either::Left((x, y)) => {
-                if self.position() == (self.position().0, *x, *y) {
+                let position = self.position();
+                if position == (position.0, x, y) {
                     return Ok(self.current_map());
                 }
-                Ok(self.client.r#move(*x, *y)?)
+                Ok(self.client.r#move(x, y)?)
             }
             Either::Right(id) => {
-                if self.current_map().id() == *id {
-                    return Ok(self.current_map());
+                let current_map = self.current_map();
+                if current_map.id() == id {
+                    return Ok(current_map);
                 }
-                let Some(map) = self.maps.all_raw().into_iter().find(|m| m.id() == *id) else {
+                let Some(map) = self.maps.get_by_id(id) else {
                     return Err(MoveCommandError::MapNotFound);
                 };
                 Ok(self.client.r#move(map.x(), map.y())?)
@@ -1527,7 +1511,7 @@ impl CharacterController {
         quantity: u32,
     ) -> Result<(NpcItem, u32), BuyNpcCommandError> {
         let Some(npc_item) = self.npcs.items().get(item_code) else {
-            return Err(BuyNpcCommandError::ItemNotFound(item_code.to_string()));
+            return Err(BuyNpcCommandError::ItemNotFound(item_code.to_owned()));
         };
         let Some(buy_price) = npc_item.buy_price() else {
             return Err(BuyNpcCommandError::ItemNotPurchasable);
@@ -1545,7 +1529,7 @@ impl CharacterController {
         };
         if missing_currency > 0 {
             return Err(BuyNpcCommandError::InsufficientCurrency {
-                currency: npc_item.currency().to_string(),
+                currency: npc_item.currency().to_owned(),
                 quantity: missing_currency,
             });
         }
@@ -1576,7 +1560,7 @@ impl CharacterController {
             return Err(SellNpcCommandError::NotAllowed);
         }
         let Some(npc_item) = self.npcs.items().get(item_code) else {
-            return Err(SellNpcCommandError::ItemNotFound(item_code.to_string()));
+            return Err(SellNpcCommandError::ItemNotFound(item_code.to_owned()));
         };
         if npc_item.sell_price().is_none() {
             return Err(SellNpcCommandError::ItemNotSellable);

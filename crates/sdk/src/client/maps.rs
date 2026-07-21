@@ -52,14 +52,19 @@ impl MapsClient {
     }
 
     #[must_use]
+    pub fn get_by_id(&self, id: i32) -> Option<RawMap> {
+        self.all_raw().into_iter().find(|m| m.id() == id)
+    }
+
+    #[must_use]
     pub fn all_raw(&self) -> Vec<RawMap> {
-        self.iter().map(|h| h.load()).collect_vec()
+        self.iter().map(|map| map.load()).collect_vec()
     }
 
     pub fn refresh_from_events(&self) {
         for e in self.events().active() {
             if e.is_expired()
-                && let Some(map) = CollectionClient::get(self, &e.map().position())
+                && let Some(map) = self.get(&e.map().position())
             {
                 map.store(e.previous_map());
             }
@@ -67,7 +72,7 @@ impl MapsClient {
         self.events().refresh_active();
         for e in self.events().active() {
             if !e.is_expired()
-                && let Some(map) = CollectionClient::get(self, &e.map().position())
+                && let Some(map) = self.get(&e.map().position())
             {
                 map.store(e.map());
             }

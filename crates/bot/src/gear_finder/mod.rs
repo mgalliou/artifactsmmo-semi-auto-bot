@@ -748,7 +748,7 @@ mod tests {
             level: 10,
             skill_levels: HashMap::new(),
             item_pool: ITEMS.iter().filter(|i| i.level() <= 10).collect_vec(),
-            available_items: HashMap::from([("forest_ring".to_string(), 1)]),
+            available_items: HashMap::from([("forest_ring".into(), 1)]),
             available_only: true,
             use_utilities: false,
         };
@@ -765,7 +765,7 @@ mod tests {
             level: 10,
             skill_levels: HashMap::new(),
             item_pool: ITEMS.iter().filter(|i| i.level() <= 10).collect_vec(),
-            available_items: HashMap::from([("forest_ring".to_string(), 2)]),
+            available_items: HashMap::from([("forest_ring".into(), 2)]),
             available_only: true,
             use_utilities: false,
         };
@@ -788,7 +788,7 @@ mod tests {
             level: 25,
             skill_levels: HashMap::new(),
             item_pool: vec![],
-            available_items: HashMap::from([("lizard_skin_armor".to_string(), 1)]),
+            available_items: HashMap::from([("lizard_skin_armor".into(), 1)]),
             available_only: true,
             use_utilities: false,
         };
@@ -803,7 +803,7 @@ mod tests {
 
         // Reverse: put stormforged_armor in available_items instead
         let resolver2 = GearResolver {
-            available_items: HashMap::from([("stormforged_armor".to_string(), 1)]),
+            available_items: HashMap::from([("stormforged_armor".into(), 1)]),
             ..resolver
         };
         let best2 = resolver2.best_by_among(

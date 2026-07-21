@@ -73,10 +73,7 @@ impl BankController {
                 let missing = item
                     .quantity
                     .saturating_sub(self.has_available((&item.code, owner)));
-                (missing > 0).then(|| SimpleItemSchema {
-                    code: item.code.clone(),
-                    quantity: missing,
-                })
+                (missing > 0).then(|| SimpleItemSchema::new(item.code().to_owned(), missing))
             })
             .collect_vec()
     }
@@ -85,7 +82,7 @@ impl BankController {
         self.content()
             .iter()
             .filter_map(|i| {
-                self.items.get(&i.code).filter(|i| {
+                self.items.get(i.code()).filter(|i| {
                     i.is_food()
                         && i.level() <= level
                         && !FOOD_CONSUMPTION_BLACKLIST.contains(&i.code())
@@ -97,7 +94,7 @@ impl BankController {
     pub fn has_all_available(&self, items: &[SimpleItemSchema], owner: &CharacterName) -> bool {
         items
             .iter()
-            .all(|i| self.has_available((i.code(), owner)) >= i.quantity)
+            .all(|i| self.has_available((i.code(), owner)) >= i.quantity())
     }
 
     /// Returns the `quantity` of the given item `code` available to the given `owner`.
@@ -145,7 +142,7 @@ impl BankController {
             .iter()
             .map(|i| {
                 (
-                    i.code().to_string(),
+                    i.code().to_owned(),
                     self.quantity_allowed((i.code(), name.clone())),
                 )
             })
@@ -245,10 +242,8 @@ mod tests {
     #[test]
     fn reserv_with_item_available() {
         let bank = bank_controller();
-        bank.client.set_content(vec![SimpleItemSchema {
-            code: "copper_ore".to_owned(),
-            quantity: 100,
-        }]);
+        bank.client
+            .set_content(vec![SimpleItemSchema::new("copper_ore".into(), 100)]);
         let _ = bank.inc_reservation(("copper_ore", "char1"), 50);
         let _ = bank.inc_reservation(("copper_ore", "char1"), 50);
         assert_eq!(100, bank.has_available(("copper_ore", "char1")));
@@ -257,10 +252,8 @@ mod tests {
     #[test]
     fn reserv_if_not_with_item_available() {
         let bank = bank_controller();
-        bank.client.set_content(vec![SimpleItemSchema {
-            code: "gold_ore".into(),
-            quantity: 100,
-        }]);
+        bank.client
+            .set_content(vec![SimpleItemSchema::new("gold_ore".into(), 100)]);
         let _ = bank.reserve(("gold_ore", "char1"), 50);
         let _ = bank.reserve(("gold_ore", "char1"), 50);
         assert_eq!(100, bank.has_available(("gold_ore", "char1")));

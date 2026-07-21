@@ -178,7 +178,7 @@ impl MyCharacterApi {
         let schema = RecyclingSchema {
             code: item_code.to_owned(),
             quantity: Some(quantity),
-            enhanced: enhanced.into(),
+            enhanced: Some(enhanced),
         };
         runtime().block_on(action_recycling_my_name_action_recycling_post(
             &self.configuration,
@@ -193,10 +193,7 @@ impl MyCharacterApi {
         item_code: &str,
         quantity: u32,
     ) -> Result<DeleteItemResponseSchema, Error<ActionDeleteItemMyNameActionDeletePostError>> {
-        let schema = SimpleItemSchema {
-            code: item_code.to_owned(),
-            quantity,
-        };
+        let schema = SimpleItemSchema::new(item_code.to_owned(), quantity);
         runtime().block_on(action_delete_item_my_name_action_delete_post(
             &self.configuration,
             name,
@@ -319,10 +316,7 @@ impl MyCharacterApi {
         item_code: &str,
         quantity: u32,
     ) -> Result<UseItemResponseSchema, Error<ActionUseItemMyNameActionUsePostError>> {
-        let schema = SimpleItemSchema {
-            code: item_code.to_owned(),
-            quantity,
-        };
+        let schema = SimpleItemSchema::new(item_code.to_owned(), quantity);
         runtime().block_on(action_use_item_my_name_action_use_post(
             &self.configuration,
             name,
@@ -426,10 +420,7 @@ impl MyCharacterApi {
         items: &[SimpleItemSchema],
         character: &str,
     ) -> Result<GiveItemResponseSchema, Error<ActionGiveItemsMyNameActionGiveItemPostError>> {
-        let schema = GiveItemsSchema {
-            items: items.to_vec(),
-            character: character.to_string(),
-        };
+        let schema = GiveItemsSchema::new(items.to_vec(), character.to_owned());
         runtime().block_on(action_give_items_my_name_action_give_item_post(
             &self.configuration,
             name,
@@ -443,10 +434,7 @@ impl MyCharacterApi {
         quantity: u32,
         character: &str,
     ) -> Result<GiveGoldResponseSchema, Error<ActionGiveGoldMyNameActionGiveGoldPostError>> {
-        let schema = GiveGoldSchema {
-            quantity,
-            character: character.to_string(),
-        };
+        let schema = GiveGoldSchema::new(quantity, character.to_owned());
         runtime().block_on(action_give_gold_my_name_action_give_gold_post(
             &self.configuration,
             name,

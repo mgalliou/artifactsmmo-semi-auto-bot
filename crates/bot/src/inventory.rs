@@ -39,10 +39,7 @@ impl InventoryController {
         self.content()
             .iter()
             .filter(|&i| !i.code.is_empty())
-            .map(|i| SimpleItemSchema {
-                code: i.code.clone(),
-                quantity: i.quantity(),
-            })
+            .map(|i| SimpleItemSchema::new(i.code().to_owned(), i.quantity()))
             .collect_vec()
     }
 
@@ -51,10 +48,7 @@ impl InventoryController {
             .iter()
             .filter_map(|m| {
                 let missing = m.quantity.saturating_sub(self.has_available(&m.code));
-                (missing > 0).then(|| SimpleItemSchema {
-                    code: m.code.clone(),
-                    quantity: missing,
-                })
+                (missing > 0).then(|| SimpleItemSchema::new(m.code.clone(), missing))
             })
             .collect_vec()
     }
@@ -63,7 +57,7 @@ impl InventoryController {
         self.content()
             .iter()
             .filter_map(|i| {
-                self.items.get(&i.code).filter(|i| {
+                self.items.get(i.code()).filter(|i| {
                     i.is_food()
                         && i.level() <= self.client.level()
                         && !FOOD_CONSUMPTION_BLACKLIST.contains(&i.code())
@@ -94,7 +88,7 @@ impl InventoryController {
     pub(crate) fn available_items(&self) -> HashMap<String, u32> {
         self.content()
             .iter()
-            .map(|i| (i.code().to_string(), self.has_available(i.code())))
+            .map(|i| (i.code().to_owned(), self.has_available(i.code())))
             .collect()
     }
 }

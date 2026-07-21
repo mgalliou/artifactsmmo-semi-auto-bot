@@ -224,7 +224,7 @@ impl From<&Participant> for SimulationCharacter {
 
 impl SimulationEntity for SimulationCharacter {
     fn name(&self) -> String {
-        self.0.borrow().name.clone().to_string()
+        self.0.borrow().name.to_string()
     }
 
     fn current_turn(&self) -> u32 {
@@ -364,7 +364,7 @@ impl From<&Monster> for SimulationMonster {
 
 impl SimulationEntity for SimulationMonster {
     fn name(&self) -> String {
-        self.0.borrow().monster.name().to_string()
+        self.0.borrow().monster.name().to_owned()
     }
 
     fn current_turn(&self) -> u32 {

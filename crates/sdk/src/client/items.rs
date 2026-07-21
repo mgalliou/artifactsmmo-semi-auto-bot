@@ -92,7 +92,7 @@ impl ItemsClient {
         }
         consolidated
             .into_iter()
-            .map(|(code, quantity)| SimpleItemSchema { code, quantity })
+            .map(|(code, quantity)| SimpleItemSchema::new(code, quantity))
             .collect_vec()
     }
 
@@ -160,7 +160,7 @@ impl ItemsClient {
         let mob_mats: Vec<Item> = item
             .mats()
             .iter()
-            .filter_map(|i| self.get(&i.code).filter(|i| i.subtype_is(SubType::Mob)))
+            .filter_map(|i| self.get(i.code()).filter(|i| i.subtype_is(SubType::Mob)))
             .collect();
         let len = mob_mats.len() as u32;
         if len < 1 {
@@ -174,7 +174,7 @@ impl ItemsClient {
         self.get(code).map_or(1, |item| {
             item.mats()
                 .iter()
-                .filter_map(|i| self.get(&i.code).filter(|i| i.subtype_is(SubType::Mob)))
+                .filter_map(|i| self.get(i.code()).filter(|i| i.subtype_is(SubType::Mob)))
                 .max_by_key(Level::level)
                 .map_or(1, |i| i.level())
         })
