@@ -1,13 +1,14 @@
+use itertools::Itertools;
 use openapi::models::{
-    CharacterFightSchema, CharacterSchema, EquipSchema, GeTransactionSchema,
-    NpcItemTransactionSchema, RecyclingItemsSchema, RewardsSchema, SimpleItemSchema,
-    SkillInfoSchema, TaskSchema, TaskTradeSchema, UnequipSchema,
+    BankSchema, CharacterFightSchema, CharacterSchema, EquipSchema, GeTransactionSchema,
+    InventorySlotSchema, MapLayer, NpcItemTransactionSchema, RecyclingItemsSchema, RewardsSchema,
+    SimpleItemSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, UnequipSchema,
 };
 
 use crate::{
     AccountClient, CharacterClient, CollectionClient, EventsClient, GrandExchangeClient,
     MapsClient, NpcsClient, NpcsItemsClient, ResourcesClient, TasksClient, TasksRewardsClient,
-    character::{CharacterRequestHandler, error::RequestError},
+    character::{CharacterRequestHandler, InventoryClient, error::RequestError},
     client::{bank::BankClient, items::ItemsClient, monsters::MonstersClient},
     entities::{CharacterHandle, Item, Monster, RawMap},
 };
@@ -102,7 +103,7 @@ pub static ACCOUNT: LazyLock<AccountClient> = LazyLock::new(|| {
         Box::new(|_| panic!("test account")),
         Box::new(|_| panic!("test account")),
         Box::new(|| panic!("test account")),
-        Box::new(|_, _, _| panic!("test account")),
+        Box::new(|_, _, _, _| panic!("test account")),
     )
 });
 
@@ -306,4 +307,55 @@ pub fn character(schema: CharacterSchema) -> CharacterClient {
     );
     ACCOUNT.add_character(char.clone());
     char
+}
+
+#[must_use]
+pub fn inventory_client(slots: Vec<InventorySlotSchema>, max_items: u32) -> InventoryClient {
+    let schema = CharacterSchema {
+        inventory: Some(slots),
+        inventory_max_items: max_items as i32,
+        ..default_schema()
+    };
+    let char = character(schema);
+    char.inventory().clone()
+}
+
+#[allow(clippy::unnecessary_wraps)]
+#[must_use]
+pub fn empty_inventory() -> Option<Vec<InventorySlotSchema>> {
+    Some(inventory_with(&[]))
+}
+
+#[must_use]
+pub fn inventory_with(items: &[(&str, u32)]) -> Vec<InventorySlotSchema> {
+    let mut result = items
+        .iter()
+        .enumerate()
+        .map(|(i, &(code, qty))| InventorySlotSchema::new((i + 1) as i32, code.into(), qty as i32))
+        .collect_vec();
+    let next_id = result.len() as i32 + 1;
+    result.extend((next_id..=20).map(|id| InventorySlotSchema::new(id, String::new(), 0)));
+    result
+}
+
+#[must_use]
+pub fn default_schema() -> CharacterSchema {
+    CharacterSchema {
+        x: 0,
+        y: 0,
+        layer: MapLayer::Overworld,
+        inventory_max_items: 100,
+        inventory: empty_inventory(),
+        ..Default::default()
+    }
+}
+
+#[must_use]
+pub const fn empty_bank_details() -> BankSchema {
+    BankSchema {
+        slots: 100,
+        expansions: 0,
+        next_expansion_cost: 100,
+        gold: 0,
+    }
 }

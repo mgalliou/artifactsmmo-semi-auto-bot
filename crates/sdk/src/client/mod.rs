@@ -1,5 +1,5 @@
 use crate::{
-    Cached,
+    Cached, EventBus, SdkEvent,
     client::character::request_handler::CharacterHttpRequestHandler,
     entities::{
         ActiveEvent, Event, Item, MapHandle, Monster, Npc, NpcItem, Resource, Task, TaskReward,
@@ -12,7 +12,7 @@ use std::{
     borrow::Borrow,
     collections::HashMap,
     hash::Hash,
-    sync::Arc,
+    sync::{Arc, Mutex, mpsc},
     thread::{self},
 };
 
@@ -144,12 +144,15 @@ pub struct ClientInner {
     pub maps: MapsClient,
     pub npcs: NpcsClient,
     pub grand_exchange: GrandExchangeClient,
+    pub event_bus: EventBus,
+    event_rx: Mutex<Option<mpsc::Receiver<SdkEvent>>>,
 }
 
 impl Client {
     #[must_use]
     #[allow(clippy::too_many_lines)]
     pub fn new(url: String, token: String, account_name: String, cache_dir: &str) -> Self {
+        let (event_bus, event_rx) = EventBus::new();
         let api = ArtifactApi::new(url, token);
         let bank = BankClient::new(
             make_fetcher(api.clone(), |api| api.bank.get_details().unwrap()),
@@ -182,12 +185,13 @@ impl Client {
                         .pending_items()
                         .map_err(|e| ClientError::Api(Box::new(e)))
                 }),
-                Box::new(move |data, account, server| {
+                Box::new(move |data, account, server, event_bus| {
                     Arc::new(CharacterHttpRequestHandler::new(
                         api_handler.clone(),
                         data,
                         account,
                         server,
+                        event_bus,
                     ))
                 }),
             )
@@ -321,6 +325,8 @@ impl Client {
             maps,
             npcs,
             grand_exchange,
+            event_bus,
+            event_rx: Mutex::new(Some(event_rx)),
         }))
     }
 
@@ -339,6 +345,7 @@ impl Client {
                     &self.tasks,
                     &self.server,
                     &self.grand_exchange,
+                    &self.event_bus,
                 )
             });
             s.spawn(|| self.maps.init());
@@ -367,6 +374,16 @@ impl Client {
         self.tasks.refresh();
         self.tasks.rewards().refresh();
         self.events.refresh();
+    }
+
+    #[must_use]
+    pub fn event_bus(&self) -> &EventBus {
+        &self.event_bus
+    }
+
+    #[must_use]
+    pub fn take_event_receiver(&self) -> Option<mpsc::Receiver<SdkEvent>> {
+        self.event_rx.lock().unwrap().take()
     }
 }
 

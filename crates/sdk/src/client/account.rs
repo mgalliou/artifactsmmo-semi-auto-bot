@@ -1,6 +1,6 @@
 use crate::{
-    ClientError, Code, ItemsClient, MapsClient, MonstersClient, NpcsClient, ResourcesClient,
-    ServerClient, TasksClient,
+    ClientError, Code, EventBus, ItemsClient, MapsClient, MonstersClient, NpcsClient,
+    ResourcesClient, ServerClient, TasksClient,
     client::{
         bank::BankClient,
         character::{CharacterClient, CharacterRequestHandler},
@@ -22,7 +22,12 @@ pub(crate) type AccountAchievementsSource =
 pub(crate) type PendingItemsSource =
     Box<dyn Fn() -> Result<Vec<PendingItemSchema>, ClientError> + Send + Sync + 'static>;
 pub(crate) type CharacterHandlerBuilder = Box<
-    dyn Fn(CharacterHandle, AccountClient, ServerClient) -> Arc<dyn CharacterRequestHandler>
+    dyn Fn(
+            CharacterHandle,
+            AccountClient,
+            ServerClient,
+            EventBus,
+        ) -> Arc<dyn CharacterRequestHandler>
         + Send
         + Sync
         + 'static,
@@ -56,7 +61,7 @@ impl Default for AccountClientInner {
             fetch_characters: Box::new(|_| panic!("AccountClient not initialized")),
             fetch_achievements: Box::new(|_| panic!("AccountClient not initialized")),
             fetch_pending_items: Box::new(|| panic!("AccountClient not initialized")),
-            create_handler: Box::new(|_, _, _| panic!("AccountClient not initialized")),
+            create_handler: Box::new(|_, _, _, _| panic!("AccountClient not initialized")),
         }
     }
 }
@@ -111,13 +116,19 @@ impl AccountClient {
         tasks: &TasksClient,
         server: &ServerClient,
         grand_exchange: &GrandExchangeClient,
+        event_bus: &EventBus,
     ) -> Result<(), ClientError> {
         *self.characters.write().unwrap() = (self.fetch_characters)(self.name())?
             .into_iter()
             .enumerate()
             .map(|(id, schema)| {
                 let data = CharacterHandle::new(schema);
-                let handler = (self.create_handler)(data.clone(), self.clone(), server.clone());
+                let handler = (self.create_handler)(
+                    data.clone(),
+                    self.clone(),
+                    server.clone(),
+                    event_bus.clone(),
+                );
                 CharacterClient::new(
                     id,
                     data,

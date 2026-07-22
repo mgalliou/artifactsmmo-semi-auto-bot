@@ -3,9 +3,9 @@ use crate::{
     gear_finder::GearFinder, leveling_helper::LevelingHelper, orderboard::OrderBoard,
 };
 use chrono::{DateTime, Utc};
-use log::error;
+use log::{error, info};
 use sdk::{
-    Client,
+    Client, SdkEvent,
     consts::{
         APPLE, APPLE_PIE, CARROT, COOKED_HELLHOUND_MEAT, FISH_SOUP, MAPLE_SYRUP, MUSHROOM_SOUP,
     },
@@ -13,7 +13,7 @@ use sdk::{
 };
 use std::{
     collections::VecDeque,
-    sync::RwLock,
+    sync::{Arc, Mutex, RwLock, mpsc::Receiver},
     thread::{Builder, sleep},
     time::Duration,
 };
@@ -56,11 +56,15 @@ pub struct Bot {
     pub leveling_helper: LevelingHelper,
     pub account: AccountController,
     pub bank: BankController,
+    event_rx: Arc<Mutex<Receiver<SdkEvent>>>,
 }
 
 impl Bot {
     #[must_use]
     pub fn new(client: Client) -> Self {
+        let event_rx = client
+            .take_event_receiver()
+            .expect("event receiver already taken");
         let config = BotConfig::from_file();
         let bank = BankController::new(client.account.bank(), client.items.clone());
         let account = AccountController::new(
@@ -85,10 +89,12 @@ impl Bot {
             account,
             bank,
             client,
+            event_rx: Arc::new(Mutex::new(event_rx)),
         }
     }
 
     pub fn run(&self) {
+        self.spawn_event_listener();
         self.account.init_characters(
             &self.client,
             &self.account,
@@ -103,6 +109,36 @@ impl Bot {
             }) {
                 error!("failed to spawn character thread: {e}");
             }
+        }
+    }
+
+    fn spawn_event_listener(&self) {
+        let rx = Arc::clone(&self.event_rx);
+        if let Err(e) = Builder::new()
+            .name("event-listener".into())
+            .spawn(move || {
+                info!("event listener started");
+                let rx = rx.lock().unwrap();
+                while let Ok(event) = rx.recv() {
+                    match &event {
+                        SdkEvent::ItemDeposited { character, items } => {
+                            info!("{character}: deposited {items:?}");
+                        }
+                        SdkEvent::ItemWithdrawn { character, items } => {
+                            info!("{character}: withdrew {items:?}");
+                        }
+                        SdkEvent::GoldDeposited { character, amount } => {
+                            info!("{character}: deposited {amount} gold");
+                        }
+                        SdkEvent::GoldWithdrawn { character, amount } => {
+                            info!("{character}: withdrew {amount} gold");
+                        }
+                    }
+                }
+                info!("event listener stopped");
+            })
+        {
+            error!("failed to spawn event listener thread: {e}");
         }
     }
 }

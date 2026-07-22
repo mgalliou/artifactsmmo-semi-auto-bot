@@ -23,9 +23,12 @@ pub mod client;
 pub mod consts;
 pub mod container;
 pub mod entities;
+pub mod event_bus;
 pub mod gear;
 pub mod simulator;
 pub mod skill;
+
+pub use event_bus::{EventBus, SdkEvent};
 
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;
@@ -215,6 +218,8 @@ where
 
 /// Trait used on struct containing a drop table
 pub trait HasDropTable {
+    type Drops: DropRateSchemaExt;
+
     /// Returns the average quantity of item per drop, rounded to the upper integer
     fn average_item_quantity(&self) -> u32 {
         self.drops()
@@ -262,7 +267,19 @@ pub trait HasDropTable {
             .sum()
     }
 
-    fn drops(&self) -> &[impl DropRateSchemaExt];
+    fn drops(&self) -> &[Self::Drops];
+}
+
+impl<T, U> HasDropTable for T
+where
+    T: std::ops::Deref<Target = [U]>,
+    U: DropRateSchemaExt,
+{
+    type Drops = U;
+
+    fn drops(&self) -> &[Self::Drops] {
+        self
+    }
 }
 
 pub trait HasConditions {

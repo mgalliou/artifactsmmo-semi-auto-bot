@@ -1,6 +1,6 @@
 use crate::entities::{Character, RawCharacter};
 use crate::{
-    AccountClient,
+    AccountClient, EventBus, SdkEvent,
     bank::Bank,
     character::{CharacterHandle, responses::ResponseSchema},
     client::{
@@ -37,6 +37,7 @@ pub struct CharacterHttpRequestHandler {
     account: AccountClient,
     server: ServerClient,
     pause_state: Arc<PauseState>,
+    event_bus: EventBus,
 }
 
 impl CharacterHttpRequestHandler {
@@ -45,6 +46,7 @@ impl CharacterHttpRequestHandler {
         data: CharacterHandle,
         account: AccountClient,
         server: ServerClient,
+        event_bus: EventBus,
     ) -> Self {
         Self {
             api,
@@ -52,6 +54,7 @@ impl CharacterHttpRequestHandler {
             account,
             server,
             pause_state: PauseState::default().into(),
+            event_bus,
         }
     }
 
@@ -66,9 +69,41 @@ impl CharacterHttpRequestHandler {
         match action.send(&self.data.name(), &self.api) {
             Ok(res) => {
                 self.update_data(&*res);
+                self.emit_event(&action);
                 Ok(res)
             }
             Err(e) => self.handle_request_error(action, e),
+        }
+    }
+
+    fn emit_event(&self, action: &ActionRequest) {
+        let character = self.data.name().to_string();
+        match action {
+            ActionRequest::DepositItem { items } => {
+                self.event_bus.emit(SdkEvent::ItemDeposited {
+                    character,
+                    items: items.to_vec(),
+                });
+            }
+            ActionRequest::WithdrawItem { items } => {
+                self.event_bus.emit(SdkEvent::ItemWithdrawn {
+                    character,
+                    items: items.to_vec(),
+                });
+            }
+            ActionRequest::DepositGold { quantity } => {
+                self.event_bus.emit(SdkEvent::GoldDeposited {
+                    character,
+                    amount: *quantity,
+                });
+            }
+            ActionRequest::WithdrawGold { quantity } => {
+                self.event_bus.emit(SdkEvent::GoldWithdrawn {
+                    character,
+                    amount: *quantity,
+                });
+            }
+            _ => {}
         }
     }
 
