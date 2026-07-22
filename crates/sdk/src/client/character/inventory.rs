@@ -2,8 +2,10 @@ use crate::{
     Code, HasDropTable, Quantity,
     container::{ItemContainer, LimitedContainer, SlotLimited, SpaceLimited},
     entities::{Character, CharacterHandle, Item},
+    gear::Slot,
+    simulator::HasEffects,
 };
-use openapi::models::InventorySlotSchema;
+use openapi::models::{InventorySlotSchema, SimpleItemSchema};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -36,6 +38,24 @@ pub trait Inventory: SlotLimited + SpaceLimited {
             return false;
         }
         self.free_space() >= item.craft_quantity().saturating_sub(item.mats_quantity())
+    }
+
+    /// Checks if there is enough inventory space to unequip the given items,
+    /// accounting for both the items going into inventory and the
+    /// `inventory_space` bonus lost from the removed gear.
+    fn has_space_to_unequip(&self, items: &[(Slot, Item, u32)]) -> bool {
+        let simple_items: Vec<SimpleItemSchema> = items
+            .iter()
+            .map(|(_, item, qty)| SimpleItemSchema::new(item.code().to_owned(), *qty))
+            .collect();
+        let total_quantity: i32 = items.iter().map(|(_, _, qty)| *qty as i32).sum();
+        let inventory_space_lost: i32 = items
+            .iter()
+            .map(|(_, item, _)| item.inventory_space())
+            .sum();
+
+        self.has_room_for_all(&simple_items)
+            && self.free_space() as i32 - total_quantity - inventory_space_lost > 0
     }
 }
 

@@ -35,7 +35,7 @@ use sdk::{
     ItemsClient, Level, LimitedContainer, MapsClient, MonstersClient, NpcsClient, SlotLimited,
     SpaceLimited, TasksClient,
     bank::Bank,
-    character::{CharacterClient, error::RestError},
+    character::{CharacterClient, Inventory, error::RestError},
     consts::{
         BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, GOLDEN_EGG, GOLDEN_SHRIMP, MAX_LEVEL,
         TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE, TASKS_COIN,
@@ -966,7 +966,7 @@ impl CharacterController {
         if items.is_empty() {
             return Ok(());
         }
-        let mut missing_items: Vec<SimpleItemSchema> = Vec::new();
+        let mut missing_items = vec![];
         for item in items {
             let in_inventory = self.inventory.total_of(item.code());
             if in_inventory > 0
@@ -1063,7 +1063,7 @@ impl CharacterController {
         }
         if items
             .iter()
-            .any(|i| self.inventory.total_of(&i.code) < i.quantity)
+            .any(|i| self.inventory.total_of(i.code()) < i.quantity())
         {
             return Err(DepositItemCommandError::InsufficientQuantity);
         }
@@ -1344,46 +1344,44 @@ impl CharacterController {
     /// All slots are validated and prepared individually, then unequipped in a single
     /// batch API call. Unequipped items are deposited into the bank afterward.
     fn unequip(&self, slots: &[UnequipSchema]) -> Result<(), UnequipCommandError> {
-        let mut to_unequip = vec![];
-        let mut to_deposit = vec![];
+        let mut items: Vec<(Slot, Item, u32)> = vec![];
 
-        for schema in slots {
-            let slot = Slot::from(schema.slot);
-            let Some(equiped) = self.items.get(&self.equiped_in(slot)) else {
+        for &UnequipSchema { slot, quantity } in slots {
+            let slot = Slot::from(slot);
+            let Some(item) = self.items.get(&self.equiped_in(slot)) else {
                 continue;
             };
-            let quantity = schema
-                .quantity
-                .unwrap_or_else(|| self.quantity_in_slot(slot));
+            let quantity = quantity.unwrap_or_else(|| self.quantity_in_slot(slot));
             if quantity == 0 || quantity > self.quantity_in_slot(slot) {
                 return Err(UnequipCommandError::InvalidQuantity(quantity));
             }
-            to_unequip.push(UnequipSchema {
-                slot: schema.slot,
-                quantity: Some(quantity),
-            });
-            to_deposit.push(SimpleItemSchema::new(equiped.code().to_owned(), quantity));
+            items.push((slot, item, quantity));
         }
-        if to_unequip.is_empty() {
+        if items.is_empty() {
             return Ok(());
         }
-        let total_health: i32 = to_unequip
-            .iter()
-            .filter_map(|s| {
-                let slot = Slot::from(s.slot);
-                self.items.get(&self.equiped_in(slot)).map(|i| i.health())
-            })
-            .sum();
+        let total_health = items.iter().map(|(_, item, _)| item.health()).sum();
         if self.hp() <= total_health {
             self.eat_food_from_inventory();
         }
         if self.hp() <= total_health {
             self.rest()?;
         }
-        if !self.inventory.has_room_for_all(&to_deposit) {
+        if !self.inventory.has_space_to_unequip(&items) {
             self.deposit_all_but_reserved()?;
         }
-        self.client.unequip(&to_unequip)?;
+        let schemas = items
+            .iter()
+            .map(|&(slot, _, quantity)| UnequipSchema {
+                slot: slot.into(),
+                quantity: Some(quantity),
+            })
+            .collect_vec();
+        self.client.unequip(&schemas)?;
+        let to_deposit = items
+            .into_iter()
+            .map(|(_, item, quantity)| SimpleItemSchema::new(item.code().to_owned(), quantity))
+            .collect_vec();
         if let Err(e) = self.deposit_items(&to_deposit) {
             warn!("{}: failed depositing unequipped item(s): {e}", self.name());
         }
@@ -1948,7 +1946,9 @@ impl CharacterController {
 
     fn claim_pending_items(&self) -> anyhow::Result<()> {
         for pending in self.account.client().pending_items() {
-            if !pending.load().is_claimed() {
+            if !pending.load().is_claimed()
+                && self.inventory.has_room_for_all(pending.load().items())
+            {
                 match self.client.claim_pending_item(pending.load().id()) {
                     Err(e) => {
                         error!("{}: failed to claim pending item: {e}", self.name());

@@ -21,7 +21,7 @@ use crate::{
         npcs::NpcsClient,
         resources::ResourcesClient,
     },
-    entities::{AccountAchievement, Character, CharacterHandle, CharacterName, Map, RawMap},
+    entities::{AccountAchievement, Character, CharacterHandle, CharacterName, Item, Map, RawMap},
     gear::Slot,
     grand_exchange::GrandExchangeClient,
     simulator::HasEffects,
@@ -470,32 +470,27 @@ impl CharacterClient {
     }
 
     pub fn can_unequip(&self, slots: &[UnequipSchema]) -> Result<(), UnequipError> {
-        let mut total_quantity = 0;
         let mut health = 0;
-        let mut inventory_space = 0;
-        let mut items: Vec<SimpleItemSchema> = vec![];
+        let mut items: Vec<(Slot, Item, u32)> = vec![];
 
-        for schema in slots {
-            let slot = Slot::from(schema.slot);
+        for &UnequipSchema { slot, quantity } in slots {
+            let slot = Slot::from(slot);
             let Some(equiped) = self.items.get(&self.equiped_in(slot)) else {
                 return Err(UnequipError::SlotEmpty);
             };
             let quantity_in_slot = self.quantity_in_slot(slot);
-            let quantity = schema.quantity.unwrap_or(quantity_in_slot);
+            let quantity = quantity.unwrap_or(quantity_in_slot);
 
             health += equiped.health();
             if quantity_in_slot < quantity {
                 return Err(UnequipError::InsufficientQuantity);
             }
-            total_quantity += quantity;
-            inventory_space += equiped.inventory_space();
-            items.push(SimpleItemSchema::new(equiped.code().to_owned(), quantity));
+            items.push((slot, equiped, quantity));
         }
         if self.hp() <= health {
             return Err(UnequipError::InsufficientHealth);
-        } else if !self.inventory().has_room_for_all(&items)
-            || self.inventory().free_space() as i32 - total_quantity as i32 - inventory_space <= 0
-        {
+        }
+        if !self.inventory().has_space_to_unequip(&items) {
             return Err(UnequipError::InsufficientInventorySpace);
         }
         Ok(())
@@ -958,9 +953,7 @@ impl CharacterClient {
 mod tests {
     use super::*;
     use crate::{
-        CollectionClient,
-        entities::{AccountAchievement, MapHandle, RawMap},
-        test_utils::{ACCOUNT, MAPS, character},
+        CollectionClient, entities::{AccountAchievement, MapHandle, RawMap}, test_utils::{ACCOUNT, MAPS, character, default_schema, empty_bank_details},
     };
     use chrono::Utc;
     use itertools::Itertools;
@@ -970,35 +963,6 @@ mod tests {
         MapContentSchema, MapContentType, MapLayer, MapSchema,
     };
     use std::assert_matches;
-
-    #[allow(clippy::unnecessary_wraps)]
-    fn empty_inventory() -> Option<Vec<InventorySlotSchema>> {
-        Some(
-            (1..21)
-                .map(|slot| InventorySlotSchema::new(slot, String::new(), 0))
-                .collect(),
-        )
-    }
-
-    fn default_schema() -> CharacterSchema {
-        CharacterSchema {
-            x: 0,
-            y: 0,
-            layer: MapLayer::Overworld,
-            inventory_max_items: 100,
-            inventory: empty_inventory(),
-            ..Default::default()
-        }
-    }
-
-    fn empty_bank_details() -> BankSchema {
-        BankSchema {
-            slots: 100,
-            expansions: 0,
-            next_expansion_cost: 100,
-            gold: 0,
-        }
-    }
 
     #[test]
     fn can_move() {

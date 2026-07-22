@@ -1,8 +1,8 @@
 use crate::{
-    CanProvideXp, Code, DropRateSchemaExt, HasDropTable, Level,
+    CanProvideXp, Code, HasDropTable, Level,
     simulator::{DamageType, HasEffects},
 };
-use openapi::models::{MonsterSchema, MonsterType};
+use openapi::models::{DropRateSchema, MonsterSchema, MonsterType};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -27,7 +27,9 @@ impl Monster {
 }
 
 impl HasDropTable for Monster {
-    fn drops(&self) -> &[impl DropRateSchemaExt] {
+    type Drops = DropRateSchema;
+
+    fn drops(&self) -> &[Self::Drops] {
         &self.0.drops
     }
 }

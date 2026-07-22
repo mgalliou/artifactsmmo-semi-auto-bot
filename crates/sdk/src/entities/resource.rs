@@ -1,5 +1,5 @@
-use crate::{CanProvideXp, Code, DropRateSchemaExt, HasDropTable, Level, Skill};
-use openapi::models::ResourceSchema;
+use crate::{CanProvideXp, Code, HasDropTable, Level, Skill};
+use openapi::models::{DropRateSchema, ResourceSchema};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -24,7 +24,9 @@ impl Resource {
 }
 
 impl HasDropTable for Resource {
-    fn drops(&self) -> &[impl DropRateSchemaExt] {
+    type Drops = DropRateSchema;
+
+    fn drops(&self) -> &[Self::Drops] {
         &self.0.drops
     }
 }
