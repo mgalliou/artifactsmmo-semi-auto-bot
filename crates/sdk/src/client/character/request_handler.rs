@@ -77,7 +77,7 @@ impl CharacterHttpRequestHandler {
     }
 
     fn emit_event(&self, action: &ActionRequest) {
-        let character = self.data.name().to_string();
+        let character = self.data.name();
         match action {
             ActionRequest::DepositItem { items } => {
                 self.event_bus.emit(SdkEvent::ItemDeposited {

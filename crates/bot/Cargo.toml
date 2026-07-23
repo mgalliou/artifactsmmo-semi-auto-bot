@@ -6,6 +6,7 @@ publish.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+bus.workspace = true
 chrono.workspace = true
 clap.workspace = true
 derive_more.workspace = true

@@ -1,41 +1,51 @@
+use bus::{Bus, BusReader};
+use log::warn;
 use openapi::models::SimpleItemSchema;
-use std::sync::mpsc;
+use std::sync::{Arc, Mutex};
+
+use crate::entities::CharacterName;
 
 #[derive(Debug, Clone)]
 pub enum SdkEvent {
     ItemDeposited {
-        character: String,
+        character: CharacterName,
         items: Vec<SimpleItemSchema>,
     },
     ItemWithdrawn {
-        character: String,
+        character: CharacterName,
         items: Vec<SimpleItemSchema>,
     },
     GoldDeposited {
-        character: String,
+        character: CharacterName,
         amount: u32,
     },
     GoldWithdrawn {
-        character: String,
+        character: CharacterName,
         amount: u32,
     },
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct EventBus {
-    sender: Option<mpsc::Sender<SdkEvent>>,
+    bus: Arc<Mutex<Bus<SdkEvent>>>,
 }
 
 impl EventBus {
     #[must_use]
-    pub fn new() -> (Self, mpsc::Receiver<SdkEvent>) {
-        let (tx, rx) = mpsc::channel();
-        (Self { sender: Some(tx) }, rx)
+    pub fn new(capacity: usize) -> Self {
+        Self {
+            bus: Arc::new(Mutex::new(Bus::new(capacity))),
+        }
+    }
+
+    #[must_use]
+    pub fn subscribe(&self) -> BusReader<SdkEvent> {
+        self.bus.lock().unwrap().add_rx()
     }
 
     pub fn emit(&self, event: SdkEvent) {
-        if let Some(sender) = &self.sender {
-            let _ = sender.send(event);
+        if self.bus.lock().unwrap().try_broadcast(event).is_err() {
+            warn!("event bus: buffer full, event dropped");
         }
     }
 }

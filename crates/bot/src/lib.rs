@@ -1,11 +1,16 @@
 use crate::{
-    account::AccountController, bank::BankController, bot_config::BotConfig,
-    gear_finder::GearFinder, leveling_helper::LevelingHelper, orderboard::OrderBoard,
+    account::AccountController,
+    bank::BankController,
+    bot_config::BotConfig,
+    gear_finder::GearFinder,
+    leveling_helper::LevelingHelper,
+    orchestrator::Orchestrator,
+    orderboard::OrderBoard,
 };
 use chrono::{DateTime, Utc};
-use log::{error, info};
+use log::error;
 use sdk::{
-    Client, SdkEvent,
+    Client,
     consts::{
         APPLE, APPLE_PIE, CARROT, COOKED_HELLHOUND_MEAT, FISH_SOUP, MAPLE_SYRUP, MUSHROOM_SOUP,
     },
@@ -13,7 +18,7 @@ use sdk::{
 };
 use std::{
     collections::VecDeque,
-    sync::{Arc, Mutex, RwLock, mpsc::Receiver},
+    sync::RwLock,
     thread::{Builder, sleep},
     time::Duration,
 };
@@ -26,6 +31,7 @@ pub mod error;
 pub mod gear_finder;
 pub mod inventory;
 pub mod leveling_helper;
+pub mod orchestrator;
 pub mod orderboard;
 pub mod reservable;
 
@@ -56,15 +62,11 @@ pub struct Bot {
     pub leveling_helper: LevelingHelper,
     pub account: AccountController,
     pub bank: BankController,
-    event_rx: Arc<Mutex<Receiver<SdkEvent>>>,
 }
 
 impl Bot {
     #[must_use]
     pub fn new(client: Client) -> Self {
-        let event_rx = client
-            .take_event_receiver()
-            .expect("event receiver already taken");
         let config = BotConfig::from_file();
         let bank = BankController::new(client.account.bank(), client.items.clone());
         let account = AccountController::new(
@@ -74,6 +76,16 @@ impl Bot {
             client.npcs.clone(),
             bank.clone(),
         );
+        let event_rx = client.event_bus().subscribe();
+        let mut orchestrator =
+            Orchestrator::new(event_rx, account.clone(), bank.clone(), client.items.clone());
+        // Spawn orchestrator thread immediately so it's ready before events fire
+        if let Err(e) = Builder::new()
+            .name("orchestrator".into())
+            .spawn(move || orchestrator.run())
+        {
+            error!("failed to spawn orchestrator thread: {e}");
+        }
         Self {
             config,
             order_board: OrderBoard::new(client.items.clone(), account.clone()),
@@ -89,12 +101,10 @@ impl Bot {
             account,
             bank,
             client,
-            event_rx: Arc::new(Mutex::new(event_rx)),
         }
     }
 
     pub fn run(&self) {
-        self.spawn_event_listener();
         self.account.init_characters(
             &self.client,
             &self.account,
@@ -109,36 +119,6 @@ impl Bot {
             }) {
                 error!("failed to spawn character thread: {e}");
             }
-        }
-    }
-
-    fn spawn_event_listener(&self) {
-        let rx = Arc::clone(&self.event_rx);
-        if let Err(e) = Builder::new()
-            .name("event-listener".into())
-            .spawn(move || {
-                info!("event listener started");
-                let rx = rx.lock().unwrap();
-                while let Ok(event) = rx.recv() {
-                    match &event {
-                        SdkEvent::ItemDeposited { character, items } => {
-                            info!("{character}: deposited {items:?}");
-                        }
-                        SdkEvent::ItemWithdrawn { character, items } => {
-                            info!("{character}: withdrew {items:?}");
-                        }
-                        SdkEvent::GoldDeposited { character, amount } => {
-                            info!("{character}: deposited {amount} gold");
-                        }
-                        SdkEvent::GoldWithdrawn { character, amount } => {
-                            info!("{character}: withdrew {amount} gold");
-                        }
-                    }
-                }
-                info!("event listener stopped");
-            })
-        {
-            error!("failed to spawn event listener thread: {e}");
         }
     }
 }
