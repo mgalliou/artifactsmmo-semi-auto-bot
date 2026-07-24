@@ -19,7 +19,6 @@ Contains 6 crates: `openapi`, `api`, `sdk`, `sdk_derive`, `bot`, `repl`.
 
 ### OpenAPI Client
 
-- `./crates/openapi/update_spec.sh` - Fetch latest API spec
 - `./crates/openapi/gen.sh` - Regenerate Rust client
 
 ## Code Style

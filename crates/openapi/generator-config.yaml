@@ -1,5 +1,4 @@
-generatorName: openapi
-basePathCustom: https://api.artifactsmmo.com
+generatorName: rust
 useSingleRequestParameter: false
 preferUnsignedInt: true
 supportAsync: true
