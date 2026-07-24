@@ -170,7 +170,7 @@ fn respond(line: &str, bot: &Bot, character: &mut Option<CharacterController>) -
                 bail!("no character selected");
             };
             char.send_cmd(CharacterCommand::Craft {
-                code: item,
+                item,
                 quantity,
             })?;
         }
@@ -179,7 +179,7 @@ fn respond(line: &str, bot: &Bot, character: &mut Option<CharacterController>) -
                 bail!("no character selected");
             };
             char.send_cmd(CharacterCommand::Recycle {
-                code: item,
+                item,
                 quantity,
             })?;
         }
@@ -188,7 +188,7 @@ fn respond(line: &str, bot: &Bot, character: &mut Option<CharacterController>) -
                 bail!("no character selected");
             };
             char.send_cmd(CharacterCommand::Delete {
-                code: item,
+                item,
                 quantity,
             })?;
         }

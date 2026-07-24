@@ -169,23 +169,37 @@ impl CharacterController {
                 continue;
             }
             if let Ok(c) = self.commands_recvr.lock().unwrap().try_recv()
-                && match &c {
-                    CharacterCommand::Craft { code, quantity } => {
-                        self.craft(code, *quantity).is_ok()
+                && match c {
+                    CharacterCommand::Craft { item, quantity } => {
+                        self.craft(&item, quantity).is_ok()
                     }
-                    CharacterCommand::Kill { monster } => self.kill_monster(monster).is_ok(),
-                    CharacterCommand::Gather { resource } => self.gather_resource(resource).is_ok(),
-                    CharacterCommand::Recycle { code, quantity } => {
-                        self.recycle_item(code, *quantity).is_ok()
+                    CharacterCommand::Kill { monster } => self.kill_monster(&monster).is_ok(),
+                    CharacterCommand::Gather { resource } => {
+                        self.gather_resource(&resource).is_ok()
                     }
-                    CharacterCommand::Delete { code, quantity } => {
-                        self.delete_item(code, *quantity).is_ok()
+                    CharacterCommand::Recycle { item, quantity } => {
+                        self.recycle_item(&item, quantity).is_ok()
                     }
-                    CharacterCommand::BuyItem { code, quantity } => {
-                        self.buy_item(code, *quantity).is_ok()
+                    CharacterCommand::Delete { item, quantity } => {
+                        self.delete_item(&item, quantity).is_ok()
                     }
-                    CharacterCommand::SellItem { code, quantity } => {
-                        self.sell_item(code, *quantity).is_ok()
+                    CharacterCommand::BuyItem { item, quantity } => {
+                        self.buy_item(&item, quantity).is_ok()
+                    }
+                    CharacterCommand::SellItem { item, quantity } => {
+                        self.sell_item(&item, quantity).is_ok()
+                    }
+                    CharacterCommand::DepositItem { item, quantity } => {
+                        self.deposit_item(&item, quantity).is_ok()
+                    }
+                    CharacterCommand::WithdrawItem { item, quantity } => {
+                        self.withdraw_item(&item, quantity).is_ok()
+                    }
+                    CharacterCommand::DepositGold { quantity } => {
+                        self.deposit_gold(quantity).is_ok()
+                    }
+                    CharacterCommand::WithdrawGold { quantity } => {
+                        self.withdraw_gold(quantity).is_ok()
                     }
                 }
             {
@@ -1158,26 +1172,26 @@ impl CharacterController {
         self.deposit_gold(self.gold())
     }
 
-    pub fn deposit_gold(&self, amount: u32) -> Result<u32, GoldDepositCommandError> {
-        if amount == 0 {
+    pub fn deposit_gold(&self, quantity: u32) -> Result<u32, GoldDepositCommandError> {
+        if quantity == 0 {
             return Ok(0);
         }
-        if amount > self.gold() {
+        if quantity > self.gold() {
             return Err(GoldDepositCommandError::InsufficientGold);
         }
         self.move_to_closest_map_of_type(MapContentType::Bank)?;
-        Ok(self.client.deposit_gold(amount)?)
+        Ok(self.client.deposit_gold(quantity)?)
     }
 
-    pub fn withdraw_gold(&self, amount: u32) -> Result<u32, GoldWithdrawCommandError> {
-        if amount == 0 {
+    pub fn withdraw_gold(&self, quantity: u32) -> Result<u32, GoldWithdrawCommandError> {
+        if quantity == 0 {
             return Ok(0);
         }
-        if self.bank.gold() < amount {
+        if self.bank.gold() < quantity {
             return Err(GoldWithdrawCommandError::InsufficientGold);
         }
         self.move_to_closest_map_of_type(MapContentType::Bank)?;
-        Ok(self.client.withdraw_gold(amount)?)
+        Ok(self.client.withdraw_gold(quantity)?)
     }
 
     pub fn expand_bank(&self) -> Result<u32, BankExpansionCommandError> {
@@ -1199,12 +1213,12 @@ impl CharacterController {
             .content()
             .iter()
             .map(|i| -> Result<()> {
-                info!("{}: deleting all '{}' from bank.", self.name(), i.code);
-                let mut remain = i.quantity;
+                info!("{}: deleting all '{}' from bank.", self.name(), i.code());
+                let mut remain = i.quantity();
                 while remain > 0 {
                     self.deposit_all()?;
                     let quantity = min(self.inventory.free_space(), remain);
-                    self.delete_item(&i.code, quantity)?;
+                    self.delete_item(i.code(), quantity)?;
                     remain -= quantity;
                 }
                 Ok(())
@@ -1949,13 +1963,14 @@ impl CharacterController {
             if !pending.load().is_claimed()
                 && self.inventory.has_room_for_all(pending.load().items())
             {
-                match self.client.claim_pending_item(pending.load().id()) {
-                    Err(e) => {
-                        error!("{}: failed to claim pending item: {e}", self.name());
-                        return Err(anyhow::anyhow!(e));
-                    }
-                    Ok(()) => return Ok(()),
-                };
+                if let Err(e) = self.client.claim_pending_item(pending.load().id()) {
+                    error!("{}: failed to claim pending item: {e}", self.name());
+                    return Err(anyhow::anyhow!(e));
+                }
+                if let Err(e) = self.account().load_pending_items() {
+                    error!("failed to reload pending_items: {e}");
+                }
+                return Ok(());
             }
         }
         bail!("no item pending")

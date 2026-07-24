@@ -125,13 +125,17 @@ impl Bot {
 
 #[derive(Clone, PartialEq)]
 pub enum CharacterCommand {
-    Craft { code: String, quantity: u32 },
+    Craft { item: String, quantity: u32 },
     Kill { monster: Monster },
     Gather { resource: Resource },
-    Recycle { code: String, quantity: u32 },
-    Delete { code: String, quantity: u32 },
-    BuyItem { code: String, quantity: u32 },
-    SellItem { code: String, quantity: u32 },
+    Recycle { item: String, quantity: u32 },
+    Delete { item: String, quantity: u32 },
+    BuyItem { item: String, quantity: u32 },
+    SellItem { item: String, quantity: u32 },
+    DepositItem { item: String, quantity: u32 },
+    WithdrawItem { item: String, quantity: u32 },
+    DepositGold { quantity: u32 },
+    WithdrawGold { quantity: u32 },
 }
 
 #[derive(Clone)]

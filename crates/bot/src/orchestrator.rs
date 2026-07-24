@@ -78,7 +78,7 @@ impl Orchestrator {
                     item.code(),
                 );
                 if let Err(e) = char.send_cmd(CharacterCommand::Craft {
-                    code: item.code().to_owned(),
+                    item: item.code().to_owned(),
                     quantity,
                 }) {
                     warn!(

@@ -166,7 +166,7 @@ impl AccountClient {
         Ok(())
     }
 
-    fn load_pending_items(&self) -> Result<(), ClientError> {
+    pub fn load_pending_items(&self) -> Result<(), ClientError> {
         self.pending_items.store(Arc::new(
             (self.fetch_pending_items)()?
                 .into_iter()
