@@ -192,8 +192,8 @@ impl ResponseSchema for BankGoldTransactionResponseSchema {
             ("deposited", "to")
         };
         format!(
-            "{}: {action} {}g {prep} the bank. {}s",
-            self.data.character.name, self.data.bank.quantity, self.data.cooldown.remaining_seconds
+            "{}: {action} gold {prep} the bank. {}s",
+            self.data.character.name, self.data.cooldown.remaining_seconds
         )
     }
 
