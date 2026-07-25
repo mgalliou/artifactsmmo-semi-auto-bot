@@ -33,7 +33,7 @@ pub struct TaskFullSchema {
     pub skill: Option<String>,
     /// Rewards.
     #[serde(rename = "rewards")]
-    pub rewards: Box<models::RewardsSchema>,
+    pub rewards: models::RewardsSchema,
 }
 
 impl TaskFullSchema {
@@ -45,7 +45,7 @@ impl TaskFullSchema {
             min_quantity,
             max_quantity,
             skill: None,
-            rewards: Box::new(rewards),
+            rewards,
         }
     }
 }

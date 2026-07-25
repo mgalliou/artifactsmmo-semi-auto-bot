@@ -256,13 +256,13 @@ impl CharacterRequestHandler for CharacterHttpRequestHandler {
     fn request_move(&self, x: i32, y: i32) -> Result<RawMap, RequestError> {
         self.request_action(ActionRequest::Move { x, y })
             .and_then(downcast_response::<CharacterMovementResponseSchema>)
-            .map(|s| RawMap::new(*s.data.destination))
+            .map(|s| RawMap::new(s.data.destination))
     }
 
     fn request_transition(&self) -> Result<RawMap, RequestError> {
         self.request_action(ActionRequest::Transition)
             .and_then(downcast_response::<CharacterTransitionResponseSchema>)
-            .map(|s| RawMap::new(*s.data.destination))
+            .map(|s| RawMap::new(s.data.destination))
     }
 
     fn request_fight(
@@ -271,7 +271,7 @@ impl CharacterRequestHandler for CharacterHttpRequestHandler {
     ) -> Result<CharacterFightSchema, RequestError> {
         self.request_action(ActionRequest::Fight { participants })
             .and_then(downcast_response::<CharacterFightResponseSchema>)
-            .map(|s| *s.data.fight)
+            .map(|s| s.data.fight)
     }
 
     fn request_rest(&self) -> Result<u32, RequestError> {
@@ -283,7 +283,7 @@ impl CharacterRequestHandler for CharacterHttpRequestHandler {
     fn request_gather(&self) -> Result<SkillInfoSchema, RequestError> {
         self.request_action(ActionRequest::Gather)
             .and_then(downcast_response::<SkillResponseSchema>)
-            .map(|s| *s.data.details)
+            .map(|s| s.data.details)
     }
 
     fn request_craft(
@@ -296,7 +296,7 @@ impl CharacterRequestHandler for CharacterHttpRequestHandler {
             quantity,
         })
         .and_then(downcast_response::<SkillResponseSchema>)
-        .map(|s| *s.data.details)
+        .map(|s| s.data.details)
     }
 
     fn request_delete(
@@ -309,7 +309,7 @@ impl CharacterRequestHandler for CharacterHttpRequestHandler {
             quantity,
         })
         .and_then(downcast_response::<DeleteItemResponseSchema>)
-        .map(|r| *r.data.item)
+        .map(|s| s.data.item)
     }
 
     fn request_recycle(
@@ -322,7 +322,7 @@ impl CharacterRequestHandler for CharacterHttpRequestHandler {
             quantity,
         })
         .and_then(downcast_response::<RecyclingResponseSchema>)
-        .map(|r| *r.data.details)
+        .map(|s| s.data.details)
     }
 
     fn request_deposit_item(&self, items: &[SimpleItemSchema]) -> Result<(), RequestError> {
@@ -338,19 +338,19 @@ impl CharacterRequestHandler for CharacterHttpRequestHandler {
     fn request_deposit_gold(&self, quantity: u32) -> Result<u32, RequestError> {
         self.request_action(ActionRequest::DepositGold { quantity })
             .and_then(downcast_response::<BankGoldTransactionResponseSchema>)
-            .map(|r| r.data.bank.quantity)
+            .map(|s| s.data.bank.quantity)
     }
 
     fn request_withdraw_gold(&self, quantity: u32) -> Result<u32, RequestError> {
         self.request_action(ActionRequest::WithdrawGold { quantity })
             .and_then(downcast_response::<BankGoldTransactionResponseSchema>)
-            .map(|r| r.data.bank.quantity)
+            .map(|s| s.data.bank.quantity)
     }
 
     fn request_expand_bank(&self) -> Result<u32, RequestError> {
         self.request_action(ActionRequest::ExpandBank)
             .and_then(downcast_response::<BankExtensionTransactionResponseSchema>)
-            .map(|r| r.data.transaction.price)
+            .map(|s| s.data.transaction.price)
     }
 
     fn request_equip(&self, items: &[EquipSchema]) -> Result<(), RequestError> {
@@ -374,13 +374,13 @@ impl CharacterRequestHandler for CharacterHttpRequestHandler {
     fn request_accept_task(&self) -> Result<TaskSchema, RequestError> {
         self.request_action(ActionRequest::AcceptTask)
             .and_then(downcast_response::<TaskResponseSchema>)
-            .map(|r| *r.data.task)
+            .map(|s| s.data.task)
     }
 
     fn request_complete_task(&self) -> Result<RewardsSchema, RequestError> {
         self.request_action(ActionRequest::CompleteTask)
             .and_then(downcast_response::<RewardDataResponseSchema>)
-            .map(|s| *s.data.rewards)
+            .map(|s| s.data.rewards)
     }
 
     fn request_cancel_task(&self) -> Result<(), RequestError> {
@@ -397,13 +397,13 @@ impl CharacterRequestHandler for CharacterHttpRequestHandler {
             quantity,
         })
         .and_then(downcast_response::<TaskTradeResponseSchema>)
-        .map(|r| *r.data.trade)
+        .map(|s| s.data.trade)
     }
 
     fn request_exchange_tasks_coin(&self) -> Result<RewardsSchema, RequestError> {
         self.request_action(ActionRequest::ExchangeTasksCoins)
             .and_then(downcast_response::<RewardDataResponseSchema>)
-            .map(|r| *r.data.rewards)
+            .map(|s| s.data.rewards)
     }
 
     fn request_npc_buy(
@@ -416,7 +416,7 @@ impl CharacterRequestHandler for CharacterHttpRequestHandler {
             quantity,
         })
         .and_then(downcast_response::<NpcMerchantTransactionResponseSchema>)
-        .map(|r| *r.data.transaction)
+        .map(|s| s.data.transaction)
     }
 
     fn request_npc_sell(
@@ -429,7 +429,7 @@ impl CharacterRequestHandler for CharacterHttpRequestHandler {
             quantity,
         })
         .and_then(downcast_response::<NpcMerchantTransactionResponseSchema>)
-        .map(|r| *r.data.transaction)
+        .map(|s| s.data.transaction)
     }
 
     fn request_give_item(
@@ -464,7 +464,7 @@ impl CharacterRequestHandler for CharacterHttpRequestHandler {
     ) -> Result<GeTransactionSchema, RequestError> {
         self.request_action(ActionRequest::GeBuyOrder { id, quantity })
             .and_then(downcast_response::<GeTransactionResponseSchema>)
-            .map(|r| *r.data.order)
+            .map(|s| s.data.order)
     }
 
     fn request_ge_create_order(
@@ -485,14 +485,14 @@ impl CharacterRequestHandler for CharacterHttpRequestHandler {
     fn request_ge_cancel_order(&self, id: &str) -> Result<GeTransactionSchema, RequestError> {
         self.request_action(ActionRequest::GeCancelOrder { id })
             .and_then(downcast_response::<GeTransactionResponseSchema>)
-            .map(|r| *r.data.order)
+            .map(|s| s.data.order)
     }
 
     fn refresh_data(&self) {
         let Ok(res) = self.api.character.get(&self.data.name()) else {
             return;
         };
-        self.data.store(RawCharacter::new(*res.data));
+        self.data.store(RawCharacter::new(res.data));
     }
 }
 

@@ -27,10 +27,10 @@ pub struct RaidSchema {
     pub monster: String,
     /// Weekly raid opening schedule.
     #[serde(rename = "schedule")]
-    pub schedule: Box<models::RaidScheduleSchema>,
+    pub schedule: models::RaidScheduleSchema,
     /// Reward rules for the raid.
     #[serde(rename = "rewards", skip_serializing_if = "Option::is_none")]
-    pub rewards: Option<Box<models::RaidRewardsSchema>>,
+    pub rewards: Option<models::RaidRewardsSchema>,
     /// Current overall raid status.
     #[serde(rename = "status")]
     pub status: models::RaidStatus,
@@ -42,10 +42,10 @@ pub struct RaidSchema {
     pub participant_count: Option<u32>,
     /// Currently active weekly raid instance, if any.
     #[serde(rename = "active_instance", skip_serializing_if = "Option::is_none")]
-    pub active_instance: Option<Box<models::RaidInstanceSchema>>,
+    pub active_instance: Option<models::RaidInstanceSchema>,
     /// Latest weekly raid instance, active or finished.
     #[serde(rename = "latest_instance", skip_serializing_if = "Option::is_none")]
-    pub latest_instance: Option<Box<models::RaidInstanceSchema>>,
+    pub latest_instance: Option<models::RaidInstanceSchema>,
 }
 
 impl RaidSchema {
@@ -55,7 +55,7 @@ impl RaidSchema {
             name,
             description: None,
             monster,
-            schedule: Box::new(schedule),
+            schedule,
             rewards: None,
             status,
             next_start_at,

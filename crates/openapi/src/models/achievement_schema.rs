@@ -31,7 +31,7 @@ pub struct AchievementSchema {
     pub objectives: Vec<models::AchievementObjectiveSchema>,
     /// Rewards.
     #[serde(rename = "rewards")]
-    pub rewards: Box<models::AchievementRewardsSchema>,
+    pub rewards: models::AchievementRewardsSchema,
 }
 
 impl AchievementSchema {
@@ -43,7 +43,7 @@ impl AchievementSchema {
             description,
             points,
             objectives,
-            rewards: Box::new(rewards),
+            rewards,
         }
     }
 }

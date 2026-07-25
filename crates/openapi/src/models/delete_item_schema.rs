@@ -15,21 +15,21 @@ use serde::{Deserialize, Serialize};
 pub struct DeleteItemSchema {
     /// Cooldown details.
     #[serde(rename = "cooldown")]
-    pub cooldown: Box<models::CooldownSchema>,
+    pub cooldown: models::CooldownSchema,
     /// Item details.
     #[serde(rename = "item")]
-    pub item: Box<models::SimpleItemSchema>,
+    pub item: models::SimpleItemSchema,
     /// Player details.
     #[serde(rename = "character")]
-    pub character: Box<models::CharacterSchema>,
+    pub character: models::CharacterSchema,
 }
 
 impl DeleteItemSchema {
     pub fn new(cooldown: models::CooldownSchema, item: models::SimpleItemSchema, character: models::CharacterSchema) -> DeleteItemSchema {
         DeleteItemSchema {
-            cooldown: Box::new(cooldown),
-            item: Box::new(item),
-            character: Box::new(character),
+            cooldown,
+            item,
+            character,
         }
     }
 }

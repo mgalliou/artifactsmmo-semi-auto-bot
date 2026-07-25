@@ -15,13 +15,13 @@ use serde::{Deserialize, Serialize};
 pub struct RaidResponseSchema {
     /// Raid details.
     #[serde(rename = "data")]
-    pub data: Box<models::RaidSchema>,
+    pub data: models::RaidSchema,
 }
 
 impl RaidResponseSchema {
     pub fn new(data: models::RaidSchema) -> RaidResponseSchema {
         RaidResponseSchema {
-            data: Box::new(data),
+            data,
         }
     }
 }

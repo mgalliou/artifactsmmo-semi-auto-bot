@@ -15,25 +15,25 @@ use serde::{Deserialize, Serialize};
 pub struct CharacterMovementDataSchema {
     /// Cooldown details
     #[serde(rename = "cooldown")]
-    pub cooldown: Box<models::CooldownSchema>,
+    pub cooldown: models::CooldownSchema,
     /// Destination details.
     #[serde(rename = "destination")]
-    pub destination: Box<models::MapSchema>,
+    pub destination: models::MapSchema,
     /// Path taken from start to destination (list of coordinates)
     #[serde(rename = "path")]
     pub path: Vec<Vec<i32>>,
     /// Character details.
     #[serde(rename = "character")]
-    pub character: Box<models::CharacterSchema>,
+    pub character: models::CharacterSchema,
 }
 
 impl CharacterMovementDataSchema {
     pub fn new(cooldown: models::CooldownSchema, destination: models::MapSchema, path: Vec<Vec<i32>>, character: models::CharacterSchema) -> CharacterMovementDataSchema {
         CharacterMovementDataSchema {
-            cooldown: Box::new(cooldown),
-            destination: Box::new(destination),
+            cooldown,
+            destination,
             path,
-            character: Box::new(character),
+            character,
         }
     }
 }

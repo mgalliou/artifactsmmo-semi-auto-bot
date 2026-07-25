@@ -15,21 +15,21 @@ use serde::{Deserialize, Serialize};
 pub struct TaskDataSchema {
     /// Cooldown details.
     #[serde(rename = "cooldown")]
-    pub cooldown: Box<models::CooldownSchema>,
+    pub cooldown: models::CooldownSchema,
     /// Task details.
     #[serde(rename = "task")]
-    pub task: Box<models::TaskSchema>,
+    pub task: models::TaskSchema,
     /// Player details.
     #[serde(rename = "character")]
-    pub character: Box<models::CharacterSchema>,
+    pub character: models::CharacterSchema,
 }
 
 impl TaskDataSchema {
     pub fn new(cooldown: models::CooldownSchema, task: models::TaskSchema, character: models::CharacterSchema) -> TaskDataSchema {
         TaskDataSchema {
-            cooldown: Box::new(cooldown),
-            task: Box::new(task),
-            character: Box::new(character),
+            cooldown,
+            task,
+            character,
         }
     }
 }

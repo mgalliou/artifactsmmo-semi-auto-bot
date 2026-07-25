@@ -14,13 +14,13 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct BuySkinResponseSchema {
     #[serde(rename = "data")]
-    pub data: Box<models::BuySkinResponseDataSchema>,
+    pub data: models::BuySkinResponseDataSchema,
 }
 
 impl BuySkinResponseSchema {
     pub fn new(data: models::BuySkinResponseDataSchema) -> BuySkinResponseSchema {
         BuySkinResponseSchema {
-            data: Box::new(data),
+            data,
         }
     }
 }

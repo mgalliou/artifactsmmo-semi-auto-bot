@@ -21,10 +21,10 @@ pub struct ActiveEventSchema {
     pub code: String,
     /// Map of the event.
     #[serde(rename = "map")]
-    pub map: Box<models::MapSchema>,
+    pub map: models::MapSchema,
     /// Previous map skin.
     #[serde(rename = "previous_map")]
-    pub previous_map: Box<models::MapSchema>,
+    pub previous_map: models::MapSchema,
     /// Duration in minutes.
     #[serde(rename = "duration")]
     pub duration: i32,
@@ -41,8 +41,8 @@ impl ActiveEventSchema {
         ActiveEventSchema {
             name,
             code,
-            map: Box::new(map),
-            previous_map: Box::new(previous_map),
+            map,
+            previous_map,
             duration,
             expiration,
             created_at,

@@ -31,17 +31,17 @@ impl ActiveEvent {
 
     #[must_use]
     pub fn map(&self) -> RawMap {
-        RawMap::new((*self.0.map).clone())
+        RawMap::new(self.0.map.clone())
     }
 
     #[must_use]
     pub fn previous_map(&self) -> RawMap {
-        RawMap::new((*self.0.previous_map).clone())
+        RawMap::new(self.0.previous_map.clone())
     }
 
     #[must_use]
     pub fn content(&self) -> Option<&MapContentSchema> {
-        self.0.map.interactions.content.as_deref()
+        self.0.map.interactions.content.as_ref()
     }
 }
 

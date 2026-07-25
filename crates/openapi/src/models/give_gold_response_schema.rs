@@ -14,13 +14,13 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GiveGoldResponseSchema {
     #[serde(rename = "data")]
-    pub data: Box<models::GiveGoldDataSchema>,
+    pub data: models::GiveGoldDataSchema,
 }
 
 impl GiveGoldResponseSchema {
     pub fn new(data: models::GiveGoldDataSchema) -> GiveGoldResponseSchema {
         GiveGoldResponseSchema {
-            data: Box::new(data),
+            data,
         }
     }
 }

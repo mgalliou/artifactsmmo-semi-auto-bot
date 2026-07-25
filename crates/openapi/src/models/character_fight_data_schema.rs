@@ -15,10 +15,10 @@ use serde::{Deserialize, Serialize};
 pub struct CharacterFightDataSchema {
     /// Cooldown details.
     #[serde(rename = "cooldown")]
-    pub cooldown: Box<models::CooldownSchema>,
+    pub cooldown: models::CooldownSchema,
     /// Character fight details.
     #[serde(rename = "fight")]
-    pub fight: Box<models::CharacterFightSchema>,
+    pub fight: models::CharacterFightSchema,
     /// All characters involved.
     #[serde(rename = "characters")]
     pub characters: Vec<models::CharacterSchema>,
@@ -27,8 +27,8 @@ pub struct CharacterFightDataSchema {
 impl CharacterFightDataSchema {
     pub fn new(cooldown: models::CooldownSchema, fight: models::CharacterFightSchema, characters: Vec<models::CharacterSchema>) -> CharacterFightDataSchema {
         CharacterFightDataSchema {
-            cooldown: Box::new(cooldown),
-            fight: Box::new(fight),
+            cooldown,
+            fight,
             characters,
         }
     }

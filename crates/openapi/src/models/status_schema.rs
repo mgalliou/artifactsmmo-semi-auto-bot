@@ -30,7 +30,7 @@ pub struct StatusSchema {
     pub characters_online: i32,
     /// Current season details.
     #[serde(rename = "season", skip_serializing_if = "Option::is_none")]
-    pub season: Option<Box<models::SeasonSchema>>,
+    pub season: Option<models::SeasonSchema>,
     /// Rate limits.
     #[serde(rename = "rate_limits")]
     pub rate_limits: Vec<models::RateLimitSchema>,

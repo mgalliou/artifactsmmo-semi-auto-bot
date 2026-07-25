@@ -33,10 +33,10 @@ pub struct MapSchema {
     pub layer: models::MapLayer,
     /// Access information for the map
     #[serde(rename = "access")]
-    pub access: Box<models::AccessSchema>,
+    pub access: models::AccessSchema,
     /// Interactions available on this map.
     #[serde(rename = "interactions")]
-    pub interactions: Box<models::InteractionSchema>,
+    pub interactions: models::InteractionSchema,
 }
 
 impl MapSchema {
@@ -48,8 +48,8 @@ impl MapSchema {
             x,
             y,
             layer,
-            access: Box::new(access),
-            interactions: Box::new(interactions),
+            access,
+            interactions,
         }
     }
 }

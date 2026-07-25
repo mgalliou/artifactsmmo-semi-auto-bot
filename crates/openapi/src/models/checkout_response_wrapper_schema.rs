@@ -14,13 +14,13 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CheckoutResponseWrapperSchema {
     #[serde(rename = "data")]
-    pub data: Box<models::CheckoutResponseSchema>,
+    pub data: models::CheckoutResponseSchema,
 }
 
 impl CheckoutResponseWrapperSchema {
     pub fn new(data: models::CheckoutResponseSchema) -> CheckoutResponseWrapperSchema {
         CheckoutResponseWrapperSchema {
-            data: Box::new(data),
+            data,
         }
     }
 }

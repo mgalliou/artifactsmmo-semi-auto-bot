@@ -21,7 +21,7 @@ pub struct EventSchema {
     pub code: String,
     /// Content of the event.
     #[serde(rename = "content", skip_serializing_if = "Option::is_none")]
-    pub content: Option<Box<models::EventContentSchema>>,
+    pub content: Option<models::EventContentSchema>,
     /// Map list of the event.
     #[serde(rename = "maps")]
     pub maps: Vec<models::EventMapSchema>,
@@ -42,7 +42,7 @@ pub struct EventSchema {
     pub price: Option<i32>,
     /// Transition to add to the map when event is active.
     #[serde(rename = "transition", skip_serializing_if = "Option::is_none")]
-    pub transition: Option<Box<models::TransitionSchema>>,
+    pub transition: Option<models::TransitionSchema>,
 }
 
 impl EventSchema {

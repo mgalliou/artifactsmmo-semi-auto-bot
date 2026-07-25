@@ -15,25 +15,25 @@ use serde::{Deserialize, Serialize};
 pub struct CharacterTransitionDataSchema {
     /// Cooldown details
     #[serde(rename = "cooldown")]
-    pub cooldown: Box<models::CooldownSchema>,
+    pub cooldown: models::CooldownSchema,
     /// Destination map details.
     #[serde(rename = "destination")]
-    pub destination: Box<models::MapSchema>,
+    pub destination: models::MapSchema,
     /// Transition details.
     #[serde(rename = "transition")]
-    pub transition: Box<models::TransitionSchema>,
+    pub transition: models::TransitionSchema,
     /// Character details.
     #[serde(rename = "character")]
-    pub character: Box<models::CharacterSchema>,
+    pub character: models::CharacterSchema,
 }
 
 impl CharacterTransitionDataSchema {
     pub fn new(cooldown: models::CooldownSchema, destination: models::MapSchema, transition: models::TransitionSchema, character: models::CharacterSchema) -> CharacterTransitionDataSchema {
         CharacterTransitionDataSchema {
-            cooldown: Box::new(cooldown),
-            destination: Box::new(destination),
-            transition: Box::new(transition),
-            character: Box::new(character),
+            cooldown,
+            destination,
+            transition,
+            character,
         }
     }
 }

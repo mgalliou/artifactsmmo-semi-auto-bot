@@ -15,10 +15,10 @@ use serde::{Deserialize, Serialize};
 pub struct InteractionSchema {
     /// Content of the map.
     #[serde(rename = "content", skip_serializing_if = "Option::is_none")]
-    pub content: Option<Box<models::MapContentSchema>>,
+    pub content: Option<models::MapContentSchema>,
     /// Transition to another map.
     #[serde(rename = "transition", skip_serializing_if = "Option::is_none")]
-    pub transition: Option<Box<models::TransitionSchema>>,
+    pub transition: Option<models::TransitionSchema>,
 }
 
 impl InteractionSchema {

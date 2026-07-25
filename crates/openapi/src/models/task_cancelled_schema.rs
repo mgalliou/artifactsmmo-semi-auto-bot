@@ -15,17 +15,17 @@ use serde::{Deserialize, Serialize};
 pub struct TaskCancelledSchema {
     /// Cooldown details.
     #[serde(rename = "cooldown")]
-    pub cooldown: Box<models::CooldownSchema>,
+    pub cooldown: models::CooldownSchema,
     /// Player details.
     #[serde(rename = "character")]
-    pub character: Box<models::CharacterSchema>,
+    pub character: models::CharacterSchema,
 }
 
 impl TaskCancelledSchema {
     pub fn new(cooldown: models::CooldownSchema, character: models::CharacterSchema) -> TaskCancelledSchema {
         TaskCancelledSchema {
-            cooldown: Box::new(cooldown),
-            character: Box::new(character),
+            cooldown,
+            character,
         }
     }
 }

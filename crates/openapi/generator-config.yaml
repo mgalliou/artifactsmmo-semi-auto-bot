@@ -1,4 +1,5 @@
 generatorName: rust
+avoidBoxedModels: true
 useSingleRequestParameter: false
 preferUnsignedInt: true
 supportAsync: true

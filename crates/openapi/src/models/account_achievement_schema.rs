@@ -31,7 +31,7 @@ pub struct AccountAchievementSchema {
     pub objectives: Vec<models::AccountAchievementObjectiveSchema>,
     /// Rewards.
     #[serde(rename = "rewards")]
-    pub rewards: Box<models::AchievementRewardsSchema>,
+    pub rewards: models::AchievementRewardsSchema,
     /// Completion timestamp.
     #[serde(rename = "completed_at", skip_serializing_if = "Option::is_none")]
     pub completed_at: Option<chrono::DateTime<chrono::FixedOffset>>,
@@ -46,7 +46,7 @@ impl AccountAchievementSchema {
             description,
             points,
             objectives,
-            rewards: Box::new(rewards),
+            rewards,
             completed_at: None,
         }
     }

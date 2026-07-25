@@ -14,13 +14,13 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MemberTokenSubscriptionResponseSchema {
     #[serde(rename = "data")]
-    pub data: Box<models::MemberTokenSubscriptionResponseDataSchema>,
+    pub data: models::MemberTokenSubscriptionResponseDataSchema,
 }
 
 impl MemberTokenSubscriptionResponseSchema {
     pub fn new(data: models::MemberTokenSubscriptionResponseDataSchema) -> MemberTokenSubscriptionResponseSchema {
         MemberTokenSubscriptionResponseSchema {
-            data: Box::new(data),
+            data,
         }
     }
 }

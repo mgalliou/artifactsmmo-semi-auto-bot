@@ -1087,7 +1087,7 @@ mod tests {
             description: String::new(),
             points: 0,
             objectives: vec![],
-            rewards: Box::new(AchievementRewardsSchema::new()),
+            rewards: AchievementRewardsSchema::new(),
             completed_at: Some(Utc::now().fixed_offset()),
         });
         ACCOUNT.add_achievement(achievement);
@@ -2001,10 +2001,10 @@ mod tests {
             MapLayer::Overworld,
             AccessSchema::new(MapAccessType::Standard),
             InteractionSchema {
-                content: Some(Box::new(MapContentSchema::new(
+                content: Some(MapContentSchema::new(
                     MapContentType::Npc,
                     "gemstone_merchant".into(),
-                ))),
+                )),
                 transition: None,
             },
         )));

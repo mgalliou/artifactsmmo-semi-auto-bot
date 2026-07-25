@@ -15,25 +15,25 @@ use serde::{Deserialize, Serialize};
 pub struct GiveItemDataSchema {
     /// Cooldown details.
     #[serde(rename = "cooldown")]
-    pub cooldown: Box<models::CooldownSchema>,
+    pub cooldown: models::CooldownSchema,
     /// Items given.
     #[serde(rename = "items")]
     pub items: Vec<models::SimpleItemSchema>,
     /// Character details of the receiving character.
     #[serde(rename = "receiver_character")]
-    pub receiver_character: Box<models::CharacterSchema>,
+    pub receiver_character: models::CharacterSchema,
     /// Character details of the sending character.
     #[serde(rename = "character")]
-    pub character: Box<models::CharacterSchema>,
+    pub character: models::CharacterSchema,
 }
 
 impl GiveItemDataSchema {
     pub fn new(cooldown: models::CooldownSchema, items: Vec<models::SimpleItemSchema>, receiver_character: models::CharacterSchema, character: models::CharacterSchema) -> GiveItemDataSchema {
         GiveItemDataSchema {
-            cooldown: Box::new(cooldown),
+            cooldown,
             items,
-            receiver_character: Box::new(receiver_character),
-            character: Box::new(character),
+            receiver_character,
+            character,
         }
     }
 }

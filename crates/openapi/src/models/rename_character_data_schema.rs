@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 pub struct RenameCharacterDataSchema {
     /// Cooldown details.
     #[serde(rename = "cooldown")]
-    pub cooldown: Box<models::CooldownSchema>,
+    pub cooldown: models::CooldownSchema,
     /// Previous character name.
     #[serde(rename = "old_name")]
     pub old_name: String,
@@ -24,16 +24,16 @@ pub struct RenameCharacterDataSchema {
     pub new_name: String,
     /// Player details.
     #[serde(rename = "character")]
-    pub character: Box<models::CharacterSchema>,
+    pub character: models::CharacterSchema,
 }
 
 impl RenameCharacterDataSchema {
     pub fn new(cooldown: models::CooldownSchema, old_name: String, new_name: String, character: models::CharacterSchema) -> RenameCharacterDataSchema {
         RenameCharacterDataSchema {
-            cooldown: Box::new(cooldown),
+            cooldown,
             old_name,
             new_name,
-            character: Box::new(character),
+            character,
         }
     }
 }

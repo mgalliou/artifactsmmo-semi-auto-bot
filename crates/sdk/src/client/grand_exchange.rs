@@ -33,7 +33,7 @@ impl GrandExchangeClient {
         self.api
             .grand_exchange
             .get_sell_order(id)
-            .map(|r| *r.data)
+            .map(|r| r.data)
             .ok()
     }
 

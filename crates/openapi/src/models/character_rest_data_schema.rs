@@ -15,21 +15,21 @@ use serde::{Deserialize, Serialize};
 pub struct CharacterRestDataSchema {
     /// Cooldown details
     #[serde(rename = "cooldown")]
-    pub cooldown: Box<models::CooldownSchema>,
+    pub cooldown: models::CooldownSchema,
     /// The amount of HP restored.
     #[serde(rename = "hp_restored")]
     pub hp_restored: i32,
     /// Character details.
     #[serde(rename = "character")]
-    pub character: Box<models::CharacterSchema>,
+    pub character: models::CharacterSchema,
 }
 
 impl CharacterRestDataSchema {
     pub fn new(cooldown: models::CooldownSchema, hp_restored: i32, character: models::CharacterSchema) -> CharacterRestDataSchema {
         CharacterRestDataSchema {
-            cooldown: Box::new(cooldown),
+            cooldown,
             hp_restored,
-            character: Box::new(character),
+            character,
         }
     }
 }

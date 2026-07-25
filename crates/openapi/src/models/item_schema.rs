@@ -39,7 +39,7 @@ pub struct ItemSchema {
     pub effects: Option<Vec<models::SimpleEffectSchema>>,
     /// Craft information. If applicable.
     #[serde(rename = "craft", skip_serializing_if = "Option::is_none")]
-    pub craft: Option<Box<models::CraftSchema>>,
+    pub craft: Option<models::CraftSchema>,
     /// Item tradeable status. A non-tradeable item cannot be exchanged or sold.
     #[serde(rename = "tradeable")]
     pub tradeable: bool,

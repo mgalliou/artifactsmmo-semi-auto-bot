@@ -14,13 +14,13 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GemShopCatalogResponseSchema {
     #[serde(rename = "data")]
-    pub data: Box<models::GemShopCatalogDataSchema>,
+    pub data: models::GemShopCatalogDataSchema,
 }
 
 impl GemShopCatalogResponseSchema {
     pub fn new(data: models::GemShopCatalogDataSchema) -> GemShopCatalogResponseSchema {
         GemShopCatalogResponseSchema {
-            data: Box::new(data),
+            data,
         }
     }
 }

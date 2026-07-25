@@ -15,21 +15,21 @@ use serde::{Deserialize, Serialize};
 pub struct EquipmentTransactionSchema {
     /// Cooldown details.
     #[serde(rename = "cooldown")]
-    pub cooldown: Box<models::CooldownSchema>,
+    pub cooldown: models::CooldownSchema,
     /// Items details.
     #[serde(rename = "items")]
     pub items: Vec<models::EquipmentItemSchema>,
     /// Player details.
     #[serde(rename = "character")]
-    pub character: Box<models::CharacterSchema>,
+    pub character: models::CharacterSchema,
 }
 
 impl EquipmentTransactionSchema {
     pub fn new(cooldown: models::CooldownSchema, items: Vec<models::EquipmentItemSchema>, character: models::CharacterSchema) -> EquipmentTransactionSchema {
         EquipmentTransactionSchema {
-            cooldown: Box::new(cooldown),
+            cooldown,
             items,
-            character: Box::new(character),
+            character,
         }
     }
 }

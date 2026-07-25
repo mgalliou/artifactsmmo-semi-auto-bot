@@ -63,11 +63,11 @@ pub trait Map {
     }
 
     fn content(&self) -> Option<&MapContentSchema> {
-        self.interactions().content.as_deref()
+        self.interactions().content.as_ref()
     }
 
     fn transition(&self) -> Option<&TransitionSchema> {
-        self.interactions().transition.as_deref()
+        self.interactions().transition.as_ref()
     }
 
     fn is_blocked(&self) -> bool {
@@ -102,6 +102,7 @@ impl MapHandle {
     }
 }
 
+// TODO: finish impl
 impl Map for MapHandle {
     fn id(&self) -> i32 {
         self.0.read().unwrap().id()

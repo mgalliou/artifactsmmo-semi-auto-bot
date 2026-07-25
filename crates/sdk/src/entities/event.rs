@@ -17,7 +17,7 @@ impl Event {
 
     #[must_use]
     pub fn content(&self) -> Option<&EventContentSchema> {
-        self.0.content.as_deref()
+        self.0.content.as_ref()
     }
 
     #[must_use]

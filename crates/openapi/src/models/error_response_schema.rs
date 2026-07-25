@@ -14,13 +14,13 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ErrorResponseSchema {
     #[serde(rename = "error")]
-    pub error: Box<models::ErrorSchema>,
+    pub error: models::ErrorSchema,
 }
 
 impl ErrorResponseSchema {
     pub fn new(error: models::ErrorSchema) -> ErrorResponseSchema {
         ErrorResponseSchema {
-            error: Box::new(error),
+            error,
         }
     }
 }

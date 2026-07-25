@@ -16,14 +16,14 @@ use serde::{Deserialize, Serialize};
 pub struct ClaimPendingItemResponseSchema {
     /// Response data containing cooldown, item, and character.
     #[serde(rename = "data")]
-    pub data: Box<models::ClaimPendingItemDataSchema>,
+    pub data: models::ClaimPendingItemDataSchema,
 }
 
 impl ClaimPendingItemResponseSchema {
     /// Response schema for claim pending item action.
     pub fn new(data: models::ClaimPendingItemDataSchema) -> ClaimPendingItemResponseSchema {
         ClaimPendingItemResponseSchema {
-            data: Box::new(data),
+            data,
         }
     }
 }

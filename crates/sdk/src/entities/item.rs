@@ -98,7 +98,7 @@ impl Item {
 
     #[must_use]
     pub fn craft_schema(&self) -> Option<&CraftSchema> {
-        self.0.craft.as_deref()
+        self.0.craft.as_ref()
     }
 
     #[must_use]

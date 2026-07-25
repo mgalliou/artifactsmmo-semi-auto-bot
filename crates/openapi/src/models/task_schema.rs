@@ -24,7 +24,7 @@ pub struct TaskSchema {
     pub total: i32,
     /// Rewards for completing the task.
     #[serde(rename = "rewards")]
-    pub rewards: Box<models::RewardsSchema>,
+    pub rewards: models::RewardsSchema,
 }
 
 impl TaskSchema {
@@ -33,7 +33,7 @@ impl TaskSchema {
             code,
             r#type,
             total,
-            rewards: Box::new(rewards),
+            rewards,
         }
     }
 }

@@ -15,21 +15,21 @@ use serde::{Deserialize, Serialize};
 pub struct BankGoldTransactionSchema {
     /// Cooldown details.
     #[serde(rename = "cooldown")]
-    pub cooldown: Box<models::CooldownSchema>,
+    pub cooldown: models::CooldownSchema,
     /// Bank details.
     #[serde(rename = "bank")]
-    pub bank: Box<models::GoldSchema>,
+    pub bank: models::GoldSchema,
     /// Player details.
     #[serde(rename = "character")]
-    pub character: Box<models::CharacterSchema>,
+    pub character: models::CharacterSchema,
 }
 
 impl BankGoldTransactionSchema {
     pub fn new(cooldown: models::CooldownSchema, bank: models::GoldSchema, character: models::CharacterSchema) -> BankGoldTransactionSchema {
         BankGoldTransactionSchema {
-            cooldown: Box::new(cooldown),
-            bank: Box::new(bank),
-            character: Box::new(character),
+            cooldown,
+            bank,
+            character,
         }
     }
 }

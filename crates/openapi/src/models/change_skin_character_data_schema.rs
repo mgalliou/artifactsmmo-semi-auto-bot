@@ -15,21 +15,21 @@ use serde::{Deserialize, Serialize};
 pub struct ChangeSkinCharacterDataSchema {
     /// Cooldown details.
     #[serde(rename = "cooldown")]
-    pub cooldown: Box<models::CooldownSchema>,
+    pub cooldown: models::CooldownSchema,
     /// Craft details.
     #[serde(rename = "skin")]
     pub skin: String,
     /// Player details.
     #[serde(rename = "character")]
-    pub character: Box<models::CharacterSchema>,
+    pub character: models::CharacterSchema,
 }
 
 impl ChangeSkinCharacterDataSchema {
     pub fn new(cooldown: models::CooldownSchema, skin: String, character: models::CharacterSchema) -> ChangeSkinCharacterDataSchema {
         ChangeSkinCharacterDataSchema {
-            cooldown: Box::new(cooldown),
+            cooldown,
             skin,
-            character: Box::new(character),
+            character,
         }
     }
 }

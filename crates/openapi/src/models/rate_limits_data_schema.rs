@@ -15,28 +15,28 @@ use serde::{Deserialize, Serialize};
 pub struct RateLimitsDataSchema {
     /// Rate limits for account endpoints.
     #[serde(rename = "account")]
-    pub account: Box<models::RateLimitScopeSchema>,
+    pub account: models::RateLimitScopeSchema,
     /// Rate limits for data endpoints.
     #[serde(rename = "data")]
-    pub data: Box<models::RateLimitScopeSchema>,
+    pub data: models::RateLimitScopeSchema,
     /// Rate limits for action endpoints.
     #[serde(rename = "action")]
-    pub action: Box<models::RateLimitScopeSchema>,
+    pub action: models::RateLimitScopeSchema,
     /// Rate limit for the fight simulation endpoint. Only available for members.
     #[serde(rename = "simulation")]
-    pub simulation: Box<models::RateLimitScopeSchema>,
+    pub simulation: models::RateLimitScopeSchema,
     /// Assistant daily usage. Only available for members.
     #[serde(rename = "assistant", skip_serializing_if = "Option::is_none")]
-    pub assistant: Option<Box<models::RateLimitScopeSchema>>,
+    pub assistant: Option<models::RateLimitScopeSchema>,
 }
 
 impl RateLimitsDataSchema {
     pub fn new(account: models::RateLimitScopeSchema, data: models::RateLimitScopeSchema, action: models::RateLimitScopeSchema, simulation: models::RateLimitScopeSchema) -> RateLimitsDataSchema {
         RateLimitsDataSchema {
-            account: Box::new(account),
-            data: Box::new(data),
-            action: Box::new(action),
-            simulation: Box::new(simulation),
+            account,
+            data,
+            action,
+            simulation,
             assistant: None,
         }
     }

@@ -14,13 +14,13 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GeOrderResponseSchema {
     #[serde(rename = "data")]
-    pub data: Box<models::GeOrderSchema>,
+    pub data: models::GeOrderSchema,
 }
 
 impl GeOrderResponseSchema {
     pub fn new(data: models::GeOrderSchema) -> GeOrderResponseSchema {
         GeOrderResponseSchema {
-            data: Box::new(data),
+            data,
         }
     }
 }

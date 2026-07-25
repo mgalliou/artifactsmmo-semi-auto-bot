@@ -15,25 +15,25 @@ use serde::{Deserialize, Serialize};
 pub struct GiveGoldDataSchema {
     /// Cooldown details.
     #[serde(rename = "cooldown")]
-    pub cooldown: Box<models::CooldownSchema>,
+    pub cooldown: models::CooldownSchema,
     /// Quantity of gold given.
     #[serde(rename = "quantity")]
     pub quantity: u32,
     /// Character details of the receiving character.
     #[serde(rename = "receiver_character")]
-    pub receiver_character: Box<models::CharacterSchema>,
+    pub receiver_character: models::CharacterSchema,
     /// Character details.
     #[serde(rename = "character")]
-    pub character: Box<models::CharacterSchema>,
+    pub character: models::CharacterSchema,
 }
 
 impl GiveGoldDataSchema {
     pub fn new(cooldown: models::CooldownSchema, quantity: u32, receiver_character: models::CharacterSchema, character: models::CharacterSchema) -> GiveGoldDataSchema {
         GiveGoldDataSchema {
-            cooldown: Box::new(cooldown),
+            cooldown,
             quantity,
-            receiver_character: Box::new(receiver_character),
-            character: Box::new(character),
+            receiver_character,
+            character,
         }
     }
 }

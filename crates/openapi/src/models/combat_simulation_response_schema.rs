@@ -15,13 +15,13 @@ use serde::{Deserialize, Serialize};
 pub struct CombatSimulationResponseSchema {
     /// Combat simulation results.
     #[serde(rename = "data")]
-    pub data: Box<models::CombatSimulationDataSchema>,
+    pub data: models::CombatSimulationDataSchema,
 }
 
 impl CombatSimulationResponseSchema {
     pub fn new(data: models::CombatSimulationDataSchema) -> CombatSimulationResponseSchema {
         CombatSimulationResponseSchema {
-            data: Box::new(data),
+            data,
         }
     }
 }

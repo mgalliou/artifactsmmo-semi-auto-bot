@@ -14,13 +14,13 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RenameResponseSchema {
     #[serde(rename = "data")]
-    pub data: Box<models::RenameCharacterDataSchema>,
+    pub data: models::RenameCharacterDataSchema,
 }
 
 impl RenameResponseSchema {
     pub fn new(data: models::RenameCharacterDataSchema) -> RenameResponseSchema {
         RenameResponseSchema {
-            data: Box::new(data),
+            data,
         }
     }
 }

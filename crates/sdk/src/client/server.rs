@@ -34,7 +34,7 @@ impl ServerClient {
         let Some(status) = self.api.server.status() else {
             return;
         };
-        *self.status.write().unwrap() = *status.data;
+        *self.status.write().unwrap() = status.data;
     }
 
     fn server_time(&self) -> DateTime<FixedOffset> {

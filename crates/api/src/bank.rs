@@ -35,7 +35,7 @@ impl BankApi {
     pub fn get_details(&self) -> Result<BankSchema, Error<GetBankDetailsMyBankGetError>> {
         crate::runtime()
             .block_on(get_bank_details_my_bank_get(&self.configuration))
-            .map(|s| *s.data)
+            .map(|s| s.data)
     }
 }
 

@@ -18,14 +18,14 @@ pub struct EquipmentItemSchema {
     pub slot: models::ItemSlot,
     /// Item details.
     #[serde(rename = "item")]
-    pub item: Box<models::ItemSchema>,
+    pub item: models::ItemSchema,
 }
 
 impl EquipmentItemSchema {
     pub fn new(slot: models::ItemSlot, item: models::ItemSchema) -> EquipmentItemSchema {
         EquipmentItemSchema {
             slot,
-            item: Box::new(item),
+            item,
         }
     }
 }

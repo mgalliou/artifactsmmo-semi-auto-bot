@@ -14,13 +14,13 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RateLimitsSchema {
     #[serde(rename = "data")]
-    pub data: Box<models::RateLimitsDataSchema>,
+    pub data: models::RateLimitsDataSchema,
 }
 
 impl RateLimitsSchema {
     pub fn new(data: models::RateLimitsDataSchema) -> RateLimitsSchema {
         RateLimitsSchema {
-            data: Box::new(data),
+            data,
         }
     }
 }

@@ -15,21 +15,21 @@ use serde::{Deserialize, Serialize};
 pub struct GeOrderTransactionSchema {
     /// Cooldown details.
     #[serde(rename = "cooldown")]
-    pub cooldown: Box<models::CooldownSchema>,
+    pub cooldown: models::CooldownSchema,
     /// Order details.
     #[serde(rename = "order")]
-    pub order: Box<models::GeOrderCreatedSchema>,
+    pub order: models::GeOrderCreatedSchema,
     /// Character details.
     #[serde(rename = "character")]
-    pub character: Box<models::CharacterSchema>,
+    pub character: models::CharacterSchema,
 }
 
 impl GeOrderTransactionSchema {
     pub fn new(cooldown: models::CooldownSchema, order: models::GeOrderCreatedSchema, character: models::CharacterSchema) -> GeOrderTransactionSchema {
         GeOrderTransactionSchema {
-            cooldown: Box::new(cooldown),
-            order: Box::new(order),
-            character: Box::new(character),
+            cooldown,
+            order,
+            character,
         }
     }
 }
