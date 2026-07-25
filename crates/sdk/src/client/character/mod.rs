@@ -22,7 +22,8 @@ use crate::{
         resources::ResourcesClient,
     },
     entities::{
-        AccountAchievement, Character, CharacterHandle, CharacterName, Item, Map, RawMap, TaskCode,
+        AccountAchievement, Character, CharacterHandle, CharacterName, Item, Map, PendingItem,
+        RawMap, TaskCode,
     },
     gear::Slot,
     grand_exchange::GrandExchangeClient,
@@ -38,6 +39,8 @@ use openapi::models::{
     UnequipSchema,
 };
 use std::{
+    borrow::Cow,
+    cell::RefCell,
     str::FromStr,
     sync::{Arc, Mutex},
     time::Duration,
@@ -432,12 +435,17 @@ impl CharacterClient {
         let mut total_quantity = 0;
         let mut inventory_space = 0;
 
-        for schema in items {
-            let Some(item) = self.items.get(&schema.code) else {
+        for EquipSchema {
+            code,
+            slot,
+            quantity,
+        } in items
+        {
+            let Some(item) = self.items.get(code) else {
                 return Err(EquipError::ItemNotFound);
             };
-            let quantity = schema.quantity.unwrap_or(1);
-            let slot = Slot::from(schema.slot);
+            let quantity = quantity.unwrap_or(1);
+            let slot = Slot::from(slot);
 
             total_quantity += quantity;
             inventory_space += item.inventory_space();
@@ -446,7 +454,7 @@ impl CharacterClient {
             } else if !self.meets_conditions_for(&item) {
                 return Err(EquipError::ConditionsNotMet);
             }
-            let Some(equiped) = self.items.get(&self.equiped_in(slot)) else {
+            let Some(equiped) = self.items.get(self.equiped_in(slot).as_ref()) else {
                 continue;
             };
             if equiped.code() != item.code() {
@@ -460,7 +468,6 @@ impl CharacterClient {
         if self.inventory().free_space() as i32 + total_quantity as i32 + inventory_space <= 0 {
             return Err(EquipError::InsufficientInventorySpace);
         }
-
         Ok(())
     }
 
@@ -475,9 +482,9 @@ impl CharacterClient {
         let mut health = 0;
         let mut items: Vec<(Slot, Item, u32)> = vec![];
 
-        for &UnequipSchema { slot, quantity } in slots {
-            let slot = Slot::from(slot);
-            let Some(equiped) = self.items.get(&self.equiped_in(slot)) else {
+        for UnequipSchema { slot, quantity } in slots {
+            let slot = Slot::from(*slot);
+            let Some(equiped) = self.items.get(self.equiped_in(slot).as_ref()) else {
                 return Err(UnequipError::SlotEmpty);
             };
             let quantity_in_slot = self.quantity_in_slot(slot);
@@ -776,7 +783,7 @@ impl CharacterClient {
         if pending.load().is_claimed() {
             return Err(ClaimPendingItemError::AlreadyClaimed);
         }
-        if !self.inventory().has_room_for_all(pending.load().items()) {
+        if !self.inventory().has_room_for_all(&pending.load().items()) {
             return Err(ClaimPendingItemError::InsufficientInventorySpace);
         }
         Ok(())
@@ -882,23 +889,23 @@ impl CharacterClient {
             return cached.clone();
         }
         let gear = Gear {
-            weapon: self.items.get(&self.equiped_in(Slot::Weapon)),
-            shield: self.items.get(&self.equiped_in(Slot::Shield)),
-            helmet: self.items.get(&self.equiped_in(Slot::Helmet)),
-            body_armor: self.items.get(&self.equiped_in(Slot::BodyArmor)),
-            leg_armor: self.items.get(&self.equiped_in(Slot::LegArmor)),
-            boots: self.items.get(&self.equiped_in(Slot::Boots)),
-            ring1: self.items.get(&self.equiped_in(Slot::Ring1)),
-            ring2: self.items.get(&self.equiped_in(Slot::Ring2)),
-            amulet: self.items.get(&self.equiped_in(Slot::Amulet)),
-            artifact1: self.items.get(&self.equiped_in(Slot::Artifact1)),
-            artifact2: self.items.get(&self.equiped_in(Slot::Artifact2)),
-            artifact3: self.items.get(&self.equiped_in(Slot::Artifact3)),
-            utility1: self.items.get(&self.equiped_in(Slot::Utility1)),
-            utility2: self.items.get(&self.equiped_in(Slot::Utility2)),
-            rune: self.items.get(&self.equiped_in(Slot::Rune)),
-            bag: self.items.get(&self.equiped_in(Slot::Bag)),
-            ..Default::default()
+            weapon: self.items.get(self.equiped_in(Slot::Weapon).as_ref()),
+            shield: self.items.get(self.equiped_in(Slot::Shield).as_ref()),
+            helmet: self.items.get(self.equiped_in(Slot::Helmet).as_ref()),
+            body_armor: self.items.get(self.equiped_in(Slot::BodyArmor).as_ref()),
+            leg_armor: self.items.get(self.equiped_in(Slot::LegArmor).as_ref()),
+            boots: self.items.get(self.equiped_in(Slot::Boots).as_ref()),
+            ring1: self.items.get(self.equiped_in(Slot::Ring1).as_ref()),
+            ring2: self.items.get(self.equiped_in(Slot::Ring2).as_ref()),
+            amulet: self.items.get(self.equiped_in(Slot::Amulet).as_ref()),
+            artifact1: self.items.get(self.equiped_in(Slot::Artifact1).as_ref()),
+            artifact2: self.items.get(self.equiped_in(Slot::Artifact2).as_ref()),
+            artifact3: self.items.get(self.equiped_in(Slot::Artifact3).as_ref()),
+            utility1: self.items.get(self.equiped_in(Slot::Utility1).as_ref()),
+            utility2: self.items.get(self.equiped_in(Slot::Utility2).as_ref()),
+            rune: self.items.get(self.equiped_in(Slot::Rune).as_ref()),
+            bag: self.items.get(self.equiped_in(Slot::Bag).as_ref()),
+            effects_cache: RefCell::default(),
         };
         *self.gear_cache.lock().unwrap() = Some(gear.clone());
         gear
@@ -1020,7 +1027,7 @@ impl Character for CharacterClient {
         self.data.gold()
     }
 
-    fn equiped_in(&self, slot: Slot) -> String {
+    fn equiped_in(&self, slot: Slot) -> Cow<'_, str> {
         self.data.equiped_in(slot)
     }
 

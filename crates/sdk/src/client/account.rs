@@ -5,7 +5,10 @@ use crate::{
         bank::BankClient,
         character::{CharacterClient, CharacterRequestHandler},
     },
-    entities::{AccountAchievement, Character, CharacterHandle, PendingItemHandle, RawPendingItem},
+    entities::{
+        AccountAchievement, Character, CharacterHandle, PendingItem, PendingItemHandle,
+        RawPendingItem,
+    },
     grand_exchange::GrandExchangeClient,
 };
 use arc_swap::ArcSwap;

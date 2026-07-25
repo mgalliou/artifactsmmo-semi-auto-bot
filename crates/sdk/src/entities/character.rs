@@ -3,7 +3,10 @@ use chrono::{DateTime, FixedOffset};
 use derive_more::{Deref, Display, From};
 use openapi::models::{CharacterSchema, InventorySlotSchema, MapLayer, TaskType};
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, RwLock};
+use std::{
+    borrow::Cow,
+    sync::{Arc, RwLock},
+};
 use strum::IntoEnumIterator;
 
 pub trait Character: Level {
@@ -24,7 +27,7 @@ pub trait Character: Level {
     fn inventory_items(&self) -> Arc<Vec<InventorySlotSchema>>;
     fn inventory_max_items(&self) -> u32;
     fn gold(&self) -> u32;
-    fn equiped_in(&self, slot: Slot) -> String;
+    fn equiped_in(&self, slot: Slot) -> Cow<'_, str>;
     fn has_equiped(&self, item_code: &str) -> u32;
     fn quantity_in_slot(&self, slot: Slot) -> u32;
     fn cooldown_expiration(&self) -> Option<DateTime<FixedOffset>>;
@@ -118,8 +121,8 @@ impl Character for CharacterHandle {
         self.0.read().unwrap().gold()
     }
 
-    fn equiped_in(&self, slot: Slot) -> String {
-        self.0.read().unwrap().equiped_in(slot)
+    fn equiped_in(&self, slot: Slot) -> Cow<'_, str> {
+        Cow::Owned(self.0.read().unwrap().equiped_in(slot).into_owned())
     }
 
     fn has_equiped(&self, item_code: &str) -> u32 {
@@ -264,27 +267,27 @@ impl Character for RawCharacter {
         self.schema.cooldown_expiration
     }
 
-    fn equiped_in(&self, slot: Slot) -> String {
-        let inner = &self.schema;
-        match slot {
-            Slot::Weapon => &inner.weapon_slot,
-            Slot::Shield => &inner.shield_slot,
-            Slot::Helmet => &inner.helmet_slot,
-            Slot::BodyArmor => &inner.body_armor_slot,
-            Slot::LegArmor => &inner.leg_armor_slot,
-            Slot::Boots => &inner.boots_slot,
-            Slot::Ring1 => &inner.ring1_slot,
-            Slot::Ring2 => &inner.ring2_slot,
-            Slot::Amulet => &inner.amulet_slot,
-            Slot::Artifact1 => &inner.artifact1_slot,
-            Slot::Artifact2 => &inner.artifact2_slot,
-            Slot::Artifact3 => &inner.artifact3_slot,
-            Slot::Utility1 => &inner.utility1_slot,
-            Slot::Utility2 => &inner.utility2_slot,
-            Slot::Bag => &inner.bag_slot,
-            Slot::Rune => &inner.rune_slot,
-        }
-        .clone()
+    fn equiped_in(&self, slot: Slot) -> Cow<'_, str> {
+        let s = &self.schema;
+
+        Cow::Borrowed(match slot {
+            Slot::Weapon => &s.weapon_slot,
+            Slot::Shield => &s.shield_slot,
+            Slot::Helmet => &s.helmet_slot,
+            Slot::BodyArmor => &s.body_armor_slot,
+            Slot::LegArmor => &s.leg_armor_slot,
+            Slot::Boots => &s.boots_slot,
+            Slot::Ring1 => &s.ring1_slot,
+            Slot::Ring2 => &s.ring2_slot,
+            Slot::Amulet => &s.amulet_slot,
+            Slot::Artifact1 => &s.artifact1_slot,
+            Slot::Artifact2 => &s.artifact2_slot,
+            Slot::Artifact3 => &s.artifact3_slot,
+            Slot::Utility1 => &s.utility1_slot,
+            Slot::Utility2 => &s.utility2_slot,
+            Slot::Bag => &s.bag_slot,
+            Slot::Rune => &s.rune_slot,
+        })
     }
 
     fn has_equiped(&self, item_code: &str) -> u32 {

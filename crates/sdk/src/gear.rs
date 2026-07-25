@@ -5,7 +5,7 @@ use openapi::models::{ItemSlot, SimpleItemSchema};
 use std::{
     cell::RefCell,
     collections::HashMap,
-    convert::Into,
+    convert::{From, Into},
     default::Default,
     fmt::{self, Display, Formatter},
     mem::swap,
@@ -374,6 +374,16 @@ impl Slot {
     #[must_use]
     pub const fn is_utility(&self) -> bool {
         self.is_utility_1() || self.is_utility_2()
+    }
+}
+
+impl<T> From<&T> for Slot
+where
+    Self: From<T>,
+    T: Copy,
+{
+    fn from(value: &T) -> Self {
+        Self::from(*value)
     }
 }
 

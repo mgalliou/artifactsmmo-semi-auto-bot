@@ -1,7 +1,16 @@
 use chrono::Utc;
 use openapi::models::{PendingItemSchema, SimpleItemSchema};
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, RwLock};
+use std::{
+    borrow::Cow,
+    sync::{Arc, RwLock},
+};
+
+pub trait PendingItem {
+    fn id(&self) -> Cow<'_, str>;
+    fn items(&self) -> Cow<'_, [SimpleItemSchema]>;
+    fn is_claimed(&self) -> bool;
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PendingItemHandle(Arc<RwLock<RawPendingItem>>);
@@ -20,19 +29,18 @@ impl PendingItemHandle {
     pub fn store(&self, raw: RawPendingItem) {
         *self.0.write().unwrap() = raw;
     }
+}
 
-    #[must_use]
-    pub fn id(&self) -> String {
-        self.0.read().unwrap().id().to_owned()
+impl PendingItem for PendingItemHandle {
+    fn id(&self) -> Cow<'_, str> {
+        Cow::Owned(self.0.read().unwrap().id().into_owned())
     }
 
-    #[must_use]
-    pub fn items(&self) -> Vec<SimpleItemSchema> {
-        self.0.read().unwrap().items().to_owned()
+    fn items(&self) -> Cow<'_, [SimpleItemSchema]> {
+        Cow::Owned(self.0.read().unwrap().items().into_owned())
     }
 
-    #[must_use]
-    pub fn is_claimed(&self) -> bool {
+    fn is_claimed(&self) -> bool {
         self.0.read().unwrap().is_claimed()
     }
 }
@@ -45,19 +53,18 @@ impl RawPendingItem {
     pub(crate) fn new(schema: PendingItemSchema) -> Self {
         Self(Arc::new(schema))
     }
+}
 
-    #[must_use]
-    pub fn id(&self) -> &str {
-        &self.0.id
+impl PendingItem for RawPendingItem {
+    fn id(&self) -> Cow<'_, str> {
+        Cow::Borrowed(&self.0.id)
     }
 
-    #[must_use]
-    pub fn items(&self) -> &[SimpleItemSchema] {
-        self.0.items.as_deref().unwrap_or_default()
+    fn items(&self) -> Cow<'_, [SimpleItemSchema]> {
+        Cow::Borrowed(self.0.items.as_deref().unwrap_or_default())
     }
 
-    #[must_use]
-    pub fn is_claimed(&self) -> bool {
+    fn is_claimed(&self) -> bool {
         self.0.claimed_at.is_some_and(|t| t < Utc::now())
     }
 }

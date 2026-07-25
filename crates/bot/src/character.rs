@@ -42,7 +42,7 @@ use sdk::{
         BANK_MIN_FREE_SLOT, CRAFT_TIME, GOLD, GOLDEN_EGG, GOLDEN_SHRIMP, MAX_LEVEL,
         TASK_CANCEL_PRICE, TASK_EXCHANGE_PRICE, TASKS_COIN,
     },
-    entities::{Character, Item, Map, Monster, NpcItem, RawMap, Resource},
+    entities::{Character, Item, Map, Monster, NpcItem, PendingItem, RawMap, Resource},
     gear::{Gear, Slot},
     items::ItemSource,
     models::{
@@ -52,6 +52,7 @@ use sdk::{
     simulator::{FightSimulation, HasEffects, Participant, compute_gathering_cd, time_to_rest},
     skill::Skill,
 };
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::{
     cmp::min,
@@ -1254,7 +1255,7 @@ impl CharacterController {
                 }
                 // TODO: improve unequip condition: check number of character that can use the item
                 None => {
-                    if let Some(item) = self.items.get(&self.equiped_in(slot))
+                    if let Some(item) = self.items.get(self.equiped_in(slot).as_ref())
                         && !item.r#type().is_utility()
                         && self.account.total_of(item.code())
                             < if item.r#type().is_ring() { 10 } else { 5 }
@@ -1332,7 +1333,7 @@ impl CharacterController {
     pub fn unequip_and_deposit_all(&self) {
         let to_unequip = Slot::iter()
             .filter_map(|slot| {
-                self.items.get(&self.equiped_in(slot))?;
+                self.items.get(self.equiped_in(slot).as_ref())?;
                 let quantity = self.quantity_in_slot(slot);
                 Some(UnequipSchema {
                     slot: slot.into(),
@@ -1362,7 +1363,7 @@ impl CharacterController {
 
         for &UnequipSchema { slot, quantity } in slots {
             let slot = Slot::from(slot);
-            let Some(item) = self.items.get(&self.equiped_in(slot)) else {
+            let Some(item) = self.items.get(self.equiped_in(slot).as_ref()) else {
                 continue;
             };
             let quantity = quantity.unwrap_or_else(|| self.quantity_in_slot(slot));
@@ -2042,12 +2043,12 @@ impl Character for CharacterController {
         self.client.gold()
     }
 
-    fn equiped_in(&self, slot: Slot) -> String {
+    fn equiped_in(&self, slot: Slot) -> Cow<'_, str> {
         self.client.equiped_in(slot)
     }
 
-    fn has_equiped(&self, item_code: &str) -> u32 {
-        self.client.has_equiped(item_code)
+    fn has_equiped(&self, item: &str) -> u32 {
+        self.client.has_equiped(item)
     }
 
     fn quantity_in_slot(&self, slot: Slot) -> u32 {
