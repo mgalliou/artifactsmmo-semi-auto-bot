@@ -49,8 +49,6 @@ impl BotConfig {
 
 #[derive(Debug, Default, Deserialize)]
 pub struct BotConfigInner {
-    pub base_url: String,
-    pub token: String,
     pub characters: RwLock<Vec<Arc<CharConfig>>>,
     #[serde(default)]
     pub order_gear: bool,

@@ -1,3 +1,4 @@
+use crate::{orderboard::OrderError, reservable::ReservationError};
 use sdk::{
     client::character::error::{
         BankExpansionError, BuyNpcError, CraftError, DeleteError, DepositError, EquipError,
@@ -9,8 +10,6 @@ use sdk::{
     skill::Skill,
 };
 use thiserror::Error;
-
-use crate::{orderboard::OrderError, reservable::ReservationError};
 
 #[derive(Debug, Error)]
 pub enum KillMonsterCommandError {
