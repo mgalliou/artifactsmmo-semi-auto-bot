@@ -483,7 +483,7 @@ impl CharacterClient {
         let mut items: Vec<(Slot, Item, u32)> = vec![];
 
         for UnequipSchema { slot, quantity } in slots {
-            let slot = Slot::from(*slot);
+            let slot = Slot::from(slot);
             let Some(equiped) = self.items.get(self.equiped_in(slot).as_ref()) else {
                 return Err(UnequipError::SlotEmpty);
             };

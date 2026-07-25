@@ -36,7 +36,7 @@ pub(crate) type CharacterHandlerBuilder = Box<
         + 'static,
 >;
 
-#[derive(Clone, Default, Deref)]
+#[derive(Clone, Deref)]
 #[deref(forward)]
 pub struct AccountClient(Arc<AccountClientInner>);
 
@@ -51,22 +51,6 @@ pub struct AccountClientInner {
     fetch_achievements: AccountAchievementsSource,
     fetch_pending_items: PendingItemsSource,
     create_handler: CharacterHandlerBuilder,
-}
-
-impl Default for AccountClientInner {
-    fn default() -> Self {
-        Self {
-            name: String::default(),
-            bank: BankClient::default(),
-            characters: RwLock::default(),
-            achievements: RwLock::default(),
-            pending_items: ArcSwap::default(),
-            fetch_characters: Box::new(|_| panic!("AccountClient not initialized")),
-            fetch_achievements: Box::new(|_| panic!("AccountClient not initialized")),
-            fetch_pending_items: Box::new(|| panic!("AccountClient not initialized")),
-            create_handler: Box::new(|_, _, _, _| panic!("AccountClient not initialized")),
-        }
-    }
 }
 
 impl AccountClient {

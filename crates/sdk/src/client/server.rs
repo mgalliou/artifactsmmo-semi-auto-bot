@@ -5,11 +5,10 @@ use log::{debug, info};
 use openapi::models::StatusSchema;
 use std::sync::{Arc, RwLock};
 
-#[derive(Clone, Default, Deref)]
+#[derive(Clone, Deref)]
 #[deref(forward)]
 pub struct ServerClient(Arc<ServerClientInner>);
 
-#[derive(Default)]
 pub struct ServerClientInner {
     api: ArtifactApi,
     status: RwLock<StatusSchema>,
