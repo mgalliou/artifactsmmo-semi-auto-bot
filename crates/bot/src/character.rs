@@ -24,12 +24,14 @@ use crate::{
     reservable::Reservable,
 };
 use anyhow::{Result, bail};
+use chrono::{DateTime, FixedOffset};
 use derive_more::Deref;
 use itertools::{Either, Itertools};
 use log::{debug, error, info, warn};
 use ordered_float::OrderedFloat;
 use sdk::Quantity;
-use sdk::models::{EquipSchema, UnequipSchema};
+use sdk::entities::{CharacterName, TaskCode};
+use sdk::models::{EquipSchema, InventorySlotSchema, MapLayer, UnequipSchema};
 use sdk::{
     Client, Code, CollectionClient, HasConditions, HasDropTable, HasDrops, ItemContainer, ItemList,
     ItemsClient, Level, LimitedContainer, MapsClient, MonstersClient, NpcsClient, SlotLimited,
@@ -72,9 +74,7 @@ const KILL_CONFIDENCE: f64 = 0.95;
 #[deref(forward)]
 pub struct CharacterController(Arc<CharacterControllerInner>);
 
-#[derive(Deref)]
 pub struct CharacterControllerInner {
-    #[deref]
     client: CharacterClient,
     bot_config: BotConfig,
     pub inventory: InventoryController,
@@ -1231,8 +1231,8 @@ impl CharacterController {
     /// Iterates all slots, collecting items to equip and slots to unequip,
     /// then delegates to [`Self::unequip`] and [`Self::equip`] for batch processing.
     fn equip_gear(&self, gear: &mut Gear) -> Result<(), EquipGearCommandError> {
-        self.reserve_gear(gear)?;
         gear.align_to(&self.gear());
+        self.reserve_gear(gear)?;
 
         let mut to_equip = vec![];
         let mut to_unequip = vec![];
@@ -1686,51 +1686,67 @@ impl CharacterController {
             if let Some(item) = gear.item_in(slot)
                 && !slot.is_ring()
             {
-                ordered = self.order_if_needed(item.code(), slot.max_quantity());
+                ordered = self.order_if_needed(item, slot.max_quantity());
             }
         });
         if let Some(ref ring1) = gear.ring1
             && gear.ring1 == gear.ring2
         {
-            ordered = self.order_if_needed(ring1.code(), 2);
+            ordered = self.order_if_needed(ring1, 2);
         } else {
             if let Some(ref ring1) = gear.ring1 {
-                ordered = self.order_if_needed(ring1.code(), 1);
+                ordered = self.order_if_needed(ring1, 1);
             }
             if let Some(ref ring2) = gear.ring2 {
-                ordered = self.order_if_needed(ring2.code(), 1);
+                ordered = self.order_if_needed(ring2, 1);
             }
         }
         ordered
     }
 
-    fn order_if_needed(&self, item: &str, quantity: u32) -> bool {
-        if self.items.get(item).is_some_and(|i| {
-            let total = self.account.total_of(item);
-            let max = if i.r#type().is_ring() { 10 } else { 5 };
-            i.is_equipable()
-                && !i.r#type().is_utility()
-                && (total + self.order_board.quantity_ordered(item) + quantity) > max
-        }) {
+    fn order_if_needed(&self, item: &Item, quantity: u32) -> bool {
+        let total = self.account.total_of(item.code());
+        let max = if item.r#type().is_ring() { 10 } else { 5 };
+        if item.is_equipable()
+            && !item.r#type().is_utility()
+            && (total + self.order_board.quantity_ordered(item.code()) + quantity) > max
+        {
             return false;
         }
-        let missing_quantity = quantity.saturating_sub(self.has_available(item));
+        let missing_quantity = quantity.saturating_sub(self.has_available(item.code()));
         self.order_board
             .add(
-                item,
+                item.code(),
                 missing_quantity,
                 None,
                 Purpose::Gear {
                     char: self.name(),
-                    item_code: item.to_owned(),
+                    item: item.code().to_owned(),
                 },
             )
             .is_ok()
     }
 
-    fn reserve_gear(&self, gear: &mut Gear) -> Result<(), ReservationError> {
+    fn claim_pending_items(&self) -> anyhow::Result<()> {
+        for pending in self.account.client().pending_items() {
+            if !pending.load().is_claimed()
+                && self.inventory.has_room_for_all(pending.load().items())
+            {
+                if let Err(e) = self.client.claim_pending_item(pending.load().id()) {
+                    error!("{}: failed to claim pending item: {e}", self.name());
+                    return Err(anyhow::anyhow!(e));
+                }
+                if let Err(e) = self.client.account().load_pending_items() {
+                    error!("failed to reload pending_items: {e}");
+                }
+                return Ok(());
+            }
+        }
+        bail!("no item pending")
+    }
+
+    fn reserve_gear(&self, gear: &Gear) -> Result<(), ReservationError> {
         //TODO: unreserv already reserved items on failure
-        gear.align_to(&self.gear());
         for slot in Slot::iter() {
             if let Some(item) = gear.item_in(slot)
                 && !slot.is_ring()
@@ -1929,19 +1945,6 @@ impl CharacterController {
         self.client.meets_conditions_for(entity)
     }
 
-    pub fn toggle_idle(&self) {
-        self.config().toggle_idle();
-        info!("{} toggled idle: {}.", self.name(), self.config().is_idle());
-        if !self.config().is_idle() {
-            self.client.handler().refresh_data();
-        }
-    }
-
-    #[must_use]
-    pub fn config(&self) -> Arc<CharConfig> {
-        self.bot_config.get_char_config(self.client.id()).unwrap()
-    }
-
     #[must_use]
     pub fn available_items(&self) -> HashMap<String, u32> {
         let in_bank = self.bank.available_for(&self.name());
@@ -1958,89 +1961,108 @@ impl CharacterController {
             })
     }
 
-    fn claim_pending_items(&self) -> anyhow::Result<()> {
-        for pending in self.account.client().pending_items() {
-            if !pending.load().is_claimed()
-                && self.inventory.has_room_for_all(pending.load().items())
-            {
-                if let Err(e) = self.client.claim_pending_item(pending.load().id()) {
-                    error!("{}: failed to claim pending item: {e}", self.name());
-                    return Err(anyhow::anyhow!(e));
-                }
-                if let Err(e) = self.account().load_pending_items() {
-                    error!("failed to reload pending_items: {e}");
-                }
-                return Ok(());
-            }
+    pub fn toggle_idle(&self) {
+        self.config().toggle_idle();
+        info!("{} toggled idle: {}.", self.name(), self.config().is_idle());
+        if !self.config().is_idle() {
+            self.client.handler().refresh_data();
         }
-        bail!("no item pending")
     }
 
-    //fn progress_gift_order(&self, order: &Order) -> Option<u32> {
-    //    match self.can_exchange_gift() {
-    //        Ok(()) => {
-    //            order.inc_in_progress(1);
-    //            let exchanged = self.exchange_gift().map(|r| r.amount_of(&order.item)).ok();
-    //            order.dec_in_progress(1);
-    //            exchanged
-    //        }
-    //        Err(e) => {
-    //            if self.order_board.total_missing_for(order) <= 0 {
-    //                return None;
-    //            }
-    //            if let CharacterError::NotEnoughGift = e {
-    //                let q = 1 - if self.order_board.is_ordered(GIFT) {
-    //                    0
-    //                } else {
-    //                    self.has_in_bank_or_inv(GIFT)
-    //                };
-    //                return self.order_board
-    //                    .add(None, GIFT, q, order.purpose.to_owned())
-    //                    .ok()
-    //                    .map(|_| 0);
-    //            }
-    //            None
-    //        }
-    //    }
-    //}
+    #[must_use]
+    pub fn config(&self) -> Arc<CharConfig> {
+        self.bot_config.get_char_config(self.client.id()).unwrap()
+    }
+}
 
-    //fn exchange_gift(&self) -> Result<RewardsSchema, CharacterError> {
-    //    self.can_exchange_gift()?;
-    //    let quantity = min(
-    //        self.inventory.max_items() / 2,
-    //        self.bank.has_available(GIFT, Some(&self.inner.name())),
-    //    );
-    //    if self.inventory.total_of(GIFT) >= 1 {
-    //        if let Err(e) = self.inventory.reserv(GIFT, self.inventory.total_of(GIFT)) {
-    //            error!(
-    //                "{}: error while reserving gift in inventory: {}",
-    //                self.inner.name(),
-    //                e
-    //            );
-    //        }
-    //    } else {
-    //        if self.bank.reserv(GIFT, quantity, &self.inner.name()).is_err() {
-    //            return Err(CharacterError::NotEnoughGift);
-    //        }
-    //        self.deposit_all();
-    //        self.withdraw_item(GIFT, quantity)?;
-    //    }
-    //    if let Err(e) = self.move_to_closest_map_of_type(ContentType::SantaClaus) {
-    //        error!(
-    //            "{}: error while moving to santa claus: {:?}",
-    //            self.inner.name(),
-    //            e
-    //        );
-    //    };
-    //    let result = self.inner.request_gift_exchange().map_err(|e| e.into());
-    //    self.inventory.release(GIFT, 1);
-    //    result
-    //}
+impl Character for CharacterController {
+    fn name(&self) -> CharacterName {
+        self.client.name()
+    }
 
-    //fn can_exchange_gift(&self) -> Result<(), CharacterError> {
-    //    if self.inventory.total_of(GIFT) + self.bank.has_available(GIFT, Some(&self.inner.name())) < 1 {
-    //        return Err(CharacterError::NotEnoughGift);
-    //    }
-    //    Ok(())
-    //}
+    fn position(&self) -> (MapLayer, i32, i32) {
+        self.client.position()
+    }
+
+    fn skill_level(&self, skill: Skill) -> u32 {
+        self.client.skill_level(skill)
+    }
+
+    fn skill_xp(&self, skill: Skill) -> i32 {
+        self.client.skill_xp(skill)
+    }
+
+    fn skill_max_xp(&self, skill: Skill) -> i32 {
+        self.client.skill_max_xp(skill)
+    }
+
+    fn hp(&self) -> i32 {
+        self.client.hp()
+    }
+
+    fn max_hp(&self) -> i32 {
+        self.client.max_hp()
+    }
+
+    fn missing_hp(&self) -> i32 {
+        self.client.missing_hp()
+    }
+
+    fn task(&self) -> TaskCode {
+        self.client.task()
+    }
+
+    fn task_type(&self) -> Option<TaskType> {
+        self.client.task_type()
+    }
+
+    fn task_progress(&self) -> u32 {
+        self.client.task_progress()
+    }
+
+    fn task_total(&self) -> u32 {
+        self.client.task_total()
+    }
+
+    fn task_missing(&self) -> u32 {
+        self.client.task_missing()
+    }
+
+    fn task_finished(&self) -> bool {
+        self.client.task_finished()
+    }
+
+    fn inventory_items(&self) -> Arc<Vec<InventorySlotSchema>> {
+        self.client.inventory_items()
+    }
+
+    fn inventory_max_items(&self) -> u32 {
+        self.client.inventory_max_items()
+    }
+
+    fn gold(&self) -> u32 {
+        self.client.gold()
+    }
+
+    fn equiped_in(&self, slot: Slot) -> String {
+        self.client.equiped_in(slot)
+    }
+
+    fn has_equiped(&self, item_code: &str) -> u32 {
+        self.client.has_equiped(item_code)
+    }
+
+    fn quantity_in_slot(&self, slot: Slot) -> u32 {
+        self.client.quantity_in_slot(slot)
+    }
+
+    fn cooldown_expiration(&self) -> Option<DateTime<FixedOffset>> {
+        self.client.cooldown_expiration()
+    }
+}
+
+impl Level for CharacterController {
+    fn level(&self) -> u32 {
+        self.client.level()
+    }
 }

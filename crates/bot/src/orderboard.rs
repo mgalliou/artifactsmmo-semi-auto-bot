@@ -320,7 +320,7 @@ pub enum Purpose {
     Cli,
     Gear {
         char: CharacterName,
-        item_code: String,
+        item: String,
     },
     Task {
         char: CharacterName,
@@ -340,7 +340,7 @@ impl Display for Purpose {
                 Self::Cli => "CLI".to_owned(),
                 Self::Leveling { char, skill } => format!("{skill} ({char})"),
                 Self::Food { char } => format!("food ({char})"),
-                Self::Gear { char, item_code } => format!("'{item_code}': ({char})"),
+                Self::Gear { char, item } => format!("'{item_code}': ({char})"),
                 Self::Task { char } => format!("task ({char})"),
             }
         )

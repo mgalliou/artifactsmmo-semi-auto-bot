@@ -111,7 +111,7 @@ impl CharacterHttpRequestHandler {
         info!("{res}");
         res.characters().into_iter().for_each(|c| {
             if let Some(char_client) = self.account.get_character(&c.name) {
-                char_client.store(RawCharacter::new(c.clone()));
+                char_client.data.store(RawCharacter::new(c.clone()));
             }
         });
         if let Some(content) = res.bank_content() {
