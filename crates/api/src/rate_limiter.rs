@@ -7,21 +7,20 @@ use governor::{
 use http::Extensions;
 use reqwest::{Request, Response};
 use reqwest_middleware::{Middleware, Next, Result};
-use std::num::NonZeroU32;
+use std::{num::NonZeroU32, thread::sleep};
 
 const fn nz(n: u32) -> NonZeroU32 {
     NonZeroU32::new(n).expect("rate limit value must be non-zero")
 }
 
-/// Sync poll: block the current thread via `std::thread::sleep` until a
+/// block the current thread via `std::thread::sleep` until a
 /// token is available.
-fn wait_for(lim: &RateLimiter<NotKeyed, InMemoryState, DefaultClock>) {
-    let clock = DefaultClock::default();
+fn wait_for(limiter: &RateLimiter<NotKeyed, InMemoryState, DefaultClock>) {
     loop {
-        match lim.check() {
+        match limiter.check() {
             Ok(()) => return,
             Err(not_until) => {
-                std::thread::sleep(not_until.wait_time_from(clock.now()));
+                sleep(not_until.wait_time_from(limiter.clock().now()));
             }
         }
     }
@@ -29,7 +28,7 @@ fn wait_for(lim: &RateLimiter<NotKeyed, InMemoryState, DefaultClock>) {
 
 #[derive(Debug)]
 pub struct RateLimiterMiddleware {
-    global: RateLimiter<NotKeyed, InMemoryState, DefaultClock>,
+    limiter: RateLimiter<NotKeyed, InMemoryState, DefaultClock>,
 }
 
 impl RateLimiterMiddleware {
@@ -37,8 +36,7 @@ impl RateLimiterMiddleware {
     pub fn new() -> Self {
         Self {
             // Server enforces a hard global limit of 10 requests/second.
-            // Use 8/s with burst=1 to leave headroom and avoid 429s.
-            global: RateLimiter::direct(Quota::per_second(nz(8)).allow_burst(nz(1))),
+            limiter: RateLimiter::direct(Quota::per_second(nz(10))),
         }
     }
 }
@@ -51,7 +49,7 @@ impl Middleware for RateLimiterMiddleware {
         extensions: &mut Extensions,
         next: Next<'_>,
     ) -> Result<Response> {
-        wait_for(&self.global);
+        wait_for(&self.limiter);
 
         next.run(req, extensions).await
     }
@@ -67,30 +65,17 @@ mod tests {
         NonZeroU32::new(v).unwrap()
     }
 
-    /// Helper that exercises the same polling pattern as `wait_for`.
-    fn poll_lim(lim: &RateLimiter<NotKeyed, InMemoryState, DefaultClock>) {
-        let clock = DefaultClock::default();
-        loop {
-            match lim.check() {
-                Ok(()) => return,
-                Err(not_until) => {
-                    std::thread::sleep(not_until.wait_time_from(clock.now()));
-                }
-            }
-        }
-    }
-
     #[test]
     fn enforces_per_second_rate() {
         let lim = RateLimiter::direct(Quota::per_second(nz(8)).allow_burst(nz(1)));
         let start = Instant::now();
 
         // First call should be near-instant.
-        poll_lim(&lim);
+        wait_for(&lim);
         assert!(start.elapsed() < Duration::from_millis(10));
 
         // Second immediate call must wait.
-        poll_lim(&lim);
+        wait_for(&lim);
         let elapsed = start.elapsed();
         // With burst=1, second call must wait at least ~125ms (1/8s).
         assert!(
@@ -105,7 +90,7 @@ mod tests {
         let n = 16;
         let start = Instant::now();
         for _ in 0..n {
-            poll_lim(&lim);
+            wait_for(&lim);
         }
         let elapsed = start.elapsed();
         // 16 calls with burst=1: first is instant, 15 more at ~125ms each = ~1875ms.
@@ -134,7 +119,7 @@ mod tests {
                 s.spawn(move || {
                     rt_ref.block_on(async {
                         for _ in 0..calls_per_thread {
-                            poll_lim(&lim);
+                            wait_for(&lim);
                         }
                     });
                 });
