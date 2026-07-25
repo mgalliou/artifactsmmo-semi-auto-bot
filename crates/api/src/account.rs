@@ -1,4 +1,4 @@
-use crate::{DataPage, Paginate};
+use crate::{DataPage, Paginate, RUNTIME};
 use openapi::{
     apis::{
         Error,
@@ -35,7 +35,7 @@ impl AccountApi {
         account: &str,
     ) -> Result<CharactersListSchema, Error<GetAccountCharactersAccountsAccountCharactersGetError>>
     {
-        crate::runtime().block_on(get_account_characters_accounts_account_characters_get(
+        RUNTIME.block_on(get_account_characters_accounts_account_characters_get(
             &self.configuration,
             account,
         ))
@@ -76,7 +76,7 @@ impl Paginate for AchievementsRequest<'_> {
     type Error = GetAccountAchievementsAccountsAccountAchievementsGetError;
 
     fn request_page(&self, current_page: u32) -> Result<Self::Page, Error<Self::Error>> {
-        crate::runtime().block_on(get_account_achievements_accounts_account_achievements_get(
+        RUNTIME.block_on(get_account_achievements_accounts_account_achievements_get(
             self.configuration,
             self.account,
             None,
@@ -107,7 +107,7 @@ impl Paginate for PendingItemsRequest<'_> {
     type Error = GetPendingItemsMyPendingItemsGetError;
 
     fn request_page(&self, current_page: u32) -> Result<Self::Page, Error<Self::Error>> {
-        crate::runtime().block_on(get_pending_items_my_pending_items_get(
+        RUNTIME.block_on(get_pending_items_my_pending_items_get(
             self.configuration,
             Some(current_page),
             Some(100),

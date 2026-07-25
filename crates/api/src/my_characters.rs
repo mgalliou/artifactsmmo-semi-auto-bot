@@ -73,7 +73,8 @@ use openapi::{
 };
 use std::sync::Arc;
 
-use crate::runtime;
+use crate::RUNTIME;
+
 
 #[derive(Default, Debug)]
 pub struct MyCharacterApi {
@@ -96,7 +97,7 @@ impl MyCharacterApi {
             y: Some(y),
             map_id: None,
         };
-        runtime().block_on(action_move_my_name_action_move_post(
+        RUNTIME.block_on(action_move_my_name_action_move_post(
             &self.configuration,
             name,
             dest,
@@ -110,7 +111,7 @@ impl MyCharacterApi {
         CharacterTransitionResponseSchema,
         Error<ActionTransitionMyNameActionTransitionPostError>,
     > {
-        runtime().block_on(action_transition_my_name_action_transition_post(
+        RUNTIME.block_on(action_transition_my_name_action_transition_post(
             &self.configuration,
             name,
         ))
@@ -124,7 +125,7 @@ impl MyCharacterApi {
         let schema = FightRequestSchema {
             participants: participants.map(|p| p.to_vec()),
         };
-        runtime().block_on(action_fight_my_name_action_fight_post(
+        RUNTIME.block_on(action_fight_my_name_action_fight_post(
             &self.configuration,
             name,
             Some(schema),
@@ -135,7 +136,7 @@ impl MyCharacterApi {
         &self,
         name: &str,
     ) -> Result<CharacterRestResponseSchema, Error<ActionRestMyNameActionRestPostError>> {
-        runtime().block_on(action_rest_my_name_action_rest_post(
+        RUNTIME.block_on(action_rest_my_name_action_rest_post(
             &self.configuration,
             name,
         ))
@@ -145,7 +146,7 @@ impl MyCharacterApi {
         &self,
         name: &str,
     ) -> Result<SkillResponseSchema, Error<ActionGatheringMyNameActionGatheringPostError>> {
-        runtime().block_on(action_gathering_my_name_action_gathering_post(
+        RUNTIME.block_on(action_gathering_my_name_action_gathering_post(
             &self.configuration,
             name,
         ))
@@ -161,7 +162,7 @@ impl MyCharacterApi {
             code: item_code.to_owned(),
             quantity: Some(quantity),
         };
-        runtime().block_on(action_crafting_my_name_action_crafting_post(
+        RUNTIME.block_on(action_crafting_my_name_action_crafting_post(
             &self.configuration,
             name,
             schema,
@@ -180,7 +181,7 @@ impl MyCharacterApi {
             quantity: Some(quantity),
             enhanced: Some(enhanced),
         };
-        runtime().block_on(action_recycling_my_name_action_recycling_post(
+        RUNTIME.block_on(action_recycling_my_name_action_recycling_post(
             &self.configuration,
             name,
             schema,
@@ -194,7 +195,7 @@ impl MyCharacterApi {
         quantity: u32,
     ) -> Result<DeleteItemResponseSchema, Error<ActionDeleteItemMyNameActionDeletePostError>> {
         let schema = SimpleItemSchema::new(item_code.to_owned(), quantity);
-        runtime().block_on(action_delete_item_my_name_action_delete_post(
+        RUNTIME.block_on(action_delete_item_my_name_action_delete_post(
             &self.configuration,
             name,
             schema,
@@ -209,7 +210,7 @@ impl MyCharacterApi {
         BankItemTransactionResponseSchema,
         Error<ActionDepositBankItemMyNameActionBankDepositItemPostError>,
     > {
-        runtime().block_on(
+        RUNTIME.block_on(
             action_deposit_bank_item_my_name_action_bank_deposit_item_post(
                 &self.configuration,
                 name,
@@ -226,7 +227,7 @@ impl MyCharacterApi {
         BankItemTransactionResponseSchema,
         Error<ActionWithdrawBankItemMyNameActionBankWithdrawItemPostError>,
     > {
-        runtime().block_on(
+        RUNTIME.block_on(
             action_withdraw_bank_item_my_name_action_bank_withdraw_item_post(
                 &self.configuration,
                 name,
@@ -244,7 +245,7 @@ impl MyCharacterApi {
         Error<ActionDepositBankGoldMyNameActionBankDepositGoldPostError>,
     > {
         let s = DepositWithdrawGoldSchema { quantity };
-        runtime().block_on(
+        RUNTIME.block_on(
             action_deposit_bank_gold_my_name_action_bank_deposit_gold_post(
                 &self.configuration,
                 name,
@@ -262,7 +263,7 @@ impl MyCharacterApi {
         Error<ActionWithdrawBankGoldMyNameActionBankWithdrawGoldPostError>,
     > {
         let s = DepositWithdrawGoldSchema { quantity };
-        runtime().block_on(
+        RUNTIME.block_on(
             action_withdraw_bank_gold_my_name_action_bank_withdraw_gold_post(
                 &self.configuration,
                 name,
@@ -278,7 +279,7 @@ impl MyCharacterApi {
         BankExtensionTransactionResponseSchema,
         Error<ActionBuyBankExpansionMyNameActionBankBuyExpansionPostError>,
     > {
-        runtime().block_on(
+        RUNTIME.block_on(
             action_buy_bank_expansion_my_name_action_bank_buy_expansion_post(
                 &self.configuration,
                 name,
@@ -291,7 +292,7 @@ impl MyCharacterApi {
         name: &str,
         items: &[EquipSchema],
     ) -> Result<EquipmentResponseSchema, Error<ActionEquipItemMyNameActionEquipPostError>> {
-        runtime().block_on(action_equip_item_my_name_action_equip_post(
+        RUNTIME.block_on(action_equip_item_my_name_action_equip_post(
             &self.configuration,
             name,
             items.to_vec(),
@@ -303,7 +304,7 @@ impl MyCharacterApi {
         name: &str,
         slot: &[UnequipSchema],
     ) -> Result<EquipmentResponseSchema, Error<ActionUnequipItemMyNameActionUnequipPostError>> {
-        runtime().block_on(action_unequip_item_my_name_action_unequip_post(
+        RUNTIME.block_on(action_unequip_item_my_name_action_unequip_post(
             &self.configuration,
             name,
             slot.to_vec(),
@@ -317,7 +318,7 @@ impl MyCharacterApi {
         quantity: u32,
     ) -> Result<UseItemResponseSchema, Error<ActionUseItemMyNameActionUsePostError>> {
         let schema = SimpleItemSchema::new(item_code.to_owned(), quantity);
-        runtime().block_on(action_use_item_my_name_action_use_post(
+        RUNTIME.block_on(action_use_item_my_name_action_use_post(
             &self.configuration,
             name,
             schema,
@@ -328,7 +329,7 @@ impl MyCharacterApi {
         &self,
         name: &str,
     ) -> Result<TaskResponseSchema, Error<ActionAcceptNewTaskMyNameActionTaskNewPostError>> {
-        runtime().block_on(action_accept_new_task_my_name_action_task_new_post(
+        RUNTIME.block_on(action_accept_new_task_my_name_action_task_new_post(
             &self.configuration,
             name,
         ))
@@ -339,7 +340,7 @@ impl MyCharacterApi {
         name: &str,
     ) -> Result<TaskCancelledResponseSchema, Error<ActionTaskCancelMyNameActionTaskCancelPostError>>
     {
-        runtime().block_on(action_task_cancel_my_name_action_task_cancel_post(
+        RUNTIME.block_on(action_task_cancel_my_name_action_task_cancel_post(
             &self.configuration,
             name,
         ))
@@ -351,7 +352,7 @@ impl MyCharacterApi {
         item_code: &str,
         quantity: u32,
     ) -> Result<TaskTradeResponseSchema, Error<ActionTaskTradeMyNameActionTaskTradePostError>> {
-        runtime().block_on(action_task_trade_my_name_action_task_trade_post(
+        RUNTIME.block_on(action_task_trade_my_name_action_task_trade_post(
             &self.configuration,
             name,
             SimpleItemSchema::new(item_code.to_owned(), quantity),
@@ -363,7 +364,7 @@ impl MyCharacterApi {
         name: &str,
     ) -> Result<RewardDataResponseSchema, Error<ActionCompleteTaskMyNameActionTaskCompletePostError>>
     {
-        runtime().block_on(action_complete_task_my_name_action_task_complete_post(
+        RUNTIME.block_on(action_complete_task_my_name_action_task_complete_post(
             &self.configuration,
             name,
         ))
@@ -374,7 +375,7 @@ impl MyCharacterApi {
         name: &str,
     ) -> Result<RewardDataResponseSchema, Error<ActionTaskExchangeMyNameActionTaskExchangePostError>>
     {
-        runtime().block_on(action_task_exchange_my_name_action_task_exchange_post(
+        RUNTIME.block_on(action_task_exchange_my_name_action_task_exchange_post(
             &self.configuration,
             name,
         ))
@@ -390,7 +391,7 @@ impl MyCharacterApi {
         Error<ActionNpcBuyItemMyNameActionNpcBuyPostError>,
     > {
         let schema = NpcMerchantBuySchema::new(code, quantity);
-        runtime().block_on(action_npc_buy_item_my_name_action_npc_buy_post(
+        RUNTIME.block_on(action_npc_buy_item_my_name_action_npc_buy_post(
             &self.configuration,
             name,
             schema,
@@ -407,7 +408,7 @@ impl MyCharacterApi {
         Error<ActionNpcSellItemMyNameActionNpcSellPostError>,
     > {
         let schema = NpcMerchantBuySchema::new(code, quantity);
-        runtime().block_on(action_npc_sell_item_my_name_action_npc_sell_post(
+        RUNTIME.block_on(action_npc_sell_item_my_name_action_npc_sell_post(
             &self.configuration,
             name,
             schema,
@@ -421,7 +422,7 @@ impl MyCharacterApi {
         character: &str,
     ) -> Result<GiveItemResponseSchema, Error<ActionGiveItemsMyNameActionGiveItemPostError>> {
         let schema = GiveItemsSchema::new(items.to_vec(), character.to_owned());
-        runtime().block_on(action_give_items_my_name_action_give_item_post(
+        RUNTIME.block_on(action_give_items_my_name_action_give_item_post(
             &self.configuration,
             name,
             schema,
@@ -435,7 +436,7 @@ impl MyCharacterApi {
         character: &str,
     ) -> Result<GiveGoldResponseSchema, Error<ActionGiveGoldMyNameActionGiveGoldPostError>> {
         let schema = GiveGoldSchema::new(quantity, character.to_owned());
-        runtime().block_on(action_give_gold_my_name_action_give_gold_post(
+        RUNTIME.block_on(action_give_gold_my_name_action_give_gold_post(
             &self.configuration,
             name,
             schema,
@@ -450,7 +451,7 @@ impl MyCharacterApi {
         ClaimPendingItemResponseSchema,
         Error<ActionClaimPendingItemMyNameActionClaimItemIdPostError>,
     > {
-        runtime().block_on(action_claim_pending_item_my_name_action_claim_item_id_post(
+        RUNTIME.block_on(action_claim_pending_item_my_name_action_claim_item_id_post(
             &self.configuration,
             name,
             id,
@@ -467,7 +468,7 @@ impl MyCharacterApi {
         Error<ActionGeBuyItemMyNameActionGrandexchangeBuyPostError>,
     > {
         let schema = GeBuyOrderSchema::new(id.to_owned(), quantity);
-        runtime().block_on(action_ge_buy_item_my_name_action_grandexchange_buy_post(
+        RUNTIME.block_on(action_ge_buy_item_my_name_action_grandexchange_buy_post(
             &self.configuration,
             name,
             schema,
@@ -485,7 +486,7 @@ impl MyCharacterApi {
         Error<ActionGeCreateSellOrderMyNameActionGrandexchangeCreateSellOrderPostError>,
     > {
         let schema = GeOrderCreationSchema::new(item_code.to_owned(), quantity, price);
-        runtime().block_on(
+        RUNTIME.block_on(
             action_ge_create_sell_order_my_name_action_grandexchange_create_sell_order_post(
                 &self.configuration,
                 name,
@@ -502,7 +503,7 @@ impl MyCharacterApi {
         GeTransactionResponseSchema,
         Error<ActionGeCancelOrderMyNameActionGrandexchangeCancelPostError>,
     > {
-        runtime().block_on(
+        RUNTIME.block_on(
             action_ge_cancel_order_my_name_action_grandexchange_cancel_post(
                 &self.configuration,
                 name,

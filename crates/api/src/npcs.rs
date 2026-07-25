@@ -1,4 +1,4 @@
-use crate::{DataPage, Paginate};
+use crate::{DataPage, Paginate, RUNTIME};
 use openapi::{
     apis::{
         Error,
@@ -47,7 +47,7 @@ impl Paginate for NpcsRequest<'_> {
     type Error = GetAllNpcsNpcsDetailsGetError;
 
     fn request_page(&self, page: u32) -> Result<Self::Page, Error<Self::Error>> {
-        crate::runtime().block_on(get_all_npcs_npcs_details_get(
+        RUNTIME.block_on(get_all_npcs_npcs_details_get(
             self.configuration,
             None,
             None,
@@ -79,7 +79,7 @@ impl Paginate for NpcsItemsRequest<'_> {
     type Error = GetAllNpcsItemsNpcsItemsGetError;
 
     fn request_page(&self, page: u32) -> Result<Self::Page, Error<Self::Error>> {
-        crate::runtime().block_on(get_all_npcs_items_npcs_items_get(
+        RUNTIME.block_on(get_all_npcs_items_npcs_items_get(
             self.configuration,
             None,
             None,

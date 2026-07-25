@@ -1,4 +1,4 @@
-use crate::{DataPage, Paginate};
+use crate::{DataPage, Paginate, RUNTIME};
 use openapi::{
     apis::{
         Error,
@@ -51,7 +51,7 @@ impl GrandExchangeApi {
         &self,
         id: &str,
     ) -> Result<GeOrderResponseSchema, Error<GetGeOrderGrandexchangeOrdersIdGetError>> {
-        crate::runtime().block_on(get_ge_order_grandexchange_orders_id_get(
+        RUNTIME.block_on(get_ge_order_grandexchange_orders_id_get(
             &self.configuration,
             id,
         ))
@@ -72,7 +72,7 @@ impl Paginate for SellHistoryRequest<'_> {
     type Error = GetGeHistoryGrandexchangeHistoryCodeGetError;
 
     fn request_page(&self, current_page: u32) -> Result<Self::Page, Error<Self::Error>> {
-        crate::runtime().block_on(get_ge_history_grandexchange_history_code_get(
+        RUNTIME.block_on(get_ge_history_grandexchange_history_code_get(
             self.configuration,
             self.code,
             None,
@@ -98,7 +98,7 @@ impl Paginate for SellOrdersRequest<'_> {
     type Error = GetGeOrdersGrandexchangeOrdersGetError;
 
     fn request_page(&self, page: u32) -> Result<Self::Page, Error<Self::Error>> {
-        crate::runtime().block_on(get_ge_orders_grandexchange_orders_get(
+        RUNTIME.block_on(get_ge_orders_grandexchange_orders_get(
             self.configuration,
             None,
             None,

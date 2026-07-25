@@ -1,3 +1,4 @@
+use crate::RUNTIME;
 use openapi::{
     apis::{
         Error,
@@ -22,6 +23,6 @@ impl CharactersApi {
         &self,
         name: &str,
     ) -> Result<CharacterResponseSchema, Error<GetCharacterCharactersNameGetError>> {
-        crate::runtime().block_on(get_character_characters_name_get(&self.configuration, name))
+        RUNTIME.block_on(get_character_characters_name_get(&self.configuration, name))
     }
 }

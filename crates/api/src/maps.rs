@@ -1,4 +1,4 @@
-use crate::{DataPage, Paginate};
+use crate::{DataPage, Paginate, RUNTIME};
 use openapi::{
     apis::{
         Error,
@@ -33,7 +33,7 @@ impl MapsApi {
         &self,
         id: i32,
     ) -> Result<MapResponseSchema, Error<GetMapByIdMapsIdMapIdGetError>> {
-        crate::runtime().block_on(get_map_by_id_maps_id_map_id_get(&self.configuration, id))
+        RUNTIME.block_on(get_map_by_id_maps_id_map_id_get(&self.configuration, id))
     }
 }
 
@@ -47,7 +47,7 @@ impl Paginate for MapsRequest<'_> {
     type Error = GetAllMapsMapsGetError;
 
     fn request_page(&self, page: u32) -> Result<Self::Page, Error<Self::Error>> {
-        crate::runtime().block_on(get_all_maps_maps_get(
+        RUNTIME.block_on(get_all_maps_maps_get(
             self.configuration,
             None,
             None,

@@ -1,4 +1,4 @@
-use crate::{DataPage, Paginate};
+use crate::{DataPage, Paginate, RUNTIME};
 use openapi::{
     apis::{
         Error,
@@ -37,7 +37,7 @@ impl Paginate for ResourcesRequest<'_> {
     type Error = GetAllResourcesResourcesGetError;
 
     fn request_page(&self, page: u32) -> Result<Self::Page, Error<Self::Error>> {
-        crate::runtime().block_on(get_all_resources_resources_get(
+        RUNTIME.block_on(get_all_resources_resources_get(
             self.configuration,
             None,
             None,

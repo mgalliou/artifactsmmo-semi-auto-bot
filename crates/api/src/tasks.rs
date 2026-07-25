@@ -1,4 +1,4 @@
-use crate::{DataPage, Paginate};
+use crate::{DataPage, Paginate, RUNTIME};
 use openapi::{
     apis::{
         Error,
@@ -51,7 +51,7 @@ impl Paginate for TasksRequest<'_> {
     type Error = GetAllTasksTasksListGetError;
 
     fn request_page(&self, current_page: u32) -> Result<Self::Page, Error<Self::Error>> {
-        crate::runtime().block_on(get_all_tasks_tasks_list_get(
+        RUNTIME.block_on(get_all_tasks_tasks_list_get(
             self.configuration,
             None,
             None,
@@ -83,7 +83,7 @@ impl Paginate for TasksRewardsRequest<'_> {
     type Error = GetAllTasksRewardsTasksRewardsGetError;
 
     fn request_page(&self, current_page: u32) -> Result<Self::Page, Error<Self::Error>> {
-        crate::runtime().block_on(get_all_tasks_rewards_tasks_rewards_get(
+        RUNTIME.block_on(get_all_tasks_rewards_tasks_rewards_get(
             self.configuration,
             Some(current_page),
             Some(100),

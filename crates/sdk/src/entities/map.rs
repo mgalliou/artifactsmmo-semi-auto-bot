@@ -102,37 +102,6 @@ impl MapHandle {
     }
 }
 
-// TODO: finish impl
-impl Map for MapHandle {
-    fn id(&self) -> i32 {
-        self.0.read().unwrap().id()
-    }
-
-    fn name(&self) -> Cow<'_, str> {
-        Cow::Owned(self.0.read().unwrap().name().into_owned())
-    }
-
-    fn layer(&self) -> MapLayer {
-        todo!()
-    }
-
-    fn x(&self) -> i32 {
-        todo!()
-    }
-
-    fn y(&self) -> i32 {
-        todo!()
-    }
-
-    fn interactions(&self) -> &InteractionSchema {
-        todo!()
-    }
-
-    fn access(&self) -> &AccessSchema {
-        todo!()
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RawMap(Arc<MapSchema>);
 
