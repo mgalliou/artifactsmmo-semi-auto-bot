@@ -143,13 +143,10 @@ impl Map for RawMap {
 
 impl Display for RawMap {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{} ({}, {} [{}])",
-            self.name(),
-            self.x(),
-            self.y(),
-            self.layer()
-        )
+        write!(f, "{}", self.name())?;
+        if let Some(code) = self.content_code() {
+            write!(f, " [{code}]")?;
+        }
+        write!(f, " ({}: {}, {})", self.layer(), self.x(), self.y())
     }
 }

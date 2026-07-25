@@ -78,24 +78,14 @@ impl ResponseSchema for CharacterFightResponseSchema {
         let drops = chars.iter().flat_map(|c| c.drops.clone()).collect_vec();
         let xp = chars.iter().map(|c| c.xp).join("/");
         let gold = chars.iter().map(|c| c.gold).join("/");
-        match self.data.fight.result {
-            FightResult::Win => format!(
-                "{} won a fight after {} turns ([{}], {}xp, {}g). {}s",
-                names,
-                self.data.fight.turns,
-                ItemList(&drops),
-                xp,
-                gold,
-                self.data.cooldown.remaining_seconds
-            ),
-            FightResult::Loss => format!(
-                "{} lost a fight against {} after {} turns. {}s",
-                self.data.characters.first().unwrap().name,
-                self.data.fight.opponent,
-                self.data.fight.turns,
-                self.data.cooldown.remaining_seconds
-            ),
-        }
+        let (verb, loot) = match self.data.fight.result {
+            FightResult::Win => ("won", format!(" ([{}], {xp}xp, {gold}g)", ItemList(&drops))),
+            FightResult::Loss => ("lost", String::new()),
+        };
+        format!(
+            "{names}: {verb} a {} turns fight against {}{loot}. {}s",
+            self.data.fight.turns, self.data.fight.opponent, self.data.cooldown.remaining_seconds
+        )
     }
 
     fn character(&self) -> &CharacterSchema {
@@ -135,13 +125,13 @@ impl ResponseSchema for UseItemResponseSchema {
 
 impl ResponseSchema for SkillResponseSchema {
     fn pretty(&self) -> String {
-        let reason = if self.data.cooldown.reason == ActionType::Crafting {
+        let verb = if self.data.cooldown.reason == ActionType::Crafting {
             "crafted"
         } else {
             "gathered"
         };
         format!(
-            "{}: {reason} [{}] ({}xp). {}s",
+            "{}: {verb} [{}] ({}xp). {}s",
             self.data.character.name,
             ItemList(&self.data.details.items),
             self.data.details.xp,
@@ -157,8 +147,11 @@ impl ResponseSchema for SkillResponseSchema {
 impl ResponseSchema for DeleteItemResponseSchema {
     fn pretty(&self) -> String {
         format!(
-            "{}: deleted '{}'x{}",
-            self.data.character.name, self.data.item.code, self.data.item.quantity
+            "{}: deleted '{}'x{}. {}s",
+            self.data.character.name,
+            self.data.item.code,
+            self.data.item.quantity,
+            self.data.cooldown.remaining_seconds
         )
     }
 
@@ -169,21 +162,17 @@ impl ResponseSchema for DeleteItemResponseSchema {
 
 impl ResponseSchema for BankItemTransactionResponseSchema {
     fn pretty(&self) -> String {
-        if self.data.cooldown.reason == ActionType::WithdrawItem {
-            format!(
-                "{}: withdrew [{}] from the bank. {}s",
-                self.data.character.name,
-                ItemList(&self.data.items),
-                self.data.cooldown.remaining_seconds
-            )
+        let (action, prep) = if self.data.cooldown.reason == ActionType::WithdrawItem {
+            ("withdrew", "from")
         } else {
-            format!(
-                "{}: deposited [{}] to the bank. {}s",
-                self.data.character.name,
-                ItemList(&self.data.items),
-                self.data.cooldown.remaining_seconds
-            )
-        }
+            ("deposited", "to")
+        };
+        format!(
+            "{}: {action} [{}] {prep} the bank. {}s",
+            self.data.character.name,
+            ItemList(&self.data.items),
+            self.data.cooldown.remaining_seconds
+        )
     }
 
     fn character(&self) -> &CharacterSchema {
@@ -197,21 +186,15 @@ impl ResponseSchema for BankItemTransactionResponseSchema {
 
 impl ResponseSchema for BankGoldTransactionResponseSchema {
     fn pretty(&self) -> String {
-        if self.data.cooldown.reason == ActionType::WithdrawGold {
-            format!(
-                "{}: withdrew {} gold from the bank. {}s",
-                self.data.character.name,
-                self.data.bank.quantity,
-                self.data.cooldown.remaining_seconds
-            )
+        let (action, prep) = if self.data.cooldown.reason == ActionType::WithdrawGold {
+            ("withdrew", "from")
         } else {
-            format!(
-                "{}: deposited {} gold to the bank. {}s",
-                self.data.character.name,
-                self.data.bank.quantity,
-                self.data.cooldown.remaining_seconds
-            )
-        }
+            ("deposited", "to")
+        };
+        format!(
+            "{}: {action} {}g {prep} the bank. {}s",
+            self.data.character.name, self.data.bank.quantity, self.data.cooldown.remaining_seconds
+        )
     }
 
     fn character(&self) -> &CharacterSchema {
@@ -226,7 +209,7 @@ impl ResponseSchema for BankGoldTransactionResponseSchema {
 impl ResponseSchema for BankExtensionTransactionResponseSchema {
     fn pretty(&self) -> String {
         format!(
-            "{}: bought bank expansion for {} gold. {}s",
+            "{}: bought bank expansion for {}g. {}s",
             self.data.character.name,
             self.data.transaction.price,
             self.data.cooldown.remaining_seconds
@@ -245,7 +228,7 @@ impl ResponseSchema for BankExtensionTransactionResponseSchema {
 impl ResponseSchema for RecyclingResponseSchema {
     fn pretty(&self) -> String {
         format!(
-            "{}: recycled and received {}. {}s",
+            "{}: recycled and received [{}]. {}s",
             self.data.character.name,
             ItemList(&self.data.details.items),
             self.data.cooldown.remaining_seconds
@@ -259,23 +242,21 @@ impl ResponseSchema for RecyclingResponseSchema {
 
 impl ResponseSchema for EquipmentResponseSchema {
     fn pretty(&self) -> String {
+        let action = if self.data.cooldown.reason == ActionType::Equip {
+            "equipped"
+        } else {
+            "unequipped"
+        };
         let item_codes = self
             .data
             .items
             .iter()
-            .map(|i| i.item.code.clone())
-            .collect_vec();
-        if self.data.cooldown.reason == ActionType::Equip {
-            format!(
-                "{}: equipped '{item_codes:?}'. {}s",
-                self.data.character.name, self.data.cooldown.remaining_seconds
-            )
-        } else {
-            format!(
-                "{}: unequipped '{item_codes:?}'. {}s",
-                self.data.character.name, self.data.cooldown.remaining_seconds
-            )
-        }
+            .map(|i| format!("'{}'", i.item.code))
+            .join(", ");
+        format!(
+            "{}: {action} [{item_codes}]. {}s",
+            self.data.character.name, self.data.cooldown.remaining_seconds
+        )
     }
 
     fn character(&self) -> &CharacterSchema {
@@ -286,7 +267,7 @@ impl ResponseSchema for EquipmentResponseSchema {
 impl ResponseSchema for TaskResponseSchema {
     fn pretty(&self) -> String {
         format!(
-            "{}: accepted new [{:?}] task: '{}'x{}. {}s",
+            "{}: accepted new '{:?}' task: '{}'x{}. {}s",
             self.data.character.name,
             self.data.task.r#type,
             self.data.task.code,
@@ -348,10 +329,10 @@ impl ResponseSchema for TaskTradeResponseSchema {
 impl ResponseSchema for NpcMerchantTransactionResponseSchema {
     fn pretty(&self) -> String {
         format!(
-            "{}: traded {} {} for {} {}(s) at {} each. {}s",
+            "{}: traded '{}'x{} for {} {} at {} each. {}s",
             self.data.character.name,
-            self.data.transaction.quantity,
             self.data.transaction.code,
+            self.data.transaction.quantity,
             self.data.transaction.total_price,
             self.data.transaction.currency,
             self.data.transaction.price,
@@ -387,7 +368,7 @@ impl ResponseSchema for GiveItemResponseSchema {
 impl ResponseSchema for GiveGoldResponseSchema {
     fn pretty(&self) -> String {
         format!(
-            "{}: gave {} gold to {}. {}s",
+            "{}: gave {}g to {}. {}s",
             self.data.character.name,
             self.data.quantity,
             self.data.receiver_character.name,
@@ -406,9 +387,15 @@ impl ResponseSchema for GiveGoldResponseSchema {
 
 impl ResponseSchema for ClaimPendingItemResponseSchema {
     fn pretty(&self) -> String {
+        let what = match (&self.data.item.items, self.data.item.gold) {
+            (Some(items), Some(gold)) => format!("[{}] and {gold}g", ItemList(items)),
+            (Some(items), None) => format!("[{}]", ItemList(items)),
+            (None, Some(gold)) => format!("{gold}g"),
+            (None, None) => "pending item".to_string(),
+        };
         format!(
-            "{}: claimed '{:?}'. {}s",
-            self.data.character.name, self.data.item.items, self.data.cooldown.remaining_seconds,
+            "{}: claimed {what}. {}s",
+            self.data.character.name, self.data.cooldown.remaining_seconds
         )
     }
 
@@ -427,25 +414,19 @@ impl ResponseSchema for ClaimPendingItemResponseSchema {
 
 impl ResponseSchema for GeTransactionResponseSchema {
     fn pretty(&self) -> String {
-        if self.data.cooldown.reason == ActionType::BuyGe {
-            format!(
-                "{}: bought '{}'x{} for {}g from the grand exchange. {}",
-                self.data.character.name,
-                self.data.order.code,
-                self.data.order.quantity,
-                self.data.order.total_price,
-                self.data.cooldown.remaining_seconds
-            )
+        let (action, prep) = if self.data.cooldown.reason == ActionType::BuyGe {
+            ("bought", "from")
         } else {
-            format!(
-                "{}: canceled order '{}'x{} for {}g at the grand exchange. {}",
-                self.data.character.name,
-                self.data.order.code,
-                self.data.order.quantity,
-                self.data.order.total_price,
-                self.data.cooldown.remaining_seconds
-            )
-        }
+            ("canceled", "at")
+        };
+        format!(
+            "{}: {action} an order ['{}'x{} ({}g)] {prep} the grand exchange. {}s",
+            self.data.character.name,
+            self.data.order.code,
+            self.data.order.quantity,
+            self.data.order.total_price,
+            self.data.cooldown.remaining_seconds
+        )
     }
 
     fn character(&self) -> &CharacterSchema {
@@ -456,11 +437,11 @@ impl ResponseSchema for GeTransactionResponseSchema {
 impl ResponseSchema for GeCreateOrderTransactionResponseSchema {
     fn pretty(&self) -> String {
         format!(
-            "{}: created order '{}'x{} for {}g at the grand exchange. {}s",
+            "{}: created order ['{}'x{} ({}g)] at the grand exchange. {}s",
             self.data.character.name,
             self.data.order.code,
             self.data.order.quantity,
-            self.data.order.price,
+            self.data.order.total_price,
             self.data.cooldown.remaining_seconds
         )
     }
