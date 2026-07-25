@@ -314,21 +314,11 @@ pub enum OrderError {
 
 #[derive(Debug, PartialEq, Eq, Clone, EnumIs, EnumIter)]
 pub enum Purpose {
-    Food {
-        char: CharacterName,
-    },
+    Food { char: CharacterName },
     Cli,
-    Gear {
-        char: CharacterName,
-        item: String,
-    },
-    Task {
-        char: CharacterName,
-    },
-    Leveling {
-        char: CharacterName,
-        skill: Skill,
-    },
+    Gear { char: CharacterName, item: String },
+    Task { char: CharacterName },
+    Leveling { char: CharacterName, skill: Skill },
 }
 
 impl Display for Purpose {
@@ -340,7 +330,7 @@ impl Display for Purpose {
                 Self::Cli => "CLI".to_owned(),
                 Self::Leveling { char, skill } => format!("{skill} ({char})"),
                 Self::Food { char } => format!("food ({char})"),
-                Self::Gear { char, item } => format!("'{item_code}': ({char})"),
+                Self::Gear { char, item } => format!("'{item}': ({char})"),
                 Self::Task { char } => format!("task ({char})"),
             }
         )

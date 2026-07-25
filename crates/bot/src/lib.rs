@@ -1,10 +1,6 @@
 use crate::{
-    account::AccountController,
-    bank::BankController,
-    bot_config::BotConfig,
-    gear_finder::GearFinder,
-    leveling_helper::LevelingHelper,
-    orchestrator::Orchestrator,
+    account::AccountController, bank::BankController, bot_config::BotConfig,
+    gear_finder::GearFinder, leveling_helper::LevelingHelper, orchestrator::Orchestrator,
     orderboard::OrderBoard,
 };
 use chrono::{DateTime, Utc};
@@ -77,8 +73,12 @@ impl Bot {
             bank.clone(),
         );
         let event_rx = client.event_bus().subscribe();
-        let mut orchestrator =
-            Orchestrator::new(event_rx, account.clone(), bank.clone(), client.items.clone());
+        let mut orchestrator = Orchestrator::new(
+            event_rx,
+            account.clone(),
+            bank.clone(),
+            client.items.clone(),
+        );
         // Spawn orchestrator thread immediately so it's ready before events fire
         if let Err(e) = Builder::new()
             .name("orchestrator".into())

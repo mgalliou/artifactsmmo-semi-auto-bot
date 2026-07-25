@@ -20,6 +20,21 @@ impl PendingItemHandle {
     pub fn store(&self, raw: RawPendingItem) {
         *self.0.write().unwrap() = raw;
     }
+
+    #[must_use]
+    pub fn id(&self) -> String {
+        self.0.read().unwrap().id().to_owned()
+    }
+
+    #[must_use]
+    pub fn items(&self) -> Vec<SimpleItemSchema> {
+        self.0.read().unwrap().items().to_owned()
+    }
+
+    #[must_use]
+    pub fn is_claimed(&self) -> bool {
+        self.0.read().unwrap().is_claimed()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

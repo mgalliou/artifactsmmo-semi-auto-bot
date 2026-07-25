@@ -23,7 +23,7 @@ use crate::{
     orderboard::{Order, OrderBoard, Purpose},
     reservable::Reservable,
 };
-use anyhow::{Result, bail};
+use anyhow::{self, Result, bail};
 use chrono::{DateTime, FixedOffset};
 use derive_more::Deref;
 use itertools::{Either, Itertools};
@@ -1729,12 +1729,10 @@ impl CharacterController {
 
     fn claim_pending_items(&self) -> anyhow::Result<()> {
         for pending in self.account.client().pending_items() {
-            if !pending.load().is_claimed()
-                && self.inventory.has_room_for_all(pending.load().items())
-            {
-                if let Err(e) = self.client.claim_pending_item(pending.load().id()) {
+            if !pending.is_claimed() && self.inventory.has_room_for_all(&pending.items()) {
+                if let Err(e) = self.client.claim_pending_item(&pending.id()) {
                     error!("{}: failed to claim pending item: {e}", self.name());
-                    return Err(anyhow::anyhow!(e));
+                    bail!(e);
                 }
                 if let Err(e) = self.client.account().load_pending_items() {
                     error!("failed to reload pending_items: {e}");

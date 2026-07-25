@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::{account::AccountController, character::CharacterController};
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
@@ -16,6 +14,7 @@ use sdk::{
     skill::Skill,
     yields_xp,
 };
+use std::collections::HashMap;
 
 pub use artifact_set::ArtifactSet;
 pub use component::{GearComponent, ItemSlot};
@@ -62,13 +61,13 @@ impl GearFinder {
             .filter_map(|code| self.items.get(code))
             .filter(Item::is_equipable)
             .collect_vec();
-        let mut item_pool: Vec<Item> = if filter.available_only {
+        let mut item_pool = if filter.available_only {
             vec![]
         } else {
             self.items
                 .iter()
                 .filter(|i| self.is_eligible(i, filter, char))
-                .collect()
+                .collect_vec()
         };
         item_pool = [item_pool, owned_items].concat();
         item_pool.sort();

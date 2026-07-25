@@ -1,9 +1,8 @@
+use crate::entities::CharacterName;
 use bus::{Bus, BusReader};
 use log::warn;
 use openapi::models::SimpleItemSchema;
 use std::sync::{Arc, Mutex};
-
-use crate::entities::CharacterName;
 
 #[derive(Debug, Clone)]
 pub enum SdkEvent {

@@ -169,28 +169,19 @@ fn respond(line: &str, bot: &Bot, character: &mut Option<CharacterController>) -
             let Some(char) = character else {
                 bail!("no character selected");
             };
-            char.send_cmd(CharacterCommand::Craft {
-                item,
-                quantity,
-            })?;
+            char.send_cmd(CharacterCommand::Craft { item, quantity })?;
         }
         Commands::Recycle { item, quantity } => {
             let Some(char) = character else {
                 bail!("no character selected");
             };
-            char.send_cmd(CharacterCommand::Recycle {
-                item,
-                quantity,
-            })?;
+            char.send_cmd(CharacterCommand::Recycle { item, quantity })?;
         }
         Commands::Delete { item, quantity } => {
             let Some(char) = character else {
                 bail!("no character selected");
             };
-            char.send_cmd(CharacterCommand::Delete {
-                item,
-                quantity,
-            })?;
+            char.send_cmd(CharacterCommand::Delete { item, quantity })?;
         }
         Commands::Gear {
             available_only,

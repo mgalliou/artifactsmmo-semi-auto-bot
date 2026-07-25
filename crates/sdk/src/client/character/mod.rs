@@ -1,8 +1,12 @@
 use crate::{
-    AccountClient, Code, CollectionClient, GOLD, Gear, HasConditions, ItemContainer, Level, LimitedContainer, Quantity, SlotLimited, SpaceLimited, TASK_EXCHANGE_PRICE, TASKS_COIN, TasksClient, character::error::{
+    AccountClient, Code, CollectionClient, GOLD, Gear, HasConditions, ItemContainer, Level,
+    LimitedContainer, Quantity, SlotLimited, SpaceLimited, TASK_EXCHANGE_PRICE, TASKS_COIN,
+    TasksClient,
+    character::error::{
         ClaimPendingItemError, GeBuyOrderError, GeCancelOrderError, GeCreateOrderError,
         GiveGoldError, GiveItemError, TransitionError,
-    }, client::{
+    },
+    client::{
         bank::{Bank, BankClient},
         character::error::{
             BankExpansionError, BuyNpcError, CraftError, DeleteError, DepositError, EquipError,
@@ -16,12 +20,22 @@ use crate::{
         monsters::MonstersClient,
         npcs::NpcsClient,
         resources::ResourcesClient,
-    }, entities::{AccountAchievement, Character, CharacterHandle, CharacterName, Item, Map, RawMap, TaskCode}, gear::Slot, grand_exchange::GrandExchangeClient, simulator::HasEffects, skill::Skill,
+    },
+    entities::{
+        AccountAchievement, Character, CharacterHandle, CharacterName, Item, Map, RawMap, TaskCode,
+    },
+    gear::Slot,
+    grand_exchange::GrandExchangeClient,
+    simulator::HasEffects,
+    skill::Skill,
 };
 use chrono::prelude::{DateTime, FixedOffset};
 use derive_more::Deref;
 use openapi::models::{
-    CharacterFightSchema, ConditionOperator, EquipSchema, GeOrderType, GeTransactionSchema, InventorySlotSchema, MapContentType, MapLayer, NpcItemTransactionSchema, RecyclingItemsSchema, RewardsSchema, SimpleItemSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType, UnequipSchema,
+    CharacterFightSchema, ConditionOperator, EquipSchema, GeOrderType, GeTransactionSchema,
+    InventorySlotSchema, MapContentType, MapLayer, NpcItemTransactionSchema, RecyclingItemsSchema,
+    RewardsSchema, SimpleItemSchema, SkillInfoSchema, TaskSchema, TaskTradeSchema, TaskType,
+    UnequipSchema,
 };
 use std::{
     str::FromStr,
@@ -1028,7 +1042,6 @@ impl Level for CharacterClient {
         self.data.level()
     }
 }
-
 
 #[cfg(test)]
 mod tests {
