@@ -213,7 +213,16 @@ fn respond(line: &str, bot: &Bot, character: &mut Option<CharacterController>) -
             } else {
                 bail!("entity not found")
             };
-            let gear = bot.gear_finder.best_for(purpose, char, filter);
+            let account = bot.account.clone();
+            let gear = bot
+                .gear_finder
+                .best_for(purpose)
+                .with_excluded_items(bot.config.excluded_items())
+                .with_available_items(char.available_items())
+                .with_skill_levels(char.skill_levels())
+                .with_filter(filter)
+                .with_can_craft(move |code| account.can_craft(code))
+                .resolve();
             if let Some(gear) = gear {
                 println!("{gear}");
             } else {
@@ -244,9 +253,16 @@ fn respond(line: &str, bot: &Bot, character: &mut Option<CharacterController>) -
                 from_monster,
                 utilities,
             };
+            let account = bot.account.clone();
             let gear = bot
                 .gear_finder
-                .best_for(GearPurpose::Combat(monster.clone()), char, filter);
+                .best_for(GearPurpose::Combat(monster.clone()))
+                .with_excluded_items(bot.config.excluded_items())
+                .with_available_items(char.available_items())
+                .with_skill_levels(char.skill_levels())
+                .with_filter(filter)
+                .with_can_craft(move |code| account.can_craft(code))
+                .resolve();
             if let Some(gear) = gear {
                 println!("{gear}");
                 #[allow(clippy::redundant_clone)]

@@ -38,6 +38,11 @@ impl BotConfig {
     }
 
     #[must_use]
+    pub fn excluded_items(&self) -> Vec<String> {
+        self.inner().excluded_items.clone()
+    }
+
+    #[must_use]
     pub fn get_char_config(&self, i: usize) -> Option<Arc<CharConfig>> {
         self.inner().get_char_config(i)
     }
@@ -52,6 +57,11 @@ pub struct BotConfigInner {
     pub characters: RwLock<Vec<Arc<CharConfig>>>,
     #[serde(default)]
     pub order_gear: bool,
+    /// Items to exclude from the item catalog during gear resolution.
+    /// Does not affect items already owned by the character.
+    /// Unknown codes are warned and ignored at startup.
+    #[serde(default)]
+    pub excluded_items: Vec<String>,
 }
 
 impl BotConfigInner {

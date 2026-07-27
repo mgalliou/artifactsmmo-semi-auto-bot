@@ -764,7 +764,12 @@ impl CharacterController {
     fn equip_gear_for(&self, purpose: GearPurpose) -> Result<(), EquipGearCommandError> {
         let mut available = self
             .gear_finder
-            .best_for(purpose, self, Filter::available_only())
+            .best_for(purpose)
+            .with_excluded_items(self.bot_config.excluded_items())
+            .with_available_items(self.available_items())
+            .with_skill_levels(self.skill_levels())
+            .with_filter(Filter::available_only())
+            .resolve()
             .unwrap_or_default();
         self.equip_gear(&mut available)
     }
@@ -775,9 +780,19 @@ impl CharacterController {
         }
         let filter = Filter {
             from_task: false,
-            ..Default::default()
+            ..Filter::default()
         };
-        let Some(mut gear) = self.gear_finder.best_for(purpose.clone(), self, filter) else {
+        let account = self.account.clone();
+        let Some(mut gear) = self
+            .gear_finder
+            .best_for(purpose.clone())
+            .with_excluded_items(self.bot_config.excluded_items())
+            .with_available_items(self.available_items())
+            .with_skill_levels(self.skill_levels())
+            .with_can_craft(move |code| account.can_craft(code))
+            .with_filter(filter)
+            .resolve()
+        else {
             return false;
         };
         if let GearPurpose::Combat(monster) = purpose
@@ -802,11 +817,15 @@ impl CharacterController {
     /// the best available gear to do so.
     pub fn can_kill(&self, monster: &Monster) -> Result<Gear, KillMonsterCommandError> {
         self.can_fight(monster)?;
-        if let Some(gear) = self.gear_finder.best_for(
-            GearPurpose::Combat(monster.clone()),
-            self,
-            Filter::available_only(),
-        ) && self.can_kill_with(monster, &gear)
+        if let Some(gear) = self
+            .gear_finder
+            .best_for(GearPurpose::Combat(monster.clone()))
+            .with_excluded_items(self.bot_config.excluded_items())
+            .with_available_items(self.available_items())
+            .with_skill_levels(self.skill_levels())
+            .with_filter(Filter::available_only())
+            .resolve()
+            && self.can_kill_with(monster, &gear)
         {
             Ok(gear)
         } else {
@@ -1121,7 +1140,7 @@ impl CharacterController {
         };
         // TODO: defined food quantity depending on the monster drop rate and damages
         let quantity = min(
-            ((self.inventory.max_items() as f32) * 0.90).round() as u32,
+            ((self.inventory.max_items() as f32) * 0.80).round() as u32,
             self.bank.has_available((food.code(), self.name())),
         );
         self.lock_in_inventory(&[(food.code(), quantity)])
@@ -1815,11 +1834,12 @@ impl CharacterController {
         self.can_gather(resource).ok()?;
         let reduction = self
             .gear_finder
-            .best_for(
-                GearPurpose::Gathering(resource.clone()),
-                self,
-                Filter::available_only(),
-            )
+            .best_for(GearPurpose::Gathering(resource.clone()))
+            .with_excluded_items(self.bot_config.excluded_items())
+            .with_available_items(self.available_items())
+            .with_skill_levels(self.skill_levels())
+            .with_filter(Filter::available_only())
+            .resolve()
             .and_then(|gear| {
                 gear.weapon
                     .map(|w| w.skill_cooldown_reduction(resource.skill()))
@@ -1898,12 +1918,17 @@ impl CharacterController {
                 _ => true,
             })
             .collect_vec();
-        if sources.iter().any(sdk::items::ItemSource::is_npc)
+        if sources.iter().any(ItemSource::is_npc)
             && sources
                 .iter()
                 .any(|s| s.is_resource() || s.is_monster() || s.is_craft())
         {
             sources.retain(|s| !s.is_npc());
+        }
+        if sources.iter().all(|s| s.is_task_reward() || s.is_npc())
+            && self.account.total_of(TASKS_COIN) < 14
+        {
+            sources.retain(ItemSource::is_npc);
         }
         if sources.iter().all(|s| s.is_resource() || s.is_monster()) {
             return sources
@@ -1937,6 +1962,13 @@ impl CharacterController {
 
     pub fn meets_conditions_for(&self, entity: &impl HasConditions) -> bool {
         self.client.meets_conditions_for(entity)
+    }
+
+    #[must_use]
+    pub fn skill_levels(&self) -> HashMap<Skill, u32> {
+        Skill::iter()
+            .map(|skill| (skill, self.skill_level(skill)))
+            .collect()
     }
 
     #[must_use]

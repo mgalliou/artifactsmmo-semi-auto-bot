@@ -14,7 +14,7 @@ impl Default for Filter {
         Self {
             available_only: false,
             craftable: true,
-            from_task: true,
+            from_task: false,
             from_npc: true,
             from_monster: false,
             utilities: false,

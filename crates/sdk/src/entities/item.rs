@@ -1,6 +1,6 @@
 use crate::{
     CanProvideXp, Code, HasConditions, Level, Quantity, Skill, TASKS_REWARDS_SPECIFICS,
-    items::{SubType, Type},
+    items::{LevelConditionCode, SubType, Type},
     simulator::{EffectCode, HasEffects},
     yields_xp,
 };
@@ -8,7 +8,8 @@ use core::cmp::Ordering;
 use core::fmt::{self, Display, Formatter};
 use itertools::Itertools;
 use openapi::models::{
-    ConditionSchema, CraftSchema, ItemSchema, SimpleEffectSchema, SimpleItemSchema,
+    ConditionOperator, ConditionSchema, CraftSchema, ItemSchema, SimpleEffectSchema,
+    SimpleItemSchema,
 };
 use serde::{Deserialize, Serialize};
 use std::{str::FromStr, sync::Arc};
@@ -185,6 +186,26 @@ impl Item {
                     self.effect_value(&e.code) >= e.value
                 }
             })
+    }
+
+    #[must_use]
+    pub fn required_skill_level(&self) -> (Skill, u32) {
+        self.conditions()
+            .into_iter()
+            .flatten()
+            .find_map(|condition| {
+                let Ok(code) = LevelConditionCode::from_str(&condition.code) else {
+                    return None;
+                };
+                let skill = Skill::from(code);
+                let level = match condition.operator {
+                    ConditionOperator::Gt => condition.value as u32 + 1,
+                    ConditionOperator::Eq => condition.value as u32,
+                    _ => return None,
+                };
+                Some((skill, level))
+            })
+            .unwrap_or_else(|| (Skill::Combat, self.level()))
     }
 }
 

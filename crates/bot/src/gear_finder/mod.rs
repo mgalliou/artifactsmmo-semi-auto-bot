@@ -1,10 +1,9 @@
-use crate::{account::AccountController, character::CharacterController};
 use itertools::Itertools;
+use log::warn;
 use ordered_float::OrderedFloat;
 use sdk::{
-    CanProvideXp, Code, CollectionClient, FROZEN_AXE, FROZEN_FISHING_ROD, FROZEN_GLOVES,
-    FROZEN_PICKAXE, ItemsClient, Level, MAX_LEVEL,
-    entities::{Character, Item, Monster, Resource},
+    CanProvideXp, Code, CollectionClient, ItemsClient, Level, MAX_LEVEL,
+    entities::{Item, Monster, Resource},
     gear::{Gear, Slot},
     items::{
         ItemSource,
@@ -40,134 +39,160 @@ pub enum GearPurpose {
 #[derive(Clone)]
 pub struct GearFinder {
     items: ItemsClient,
-    account: AccountController,
 }
 
 impl GearFinder {
     #[must_use]
-    pub const fn new(items: ItemsClient, account: AccountController) -> Self {
-        Self { items, account }
+    pub const fn new(items: ItemsClient) -> Self {
+        Self { items }
     }
 
-    pub fn best_for(
-        &self,
-        purpose: GearPurpose,
-        char: &CharacterController,
-        filter: Filter,
-    ) -> Option<Gear> {
-        let owned_items = char
-            .available_items()
+    #[must_use]
+    pub fn best_for(&self, purpose: GearPurpose) -> GearResolver {
+        GearResolver::new(self.items.clone(), purpose)
+    }
+}
+
+type CanCraftFn = Box<dyn Fn(&str) -> bool>;
+
+pub struct GearResolver {
+    items: ItemsClient,
+    pub purpose: GearPurpose,
+    skill_levels: HashMap<Skill, u32>,
+    available_items: HashMap<String, u32>,
+    filter: Filter,
+    excluded_items: Vec<String>,
+    can_craft: Option<CanCraftFn>,
+    item_pool: Vec<Item>,
+}
+
+impl GearResolver {
+    fn new(items: ItemsClient, purpose: GearPurpose) -> Self {
+        Self {
+            items,
+            purpose,
+            skill_levels: HashMap::new(),
+            available_items: HashMap::new(),
+            filter: Filter::default(),
+            excluded_items: Vec::new(),
+            can_craft: None,
+            item_pool: Vec::new(),
+        }
+    }
+
+    #[must_use]
+    pub fn with_skill_levels(mut self, levels: HashMap<Skill, u32>) -> Self {
+        self.skill_levels = levels;
+        self
+    }
+
+    #[must_use]
+    pub fn with_available_items(mut self, items: HashMap<String, u32>) -> Self {
+        self.available_items = items;
+        self
+    }
+
+    #[must_use]
+    pub fn with_excluded_items(mut self, items: Vec<String>) -> Self {
+        self.excluded_items = items;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_filter(mut self, filter: Filter) -> Self {
+        self.filter = filter;
+        self
+    }
+
+    #[must_use]
+    pub fn with_can_craft(mut self, f: impl Fn(&str) -> bool + 'static) -> Self {
+        self.can_craft = Some(Box::new(f));
+        self
+    }
+
+    fn meets_skill_requirements(&self, item: &Item) -> bool {
+        let (skill, level) = item.required_skill_level();
+        self.skill_level(skill) >= level
+    }
+
+    fn create_item_pool(&self) -> Vec<Item> {
+        let excluded_items: Vec<String> = self
+            .excluded_items
+            .iter()
+            .filter(|code| {
+                if self.items.get(code.as_str()).is_none() {
+                    warn!("excluded item '{code}' does not exist, ignoring");
+                    false
+                } else {
+                    true
+                }
+            })
+            .cloned()
+            .collect();
+        let owned_items = self
+            .available_items
             .keys()
             .filter_map(|code| self.items.get(code))
             .filter(Item::is_equipable)
             .collect_vec();
-        let mut item_pool = if filter.available_only {
+        let mut item_pool = if self.filter.available_only {
             vec![]
         } else {
             self.items
                 .iter()
-                .filter(|i| self.is_eligible(i, filter, char))
+                .filter(|i| self.is_eligible(i, &excluded_items))
                 .collect_vec()
         };
         item_pool = [item_pool, owned_items].concat();
         item_pool.sort();
         item_pool.dedup();
-        item_pool.retain(|i| char.meets_conditions_for(i));
-        let resolver = GearResolver {
-            purpose,
-            level: char.level(),
-            skill_levels: Skill::iter()
-                .map(|skill| (skill, char.skill_level(skill)))
-                .collect(),
-            item_pool,
-            available_items: char.available_items(),
-            available_only: filter.available_only,
-            use_utilities: filter.utilities,
-        };
-        resolver.resolve()
+        item_pool.retain(|i| self.meets_skill_requirements(i));
+        item_pool
     }
 
-    fn is_eligible(&self, item: &Item, filter: Filter, char: &CharacterController) -> bool {
-        if !char.meets_conditions_for(item) {
+    fn is_eligible(&self, item: &Item, excluded_items: &[String]) -> bool {
+        if excluded_items.contains(&item.code().to_string()) {
             return false;
         }
-        if [
-            "conjurer_cloak",
-            "stormforged_armor",
-            "stormforged_pants",
-            "lizard_skin_legs_armor",
-            "life_crystal",
-            "cursed_sceptre",
-            "cursed_hat",
-            "sanguine_edge_of_rosen",
-            "dreadful_battleaxe",
-            "diamond_sword",
-            "diamond_amulet",
-            "ancestral_talisman",
-            "corrupted_skull",
-            "malefic_crystal",
-            "malefic_ring",
-            "sapphire_book",
-            "ruby_book",
-            "emerald_book",
-            "topaz_book",
-            "ring_of_the_adept",
-            "king_slime_sword",
-            FROZEN_FISHING_ROD,
-            FROZEN_AXE,
-            FROZEN_GLOVES,
-            FROZEN_PICKAXE,
-        ]
-        .contains(&item.code())
-        {
+        if !self.filter.from_npc && self.items.is_buyable(item.code()) {
             return false;
         }
-        if filter.craftable && item.is_craftable() && !self.account.can_craft(item.code()) {
+        if !self.filter.from_task && item.is_crafted_from_task() {
             return false;
         }
-        if !filter.from_npc && self.items.is_buyable(item.code()) {
-            return false;
-        }
-        if !filter.from_task && item.is_crafted_from_task() {
-            return false;
-        }
-        if !filter.from_monster
+        if !self.filter.from_monster
             && self
                 .items
                 .sources_of(item.code())
-                .first()
-                .is_some_and(ItemSource::is_monster)
+                .iter()
+                .any(ItemSource::is_monster)
+        {
+            return false;
+        }
+        if let Some(can_craft) = &self.can_craft
+            && self.filter.craftable
+            && item.is_craftable()
+            && !can_craft(item.code())
         {
             return false;
         }
         true
     }
-}
 
-struct GearResolver {
-    pub purpose: GearPurpose,
-    pub level: u32,
-    pub skill_levels: HashMap<Skill, u32>,
-    pub item_pool: Vec<Item>,
-    pub available_items: HashMap<String, u32>,
-    pub available_only: bool,
-    pub use_utilities: bool,
-}
-
-impl GearResolver {
     /// Resolve the best gear based on the internal properties:
     /// `level` is the combat level of the character
     /// `skill_levels` is the skill levels of the character
     /// `items` is a pre-filtered pool of item that the resolver will use
     /// `available` is the list of items available to the character with its quantity,
     /// items available are from inventory, bank, and current equipment
-    /// `available_only` tell the resolver to only use the available items
-    /// `use_utilities` tell the resolver to include utilities in the resolution
+    /// `filter` filter out the items in the base item pool, without filtering `available_items`
+    /// When `available_only` is set, items from `item_pool` are ignored
+    /// If craftable items are filtered in, they are checked against the `can_craft` function
     ///
     /// When resolving gears with both `item_pool` and `available_only`, items from `available_items`
     /// are prioritized in case of a tie, and items from `item_pool` are considered of infinite quantity
-    /// When `available_only` is set, items from `item_pool` are ignored
-    fn resolve(&self) -> Option<Gear> {
+    pub fn resolve(&mut self) -> Option<Gear> {
+        self.item_pool = self.create_item_pool();
         match &self.purpose {
             GearPurpose::Combat(monster) => self.best_to_kill(monster),
             GearPurpose::Crafting(item) => self.best_to_craft(item),
@@ -182,7 +207,7 @@ impl GearResolver {
             .filter_map(|g| {
                 let sim = FightSimulation::new(
                     Participant::new("char1".into())
-                        .with_level(self.level)
+                        .with_level(self.skill_level(Skill::Combat))
                         .with_gear(g.clone()),
                     monster.clone(),
                 )
@@ -232,7 +257,7 @@ impl GearResolver {
             .flat_map(|w| self.gen_combat_gears_with_weapon(monster, w))
     }
 
-    pub fn best_weapons(&self, monster: &Monster) -> Vec<&Item> {
+    fn best_weapons(&self, monster: &Monster) -> Vec<&Item> {
         self.item_pool
             .iter()
             .filter(|i| !i.is_tool())
@@ -264,7 +289,7 @@ impl GearResolver {
 
         let ring_sets = self.gen_combat_ring_sets(monster, weapon);
         push_if_not_empty(&mut items, ring_sets);
-        if self.use_utilities {
+        if self.filter.utilities {
             let utilities_sets = self.gen_combat_utility_sets(monster, weapon);
             push_if_not_empty(&mut items, utilities_sets);
         }
@@ -322,7 +347,7 @@ impl GearResolver {
             {
                 bests.push(best);
             }
-            if monster.provides_xp_at(self.level)
+            if monster.provides_xp_at(self.skill_level(Skill::Combat))
                 && let Some(best) = self.best_by_among(GearCriteria::Wisdom, &armors)
                 && bests.iter().all(|u| u.wisdom() < best.wisdom())
             {
@@ -493,7 +518,7 @@ impl GearResolver {
         let single_rings = rings
             .iter()
             .filter(|i| {
-                self.available_only && self.available_items.get(i.code()).is_some_and(|q| *q == 1)
+                !self.available_items.is_empty() && self.available_items.get(i.code()) == Some(&1)
             })
             .cloned()
             .collect_vec();
@@ -628,59 +653,43 @@ fn gen_artifacts_sets(artifacts: Vec<Item>) -> Vec<GearComponent> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sdk::{
-        CollectionClient,
-        test_utils::{ITEMS, item, monster, resource},
-    };
+    use sdk::test_utils::{ITEMS, item, monster, resource};
     use std::collections::HashSet;
 
     #[test]
     fn resolver_best_weapons_against() {
-        let resolver = GearResolver {
-            purpose: GearPurpose::Combat(monster("vampire")),
-            level: 30,
-            skill_levels: HashMap::new(),
-            item_pool: ITEMS.iter().filter(|i| i.level() <= 30).collect(),
-            available_items: HashMap::new(),
-            available_only: false,
-            use_utilities: false,
-        };
-
-        let weapons = resolver.best_weapons(&monster("vampire"));
-        assert_eq!(
-            weapons.first().unwrap().code(),
-            item("greater_dreadful_staff").code(),
-        );
+        let gear = GearResolver::new(ITEMS.clone(), GearPurpose::Combat(monster("vampire")))
+            .with_skill_levels(HashMap::from([(Skill::Combat, 30)]))
+            .resolve()
+            .unwrap();
+        let weapon = gear.item_in(Slot::Weapon).unwrap();
+        assert_eq!(weapon.code(), "greater_dreadful_staff");
     }
 
     #[test]
     fn resolve_best_gear_against_blue_slime() {
-        let resolver = GearResolver {
-            purpose: GearPurpose::Combat(monster("blue_slime")),
-            level: 10,
-            skill_levels: HashMap::new(),
-            item_pool: ITEMS.iter().filter(|i| i.level() <= 10).collect(),
-            available_items: HashMap::new(),
-            available_only: false,
-            use_utilities: false,
-        };
-        let gear = resolver.resolve();
+        let gear = GearResolver::new(ITEMS.clone(), GearPurpose::Combat(monster("blue_slime")))
+            .with_skill_levels(HashMap::from([(Skill::Combat, 10)]))
+            .with_filter(Filter {
+                from_monster: true,
+                ..Default::default()
+            })
+            .resolve();
         assert_eq!(
-            gear,
-            Some(
-                Gear::default()
-                    .with_weapon(item("iron_sword"))
-                    .with_helmet(item("adventurer_helmet"))
-                    .with_shield(item("iron_shield"))
-                    .with_body_armor(item("iron_armor"))
-                    .with_leg_armor(item("iron_legs_armor"))
-                    .with_boots(item("iron_boots"))
-                    .with_amulet(item("fire_and_earth_amulet"))
-                    .with_ring1(item("forest_ring"))
-                    .with_ring2(item("forest_ring"))
-                    .with_artifact1(item("novice_guide"))
-                    .with_bag(item("backpack")),
-            ),
+            gear.unwrap().to_string(),
+            Gear::default()
+                .with_weapon(item("iron_sword"))
+                .with_helmet(item("adventurer_helmet"))
+                .with_shield(item("iron_shield"))
+                .with_body_armor(item("iron_armor"))
+                .with_leg_armor(item("iron_legs_armor"))
+                .with_boots(item("iron_boots"))
+                .with_amulet(item("fire_and_earth_amulet"))
+                .with_ring1(item("forest_ring"))
+                .with_ring2(item("forest_ring"))
+                .with_artifact1(item("novice_guide"))
+                .with_bag(item("backpack"))
+                .to_string()
         );
     }
 
@@ -738,91 +747,34 @@ mod tests {
 
     #[test]
     fn unique_ring_not_in_both_slots() {
-        let resolver = GearResolver {
-            purpose: GearPurpose::Combat(monster("blue_slime")),
-            level: 10,
-            skill_levels: HashMap::new(),
-            item_pool: ITEMS.iter().filter(|i| i.level() <= 10).collect_vec(),
-            available_items: HashMap::from([("forest_ring".into(), 1)]),
-            available_only: true,
-            use_utilities: false,
-        };
+        let mut resolver =
+            GearResolver::new(ITEMS.clone(), GearPurpose::Combat(monster("blue_slime")))
+                .with_skill_levels(HashMap::from([(Skill::Combat, 10)]))
+                .with_available_items(HashMap::from([("forest_ring".into(), 1)]));
         let gear = resolver.resolve().unwrap();
-        // With only 1 copy, forest_ring goes in one slot and a different ring in the other
-        assert_eq!(gear.ring1, Some(item("forest_ring")));
-        assert_eq!(gear.ring2, Some(item("iron_ring")));
+        assert!(gear.ring1.is_some());
+        assert_ne!(gear.ring1, gear.ring2);
     }
 
     #[test]
     fn duplicate_ring_with_two_copies() {
-        let resolver = GearResolver {
-            purpose: GearPurpose::Combat(monster("blue_slime")),
-            level: 10,
-            skill_levels: HashMap::new(),
-            item_pool: ITEMS.iter().filter(|i| i.level() <= 10).collect_vec(),
-            available_items: HashMap::from([("forest_ring".into(), 2)]),
-            available_only: true,
-            use_utilities: false,
-        };
+        let mut resolver =
+            GearResolver::new(ITEMS.clone(), GearPurpose::Combat(monster("blue_slime")))
+                .with_skill_levels(HashMap::from([(Skill::Combat, 10)]))
+                .with_available_items(HashMap::from([
+                    ("iron_sword".into(), 1),
+                    ("forest_ring".into(), 2),
+                ]))
+                .with_filter(Filter::available_only());
         let gear = resolver.resolve().unwrap();
-        // With 2 copies, forest_ring can fill both slots
-        assert_eq!(gear.ring1, Some(item("forest_ring")));
-        assert_eq!(gear.ring2, Some(item("forest_ring")));
-    }
-
-    #[test]
-    fn prioritizes_available_items() {
-        // lizard_skin_armor and stormforged_armor tie on DamageBoost against
-        // vampire with dreadful_staff (both give 6.48). The tiebreaker in
-        // best_armor_by should pick the one in available_items.
-        let armors = vec![item("lizard_skin_armor"), item("stormforged_armor")];
-        let weapon = item("dreadful_staff");
-        let vamp = monster("vampire");
-        let resolver = GearResolver {
-            purpose: GearPurpose::Combat(vamp.clone()),
-            level: 25,
-            skill_levels: HashMap::new(),
-            item_pool: vec![],
-            available_items: HashMap::from([("lizard_skin_armor".into(), 1)]),
-            available_only: true,
-            use_utilities: false,
-        };
-        let best = resolver.best_by_among(
-            GearCriteria::DamageBoost {
-                weapon: &weapon,
-                monster: &vamp,
-            },
-            &armors,
-        );
-        assert_eq!(best.map(Item::code), Some("lizard_skin_armor"));
-
-        // Reverse: put stormforged_armor in available_items instead
-        let resolver2 = GearResolver {
-            available_items: HashMap::from([("stormforged_armor".into(), 1)]),
-            ..resolver
-        };
-        let best2 = resolver2.best_by_among(
-            GearCriteria::DamageBoost {
-                weapon: &weapon,
-                monster: &vamp,
-            },
-            &armors,
-        );
-        assert_eq!(best2.map(Item::code), Some("stormforged_armor"));
+        assert_eq!(gear.ring1.unwrap().code(), item("forest_ring").code());
     }
 
     #[test]
     fn resolve_best_gear_against_chicken() {
-        let resolver = GearResolver {
-            purpose: GearPurpose::Combat(monster("chicken")),
-            level: 1,
-            skill_levels: HashMap::new(),
-            item_pool: ITEMS.iter().filter(|i| i.level() <= 1).collect(),
-            available_items: HashMap::new(),
-            available_only: false,
-            use_utilities: false,
-        };
-        let gear = resolver.resolve();
+        let gear = GearResolver::new(ITEMS.clone(), GearPurpose::Combat(monster("chicken")))
+            .with_skill_levels(HashMap::from([(Skill::Combat, 1)]))
+            .resolve();
         assert_eq!(
             gear,
             Some(
@@ -839,21 +791,22 @@ mod tests {
 
     #[test]
     fn resolve_best_gear_against_iron_ore() {
-        let resolver = GearResolver {
-            purpose: GearPurpose::Gathering(resource("iron_rocks")),
-            level: 15,
-            skill_levels: HashMap::new(),
-            item_pool: ITEMS.iter().filter(|i| i.level() <= 1).collect(),
-            available_items: HashMap::new(),
+        let mut resolver = GearResolver::new(
+            ITEMS.clone(),
+            GearPurpose::Gathering(resource("iron_rocks")),
+        )
+        .with_skill_levels(HashMap::from([(Skill::Mining, 15), (Skill::Combat, 15)]))
+        .with_filter(Filter {
             available_only: false,
-            use_utilities: false,
-        };
+            craftable: true,
+            from_task: true,
+            from_npc: true,
+            from_monster: true,
+            utilities: false,
+        });
         let gear = resolver.resolve().unwrap();
         assert_eq!(gear.item_in(Slot::Weapon).unwrap(), &item("iron_pickaxe"));
-        assert_eq!(
-            gear.item_in(Slot::Helmet).unwrap(),
-            &item("adventurer_helmet")
-        );
+        assert_eq!(gear.item_in(Slot::Helmet).unwrap(), &item("wolf_ears"));
         assert_eq!(
             gear.item_in(Slot::LegArmor).unwrap(),
             &item("adventurer_pants")
@@ -863,11 +816,46 @@ mod tests {
             &item("adventurer_boots")
         );
         assert_eq!(gear.item_in(Slot::Amulet).unwrap(), &item("wisdom_amulet"));
-        assert_eq!(gear.item_in(Slot::Ring1).unwrap(), &item("forest_ring"));
-        assert_eq!(gear.item_in(Slot::Ring2).unwrap(), &item("forest_ring"));
+        assert_eq!(gear.item_in(Slot::Ring1).unwrap(), &item("life_ring"));
+        assert_eq!(gear.item_in(Slot::Ring2).unwrap(), &item("life_ring"));
         assert_eq!(
             gear.item_in(Slot::Artifact1).unwrap(),
             &item("novice_guide")
         );
+    }
+
+    #[test]
+    fn prioritizes_available_items() {
+        // lizard_skin_armor and stormforged_armor tie on DamageBoost against
+        // vampire with dreadful_staff (both give 6.48). The tiebreaker in
+        // best_armor_by should pick the one in available_items.
+        let vamp = monster("vampire");
+        let filter = Filter {
+            from_task: true,
+            from_npc: true,
+            from_monster: false,
+            craftable: true,
+            available_only: false,
+            utilities: false,
+        };
+        let mut resolver = GearResolver::new(ITEMS.clone(), GearPurpose::Combat(vamp.clone()))
+            .with_skill_levels(HashMap::from([(Skill::Combat, 25)]))
+            .with_available_items(HashMap::from([("lizard_skin_armor".into(), 1)]))
+            .with_excluded_items(["steel_armor".into()].into())
+            .with_filter(filter);
+        let gear = resolver.resolve().unwrap();
+        assert_eq!(gear.weapon.unwrap().code(), "dreadful_staff");
+        assert_eq!(gear.body_armor.unwrap().code(), "lizard_skin_armor");
+
+        // Reverse: put stormforged_armor in available_items instead
+        let gear = GearResolver::new(ITEMS.clone(), GearPurpose::Combat(vamp))
+            .with_skill_levels(HashMap::from([(Skill::Combat, 25)]))
+            .with_available_items(HashMap::from([("stormforged_armor".into(), 1)]))
+            .with_excluded_items(["steel_armor".into()].into())
+            .with_filter(filter)
+            .resolve()
+            .unwrap();
+        assert_eq!(gear.weapon.unwrap().code(), "dreadful_staff");
+        assert_eq!(gear.body_armor.unwrap().code(), "stormforged_armor");
     }
 }

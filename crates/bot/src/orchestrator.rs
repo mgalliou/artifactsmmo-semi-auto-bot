@@ -39,7 +39,7 @@ impl Orchestrator {
         while let Ok(event) = self.event_rx.recv() {
             match event {
                 SdkEvent::ItemDeposited { character, items } => {
-                    self.handle_item_deposited(&character, &items);
+                    // self.handle_item_deposited(&character, &items);
                 }
                 SdkEvent::ItemWithdrawn { .. }
                 | SdkEvent::GoldDeposited { .. }

@@ -75,7 +75,6 @@ use std::sync::Arc;
 
 use crate::RUNTIME;
 
-
 #[derive(Default, Debug)]
 pub struct MyCharacterApi {
     configuration: Arc<Configuration>,

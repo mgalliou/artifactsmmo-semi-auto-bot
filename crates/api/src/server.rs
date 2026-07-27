@@ -1,9 +1,9 @@
+use crate::RUNTIME;
 use openapi::{
     apis::{configuration::Configuration, server_details_api::get_server_details_get},
     models::StatusResponseSchema,
 };
 use std::sync::Arc;
-use crate::RUNTIME;
 
 #[derive(Default, Debug)]
 pub struct ServerApi {

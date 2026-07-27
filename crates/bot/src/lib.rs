@@ -31,7 +31,7 @@ pub mod orchestrator;
 pub mod orderboard;
 pub mod reservable;
 
-pub const FOOD_ORDER_BLACKLIST: [&str; 11] = [
+pub const FOOD_ORDER_BLACKLIST: [&str; 12] = [
     APPLE,
     APPLE_PIE,
     MUSHROOM_SOUP,
@@ -43,6 +43,7 @@ pub const FOOD_ORDER_BLACKLIST: [&str; 11] = [
     COOKED_HELLHOUND_MEAT,
     MAPLE_SYRUP,
     "corrupted_fruit",
+    "cooked_porkchop",
 ];
 
 pub const FOOD_CONSUMPTION_BLACKLIST: [&str; 2] = [APPLE, CARROT];
@@ -89,7 +90,7 @@ impl Bot {
         Self {
             config,
             order_board: OrderBoard::new(client.items.clone(), account.clone()),
-            gear_finder: GearFinder::new(client.items.clone(), account.clone()),
+            gear_finder: GearFinder::new(client.items.clone()),
             leveling_helper: LevelingHelper::new(
                 client.items.clone(),
                 client.monsters.clone(),
