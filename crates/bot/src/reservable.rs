@@ -17,6 +17,7 @@ pub enum ReservationError {
 
 pub trait Key: Code + Hash + Eq + Debug {}
 
+/// Trait for containers that support item reservations.
 pub trait Reservable: ItemContainer {
     type Key: Key;
 

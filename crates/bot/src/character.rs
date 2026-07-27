@@ -1775,8 +1775,8 @@ impl CharacterController {
         quantity: u32,
         slot: Slot,
     ) -> Result<(), ReservationError> {
-        let missing_quantity =
-            quantity.saturating_sub(self.inventory.total_of(item) + self.has_equiped(item));
+        let missing_quantity = quantity
+            .saturating_sub(self.inventory.has_available(item) + self.has_equiped(item));
         if missing_quantity > 0 && self.equiped_in(slot) != item {
             self.bank.reserve((item, self.name()), missing_quantity)?;
         }

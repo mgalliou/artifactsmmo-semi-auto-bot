@@ -130,6 +130,10 @@ impl SlotLimited for InventoryController {
     }
 }
 
+/// Inventory reservations mark items as *in use* by the character (e.g. being
+/// crafted, recycled, consumed). Reserved items are excluded from the
+/// "available" count and must not be counted toward quantities needed by other
+/// operations.
 impl Reservable for InventoryController {
     type Key = InventoryKey<String>;
 

@@ -188,6 +188,10 @@ impl SlotLimited for BankController {
     }
 }
 
+/// Bank reservations lock items for a specific character so that only that
+/// character can withdraw them. Other characters see the items as unavailable.
+/// The owning character's own reservations do **not** reduce the quantity they
+/// are allowed to withdraw.
 impl Reservable for BankController {
     type Key = BankKey<String>;
 
