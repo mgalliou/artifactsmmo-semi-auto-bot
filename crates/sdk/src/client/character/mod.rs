@@ -669,7 +669,8 @@ impl CharacterClient {
         let total_price = buy_price * quantity;
         if item.currency() == GOLD && self.gold() < total_price {
             return Err(BuyNpcError::InsufficientGold);
-        } else if self.inventory().total_of(item.currency()) < total_price {
+        }
+        if item.currency() != GOLD && self.inventory().total_of(item.currency()) < total_price {
             return Err(BuyNpcError::InsufficientQuantity);
         }
         if !self.current_map().content_code_is(item.npc_code()) {
