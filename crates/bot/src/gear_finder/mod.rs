@@ -92,8 +92,6 @@ impl GearFinder {
             return false;
         }
         if [
-            "steel_gloves",
-            "leather_gloves",
             "conjurer_cloak",
             "stormforged_armor",
             "stormforged_pants",
@@ -113,10 +111,8 @@ impl GearFinder {
             "ruby_book",
             "emerald_book",
             "topaz_book",
-            "backpack",
-            "satchel",
-            "iron_pickaxe",
-            "iron_axe",
+            "ring_of_the_adept",
+            "king_slime_sword",
             FROZEN_FISHING_ROD,
             FROZEN_AXE,
             FROZEN_GLOVES,
@@ -631,13 +627,12 @@ fn gen_artifacts_sets(artifacts: Vec<Item>) -> Vec<GearComponent> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
-
     use super::*;
     use sdk::{
         CollectionClient,
-        test_utils::{ITEMS, item, monster},
+        test_utils::{ITEMS, item, monster, resource},
     };
+    use std::collections::HashSet;
 
     #[test]
     fn resolver_best_weapons_against() {
@@ -839,6 +834,40 @@ mod tests {
                     .with_ring1(item("copper_ring"))
                     .with_ring2(item("copper_ring")),
             ),
+        );
+    }
+
+    #[test]
+    fn resolve_best_gear_against_iron_ore() {
+        let resolver = GearResolver {
+            purpose: GearPurpose::Gathering(resource("iron_rocks")),
+            level: 15,
+            skill_levels: HashMap::new(),
+            item_pool: ITEMS.iter().filter(|i| i.level() <= 1).collect(),
+            available_items: HashMap::new(),
+            available_only: false,
+            use_utilities: false,
+        };
+        let gear = resolver.resolve().unwrap();
+        assert_eq!(gear.item_in(Slot::Weapon).unwrap(), &item("iron_pickaxe"));
+        assert_eq!(
+            gear.item_in(Slot::Helmet).unwrap(),
+            &item("adventurer_helmet")
+        );
+        assert_eq!(
+            gear.item_in(Slot::LegArmor).unwrap(),
+            &item("adventurer_pants")
+        );
+        assert_eq!(
+            gear.item_in(Slot::Boots).unwrap(),
+            &item("adventurer_boots")
+        );
+        assert_eq!(gear.item_in(Slot::Amulet).unwrap(), &item("wisdom_amulet"));
+        assert_eq!(gear.item_in(Slot::Ring1).unwrap(), &item("forest_ring"));
+        assert_eq!(gear.item_in(Slot::Ring2).unwrap(), &item("forest_ring"));
+        assert_eq!(
+            gear.item_in(Slot::Artifact1).unwrap(),
+            &item("novice_guide")
         );
     }
 }

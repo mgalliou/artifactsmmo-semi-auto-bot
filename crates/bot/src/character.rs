@@ -779,10 +779,11 @@ impl CharacterController {
         if !self.bot_config.order_gear() {
             return false;
         }
-        let Some(mut gear) = self
-            .gear_finder
-            .best_for(purpose.clone(), self, Filter::default())
-        else {
+        let filter = Filter {
+            from_task: false,
+            ..Default::default()
+        };
+        let Some(mut gear) = self.gear_finder.best_for(purpose.clone(), self, filter) else {
             return false;
         };
         if let GearPurpose::Combat(monster) = purpose

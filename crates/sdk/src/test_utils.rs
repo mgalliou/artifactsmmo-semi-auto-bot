@@ -10,7 +10,7 @@ use crate::{
     MapsClient, NpcsClient, NpcsItemsClient, ResourcesClient, TasksClient, TasksRewardsClient,
     character::{CharacterRequestHandler, InventoryClient, error::RequestError},
     client::{bank::BankClient, items::ItemsClient, monsters::MonstersClient},
-    entities::{CharacterHandle, Item, Monster, RawMap},
+    entities::{CharacterHandle, Item, Monster, RawMap, Resource},
 };
 use std::{
     collections::HashMap,
@@ -87,6 +87,10 @@ pub fn item(code: &str) -> Item {
 
 pub fn monster(code: &str) -> Monster {
     MONSTERS.get(code).unwrap()
+}
+
+pub fn resource(code: &str) -> Resource {
+    RESOURCES.get(code).unwrap()
 }
 
 pub static BANK: LazyLock<BankClient> = LazyLock::new(|| {
