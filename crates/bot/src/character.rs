@@ -157,12 +157,6 @@ impl CharacterController {
                     .remaining_cooldown()
                     .saturating_sub(Duration::from_secs(5)),
             );
-            if self.inventory.is_full() {
-                if let Err(e) = self.deposit_all() {
-                    error!("{}: failed depositing in main loop: {e}", self.name());
-                }
-                continue;
-            }
             if self.order_food().is_ok() {
                 continue;
             }
@@ -1776,8 +1770,8 @@ impl CharacterController {
         quantity: u32,
         slot: Slot,
     ) -> Result<(), ReservationError> {
-        let missing_quantity = quantity
-            .saturating_sub(self.inventory.has_available(item) + self.has_equiped(item));
+        let missing_quantity =
+            quantity.saturating_sub(self.inventory.has_available(item) + self.has_equiped(item));
         if missing_quantity > 0 && self.equiped_in(slot) != item {
             self.bank.reserve((item, self.name()), missing_quantity)?;
         }

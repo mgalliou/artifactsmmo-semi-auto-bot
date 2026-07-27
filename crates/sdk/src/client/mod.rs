@@ -209,8 +209,8 @@ impl Client {
             make_fetcher(api.clone(), |api| {
                 api.events
                     .get_active()
-                    .unwrap()
                     .into_iter()
+                    .flatten()
                     .map(ActiveEvent::new)
                     .collect()
             }),
