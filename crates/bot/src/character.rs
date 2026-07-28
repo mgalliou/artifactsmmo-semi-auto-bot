@@ -1926,7 +1926,6 @@ impl CharacterController {
             sources.retain(|s| !s.is_npc());
         }
         if sources.iter().all(|s| s.is_task_reward() || s.is_npc())
-            && self.account.total_of(TASKS_COIN) < 14
         {
             sources.retain(ItemSource::is_npc);
         }
