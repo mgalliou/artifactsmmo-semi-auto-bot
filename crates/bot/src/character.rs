@@ -429,7 +429,7 @@ impl CharacterController {
         if self.order_board.should_be_turned_in(order)
             && self.inventory.has_available(&order.item) > 0
         {
-            return self.deposit_all_but_reserved().is_ok();
+            return self.deposit_item(&order.item, order.quantity()).is_ok()
         }
         false
     }
@@ -1017,7 +1017,7 @@ impl CharacterController {
         }
         if !missing_items.is_empty() {
             if !self.inventory.has_room_for_all(&missing_items) {
-                self.deposit_all_but_reserved()?;
+                self.deposit_all()?;
             }
             self.withdraw_items(&missing_items)?;
         }
@@ -1397,7 +1397,7 @@ impl CharacterController {
             self.rest()?;
         }
         if !self.inventory.has_space_to_unequip(&items) {
-            self.deposit_all_but_reserved()?;
+            self.deposit_all()?;
         }
         let schemas = items
             .iter()
