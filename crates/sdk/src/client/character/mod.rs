@@ -1043,6 +1043,10 @@ impl Character for CharacterClient {
     fn cooldown_expiration(&self) -> Option<DateTime<FixedOffset>> {
         self.data.cooldown_expiration()
     }
+
+    fn cooldown(&self) -> u32 {
+        self.data.cooldown()
+    }
 }
 
 impl Level for CharacterClient {

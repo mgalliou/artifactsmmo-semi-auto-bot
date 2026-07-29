@@ -429,7 +429,7 @@ impl CharacterController {
         if self.order_board.should_be_turned_in(order)
             && self.inventory.has_available(&order.item) > 0
         {
-            return self.deposit_item(&order.item, order.quantity()).is_ok()
+            return self.deposit_item(&order.item, order.quantity()).is_ok();
         }
         false
     }
@@ -1959,8 +1959,7 @@ impl CharacterController {
         {
             sources.retain(|s| !s.is_npc());
         }
-        if sources.iter().all(|s| s.is_task_reward() || s.is_npc())
-        {
+        if sources.iter().all(|s| s.is_task_reward() || s.is_npc()) {
             sources.retain(ItemSource::is_npc);
         }
         if sources.iter().all(|s| s.is_resource() || s.is_monster()) {
@@ -2117,6 +2116,10 @@ impl Character for CharacterController {
 
     fn cooldown_expiration(&self) -> Option<DateTime<FixedOffset>> {
         self.client.cooldown_expiration()
+    }
+
+    fn cooldown(&self) -> u32 {
+        self.client.cooldown()
     }
 }
 

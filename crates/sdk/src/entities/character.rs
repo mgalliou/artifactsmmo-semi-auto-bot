@@ -30,6 +30,7 @@ pub trait Character: Level {
     fn equiped_in(&self, slot: Slot) -> Cow<'_, str>;
     fn has_equiped(&self, item_code: &str) -> u32;
     fn quantity_in_slot(&self, slot: Slot) -> u32;
+    fn cooldown(&self) -> u32;
     fn cooldown_expiration(&self) -> Option<DateTime<FixedOffset>>;
 }
 
@@ -131,6 +132,10 @@ impl Character for CharacterHandle {
 
     fn quantity_in_slot(&self, slot: Slot) -> u32 {
         self.0.read().unwrap().quantity_in_slot(slot)
+    }
+
+    fn cooldown(&self) -> u32 {
+        self.0.read().unwrap().cooldown()
     }
 
     fn cooldown_expiration(&self) -> Option<DateTime<FixedOffset>> {
@@ -324,6 +329,10 @@ impl Character for RawCharacter {
 
     fn inventory_max_items(&self) -> u32 {
         self.schema.inventory_max_items as u32
+    }
+
+    fn cooldown(&self) -> u32 {
+        self.schema.cooldown as u32
     }
 }
 
