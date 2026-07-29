@@ -27,8 +27,8 @@ pub trait Character: Level {
     fn inventory_items(&self) -> Arc<Vec<InventorySlotSchema>>;
     fn inventory_max_items(&self) -> u32;
     fn gold(&self) -> u32;
-    fn equiped_in(&self, slot: Slot) -> Cow<'_, str>;
-    fn has_equiped(&self, item_code: &str) -> u32;
+    fn equipped_in(&self, slot: Slot) -> Cow<'_, str>;
+    fn has_equipped(&self, item_code: &str) -> u32;
     fn quantity_in_slot(&self, slot: Slot) -> u32;
     fn cooldown(&self) -> u32;
     fn cooldown_expiration(&self) -> Option<DateTime<FixedOffset>>;
@@ -122,12 +122,12 @@ impl Character for CharacterHandle {
         self.0.read().unwrap().gold()
     }
 
-    fn equiped_in(&self, slot: Slot) -> Cow<'_, str> {
-        Cow::Owned(self.0.read().unwrap().equiped_in(slot).into_owned())
+    fn equipped_in(&self, slot: Slot) -> Cow<'_, str> {
+        Cow::Owned(self.0.read().unwrap().equipped_in(slot).into_owned())
     }
 
-    fn has_equiped(&self, item_code: &str) -> u32 {
-        self.0.read().unwrap().has_equiped(item_code)
+    fn has_equipped(&self, item_code: &str) -> u32 {
+        self.0.read().unwrap().has_equipped(item_code)
     }
 
     fn quantity_in_slot(&self, slot: Slot) -> u32 {
@@ -272,7 +272,7 @@ impl Character for RawCharacter {
         self.schema.cooldown_expiration
     }
 
-    fn equiped_in(&self, slot: Slot) -> Cow<'_, str> {
+    fn equipped_in(&self, slot: Slot) -> Cow<'_, str> {
         let s = &self.schema;
 
         Cow::Borrowed(match slot {
@@ -295,9 +295,9 @@ impl Character for RawCharacter {
         })
     }
 
-    fn has_equiped(&self, item_code: &str) -> u32 {
+    fn has_equipped(&self, item_code: &str) -> u32 {
         Slot::iter()
-            .filter(|&s| self.equiped_in(s) == item_code)
+            .filter(|&s| self.equipped_in(s) == item_code)
             .map(|s| self.quantity_in_slot(s))
             .sum()
     }
@@ -319,7 +319,7 @@ impl Character for RawCharacter {
             | Slot::Artifact2
             | Slot::Artifact3
             | Slot::Bag
-            | Slot::Rune => u32::from(!self.equiped_in(slot).is_empty()),
+            | Slot::Rune => u32::from(!self.equipped_in(slot).is_empty()),
         }
     }
 

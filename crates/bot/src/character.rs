@@ -1249,8 +1249,9 @@ impl CharacterController {
         gear.align_to(&self.gear());
         let missing = self.gear().missing_items_from(gear);
         for SimpleItemSchema { code, quantity } in missing {
-            if self.has_equiped(&code) + self.inventory.has_available(&code) < quantity {
-                self.bank.reserve((code, self.name()), quantity)?;
+            let owned = self.has_equipped(&code) + self.inventory.has_available(&code);
+            if owned < quantity {
+                self.bank.reserve((code, self.name()), quantity - owned)?;
             }
         }
 
@@ -1260,7 +1261,7 @@ impl CharacterController {
         for slot in Slot::iter() {
             match gear.item_in(slot) {
                 Some(item) => {
-                    if self.equiped_in(slot) == item.code() {
+                    if self.equipped_in(slot) == item.code() {
                         continue;
                     }
                     to_equip.push(EquipSchema {
@@ -1274,7 +1275,7 @@ impl CharacterController {
                 }
                 // TODO: improve unequip condition: check number of character that can use the item
                 None => {
-                    if let Some(item) = self.items.get(self.equiped_in(slot).as_ref())
+                    if let Some(item) = self.items.get(self.equipped_in(slot).as_ref())
                         && !item.r#type().is_utility()
                         && self.account.total_of(item.code())
                             < if item.r#type().is_ring() { 10 } else { 5 }
@@ -1312,7 +1313,7 @@ impl CharacterController {
 
         for schema in items {
             let slot = Slot::from(schema.slot);
-            if self.equiped_in(slot) == schema.code {
+            if self.equipped_in(slot) == schema.code {
                 continue;
             }
             let Some(item) = self.items.get(&schema.code) else {
@@ -1321,7 +1322,7 @@ impl CharacterController {
             let quantity = schema
                 .quantity
                 .unwrap_or_else(|| min(slot.max_quantity(), self.has_in_bank_or_inv(item.code())));
-            if !self.equiped_in(slot).is_empty() {
+            if !self.equipped_in(slot).is_empty() {
                 to_unequip.push(UnequipSchema {
                     slot: schema.slot,
                     quantity: Some(self.quantity_in_slot(slot)),
@@ -1352,7 +1353,7 @@ impl CharacterController {
     pub fn unequip_and_deposit_all(&self) {
         let to_unequip = Slot::iter()
             .filter_map(|slot| {
-                self.items.get(self.equiped_in(slot).as_ref())?;
+                self.items.get(self.equipped_in(slot).as_ref())?;
                 let quantity = self.quantity_in_slot(slot);
                 Some(UnequipSchema {
                     slot: slot.into(),
@@ -1382,7 +1383,7 @@ impl CharacterController {
 
         for &UnequipSchema { slot, quantity } in slots {
             let slot = Slot::from(slot);
-            let Some(item) = self.items.get(self.equiped_in(slot).as_ref()) else {
+            let Some(item) = self.items.get(self.equipped_in(slot).as_ref()) else {
                 continue;
             };
             let quantity = quantity.unwrap_or_else(|| self.quantity_in_slot(slot));
@@ -1797,45 +1798,7 @@ impl CharacterController {
         bail!("no item pending")
     }
 
-    fn reserve_gear(&self, gear: &Gear) -> Result<(), ReservationError> {
-        //TODO: unreserv already reserved items on failure
-        for slot in Slot::iter() {
-            if let Some(item) = gear.item_in(slot)
-                && !slot.is_ring()
-            {
-                self.reserve_if_needed_and_available(item.code(), slot.max_quantity(), slot)?;
-            }
-        }
-        if let Some(ref ring1) = gear.ring1
-            && gear.ring1 == gear.ring2
-        {
-            self.reserve_if_needed_and_available(ring1.code(), 2, Slot::Ring1)?;
-        } else {
-            if let Some(ref ring1) = gear.ring1 {
-                self.reserve_if_needed_and_available(ring1.code(), 1, Slot::Ring1)?;
-            }
-            if let Some(ref ring2) = gear.ring2 {
-                self.reserve_if_needed_and_available(ring2.code(), 1, Slot::Ring2)?;
-            }
-        }
-        Ok(())
-    }
-
     /// Reserves the given `quantity` of the `item` if needed and available.
-    fn reserve_if_needed_and_available(
-        &self,
-        item: &str,
-        quantity: u32,
-        slot: Slot,
-    ) -> Result<(), ReservationError> {
-        let missing_quantity =
-            quantity.saturating_sub(self.inventory.has_available(item) + self.has_equiped(item));
-        if missing_quantity > 0 && self.equiped_in(slot) != item {
-            self.bank.reserve((item, self.name()), missing_quantity)?;
-        }
-        Ok(())
-    }
-
     #[must_use]
     pub fn time_to_get(&self, item: &str) -> Option<(ItemSource, u32)> {
         self.best_source_of(item)
@@ -1913,7 +1876,7 @@ impl CharacterController {
     /// Returns the amount of the given item `code` available in bank, inventory and gear.
     #[must_use]
     pub fn has_available(&self, item: &str) -> u32 {
-        self.has_equiped(item) + self.has_in_bank_or_inv(item)
+        self.has_equipped(item) + self.has_in_bank_or_inv(item)
     }
 
     /// Returns the amount of the given item `code` available in bank and inventory.
@@ -2107,12 +2070,12 @@ impl Character for CharacterController {
         self.client.gold()
     }
 
-    fn equiped_in(&self, slot: Slot) -> Cow<'_, str> {
-        self.client.equiped_in(slot)
+    fn equipped_in(&self, slot: Slot) -> Cow<'_, str> {
+        self.client.equipped_in(slot)
     }
 
-    fn has_equiped(&self, item: &str) -> u32 {
-        self.client.has_equiped(item)
+    fn has_equipped(&self, item: &str) -> u32 {
+        self.client.has_equipped(item)
     }
 
     fn quantity_in_slot(&self, slot: Slot) -> u32 {

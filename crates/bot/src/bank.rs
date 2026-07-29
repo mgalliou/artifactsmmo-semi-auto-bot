@@ -13,7 +13,7 @@ use sdk::{
 };
 use std::{
     collections::HashMap,
-    fmt::Debug,
+    fmt::{self, Debug, Display, Formatter},
     hash::Hash,
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, TryLockError},
 };
@@ -34,6 +34,12 @@ pub struct BankController(Arc<BankControllerInner>);
 pub struct BankKey<T = String> {
     item: T,
     owner: CharacterName,
+}
+
+impl Display for BankKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{} ({})", self.item, self.owner)
+    }
 }
 
 impl BankController {

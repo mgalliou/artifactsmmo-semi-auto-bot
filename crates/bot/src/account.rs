@@ -124,7 +124,7 @@ impl AccountController {
             + self
                 .characters()
                 .iter()
-                .map(|c| c.has_equiped(item) + c.inventory.total_of(item))
+                .map(|c| c.has_equipped(item) + c.inventory.total_of(item))
                 .sum::<u32>()
     }
 

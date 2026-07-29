@@ -454,13 +454,13 @@ impl CharacterClient {
             } else if !self.meets_conditions_for(&item) {
                 return Err(EquipError::ConditionsNotMet);
             }
-            let Some(equiped) = self.items.get(self.equiped_in(slot).as_ref()) else {
+            let Some(equipped) = self.items.get(self.equipped_in(slot).as_ref()) else {
                 continue;
             };
-            if equiped.code() != item.code() {
+            if equipped.code() != item.code() {
                 return Err(EquipError::SlotNotEmpty);
             } else if slot.max_quantity() <= 1 {
-                return Err(EquipError::ItemAlreadyEquiped);
+                return Err(EquipError::ItemAlreadyEquipped);
             } else if self.quantity_in_slot(slot) + quantity > slot.max_quantity() {
                 return Err(EquipError::InsufficientSlotSpace);
             }
@@ -484,17 +484,17 @@ impl CharacterClient {
 
         for UnequipSchema { slot, quantity } in slots {
             let slot = Slot::from(slot);
-            let Some(equiped) = self.items.get(self.equiped_in(slot).as_ref()) else {
+            let Some(equipped) = self.items.get(self.equipped_in(slot).as_ref()) else {
                 return Err(UnequipError::SlotEmpty);
             };
             let quantity_in_slot = self.quantity_in_slot(slot);
             let quantity = quantity.unwrap_or(quantity_in_slot);
 
-            health += equiped.health();
+            health += equipped.health();
             if quantity_in_slot < quantity {
                 return Err(UnequipError::InsufficientQuantity);
             }
-            items.push((slot, equiped, quantity));
+            items.push((slot, equipped, quantity));
         }
         if self.hp() <= health {
             return Err(UnequipError::InsufficientHealth);
@@ -890,22 +890,22 @@ impl CharacterClient {
             return cached.clone();
         }
         let gear = Gear {
-            weapon: self.items.get(self.equiped_in(Slot::Weapon).as_ref()),
-            shield: self.items.get(self.equiped_in(Slot::Shield).as_ref()),
-            helmet: self.items.get(self.equiped_in(Slot::Helmet).as_ref()),
-            body_armor: self.items.get(self.equiped_in(Slot::BodyArmor).as_ref()),
-            leg_armor: self.items.get(self.equiped_in(Slot::LegArmor).as_ref()),
-            boots: self.items.get(self.equiped_in(Slot::Boots).as_ref()),
-            ring1: self.items.get(self.equiped_in(Slot::Ring1).as_ref()),
-            ring2: self.items.get(self.equiped_in(Slot::Ring2).as_ref()),
-            amulet: self.items.get(self.equiped_in(Slot::Amulet).as_ref()),
-            artifact1: self.items.get(self.equiped_in(Slot::Artifact1).as_ref()),
-            artifact2: self.items.get(self.equiped_in(Slot::Artifact2).as_ref()),
-            artifact3: self.items.get(self.equiped_in(Slot::Artifact3).as_ref()),
-            utility1: self.items.get(self.equiped_in(Slot::Utility1).as_ref()),
-            utility2: self.items.get(self.equiped_in(Slot::Utility2).as_ref()),
-            rune: self.items.get(self.equiped_in(Slot::Rune).as_ref()),
-            bag: self.items.get(self.equiped_in(Slot::Bag).as_ref()),
+            weapon: self.items.get(self.equipped_in(Slot::Weapon).as_ref()),
+            shield: self.items.get(self.equipped_in(Slot::Shield).as_ref()),
+            helmet: self.items.get(self.equipped_in(Slot::Helmet).as_ref()),
+            body_armor: self.items.get(self.equipped_in(Slot::BodyArmor).as_ref()),
+            leg_armor: self.items.get(self.equipped_in(Slot::LegArmor).as_ref()),
+            boots: self.items.get(self.equipped_in(Slot::Boots).as_ref()),
+            ring1: self.items.get(self.equipped_in(Slot::Ring1).as_ref()),
+            ring2: self.items.get(self.equipped_in(Slot::Ring2).as_ref()),
+            amulet: self.items.get(self.equipped_in(Slot::Amulet).as_ref()),
+            artifact1: self.items.get(self.equipped_in(Slot::Artifact1).as_ref()),
+            artifact2: self.items.get(self.equipped_in(Slot::Artifact2).as_ref()),
+            artifact3: self.items.get(self.equipped_in(Slot::Artifact3).as_ref()),
+            utility1: self.items.get(self.equipped_in(Slot::Utility1).as_ref()),
+            utility2: self.items.get(self.equipped_in(Slot::Utility2).as_ref()),
+            rune: self.items.get(self.equipped_in(Slot::Rune).as_ref()),
+            bag: self.items.get(self.equipped_in(Slot::Bag).as_ref()),
             effects_cache: RefCell::default(),
         };
         *self.gear_cache.lock().unwrap() = Some(gear.clone());
@@ -924,7 +924,7 @@ impl CharacterClient {
                         self.inventory().total_of(&condition.code) >= value
                     }
                 }
-                ConditionOperator::HasItem => self.has_equiped(&condition.code) >= value,
+                ConditionOperator::HasItem => self.has_equipped(&condition.code) >= value,
                 ConditionOperator::AchievementUnlocked => self
                     .account
                     .get_achievement(&condition.code)
@@ -1028,12 +1028,12 @@ impl Character for CharacterClient {
         self.data.gold()
     }
 
-    fn equiped_in(&self, slot: Slot) -> Cow<'_, str> {
-        self.data.equiped_in(slot)
+    fn equipped_in(&self, slot: Slot) -> Cow<'_, str> {
+        self.data.equipped_in(slot)
     }
 
-    fn has_equiped(&self, item_code: &str) -> u32 {
-        self.data.has_equiped(item_code)
+    fn has_equipped(&self, item_code: &str) -> u32 {
+        self.data.has_equipped(item_code)
     }
 
     fn quantity_in_slot(&self, slot: Slot) -> u32 {
@@ -1909,7 +1909,7 @@ mod tests {
         );
         assert_matches!(
             char.can_equip(&[EquipSchema::new("copper_dagger".into(), ItemSlot::Weapon)]),
-            Err(EquipError::ItemAlreadyEquiped)
+            Err(EquipError::ItemAlreadyEquipped)
         );
         assert_matches!(
             char.can_equip(&[EquipSchema::new("wooden_stick".into(), ItemSlot::Weapon,)]),

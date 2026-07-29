@@ -265,9 +265,9 @@ impl Gear {
         let mut items: HashMap<String, u32> = HashMap::new();
         for slot in Slot::iter() {
             if let Some(new) = other.item_in(slot)
-                && self.item_in(slot) == Some(new)
+                && Some(new) != self.item_in(slot)
             {
-                *items.entry(new.code().to_owned()).or_insert(1) += 1;
+                *items.entry(new.code().to_owned()).or_insert(0) += 1;
             }
         }
         items

@@ -83,7 +83,7 @@ fn respond(line: &str, bot: &Bot, character: &mut Option<CharacterController>) -
                 bot.bank
                     .reservations()
                     .iter()
-                    .for_each(|(d, q)| println!("{d:?}: {q}"));
+                    .for_each(|(d, q)| println!("{d}: {q}"));
             }
             BankAction::List => {
                 bot.bank

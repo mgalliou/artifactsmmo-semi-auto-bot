@@ -23,7 +23,7 @@ const ITEM_NOT_CONSUMABLE: isize = 476;
 const MISSING_ITEM_OR_INSUFFICIENT_QUANTITY: isize = 478;
 const INSUFFICIENT_HEALTH: isize = 483;
 const SUPERFLOUS_UTILITY_QUANTITY: isize = 484;
-const ITEM_ALREADY_EQUIPED: isize = 485;
+const ITEM_ALREADY_EQUIPPED: isize = 485;
 const MONSTER_IS_NOT_A_BOSS: isize = 486;
 const NO_TASK: isize = 487;
 const TASK_NOT_COMPLETED: isize = 488;
@@ -304,7 +304,7 @@ pub enum EquipError {
     #[error("insufficient quantity")]
     InsufficientQuantity = MISSING_ITEM_OR_INSUFFICIENT_QUANTITY,
     #[error("item already equipped")]
-    ItemAlreadyEquiped = ITEM_ALREADY_EQUIPED,
+    ItemAlreadyEquipped = ITEM_ALREADY_EQUIPPED,
     #[error("insufficient slot space")]
     InsufficientSlotSpace = SUPERFLOUS_UTILITY_QUANTITY,
     #[error("slot not empty")]
