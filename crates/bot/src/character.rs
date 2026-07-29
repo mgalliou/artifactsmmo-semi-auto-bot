@@ -1247,7 +1247,12 @@ impl CharacterController {
     /// then delegates to [`Self::unequip`] and [`Self::equip`] for batch processing.
     fn equip_gear(&self, gear: &mut Gear) -> Result<(), EquipGearCommandError> {
         gear.align_to(&self.gear());
-        self.reserve_gear(gear)?;
+        let missing = self.gear().missing_items_from(gear);
+        for SimpleItemSchema { code, quantity } in missing {
+            if self.has_equiped(&code) + self.inventory.has_available(&code) < quantity {
+                self.bank.reserve((code, self.name()), quantity)?;
+            }
+        }
 
         let mut to_equip = vec![];
         let mut to_unequip = vec![];

@@ -260,6 +260,21 @@ impl Gear {
         }
         self.invalidate_cache();
     }
+
+    pub fn missing_items_from(&self, other: &Self) -> Vec<SimpleItemSchema> {
+        let mut items: HashMap<String, u32> = HashMap::new();
+        for slot in Slot::iter() {
+            if let Some(new) = other.item_in(slot)
+                && self.item_in(slot) == Some(new)
+            {
+                *items.entry(new.code().to_owned()).or_insert(1) += 1;
+            }
+        }
+        items
+            .into_iter()
+            .map(|(code, quantity)| SimpleItemSchema { code, quantity })
+            .collect()
+    }
 }
 
 impl Gear {
