@@ -31,7 +31,7 @@ use log::{debug, error, info, warn};
 use ordered_float::OrderedFloat;
 use sdk::Quantity;
 use sdk::entities::{CharacterName, TaskCode};
-use sdk::models::{EquipSchema, InventorySlotSchema, MapLayer, UnequipSchema};
+use sdk::models::{EquipSchema, InventorySlotSchema, MapContentSchema, MapLayer, UnequipSchema};
 use sdk::{
     Client, Code, CollectionClient, HasConditions, HasDropTable, HasDrops, ItemContainer, ItemList,
     ItemsClient, Level, LimitedContainer, MapsClient, MonstersClient, NpcsClient, SlotLimited,
@@ -1425,13 +1425,15 @@ impl CharacterController {
         if self.current_map().is_tasksmaster(task_type) {
             return Ok(current_map);
         }
-        let Some(map) = self
-            .maps
-            .closest_tasksmaster_from(&self.current_map(), task_type)
-        else {
-            return Err(MoveCommandError::MapNotFound);
-        };
-        self.r#move(&Either::Left((map.x(), map.y())))
+        task_type.map_or_else(
+            || self.move_to_closest_map_of_type(MapContentType::TasksMaster),
+            |task_type| {
+                self.move_to_closest_map_with_content(&MapContentSchema {
+                    r#type: MapContentType::TasksMaster,
+                    code: task_type.to_string(),
+                })
+            },
+        )
     }
 
     fn move_to_closest_map_of_type(
@@ -1442,7 +1444,13 @@ impl CharacterController {
         if current_map.content_type_is(r#type) {
             return Ok(current_map);
         }
-        let Some(map) = self.maps.closest_of_type_from(&current_map, r#type) else {
+        let maps = self
+            .maps
+            .of_type(r#type)
+            .into_iter()
+            .filter(|m| self.client.can_move(m.x(), m.y()).is_ok())
+            .collect_vec();
+        let Some(map) = current_map.closest_among(&maps) else {
             return Err(MoveCommandError::MapNotFound);
         };
         self.r#move(&Either::Left((map.x(), map.y())))
@@ -1456,7 +1464,33 @@ impl CharacterController {
         if current_map.content_code_is(code) {
             return Ok(current_map);
         }
-        let Some(map) = self.maps.closest_with_content_code_from(&current_map, code) else {
+        let maps = self
+            .maps
+            .with_content_code(code)
+            .into_iter()
+            .filter(|m| self.client.can_move(m.x(), m.y()).is_ok())
+            .collect_vec();
+        let Some(map) = current_map.closest_among(&maps) else {
+            return Err(MoveCommandError::MapNotFound);
+        };
+        self.r#move(&Either::Left((map.x(), map.y())))
+    }
+
+    fn move_to_closest_map_with_content(
+        &self,
+        content: &MapContentSchema,
+    ) -> Result<RawMap, MoveCommandError> {
+        let current_map = self.current_map();
+        if current_map.content_is(content) {
+            return Ok(current_map);
+        }
+        let maps = self
+            .maps
+            .with_content(content)
+            .into_iter()
+            .filter(|m| self.client.can_move(m.x(), m.y()).is_ok())
+            .collect_vec();
+        let Some(map) = current_map.closest_among(&maps) else {
             return Err(MoveCommandError::MapNotFound);
         };
         self.r#move(&Either::Left((map.x(), map.y())))
