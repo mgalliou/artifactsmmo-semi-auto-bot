@@ -105,7 +105,7 @@ impl LimitedContainer for InventoryClient {
     }
 
     fn has_room_for_drops_from(&self, entity: &impl HasDropTable) -> bool {
-        self.free_slots() >= entity.average_item_slots()
-            && self.free_space() >= entity.min_drop_quantity()
+        self.free_slots() >= entity.expected_slots().ceil() as u32
+            && self.free_space() >= entity.expected_quantity().ceil() as u32
     }
 }

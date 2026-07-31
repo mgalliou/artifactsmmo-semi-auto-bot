@@ -220,7 +220,7 @@ mod tests {
 
         // not enough space
         let inv = inventory_client(inventory_with(&[("ore", 99)]), 100);
-        let drops = vec![DropRateSchema::new("iron".into(), 100, 5, 10)];
+        let drops = vec![DropRateSchema::new("iron".into(), 1, 5, 10)];
         assert!(!inv.has_room_for_drops_from(&drops));
     }
 }

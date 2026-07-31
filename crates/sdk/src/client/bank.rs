@@ -134,6 +134,6 @@ impl LimitedContainer for BankClient {
     }
 
     fn has_room_for_drops_from(&self, entity: &impl HasDropTable) -> bool {
-        self.free_slots() >= entity.average_item_slots()
+        self.free_slots() >= entity.expected_slots().ceil() as u32
     }
 }

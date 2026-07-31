@@ -1,4 +1,3 @@
-use crate::reservable::ReservationError;
 use crate::{
     CharacterCommand, FOOD_ORDER_BLACKLIST, MIN_COIN_THRESHOLD, MIN_FOOD_THRESHOLD,
     account::AccountController,
@@ -1808,7 +1807,7 @@ impl CharacterController {
                     ItemSource::Resource(r) => self.time_to_gather(r),
                     ItemSource::Monster(m) => self
                         .time_to_kill(m)
-                        .map(|time| time * (m.effective_rate_of(item) * 100.0) as u32),
+                        .map(|time| (time as f32 / m.expected_quantity_of(item)) as u32),
                     ItemSource::Craft => self.can_craft(item).is_ok().then_some(CRAFT_TIME),
                     ItemSource::TaskReward | ItemSource::Task => Some(2000),
                     ItemSource::Npc(_) => Some(60),
@@ -1933,10 +1932,10 @@ impl CharacterController {
         if sources.iter().all(|s| s.is_resource() || s.is_monster()) {
             return sources
                 .iter()
-                .min_by_key(|s| {
+                .max_by_key(|s| {
                     OrderedFloat(match s {
-                        ItemSource::Resource(resource) => resource.percentage_of(code),
-                        ItemSource::Monster(monster) => monster.percentage_of(code),
+                        ItemSource::Resource(resource) => resource.probability_of(code),
+                        ItemSource::Monster(monster) => monster.probability_of(code),
                         _ => 0.0,
                     })
                 })

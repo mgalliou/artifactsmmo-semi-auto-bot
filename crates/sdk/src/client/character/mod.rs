@@ -1061,7 +1061,9 @@ mod tests {
     use crate::{
         CollectionClient,
         entities::{AccountAchievement, MapHandle, RawMap},
-        test_utils::{ACCOUNT, MAPS, character, default_schema, empty_bank_details},
+        test_utils::{
+            ACCOUNT, MAPS, character, default_schema, empty_bank_details, inventory_with,
+        },
     };
     use chrono::Utc;
     use itertools::Itertools;
@@ -1134,7 +1136,7 @@ mod tests {
         );
 
         let char = character(CharacterSchema {
-            inventory_max_items: 1,
+            inventory: Some(inventory_with(&[("raw_beef", 100)])),
             ..schema.clone()
         });
         assert_matches!(
