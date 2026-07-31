@@ -11,13 +11,13 @@ use log::info;
 use openapi::models::{MapContentSchema, MapContentType, MapLayer, TaskType};
 use std::{collections::HashMap, sync::Arc};
 
+type MapsSource = Box<dyn Fn() -> HashMap<(MapLayer, i32, i32), MapHandle> + Send + Sync + 'static>;
+
 #[derive(Clone, Deref, CollectionClient)]
 #[deref(forward)]
 #[key((MapLayer, i32, i32))]
 #[element(MapHandle)]
 pub struct MapsClient(Arc<MapsClientInner>);
-
-type MapsSource = Box<dyn Fn() -> HashMap<(MapLayer, i32, i32), MapHandle> + Send + Sync + 'static>;
 
 pub struct MapsClientInner {
     cache_dir: Box<str>,

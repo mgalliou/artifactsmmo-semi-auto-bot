@@ -1,10 +1,10 @@
 use crate::{Cached, CollectionClient, entities::TaskReward};
-type TasksRewardsSource = Box<dyn Fn() -> HashMap<String, TaskReward> + Send + Sync + 'static>;
-
 use arc_swap::ArcSwap;
 use derive_more::Deref;
 use log::info;
 use std::{collections::HashMap, sync::Arc};
+
+type TasksRewardsSource = Box<dyn Fn() -> HashMap<String, TaskReward> + Send + Sync + 'static>;
 
 #[derive(Clone, Deref, CollectionClient)]
 #[deref(forward)]

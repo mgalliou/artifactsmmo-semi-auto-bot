@@ -3,6 +3,7 @@ use crate::{
     client::events::EventsClient,
     entities::{EventSchemaExt, Resource},
 };
+
 type ResourcesSource = Box<dyn Fn() -> HashMap<String, Resource> + Send + Sync + 'static>;
 
 use arc_swap::ArcSwap;

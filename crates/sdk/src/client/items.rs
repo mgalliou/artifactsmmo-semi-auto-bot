@@ -10,6 +10,7 @@ use crate::{
     simulator::HasEffects,
     skill::Skill,
 };
+
 type ItemsSource = Box<dyn Fn() -> HashMap<String, Item> + Send + Sync + 'static>;
 
 use arc_swap::ArcSwap;

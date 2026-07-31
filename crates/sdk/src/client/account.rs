@@ -16,7 +16,10 @@ use derive_more::Deref;
 use itertools::Itertools;
 use log::info;
 use openapi::models::{AccountAchievementSchema, CharacterSchema, PendingItemSchema};
-use std::sync::{Arc, RwLock};
+use std::{
+    sync::{Arc, RwLock},
+    thread,
+};
 
 pub(crate) type CharactersSource =
     Box<dyn Fn(&str) -> Result<Vec<CharacterSchema>, ClientError> + Send + Sync + 'static>;
@@ -77,9 +80,11 @@ impl AccountClient {
     }
 
     pub fn init(&self) {
-        let _ = self.load_achievements();
-        let _ = self.load_pending_items();
-        info!("Account achievements initilized");
+        let () = thread::scope(|s| {
+            let _ = s.spawn(|| self.load_achievements());
+            let _ = s.spawn(|| self.load_pending_items());
+        });
+        info!("Account achievements and pending items initilized");
     }
 
     #[must_use]

@@ -1,11 +1,11 @@
 use crate::{Cached, Code, CollectionClient, client::npcs_items::NpcsItemsClient, entities::Npc};
-type NpcsSource = Box<dyn Fn() -> HashMap<String, Npc> + Send + Sync + 'static>;
-
 use arc_swap::ArcSwap;
 use derive_more::Deref;
 use itertools::Itertools;
 use log::info;
 use std::{collections::HashMap, sync::Arc};
+
+type NpcsSource = Box<dyn Fn() -> HashMap<String, Npc> + Send + Sync + 'static>;
 
 #[derive(Clone, Deref, CollectionClient)]
 #[deref(forward)]
@@ -55,13 +55,17 @@ impl NpcsClient {
     pub fn selling(&self, code: &str) -> Vec<Npc> {
         self.items
             .iter()
-            .filter_map(|i| {
-                if i.is_buyable() && i.code() == code {
-                    self.get(i.npc_code())
-                } else {
-                    None
-                }
-            })
+            .filter(|i| i.is_buyable() && i.code() == code)
+            .filter_map(|i| self.get(i.npc_code()))
+            .collect_vec()
+    }
+
+    #[must_use]
+    pub fn buying(&self, code: &str) -> Vec<Npc> {
+        self.items
+            .iter()
+            .filter(|i| i.is_salable() && i.code() == code)
+            .filter_map(|i| self.get(i.npc_code()))
             .collect_vec()
     }
 }

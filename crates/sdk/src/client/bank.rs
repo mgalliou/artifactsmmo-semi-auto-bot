@@ -3,8 +3,9 @@ use crate::{
 };
 use arc_swap::ArcSwap;
 use derive_more::Deref;
+use log::info;
 use openapi::models::{BankSchema, SimpleItemSchema};
-use std::{sync::Arc, vec::Vec};
+use std::{sync::Arc, thread, vec::Vec};
 
 type BankContentSource = Box<dyn Fn() -> Vec<SimpleItemSchema> + Send + Sync + 'static>;
 type BankDetailsSource = Box<dyn Fn() -> BankSchema + Send + Sync + 'static>;
@@ -32,8 +33,11 @@ impl BankClient {
     }
 
     pub(crate) fn init(&self) {
-        self.set_details((self.fetch_details)());
-        self.set_content((self.fetch_content)());
+        let () = thread::scope(|s| {
+            let _ = s.spawn(|| self.set_details((self.fetch_details)()));
+            let _ = s.spawn(|| self.set_content((self.fetch_content)()));
+        });
+        info!("Bank client initilized");
     }
 
     pub fn set_gold(&self, gold: u32) {
