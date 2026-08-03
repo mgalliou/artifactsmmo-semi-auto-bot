@@ -13,7 +13,7 @@ use std::{
     collections::HashMap,
     sync::{
         Arc,
-        atomic::{AtomicU32, Ordering},
+        atomic::{AtomicI32, AtomicU32, Ordering},
     },
 };
 
@@ -28,6 +28,10 @@ pub struct MapsClient(Arc<MapsClientInner>);
 pub struct MapsClientInner {
     cache_dir: Box<str>,
     data: ArcSwap<HashMap<(MapLayer, i32, i32), MapHandle>>,
+    min_x: AtomicI32,
+    max_x: AtomicI32,
+    min_y: AtomicI32,
+    max_y: AtomicI32,
     height: AtomicU32,
     width: AtomicU32,
     fetch: MapsSource,
@@ -40,6 +44,10 @@ impl MapsClient {
         Self(Arc::new(MapsClientInner {
             cache_dir: cache_dir.into(),
             data: ArcSwap::default(),
+            min_x: AtomicI32::new(0),
+            max_x: AtomicI32::new(0),
+            min_y: AtomicI32::new(0),
+            max_y: AtomicI32::new(0),
             height: AtomicU32::new(0),
             width: AtomicU32::new(0),
             fetch,
@@ -66,12 +74,36 @@ impl MapsClient {
             min_y = min_y.min(y);
             max_y = max_y.max(y);
         }
+        self.min_x.store(min_x, Ordering::SeqCst);
+        self.max_x.store(max_x, Ordering::SeqCst);
+        self.min_y.store(min_y, Ordering::SeqCst);
+        self.max_y.store(max_y, Ordering::SeqCst);
         self.width.store(span(min_x, max_x), Ordering::SeqCst);
         self.height.store(span(min_y, max_y), Ordering::SeqCst);
     }
 
     fn events(&self) -> EventsClient {
         self.events.clone()
+    }
+
+    #[must_use]
+    pub fn min_x(&self) -> i32 {
+        self.min_x.load(Ordering::SeqCst)
+    }
+
+    #[must_use]
+    pub fn max_x(&self) -> i32 {
+        self.max_x.load(Ordering::SeqCst)
+    }
+
+    #[must_use]
+    pub fn min_y(&self) -> i32 {
+        self.min_y.load(Ordering::SeqCst)
+    }
+
+    #[must_use]
+    pub fn max_y(&self) -> i32 {
+        self.max_y.load(Ordering::SeqCst)
     }
 
     #[must_use]
@@ -232,11 +264,11 @@ const fn span(min: i32, max: i32) -> u32 {
 
 #[cfg(test)]
 mod tests {
-    //use super::*;
+    use crate::test_utils::MAPS;
 
-    // #[test]
-    // fn check_content_type_as_string() {
-    //     assert_eq!(ContentType::Monster.to_string(), "monster");
-    //     assert_eq!(ContentType::Monster.as_ref(), "monster");
-    // }
+    #[test]
+    fn test_bound() {
+        assert_eq!(MAPS.height(), 28);
+        assert_eq!(MAPS.width(), 17);
+    }
 }
