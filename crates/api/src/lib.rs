@@ -118,7 +118,7 @@ pub trait Paginate {
         if pages > 1 {
             thread::scope(|s| {
                 let mut handles = vec![];
-                for p in 2..pages {
+                for p in 2..=pages {
                     handles.push(s.spawn(move || self.request_page(p)));
                 }
                 for h in handles {
