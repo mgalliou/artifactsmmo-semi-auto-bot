@@ -1,5 +1,5 @@
 use crate::{
-    Cached, CollectionClient,
+    Cached, CollectionClient, Data,
     client::events::EventsClient,
     entities::{Map, MapHandle, RawMap},
     skill::Skill,
@@ -9,7 +9,13 @@ use derive_more::Deref;
 use itertools::Itertools;
 use log::info;
 use openapi::models::{MapContentSchema, MapContentType, MapLayer, TaskType};
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    sync::{
+        Arc,
+        atomic::{AtomicU32, Ordering},
+    },
+};
 
 type MapsSource = Box<dyn Fn() -> HashMap<(MapLayer, i32, i32), MapHandle> + Send + Sync + 'static>;
 
@@ -22,6 +28,8 @@ pub struct MapsClient(Arc<MapsClientInner>);
 pub struct MapsClientInner {
     cache_dir: Box<str>,
     data: ArcSwap<HashMap<(MapLayer, i32, i32), MapHandle>>,
+    height: AtomicU32,
+    width: AtomicU32,
     fetch: MapsSource,
     events: EventsClient,
 }
@@ -32,6 +40,8 @@ impl MapsClient {
         Self(Arc::new(MapsClientInner {
             cache_dir: cache_dir.into(),
             data: ArcSwap::default(),
+            height: AtomicU32::new(0),
+            width: AtomicU32::new(0),
             fetch,
             events,
         }))
@@ -39,11 +49,39 @@ impl MapsClient {
 
     pub fn init(&self) {
         self.data.store(Arc::new(self.fetch()));
-        info!("Maps client initilized");
+        self.init_sizes();
+        info!("Maps client initialized");
+    }
+
+    fn init_sizes(&self) {
+        let mut min_x = i32::MAX;
+        let mut max_x = i32::MIN;
+        let mut min_y = i32::MAX;
+        let mut max_y = i32::MIN;
+        let data = self.data();
+
+        for &(_, x, y) in data.keys() {
+            min_x = min_x.min(x);
+            max_x = max_x.max(x);
+            min_y = min_y.min(y);
+            max_y = max_y.max(y);
+        }
+        self.width.store(span(min_x, max_x), Ordering::SeqCst);
+        self.height.store(span(min_y, max_y), Ordering::SeqCst);
     }
 
     fn events(&self) -> EventsClient {
         self.events.clone()
+    }
+
+    #[must_use]
+    pub fn width(&self) -> u32 {
+        self.width.load(Ordering::SeqCst)
+    }
+
+    #[must_use]
+    pub fn height(&self) -> u32 {
+        self.height.load(Ordering::SeqCst)
     }
 
     #[must_use]
@@ -81,7 +119,7 @@ impl MapsClient {
 
     //TODO: handle layer
     #[must_use]
-    pub fn closest_from_amoung(x: i32, y: i32, maps: &[RawMap]) -> Option<RawMap> {
+    pub fn closest_from_among(x: i32, y: i32, maps: &[RawMap]) -> Option<RawMap> {
         maps.iter()
             .min_by_key(|m| i32::abs(x - m.x()) + i32::abs(y - m.y()))
             .cloned()
@@ -180,6 +218,15 @@ impl Cached<HashMap<(MapLayer, i32, i32), MapHandle>> for MapsClient {
 
     fn refresh(&self) {
         self.data.store(Arc::new(self.fetch_from_source()));
+        self.init_sizes();
+    }
+}
+
+const fn span(min: i32, max: i32) -> u32 {
+    if max < min {
+        0
+    } else {
+        (max - min + 1).unsigned_abs()
     }
 }
 
