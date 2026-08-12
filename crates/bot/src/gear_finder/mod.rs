@@ -663,7 +663,7 @@ mod tests {
             .resolve()
             .unwrap();
         let weapon = gear.item_in(Slot::Weapon).unwrap();
-        assert_eq!(weapon.code(), "greater_dreadful_staff");
+        assert_eq!(weapon.code(), "obsidian_battleaxe");
     }
 
     #[test]
@@ -678,7 +678,7 @@ mod tests {
         assert_eq!(
             gear.unwrap().to_string(),
             Gear::default()
-                .with_weapon(item("iron_sword"))
+                .with_weapon(item("forest_staff"))
                 .with_helmet(item("adventurer_helmet"))
                 .with_shield(item("iron_shield"))
                 .with_body_armor(item("iron_armor"))
@@ -686,8 +686,9 @@ mod tests {
                 .with_boots(item("iron_boots"))
                 .with_amulet(item("fire_and_earth_amulet"))
                 .with_ring1(item("forest_ring"))
-                .with_ring2(item("forest_ring"))
-                .with_artifact1(item("novice_guide"))
+                .with_ring2(item("iron_ring"))
+                .with_artifact1(item("lich_race_medal"))
+                .with_artifact2(item("novice_guide"))
                 .with_bag(item("backpack"))
                 .to_string()
         );
@@ -828,7 +829,7 @@ mod tests {
     fn prioritizes_available_items() {
         // lizard_skin_armor and stormforged_armor tie on DamageBoost against
         // vampire with dreadful_staff (both give 6.48). The tiebreaker in
-        // best_armor_by should pick the one in available_items.
+        // best_by_among should pick the one in available_items.
         let vamp = monster("vampire");
         let filter = Filter {
             from_task: true,
@@ -838,10 +839,11 @@ mod tests {
             available_only: false,
             utilities: false,
         };
+        let excluded_items = vec!["snakeskin_armor".into(), "steel_armor".into()];
         let mut resolver = GearResolver::new(ITEMS.clone(), GearPurpose::Combat(vamp.clone()))
             .with_skill_levels(HashMap::from([(Skill::Combat, 25)]))
             .with_available_items(HashMap::from([("lizard_skin_armor".into(), 1)]))
-            .with_excluded_items(["steel_armor".into()].into())
+            .with_excluded_items(excluded_items.clone())
             .with_filter(filter);
         let gear = resolver.resolve().unwrap();
         assert_eq!(gear.weapon.unwrap().code(), "dreadful_staff");
@@ -851,7 +853,7 @@ mod tests {
         let gear = GearResolver::new(ITEMS.clone(), GearPurpose::Combat(vamp))
             .with_skill_levels(HashMap::from([(Skill::Combat, 25)]))
             .with_available_items(HashMap::from([("stormforged_armor".into(), 1)]))
-            .with_excluded_items(["steel_armor".into()].into())
+            .with_excluded_items(excluded_items)
             .with_filter(filter)
             .resolve()
             .unwrap();
