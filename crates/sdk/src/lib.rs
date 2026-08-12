@@ -393,10 +393,11 @@ mod tests {
         assert_close(chicken.probability_of("egg"), 1.0 / 12.0);
         assert_close(chicken.probability_of("feather"), 0.125);
         assert_close(chicken.probability_of("golden_egg"), 0.001);
+        assert_close(chicken.probability_of("event_ticket"), 0.01);
         assert_close(chicken.expected_quantity_of("raw_chicken"), 0.5);
         assert_close(chicken.expected_quantity_of("egg"), 1.0 / 12.0);
-        assert_close(chicken.expected_slots(), 0.709_333);
-        assert_close(chicken.expected_quantity(), 0.709_333);
+        assert_close(chicken.expected_slots(), 0.719_333);
+        assert_close(chicken.expected_quantity(), 0.719_333);
     }
 
     #[test]
@@ -404,9 +405,10 @@ mod tests {
         let gold_rocks = resource("gold_rocks");
         assert_close(gold_rocks.probability_of("gold_ore"), 1.0);
         assert_close(gold_rocks.probability_of("topaz_stone"), 0.01);
+        assert_close(gold_rocks.probability_of("event_ticket"), 0.005);
         assert_close(gold_rocks.expected_quantity_of("gold_ore"), 1.0);
-        assert_close(gold_rocks.expected_slots(), 1.04);
-        assert_close(gold_rocks.expected_quantity(), 1.04);
+        assert_close(gold_rocks.expected_slots(), 1.045);
+        assert_close(gold_rocks.expected_quantity(), 1.045);
     }
 
     #[test]
