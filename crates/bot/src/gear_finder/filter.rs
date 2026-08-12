@@ -2,7 +2,7 @@
 #[allow(clippy::struct_excessive_bools)]
 pub struct Filter {
     pub available_only: bool,
-    pub craftable: bool,
+    pub force_craftable: bool,
     pub from_task: bool,
     pub from_npc: bool,
     pub from_monster: bool,
@@ -13,7 +13,7 @@ impl Default for Filter {
     fn default() -> Self {
         Self {
             available_only: false,
-            craftable: true,
+            force_craftable: true,
             from_task: false,
             from_npc: true,
             from_monster: false,
@@ -27,7 +27,7 @@ impl Filter {
     pub const fn available_only() -> Self {
         Self {
             available_only: true,
-            craftable: false,
+            force_craftable: false,
             from_task: false,
             from_npc: false,
             from_monster: false,
@@ -39,7 +39,7 @@ impl Filter {
     pub const fn everything() -> Self {
         Self {
             available_only: false,
-            craftable: true,
+            force_craftable: true,
             from_task: true,
             from_npc: true,
             from_monster: true,

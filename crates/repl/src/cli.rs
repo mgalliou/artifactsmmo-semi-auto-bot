@@ -198,7 +198,7 @@ fn respond(line: &str, bot: &Bot, character: &mut Option<CharacterController>) -
             };
             let filter = Filter {
                 available_only,
-                craftable,
+                force_craftable: craftable,
                 from_task,
                 from_npc,
                 from_monster,
@@ -247,7 +247,7 @@ fn respond(line: &str, bot: &Bot, character: &mut Option<CharacterController>) -
             };
             let filter = Filter {
                 available_only,
-                craftable,
+                force_craftable: craftable,
                 from_task,
                 from_npc,
                 from_monster,

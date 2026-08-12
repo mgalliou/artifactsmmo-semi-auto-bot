@@ -173,7 +173,7 @@ impl GearResolver {
             return false;
         }
         if let Some(can_craft) = &self.can_craft
-            && self.filter.craftable
+            && self.filter.force_craftable
             && item.is_craftable()
             && !can_craft(item.code())
         {
@@ -190,7 +190,9 @@ impl GearResolver {
     /// items available are from inventory, bank, and current equipment
     /// `filter` filter out the items in the base item pool, without filtering `available_items`
     /// When `available_only` is set, items from `item_pool` are ignored
-    /// If craftable items are filtered in, they are checked against the `can_craft` function
+    /// When `filter.force_craftable` is set, craftable items in the base pool are checked against the
+    /// `can_craft` function. When it is unset, all craftable items remain eligible. This does not
+    /// filter `available_items`.
     ///
     /// When resolving gears with both `item_pool` and `available_only`, items from `available_items`
     /// are prioritized in case of a tie, and items from `item_pool` are considered of infinite quantity
@@ -802,7 +804,7 @@ mod tests {
         .with_skill_levels(HashMap::from([(Skill::Mining, 15), (Skill::Combat, 15)]))
         .with_filter(Filter {
             available_only: false,
-            craftable: true,
+            force_craftable: true,
             from_task: true,
             from_npc: true,
             from_monster: true,
@@ -838,7 +840,7 @@ mod tests {
             from_task: true,
             from_npc: true,
             from_monster: false,
-            craftable: true,
+            force_craftable: true,
             available_only: false,
             utilities: false,
         };
