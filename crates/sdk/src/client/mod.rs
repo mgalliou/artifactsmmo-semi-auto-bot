@@ -150,9 +150,10 @@ pub struct ClientInner {
 impl Client {
     #[must_use]
     #[allow(clippy::too_many_lines)]
-    pub fn new(url: String, token: String, account_name: String, cache_dir: &str) -> Self {
+    pub fn new(url: String, token: String, cache_dir: &str) -> Self {
         let event_bus = EventBus::new(64);
         let api = ArtifactApi::new(url, token);
+        let account_name = api.account.details().unwrap().username;
         let bank = BankClient::new(
             make_fetcher(api.clone(), |api| api.bank.get_details().unwrap()),
             make_fetcher(api.clone(), |api| api.bank.get_items().unwrap()),

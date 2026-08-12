@@ -10,12 +10,13 @@ use openapi::{
         },
         configuration::Configuration,
         my_account_api::{
-            GetPendingItemsMyPendingItemsGetError, get_pending_items_my_pending_items_get,
+            GetAccountDetailsMyDetailsGetError, GetPendingItemsMyPendingItemsGetError,
+            get_account_details_my_details_get, get_pending_items_my_pending_items_get,
         },
     },
     models::{
         AccountAchievementSchema, CharactersListSchema, DataPageAccountAchievementSchema,
-        DataPagePendingItemSchema, PendingItemSchema,
+        DataPagePendingItemSchema, MyAccountDetails, PendingItemSchema,
     },
 };
 use std::sync::Arc;
@@ -39,6 +40,12 @@ impl AccountApi {
             &self.configuration,
             account,
         ))
+    }
+
+    pub fn details(&self) -> Result<MyAccountDetails, Error<GetAccountDetailsMyDetailsGetError>> {
+        RUNTIME
+            .block_on(get_account_details_my_details_get(&self.configuration))
+            .map(|schema| schema.data)
     }
 
     pub fn achievements(

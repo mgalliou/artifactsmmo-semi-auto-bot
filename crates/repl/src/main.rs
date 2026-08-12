@@ -11,7 +11,6 @@ fn main() -> Result<()> {
     let client = Client::new(
         "https://api.artifactsmmo.com".into(),
         env::var("ARTIFACTSMMO_TOKEN").unwrap_or_default(),
-        "podJio".into(),
         ".cache",
     );
     client.init();
