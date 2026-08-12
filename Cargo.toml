@@ -7,8 +7,9 @@ members = [
   "crates/sdk_derive",
   "crates/bot",
   "crates/repl",
+  "crates/tui",
 ]
-default-members = ["crates/repl"]
+default-members = ["crates/repl", "crates/tui"]
 
 [workspace.package]
 publish = false
@@ -22,6 +23,7 @@ sdk = { path = "crates/sdk" }
 sdk_derive = { path = "crates/sdk_derive" }
 bot = { path = "crates/bot" }
 repl = { path = "crates/repl" }
+tui = { path = "crates/tui" }
 
 # external
 anyhow = "1.0"
@@ -42,7 +44,7 @@ figment = { version = "0.10", features = ["toml"] }
 governor = "0.10"
 http = "1.4"
 itertools = "0.15"
-log = "0.4"
+log = { version = "0.4", features = ["std"] }
 ordered-float = "5.3"
 quote = "1.0"
 rand = "0.10"

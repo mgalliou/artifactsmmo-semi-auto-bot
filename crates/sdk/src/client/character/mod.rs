@@ -23,7 +23,7 @@ use crate::{
     },
     entities::{
         AccountAchievement, Character, CharacterHandle, CharacterName, Item, Map, PendingItem,
-        RawMap, TaskCode,
+        RawCharacter, RawMap, TaskCode,
     },
     gear::Slot,
     grand_exchange::GrandExchangeClient,
@@ -122,6 +122,12 @@ impl CharacterClient {
     #[must_use]
     pub fn id(&self) -> usize {
         self.id
+    }
+
+    /// Loads the character state from a single point in time.
+    #[must_use]
+    pub fn snapshot(&self) -> RawCharacter {
+        self.data.load()
     }
 
     #[must_use]

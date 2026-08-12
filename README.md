@@ -4,78 +4,104 @@ Rust implementation of a semi-autonomous bot for the
 [ArtifactsMMO](https://artifactsmmo.com/) game.
 
 > [!WARNING]
-> Keep in mind that this is a work in progress and that things will probably not
-> work the way you expect it to based on what is described in this `README`.
+> This project is a work in progress and may change without notice.
 
 ## Architecture
 
-The bot is built around a
-[client](https://github.com/mgalliou/artifactsmmo-openapi) generated from the
-official [OpenAPI specification](https://api.artifactsmmo.com/docs/#/) with the
-following [openapi-generator](https://openapi-generator.tech/).
+The repository is a Rust workspace split into the generated `openapi` client,
+the `api` wrapper, the game-facing `sdk`, bot behavior in `bot`, and the `repl`
+and Ratatui-based `tui` frontends. The generated client comes from the official
+[OpenAPI specification](https://api.artifactsmmo.com/docs/#/) using
+[OpenAPI Generator](https://openapi-generator.tech/).
+
+## Running
+
+The frontend uses `https://api.artifactsmmo.com` and reads the API token from
+the `ARTIFACTSMMO_TOKEN` environment variable. The SDK obtains the account name
+from the authenticated account-details endpoint; it does not need separate
+account-name configuration.
+
+Run the REPL from the repository root so `ArtifactsMMO.toml` and `.cache/`
+resolve in the expected location:
+
+```shell
+export ARTIFACTSMMO_TOKEN="YOUR_API_TOKEN"
+mkdir -p .cache
+cargo run -p repl
+```
+
+> [!CAUTION]
+> Starting the frontend initializes the live client and launches bot threads
+> that can issue game actions for every configured character.
 
 ## Configuration
 
-The bot must be configured with the `ArtifactsMMO.toml` file.
+`ArtifactsMMO.toml` configures bot and character behavior; it does not contain
+the API URL, token, or account name. The file is required because startup
+panics if it is missing or invalid.
 
-You have to configure at least the `base_url` and the `token`:
+Character entries are positional and must cover the characters returned by the
+account API: the first `[[characters]]` entry configures character 0, the
+second configures character 1, and so on.
 
 ```toml
-base_url = "https://api.artifactsmmo.com"
-token = "YOUR_API_TOKEN"
+# Automatically order upgrades that cannot be sourced immediately.
+order_gear = true
+
+# Ignore these catalog items when resolving gear. Already-owned gear is not
+# affected; unknown item codes are warned about and ignored.
+excluded_items = ["example_item_code"]
+
+[[characters]]
+idle = false
+is_trader = false
+task_type = "monsters" # "monsters" or "items"; defaults to "monsters"
+skills = ["combat", "woodcutting"]
+goals = [
+  "orders",
+  { reach_skill_level = { skill = "woodcutting", level = 40 } },
+]
+
+[[characters]]
+skills = ["mining", "weaponcrafting"]
+goals = [
+  { follow_max_skill_level = { skill = "weaponcrafting", skill_to_follow = "mining" } },
+]
 ```
 
-The behavior of each character can be configured using the `characters` array
-(see following sections).
+All fields inside a character entry are optional. `idle` and `is_trader`
+default to `false`, `task_type` defaults to `monsters`, and `skills` and `goals`
+default to empty collections. Add one `[[characters]]` block per account
+character.
 
 ### Skills
 
-Each character can be assigned one or multiple skills to determine if it is
-allowed to do actions related to those skills.
-
-```toml
-# char 1
-[[characters]]
-skills = ["combat", "woodcutting"]
-# char 2
-[[characters]]
-skills = ["mining", "weaponcrafting"]
-# char 3
-[[characters]]
-skills = ["mining", "gearcrafting"]
-# char 4
-[[characters]]
-skills = ["mining", "jewelrycrafting"]
-# char 5
-[[characters]]
-skills = ["cooking", "fishing", "alchemy"]
-```
+Each character can be assigned one or more skills that determine which related
+actions it may perform. Available values are `combat`, `mining`, `woodcutting`,
+`fishing`, `weaponcrafting`, `gearcrafting`, `jewelrycrafting`, `cooking`, and
+`alchemy`.
 
 ### Goals
 
-Goal can be assigned to characters to further specify the behavior of the
-character. For now there is four kind of goals:
+One or more goals can further specify a character's behavior:
 
-- `orders`: the character will try to fulfill to `orders` present on the
-  `orderboard`.
-- `reach_skill_level`: the character must reach a certain level of a skill
-- `follow_max_skill_level`: the character will try to level the given `skill` so
-  that it follows follow the highest level reached across all characters for the
-  `skill_to_follow`.
-
-One or multiple goals can be assigned to each characters.
+- `orders`: try to fulfill orders present on the order board.
+- `reach_skill_level`: try to reach a specified skill level.
+- `follow_max_skill_level`: level `skill` relative to the highest level reached
+  across all characters for `skill_to_follow`.
 
 ```toml
 [[characters]]
-# ...
 goals = [
   "orders",
-  { "follow_max_skill_level" = { skill = "cooking", skill_to_follow = "fishing" } },
-  { "reach_skill_level" = { skill = "fishing", level = 40 } },
+  { follow_max_skill_level = { skill = "cooking", skill_to_follow = "fishing" } },
+  { reach_skill_level = { skill = "fishing", level = 40 } },
+]
 ```
 
 ## Read-Eval-Print-Loop (REPL)
 
-When the bot is running, you can interact with it using the `REPL` by typing
-commands. The `help` command will list all available commands. Each command can
-be entered without arguments to display its usage.
+When the bot is running, type `help` to list available REPL commands. Each
+command can be entered without arguments to display its usage.
+
+After editing `ArtifactsMMO.toml`, use `config reload` to reload it.

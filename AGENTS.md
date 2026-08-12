@@ -1,47 +1,27 @@
-# Agent Guidelines for artifactsmmo-semi-auto-bot
+# Repository Guidance
 
-## Project Overview
+## Workspace
 
-Rust Cargo workspace (Edition 2024) for a semi-autonomous bot for the ArtifactsMMO game.
-Contains 6 crates: `openapi`, `api`, `sdk`, `sdk_derive`, `bot`, `repl`.
+- This is a Rust 2024 workspace with seven members. Root Cargo commands target the default members `repl` and `tui`; use `--workspace` when validating all workspace crates.
+- Dependency flow is `openapi` -> `api` -> `sdk` -> `bot` -> the `repl` and `tui` frontends; `sdk_derive` is the proc-macro crate used by `sdk`.
+- `repl` and `tui` initialize the SDK client and start `bot`; business/API behavior belongs in the lower crates rather than the frontends.
 
-## Build, Lint, and Test Commands
+## Verification
 
-### Standard Commands
+- Full workspace: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets`, `cargo test --workspace`.
+- Focus a crate or test with `cargo test -p <crate>` or `cargo test -p <crate> <test_name>`.
+- `bot` tests consume `sdk`'s `test-utils` feature through a dev-dependency. SDK-backed tests read committed RON data from `crates/sdk/tests/fixtures`; update those fixtures when test catalog data must change.
+- The rate-limiter unit tests intentionally wait on real timing intervals, so `api` tests are slower and timing-sensitive.
 
-- `cargo build` - Build all workspace crates
-- `cargo build --release` - Release build
-- `cargo check` - Type-check without full compilation
-- `cargo fmt` - Format code
-- `cargo clippy` / `cargo clippy --fix` - Run/fix linter
-- `cargo test <test_name>` - Run specific test
-- `cargo test -p <package>` - Test specific package
+## Runtime
 
-### OpenAPI Client
+- Run the REPL from the repository root with `cargo run -p repl`; relative config and cache paths assume that working directory.
+- Frontends read the API token from `ARTIFACTSMMO_TOKEN`, use the production API URL, and cache SDK catalog data as RON files under `.cache/`. `Client::new` discovers the account name from the authenticated account-details endpoint; do not add separate account-name configuration.
+- `Bot::new` unconditionally parses `ArtifactsMMO.toml` from the current directory and panics if it is missing or invalid. It contains positional bot/character behavior settings, is gitignored, and may contain local secrets; the current schema is documented in `README.md`.
+- Starting a frontend launches live bot and character threads that can issue game actions; do not use a run command as routine verification.
 
-- `./crates/openapi/gen.sh` - Regenerate Rust client
+## Generated Client
 
-## Code Style
-
-- **Format**: rustfmt.toml Edition 2024 style, run `cargo fmt` before committing
-- **Naming**: snake_case (modules/vars), PascalCase (types/enums), SCREAMING_SNAKE_CASE (consts)
-- **Imports**: Group std imports separately; use `crate::` for internal
-- **Errors**: Use `thiserror` with `#[derive(Debug, Error)]`, lowercase error messages
-- **Enums**: Use `strum_macros` with `#[strum(serialize_all = "snake_case")]`
-- **Lints**: `pedantic` + `nursery` at warn level (missing_panics_doc/errors_doc allowed)
-
-## Architecture
-
-- **openapi**: Auto-generated (do not edit)
-- **api**: API wrapper with pagination
-- **sdk**: Core SDK with client, entities, simulator, traits
-- **sdk_derive**: `CollectionClient` derive macro
-- **bot**: Bot logic, character control, gear finding
-- **repl**: CLI interface
-
-## Key Traits
-
-- `Code` - `code(&self) -> &str`
-- `Quantity` - `quantity(&self) -> u32`
-- `CollectionClient` - derive for data collections
-- `Persist<D>` - auto-load/persist JSON
+- Treat `crates/openapi/src` and its generated manifest content as generated code. Make API-shape changes through regeneration, not hand edits.
+- Regenerate from inside `crates/openapi` with `./gen.sh`; the script uses `npx`, downloads the live ArtifactsMMO schema, deletes `src/`, and patches the generated `Cargo.toml` for this workspace. OpenAPI Generator is pinned in `openapitools.json`.
+- After regeneration, review both `crates/openapi/src` and `crates/openapi/Cargo.toml`, then run full-workspace verification because downstream wrappers depend directly on generated models and APIs.

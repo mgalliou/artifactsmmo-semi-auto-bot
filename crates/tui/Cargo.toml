@@ -1,0 +1,22 @@
+[package]
+name = "tui"
+version = "0.1.0"
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+sdk.workspace = true
+bot.workspace = true
+itertools.workspace = true
+log.workspace = true
+strum.workspace = true
+crossterm = "0.29.0"
+ratatui = "0.30.2"
+color-eyre = "0.6.3"
+tui-scrollview = "0.6.7"
+
+[dev-dependencies]
+sdk = { workspace = true, features = ["test-utils"] }
+
+[lints]
+workspace = true
