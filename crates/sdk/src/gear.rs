@@ -34,32 +34,9 @@ pub struct Gear {
     pub(crate) effects_cache: RefCell<HashMap<String, i32>>,
 }
 
-impl PartialEq for Gear {
-    fn eq(&self, other: &Self) -> bool {
-        self.weapon == other.weapon
-            && self.helmet == other.helmet
-            && self.shield == other.shield
-            && self.body_armor == other.body_armor
-            && self.leg_armor == other.leg_armor
-            && self.boots == other.boots
-            && self.amulet == other.amulet
-            && self.ring1 == other.ring1
-            && self.ring2 == other.ring2
-            && self.utility1 == other.utility1
-            && self.utility2 == other.utility2
-            && self.artifact1 == other.artifact1
-            && self.artifact2 == other.artifact2
-            && self.artifact3 == other.artifact3
-            && self.rune == other.rune
-            && self.bag == other.bag
-    }
-}
-
-impl Eq for Gear {}
-
 impl Gear {
     #[allow(clippy::too_many_arguments)]
-    //TODO: return result with invalid gear errors
+    //TODO: return result with invalid gear errors, invalid slot, duplicate artifacts/utilities, etc...
     #[must_use]
     pub fn new(
         weapon: Option<Item>,
@@ -275,9 +252,7 @@ impl Gear {
             .map(|(code, quantity)| SimpleItemSchema { code, quantity })
             .collect()
     }
-}
 
-impl Gear {
     fn invalidate_cache(&self) {
         self.effects_cache.borrow_mut().clear();
     }
@@ -345,6 +320,29 @@ impl<S: BuildHasher + Default> From<Gear> for HashMap<String, u32, S> {
             .collect()
     }
 }
+
+impl PartialEq for Gear {
+    fn eq(&self, other: &Self) -> bool {
+        self.weapon == other.weapon
+            && self.helmet == other.helmet
+            && self.shield == other.shield
+            && self.body_armor == other.body_armor
+            && self.leg_armor == other.leg_armor
+            && self.boots == other.boots
+            && self.amulet == other.amulet
+            && self.ring1 == other.ring1
+            && self.ring2 == other.ring2
+            && self.utility1 == other.utility1
+            && self.utility2 == other.utility2
+            && self.artifact1 == other.artifact1
+            && self.artifact2 == other.artifact2
+            && self.artifact3 == other.artifact3
+            && self.rune == other.rune
+            && self.bag == other.bag
+    }
+}
+
+impl Eq for Gear {}
 
 #[derive(
     Debug, Default, Copy, Clone, PartialEq, Eq, Display, AsRefStr, EnumString, EnumIter, EnumIs,

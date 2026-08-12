@@ -151,6 +151,9 @@ impl GearResolver {
     }
 
     fn is_eligible(&self, item: &Item, excluded_items: &[String]) -> bool {
+        if !item.is_equipable() {
+            return false;
+        }
         if excluded_items.contains(&item.code().to_string()) {
             return false;
         }
@@ -260,7 +263,7 @@ impl GearResolver {
     fn best_weapons(&self, monster: &Monster) -> Vec<&Item> {
         self.item_pool
             .iter()
-            .filter(|i| !i.is_tool())
+            .filter(|i| i.type_is(Type::Weapon) && !i.is_tool())
             // sort by damage descending (negate), then alphabetically by code as tiebreaker
             .sorted_by_key(|&i| (OrderedFloat(-i.average_dmg_against(monster)), i.code()))
             .take(2)
