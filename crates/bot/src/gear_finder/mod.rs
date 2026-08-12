@@ -13,7 +13,7 @@ use sdk::{
     skill::Skill,
     yields_xp,
 };
-use std::collections::HashMap;
+use std::{collections::HashMap, iter};
 
 pub use artifact_set::ArtifactSet;
 pub use component::{GearComponent, ItemSlot};
@@ -285,7 +285,7 @@ impl GearResolver {
         ]
         .iter()
         .filter_map(|&item_type| {
-            let armors = self.best_combat_armors(monster, weapon, item_type, &[]);
+            let armors = self.best_combat_armors(monster, weapon, item_type);
             (!armors.is_empty()).then(|| armors.iter().map(GearComponent::from).collect_vec())
         })
         .collect_vec();
@@ -307,9 +307,8 @@ impl GearResolver {
     }
 
     fn gen_combat_ring_sets(&self, monster: &Monster, weapon: &Item) -> Vec<GearComponent> {
-        self.gen_ring_sets_with(|unique| {
-            self.best_combat_armors(monster, weapon, Type::Ring, unique)
-        })
+        let rings = self.best_combat_armors(monster, weapon, Type::Ring);
+        self.gen_ring_sets(&rings)
     }
 
     fn gen_combat_utility_sets(&self, monster: &Monster, weapon: &Item) -> Vec<GearComponent> {
@@ -318,22 +317,16 @@ impl GearResolver {
     }
 
     fn gen_combat_artifact_sets(&self, monster: &Monster, weapon: &Item) -> Vec<GearComponent> {
-        let artifacts = self.best_combat_armors(monster, weapon, Type::Artifact, &[]);
+        let artifacts = self.best_combat_armors(monster, weapon, Type::Artifact);
         gen_artifacts_sets(artifacts)
     }
 
-    fn best_combat_armors(
-        &self,
-        monster: &Monster,
-        weapon: &Item,
-        r#type: Type,
-        unique_items: &[Item],
-    ) -> Vec<Item> {
+    fn best_combat_armors(&self, monster: &Monster, weapon: &Item, r#type: Type) -> Vec<Item> {
         let mut bests: Vec<&Item> = vec![];
         let armors = self
             .item_pool
             .iter()
-            .filter(|i| i.type_is(r#type) && !unique_items.contains(i))
+            .filter(|i| i.type_is(r#type))
             .cloned()
             .collect_vec();
         if let Some(best) =
@@ -414,7 +407,7 @@ impl GearResolver {
         let mut items = armor_types
             .iter()
             .filter_map(|&item_type| {
-                let armors = self.best_skill_armors(item_type, skill, &[]);
+                let armors = self.best_skill_armors(item_type, skill);
                 (!armors.is_empty()).then(|| armors.iter().map(GearComponent::from).collect())
             })
             .collect_vec();
@@ -439,14 +432,13 @@ impl GearResolver {
             .min_by_key(|i| i.skill_cooldown_reduction(skill))
     }
 
-    fn best_skill_armors(&self, r#type: Type, skill: Skill, unique_items: &[Item]) -> Vec<Item> {
+    fn best_skill_armors(&self, r#type: Type, skill: Skill) -> Vec<Item> {
         let mut bests: Vec<&Item> = vec![];
         let armors = self
             .item_pool
             .iter()
             .filter(|i| {
                 i.type_is(r#type)
-                    && !unique_items.contains(i)
                     && ((i.prospecting() > 0 && skill.is_gathering())
                         || (i.wisdom() > 0
                             && self.skill_level(skill) < MAX_LEVEL
@@ -468,11 +460,12 @@ impl GearResolver {
     }
 
     fn gen_skill_rings_sets(&self, skill: Skill) -> Vec<GearComponent> {
-        self.gen_ring_sets_with(|unique| self.best_skill_armors(Type::Ring, skill, unique))
+        let rings = self.best_skill_armors(Type::Ring, skill);
+        self.gen_ring_sets(&rings)
     }
 
     fn gen_skill_artifacts_sets(&self, skill: Skill) -> Vec<GearComponent> {
-        let artifacts = self.best_skill_armors(Type::Artifact, skill, &[]);
+        let artifacts = self.best_skill_armors(Type::Artifact, skill);
         gen_artifacts_sets(artifacts)
     }
 
@@ -513,20 +506,25 @@ impl GearResolver {
             })
     }
 
-    fn gen_ring_sets_with(
-        &self,
-        fetch_armors: impl Fn(&[Item]) -> Vec<Item>,
-    ) -> Vec<GearComponent> {
-        let rings = fetch_armors(&[]);
-        let single_rings = rings
-            .iter()
-            .filter(|i| {
-                !self.available_items.is_empty() && self.available_items.get(i.code()) == Some(&1)
-            })
-            .cloned()
-            .collect_vec();
-        let rings2 = fetch_armors(&single_rings);
-        gen_ring_sets(rings, rings2)
+    fn gen_ring_sets(&self, rings: &[Item]) -> Vec<GearComponent> {
+        let mut sets = vec![];
+        for ring1 in rings.iter().map(Some).chain(iter::once(None)) {
+            let exclude_ring1 =
+                ring1.is_some_and(|ring| self.available_items.get(ring.code()) == Some(&1));
+            for ring2 in rings.iter().map(Some).chain(iter::once(None)) {
+                if exclude_ring1 && ring1 == ring2 {
+                    continue;
+                }
+                if let Some(set) = RingSet::new([ring1.cloned(), ring2.cloned()]) {
+                    sets.push(set);
+                }
+            }
+        }
+        sets.into_iter()
+            .sorted()
+            .dedup()
+            .map(GearComponent::Rings)
+            .collect()
     }
 
     fn best_by_among<'a>(&self, criteria: GearCriteria, armors: &'a [Item]) -> Option<&'a Item> {
@@ -603,22 +601,6 @@ enum GearCriteria<'a> {
     Restore,
     Prospecting,
     Wisdom,
-}
-
-/// Generate every single ring sets possible from two collections of rings, one for each slots
-fn gen_ring_sets(rings1: Vec<Item>, rings2: Vec<Item>) -> Vec<GearComponent> {
-    let mut rings1_slot = rings1.into_iter().map(Some).collect_vec();
-    rings1_slot.push(None);
-    let mut rings2_slot = rings2.into_iter().map(Some).collect_vec();
-    rings2_slot.push(None);
-    [rings1_slot, rings2_slot]
-        .iter()
-        .multi_cartesian_product()
-        .filter_map(|rings| RingSet::new([rings[0].clone(), rings[1].clone()]))
-        .sorted()
-        .dedup()
-        .map(GearComponent::Rings)
-        .collect_vec()
 }
 
 fn gen_utility_sets(utilities: Vec<Item>) -> Vec<GearComponent> {
@@ -700,7 +682,8 @@ mod tests {
     #[test]
     fn gen_ring_sets_no_duplicates() {
         let items = vec![item("copper_ring"), item("forest_ring")];
-        let result = gen_ring_sets(items.clone(), items);
+        let resolver = GearResolver::new(ITEMS.clone(), GearPurpose::Combat(monster("chicken")));
+        let result = resolver.gen_ring_sets(&items);
         let mut seen = HashSet::new();
         for wrapper in &result {
             let GearComponent::Rings(set) = wrapper else {
@@ -758,6 +741,23 @@ mod tests {
         let gear = resolver.resolve().unwrap();
         assert!(gear.ring1.is_some());
         assert_ne!(gear.ring1, gear.ring2);
+    }
+
+    #[test]
+    fn two_distinct_single_copy_rings_can_be_equipped() {
+        let mut resolver =
+            GearResolver::new(ITEMS.clone(), GearPurpose::Combat(monster("blue_slime")))
+                .with_skill_levels(HashMap::from([(Skill::Combat, 10)]))
+                .with_available_items(HashMap::from([
+                    ("iron_sword".into(), 1),
+                    ("forest_ring".into(), 1),
+                    ("iron_ring".into(), 1),
+                ]))
+                .with_filter(Filter::available_only());
+        let gear = resolver.resolve().unwrap();
+
+        assert_eq!(gear.ring1.as_ref().unwrap().code(), "forest_ring");
+        assert_eq!(gear.ring2.as_ref().unwrap().code(), "iron_ring");
     }
 
     #[test]
