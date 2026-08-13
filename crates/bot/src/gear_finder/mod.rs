@@ -60,7 +60,7 @@ type CanCraftFn = Box<dyn Fn(&str) -> bool>;
 
 pub struct GearResolver {
     items: ItemsClient,
-    pub purpose: GearPurpose,
+    purpose: GearPurpose,
     skill_levels: HashMap<Skill, u32>,
     available_items: HashMap<String, u32>,
     filter: Filter,
@@ -185,18 +185,19 @@ impl GearResolver {
     /// Resolve the best gear based on the internal properties:
     /// `level` is the combat level of the character
     /// `skill_levels` is the skill levels of the character
-    /// `items` is a pre-filtered pool of item that the resolver will use
+    /// `items` is the item catalog from which the resolver builds its candidate pool
     /// `available` is the list of items available to the character with its quantity,
     /// items available are from inventory, bank, and current equipment
     /// `filter` filter out the items in the base item pool, without filtering `available_items`
-    /// When `available_only` is set, items from `item_pool` are ignored
+    /// When `available_only` is set, catalog items are ignored
     /// When `filter.force_craftable` is set, craftable items in the base pool are checked against the
     /// `can_craft` function. When it is unset, all craftable items remain eligible. This does not
     /// filter `available_items`.
     ///
-    /// When resolving gears with both `item_pool` and `available_only`, items from `available_items`
-    /// are prioritized in case of a tie, and items from `item_pool` are considered of infinite quantity
-    pub fn resolve(&mut self) -> Option<Gear> {
+    /// When resolving gears with both catalog and available items, items from `available_items`
+    /// are prioritized in case of a tie, and catalog items are considered of infinite quantity
+    #[must_use]
+    pub fn resolve(mut self) -> Option<Gear> {
         self.item_pool = self.create_item_pool();
         match &self.purpose {
             GearPurpose::Combat(monster) => self.best_to_kill(monster),
@@ -736,10 +737,9 @@ mod tests {
 
     #[test]
     fn unique_ring_not_in_both_slots() {
-        let mut resolver =
-            GearResolver::new(ITEMS.clone(), GearPurpose::Combat(monster("blue_slime")))
-                .with_skill_levels(HashMap::from([(Skill::Combat, 10)]))
-                .with_available_items(HashMap::from([("forest_ring".into(), 1)]));
+        let resolver = GearResolver::new(ITEMS.clone(), GearPurpose::Combat(monster("blue_slime")))
+            .with_skill_levels(HashMap::from([(Skill::Combat, 10)]))
+            .with_available_items(HashMap::from([("forest_ring".into(), 1)]));
         let gear = resolver.resolve().unwrap();
         assert!(gear.ring1.is_some());
         assert_ne!(gear.ring1, gear.ring2);
@@ -747,15 +747,14 @@ mod tests {
 
     #[test]
     fn two_distinct_single_copy_rings_can_be_equipped() {
-        let mut resolver =
-            GearResolver::new(ITEMS.clone(), GearPurpose::Combat(monster("blue_slime")))
-                .with_skill_levels(HashMap::from([(Skill::Combat, 10)]))
-                .with_available_items(HashMap::from([
-                    ("iron_sword".into(), 1),
-                    ("forest_ring".into(), 1),
-                    ("iron_ring".into(), 1),
-                ]))
-                .with_filter(Filter::available_only());
+        let resolver = GearResolver::new(ITEMS.clone(), GearPurpose::Combat(monster("blue_slime")))
+            .with_skill_levels(HashMap::from([(Skill::Combat, 10)]))
+            .with_available_items(HashMap::from([
+                ("iron_sword".into(), 1),
+                ("forest_ring".into(), 1),
+                ("iron_ring".into(), 1),
+            ]))
+            .with_filter(Filter::available_only());
         let gear = resolver.resolve().unwrap();
 
         assert_eq!(gear.ring1.as_ref().unwrap().code(), "forest_ring");
@@ -764,14 +763,13 @@ mod tests {
 
     #[test]
     fn duplicate_ring_with_two_copies() {
-        let mut resolver =
-            GearResolver::new(ITEMS.clone(), GearPurpose::Combat(monster("blue_slime")))
-                .with_skill_levels(HashMap::from([(Skill::Combat, 10)]))
-                .with_available_items(HashMap::from([
-                    ("iron_sword".into(), 1),
-                    ("forest_ring".into(), 2),
-                ]))
-                .with_filter(Filter::available_only());
+        let resolver = GearResolver::new(ITEMS.clone(), GearPurpose::Combat(monster("blue_slime")))
+            .with_skill_levels(HashMap::from([(Skill::Combat, 10)]))
+            .with_available_items(HashMap::from([
+                ("iron_sword".into(), 1),
+                ("forest_ring".into(), 2),
+            ]))
+            .with_filter(Filter::available_only());
         let gear = resolver.resolve().unwrap();
         assert_eq!(gear.ring1.unwrap().code(), item("forest_ring").code());
     }
@@ -797,7 +795,7 @@ mod tests {
 
     #[test]
     fn resolve_best_gear_against_iron_ore() {
-        let mut resolver = GearResolver::new(
+        let resolver = GearResolver::new(
             ITEMS.clone(),
             GearPurpose::Gathering(resource("iron_rocks")),
         )
@@ -845,7 +843,7 @@ mod tests {
             utilities: false,
         };
         let excluded_items = vec!["snakeskin_armor".into(), "steel_armor".into()];
-        let mut resolver = GearResolver::new(ITEMS.clone(), GearPurpose::Combat(vamp.clone()))
+        let resolver = GearResolver::new(ITEMS.clone(), GearPurpose::Combat(vamp.clone()))
             .with_skill_levels(HashMap::from([(Skill::Combat, 25)]))
             .with_available_items(HashMap::from([("lizard_skin_armor".into(), 1)]))
             .with_excluded_items(excluded_items.clone())
