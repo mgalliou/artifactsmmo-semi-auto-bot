@@ -22,6 +22,11 @@ impl UtilitySet {
     }
 
     #[must_use]
+    pub(super) fn from_items(utility1: &Item, utility2: Option<&Item>) -> Option<Self> {
+        Self::new([Some(utility1.clone()), utility2.cloned()])
+    }
+
+    #[must_use]
     pub const fn slot(&self, slot: Slot) -> Option<&Item> {
         match slot {
             Slot::Utility1 => self.utility1(),

@@ -19,6 +19,11 @@ impl RingSet {
     }
 
     #[must_use]
+    pub(super) fn from_items(ring1: &Item, ring2: Option<&Item>) -> Option<Self> {
+        Self::new([Some(ring1.clone()), ring2.cloned()])
+    }
+
+    #[must_use]
     pub const fn slot(&self, slot: Slot) -> Option<&Item> {
         match slot {
             Slot::Ring1 => self.ring1(),

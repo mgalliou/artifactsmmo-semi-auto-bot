@@ -13,10 +13,7 @@ use sdk::{
     skill::Skill,
     yields_xp,
 };
-use std::{
-    collections::{HashMap, HashSet},
-    iter,
-};
+use std::collections::{HashMap, HashSet};
 
 pub use artifact_set::ArtifactSet;
 pub use component::{GearComponent, ItemSlot};
@@ -510,24 +507,22 @@ impl GearResolver {
     }
 
     fn gen_ring_sets(&self, rings: &[Item]) -> Vec<GearComponent> {
+        let rings = rings.iter().cloned().sorted().dedup().collect_vec();
         let mut sets = vec![];
-        for ring1 in rings.iter().map(Some).chain(iter::once(None)) {
-            let exclude_ring1 =
-                ring1.is_some_and(|ring| self.available_items.get(ring.code()) == Some(&1));
-            for ring2 in rings.iter().map(Some).chain(iter::once(None)) {
-                if exclude_ring1 && ring1 == ring2 {
+        for (ring1_index, ring1) in rings.iter().enumerate() {
+            for ring2 in &rings[ring1_index..] {
+                if ring1 == ring2 && self.available_items.get(ring1.code()) == Some(&1) {
                     continue;
                 }
-                if let Some(set) = RingSet::new([ring1.cloned(), ring2.cloned()]) {
+                if let Some(set) = RingSet::from_items(ring1, Some(ring2)) {
                     sets.push(set);
                 }
             }
+            if let Some(set) = RingSet::from_items(ring1, None) {
+                sets.push(set);
+            }
         }
-        sets.into_iter()
-            .sorted()
-            .dedup()
-            .map(GearComponent::Rings)
-            .collect()
+        sets.into_iter().map(GearComponent::Rings).collect()
     }
 
     fn best_by_among<'a>(&self, criteria: GearCriteria, armors: &'a [Item]) -> Option<&'a Item> {
@@ -607,42 +602,49 @@ enum GearCriteria<'a> {
 }
 
 fn gen_utility_sets(utilities: Vec<Item>) -> Vec<GearComponent> {
-    let mut utilities = utilities.into_iter().map(Some).collect_vec();
-    utilities.push(None);
-    [utilities.clone(), utilities]
-        .iter()
-        .multi_cartesian_product()
-        .filter_map(|utilities| UtilitySet::new([utilities[0].clone(), utilities[1].clone()]))
-        .sorted()
-        .dedup()
-        .map(GearComponent::Utility)
-        .collect_vec()
+    let utilities = utilities.into_iter().sorted().dedup().collect_vec();
+    let mut sets = vec![];
+    for (utility1_index, utility1) in utilities.iter().enumerate() {
+        for utility2 in &utilities[utility1_index + 1..] {
+            if let Some(set) = UtilitySet::from_items(utility1, Some(utility2)) {
+                sets.push(set);
+            }
+        }
+        if let Some(set) = UtilitySet::from_items(utility1, None) {
+            sets.push(set);
+        }
+    }
+    sets.into_iter().map(GearComponent::Utility).collect()
 }
 
-fn gen_artifacts_sets(artifacts: Vec<Item>) -> Vec<GearComponent> {
-    let mut artifacts = artifacts.into_iter().map(Some).collect_vec();
-    artifacts.push(None);
-    [artifacts.clone(), artifacts.clone(), artifacts]
-        .iter()
-        .multi_cartesian_product()
-        .filter_map(|artifacts| {
-            ArtifactSet::new([
-                artifacts[0].clone(),
-                artifacts[1].clone(),
-                artifacts[2].clone(),
-            ])
-        })
-        .sorted()
-        .dedup()
-        .map(GearComponent::Artifacts)
-        .collect_vec()
+fn gen_artifacts_sets(items: Vec<Item>) -> Vec<GearComponent> {
+    let candidates = items.into_iter().sorted().dedup().collect_vec();
+    let mut sets = vec![];
+    for (artifact1_index, artifact1) in candidates.iter().enumerate() {
+        for artifact2_index in artifact1_index + 1..candidates.len() {
+            let artifact2 = &candidates[artifact2_index];
+            for artifact3 in &candidates[artifact2_index + 1..] {
+                if let Some(set) =
+                    ArtifactSet::from_items(artifact1, Some(artifact2), Some(artifact3))
+                {
+                    sets.push(set);
+                }
+            }
+            if let Some(set) = ArtifactSet::from_items(artifact1, Some(artifact2), None) {
+                sets.push(set);
+            }
+        }
+        if let Some(set) = ArtifactSet::from_items(artifact1, None, None) {
+            sets.push(set);
+        }
+    }
+    sets.into_iter().map(GearComponent::Artifacts).collect()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use sdk::test_utils::{ITEMS, item, monster, resource};
-    use std::collections::HashSet;
 
     #[test]
     fn resolver_best_weapons_against() {
@@ -683,56 +685,113 @@ mod tests {
     }
 
     #[test]
-    fn gen_ring_sets_no_duplicates() {
-        let items = vec![item("copper_ring"), item("forest_ring")];
+    fn gen_ring_sets_are_canonical_and_ordered() {
+        let items = vec![
+            item("forest_ring"),
+            item("copper_ring"),
+            item("forest_ring"),
+        ];
         let resolver = GearResolver::new(ITEMS.clone(), GearPurpose::Combat(monster("chicken")));
         let result = resolver.gen_ring_sets(&items);
-        let mut seen = HashSet::new();
-        for wrapper in &result {
-            let GearComponent::Rings(set) = wrapper else {
-                panic!("expected Rings")
-            };
-            let key = (
-                set.ring1().map_or("", Code::code),
-                set.ring2().map_or("", Code::code),
-            );
-            assert!(seen.insert(key), "duplicate ring pair: {key:?}");
-        }
+        let codes = result
+            .iter()
+            .map(|component| match component {
+                GearComponent::Rings(set) => (
+                    set.ring1().map_or("", Code::code),
+                    set.ring2().map_or("", Code::code),
+                ),
+                _ => panic!("expected Rings"),
+            })
+            .collect_vec();
+
+        assert_eq!(
+            codes,
+            [
+                ("copper_ring", "copper_ring"),
+                ("copper_ring", "forest_ring"),
+                ("copper_ring", ""),
+                ("forest_ring", "forest_ring"),
+                ("forest_ring", ""),
+            ]
+        );
     }
 
     #[test]
-    fn gen_utility_sets_no_duplicates() {
-        let items = vec![item("antidote"), item("health_potion")];
+    fn gen_ring_sets_respect_single_copy_availability() {
+        let resolver = GearResolver::new(ITEMS.clone(), GearPurpose::Combat(monster("chicken")))
+            .with_available_items(HashMap::from([("copper_ring".into(), 1)]));
+        let result = resolver.gen_ring_sets(&[item("copper_ring")]);
+        let GearComponent::Rings(set) = &result[0] else {
+            panic!("expected Rings")
+        };
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(set.ring1().map(Code::code), Some("copper_ring"));
+        assert_eq!(set.ring2(), None);
+    }
+
+    #[test]
+    fn gen_utility_sets_are_canonical_and_ordered() {
+        let items = vec![
+            item("health_potion"),
+            item("antidote"),
+            item("health_potion"),
+        ];
         let result = gen_utility_sets(items);
-        let mut seen = HashSet::new();
-        for wrapper in &result {
-            let GearComponent::Utility(set) = wrapper else {
-                panic!("expected Utility")
-            };
-            let key = (
-                set.utility1().map_or("", Code::code),
-                set.utility2().map_or("", Code::code),
-            );
-            assert!(seen.insert(key), "duplicate utility pair: {key:?}");
-        }
+        let codes = result
+            .iter()
+            .map(|component| match component {
+                GearComponent::Utility(set) => (
+                    set.utility1().map_or("", Code::code),
+                    set.utility2().map_or("", Code::code),
+                ),
+                _ => panic!("expected Utility"),
+            })
+            .collect_vec();
+
+        assert_eq!(
+            codes,
+            [
+                ("antidote", "health_potion"),
+                ("antidote", ""),
+                ("health_potion", ""),
+            ]
+        );
     }
 
     #[test]
-    fn gen_artifacts_sets_no_duplicates() {
-        let items = vec![item("novice_guide"), item("life_crystal")];
+    fn gen_artifacts_sets_are_canonical_and_ordered() {
+        let items = vec![
+            item("novice_guide"),
+            item("corrupted_skull"),
+            item("life_crystal"),
+            item("novice_guide"),
+        ];
         let result = gen_artifacts_sets(items);
-        let mut seen = HashSet::new();
-        for wrapper in &result {
-            let GearComponent::Artifacts(set) = wrapper else {
-                panic!("expected Artifacts")
-            };
-            let key = (
-                set.artifact1().map_or("", Code::code),
-                set.artifact2().map_or("", Code::code),
-                set.artifact3().map_or("", Code::code),
-            );
-            assert!(seen.insert(key), "duplicate artifact triple: {key:?}");
-        }
+        let codes = result
+            .iter()
+            .map(|component| match component {
+                GearComponent::Artifacts(set) => (
+                    set.artifact1().map_or("", Code::code),
+                    set.artifact2().map_or("", Code::code),
+                    set.artifact3().map_or("", Code::code),
+                ),
+                _ => panic!("expected Artifacts"),
+            })
+            .collect_vec();
+
+        assert_eq!(
+            codes,
+            [
+                ("corrupted_skull", "life_crystal", "novice_guide"),
+                ("corrupted_skull", "life_crystal", ""),
+                ("corrupted_skull", "novice_guide", ""),
+                ("corrupted_skull", "", ""),
+                ("life_crystal", "novice_guide", ""),
+                ("life_crystal", "", ""),
+                ("novice_guide", "", ""),
+            ]
+        );
     }
 
     #[test]

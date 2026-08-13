@@ -22,6 +22,19 @@ impl ArtifactSet {
     }
 
     #[must_use]
+    pub(super) fn from_items(
+        artifact1: &Item,
+        artifact2: Option<&Item>,
+        artifact3: Option<&Item>,
+    ) -> Option<Self> {
+        Self::new([
+            Some(artifact1.clone()),
+            artifact2.cloned(),
+            artifact3.cloned(),
+        ])
+    }
+
+    #[must_use]
     pub const fn slot(&self, slot: Slot) -> Option<&Item> {
         match slot {
             Slot::Artifact1 => self.artifact1(),
