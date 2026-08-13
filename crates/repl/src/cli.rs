@@ -196,13 +196,16 @@ fn respond(line: &str, bot: &Bot, character: &mut Option<CharacterController>) -
             let Some(char) = character else {
                 bail!("no character selected");
             };
-            let filter = Filter {
-                available_only,
-                force_craftable: craftable,
-                from_task,
-                from_npc,
-                from_monster,
-                utilities,
+            let filter = if available_only {
+                Filter::AvailableOnly { utilities }
+            } else {
+                Filter::Catalog {
+                    force_craftable: craftable,
+                    from_task,
+                    from_npc,
+                    from_monster,
+                    utilities,
+                }
             };
             let purpose = if let Some(monster) = bot.client.monsters.get(&entity) {
                 GearPurpose::Combat(monster)
@@ -245,13 +248,16 @@ fn respond(line: &str, bot: &Bot, character: &mut Option<CharacterController>) -
             let Some(monster) = bot.client.monsters.get(&monster) else {
                 bail!("no character selected");
             };
-            let filter = Filter {
-                available_only,
-                force_craftable: craftable,
-                from_task,
-                from_npc,
-                from_monster,
-                utilities,
+            let filter = if available_only {
+                Filter::AvailableOnly { utilities }
+            } else {
+                Filter::Catalog {
+                    force_craftable: craftable,
+                    from_task,
+                    from_npc,
+                    from_monster,
+                    utilities,
+                }
             };
             let account = bot.account.clone();
             let gear = bot

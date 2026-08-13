@@ -1,18 +1,21 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(clippy::struct_excessive_bools)]
-pub struct Filter {
-    pub available_only: bool,
-    pub force_craftable: bool,
-    pub from_task: bool,
-    pub from_npc: bool,
-    pub from_monster: bool,
-    pub utilities: bool,
+pub enum Filter {
+    AvailableOnly {
+        utilities: bool,
+    },
+    Catalog {
+        force_craftable: bool,
+        from_task: bool,
+        from_npc: bool,
+        from_monster: bool,
+        utilities: bool,
+    },
 }
 
 impl Default for Filter {
     fn default() -> Self {
-        Self {
-            available_only: false,
+        Self::Catalog {
             force_craftable: true,
             from_task: false,
             from_npc: true,
@@ -24,21 +27,30 @@ impl Default for Filter {
 
 impl Filter {
     #[must_use]
+    pub const fn is_available_only(self) -> bool {
+        matches!(self, Self::AvailableOnly { .. })
+    }
+
+    #[must_use]
+    pub const fn utilities_allowed(self) -> bool {
+        matches!(
+            self,
+            Self::AvailableOnly { utilities: true }
+                | Self::Catalog {
+                    utilities: true,
+                    ..
+                }
+        )
+    }
+
+    #[must_use]
     pub const fn available_only() -> Self {
-        Self {
-            available_only: true,
-            force_craftable: false,
-            from_task: false,
-            from_npc: false,
-            from_monster: false,
-            utilities: false,
-        }
+        Self::AvailableOnly { utilities: false }
     }
 
     #[must_use]
     pub const fn everything() -> Self {
-        Self {
-            available_only: false,
+        Self::Catalog {
             force_craftable: true,
             from_task: true,
             from_npc: true,

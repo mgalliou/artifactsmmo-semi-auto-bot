@@ -133,7 +133,7 @@ impl GearResolver {
             .filter_map(|(code, _)| self.items.get(code))
             .filter(Item::is_equipable)
             .collect_vec();
-        let mut item_pool = if self.filter.available_only {
+        let mut item_pool = if self.filter.is_available_only() {
             vec![]
         } else {
             self.items
@@ -149,19 +149,29 @@ impl GearResolver {
     }
 
     fn is_eligible(&self, item: &Item) -> bool {
+        let Filter::Catalog {
+            force_craftable,
+            from_task,
+            from_npc,
+            from_monster,
+            ..
+        } = self.filter
+        else {
+            return false;
+        };
         if !item.is_equipable() {
             return false;
         }
         if self.excluded_items.contains(item.code()) {
             return false;
         }
-        if !self.filter.from_npc && self.items.is_buyable(item.code()) {
+        if !from_npc && self.items.is_buyable(item.code()) {
             return false;
         }
-        if !self.filter.from_task && item.is_crafted_from_task() {
+        if !from_task && item.is_crafted_from_task() {
             return false;
         }
-        if !self.filter.from_monster
+        if !from_monster
             && self
                 .items
                 .sources_of(item.code())
@@ -171,7 +181,7 @@ impl GearResolver {
             return false;
         }
         if let Some(can_craft) = &self.can_craft
-            && self.filter.force_craftable
+            && force_craftable
             && item.is_craftable()
             && !can_craft(item.code())
         {
@@ -186,11 +196,10 @@ impl GearResolver {
     /// `items` is the item catalog from which the resolver builds its candidate pool
     /// `available` is the list of items available to the character with its quantity,
     /// items available are from inventory, bank, and current equipment
-    /// `filter` filter out the items in the base item pool, without filtering `available_items`
-    /// When `available_only` is set, catalog items are ignored
-    /// When `filter.force_craftable` is set, craftable items in the base pool are checked against the
-    /// `can_craft` function. When it is unset, all craftable items remain eligible. This does not
-    /// filter `available_items`.
+    /// `filter` filters items in the base item pool without filtering `available_items`.
+    /// [`Filter::AvailableOnly`] ignores catalog items. In [`Filter::Catalog`], setting
+    /// `force_craftable` checks craftable items in the base pool against the `can_craft` function.
+    /// This does not filter `available_items`.
     ///
     /// When resolving gears with both catalog and available items, items from `available_items`
     /// are prioritized in case of a tie, and catalog items are considered of infinite quantity
@@ -293,7 +302,7 @@ impl GearResolver {
 
         let ring_sets = self.gen_combat_ring_sets(monster, weapon);
         push_if_not_empty(&mut items, ring_sets);
-        if self.filter.utilities {
+        if self.filter.utilities_allowed() {
             let utilities_sets = self.gen_combat_utility_sets(monster, weapon);
             push_if_not_empty(&mut items, utilities_sets);
         }
@@ -512,7 +521,7 @@ impl GearResolver {
         let mut sets = vec![];
         for (ring1_index, ring1) in rings.iter().enumerate() {
             for ring2 in &rings[ring1_index..] {
-                if self.filter.available_only
+                if self.filter.is_available_only()
                     && ring1 == ring2
                     && self.available_items.get(ring1.code()) == Some(&1)
                 {
@@ -664,9 +673,12 @@ mod tests {
     fn resolve_best_gear_against_blue_slime() {
         let gear = GearResolver::new(ITEMS.clone(), GearPurpose::Combat(monster("blue_slime")))
             .with_skill_levels(HashMap::from([(Skill::Combat, 10)]))
-            .with_filter(Filter {
+            .with_filter(Filter::Catalog {
+                force_craftable: true,
+                from_task: false,
+                from_npc: true,
                 from_monster: true,
-                ..Default::default()
+                utilities: false,
             })
             .resolve();
         assert_eq!(
@@ -761,6 +773,30 @@ mod tests {
         let item_pool = resolver.create_item_pool();
 
         assert_eq!(item_pool, [item("copper_ring")]);
+    }
+
+    #[test]
+    fn available_only_can_include_utilities() {
+        let resolve = |filter| {
+            GearResolver::new(ITEMS.clone(), GearPurpose::Combat(monster("chicken")))
+                .with_skill_levels(HashMap::from([(Skill::Combat, 30)]))
+                .with_available_items(HashMap::from([
+                    ("wooden_staff".into(), 1),
+                    ("health_potion".into(), 1),
+                ]))
+                .with_filter(filter)
+                .resolve()
+                .unwrap()
+        };
+
+        assert_eq!(resolve(Filter::available_only()).utility1, None);
+        assert_eq!(
+            resolve(Filter::AvailableOnly { utilities: true })
+                .utility1
+                .as_ref()
+                .map(Code::code),
+            Some("health_potion")
+        );
     }
 
     #[test]
@@ -911,8 +947,7 @@ mod tests {
             GearPurpose::Gathering(resource("iron_rocks")),
         )
         .with_skill_levels(HashMap::from([(Skill::Mining, 15), (Skill::Combat, 15)]))
-        .with_filter(Filter {
-            available_only: false,
+        .with_filter(Filter::Catalog {
             force_craftable: true,
             from_task: true,
             from_npc: true,
@@ -945,12 +980,11 @@ mod tests {
         // vampire with dreadful_staff (both give 6.48). The tiebreaker in
         // best_by_among should pick the one in available_items.
         let vamp = monster("vampire");
-        let filter = Filter {
+        let filter = Filter::Catalog {
             from_task: true,
             from_npc: true,
             from_monster: false,
             force_craftable: true,
-            available_only: false,
             utilities: false,
         };
         let excluded_items = vec!["snakeskin_armor".into(), "steel_armor".into()];

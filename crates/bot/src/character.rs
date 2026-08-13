@@ -777,10 +777,7 @@ impl CharacterController {
         if !self.bot_config.order_gear() {
             return false;
         }
-        let filter = Filter {
-            from_task: false,
-            ..Filter::default()
-        };
+        let filter = Filter::default();
         let account = self.account.clone();
         let Some(mut gear) = self
             .gear_finder
