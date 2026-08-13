@@ -13,7 +13,10 @@ use sdk::{
     skill::Skill,
     yields_xp,
 };
-use std::{collections::HashMap, iter};
+use std::{
+    collections::{HashMap, HashSet},
+    iter,
+};
 
 pub use artifact_set::ArtifactSet;
 pub use component::{GearComponent, ItemSlot};
@@ -61,7 +64,7 @@ pub struct GearResolver {
     skill_levels: HashMap<Skill, u32>,
     available_items: HashMap<String, u32>,
     filter: Filter,
-    excluded_items: Vec<String>,
+    excluded_items: HashSet<String>,
     can_craft: Option<CanCraftFn>,
     item_pool: Vec<Item>,
 }
@@ -74,7 +77,7 @@ impl GearResolver {
             skill_levels: HashMap::new(),
             available_items: HashMap::new(),
             filter: Filter::default(),
-            excluded_items: Vec::new(),
+            excluded_items: HashSet::new(),
             can_craft: None,
             item_pool: Vec::new(),
         }
@@ -94,7 +97,17 @@ impl GearResolver {
 
     #[must_use]
     pub fn with_excluded_items(mut self, items: Vec<String>) -> Self {
-        self.excluded_items = items;
+        self.excluded_items = items
+            .into_iter()
+            .filter(|code| {
+                if self.items.get(code).is_none() {
+                    warn!("excluded item '{code}' does not exist, ignoring");
+                    false
+                } else {
+                    true
+                }
+            })
+            .collect();
         self
     }
 
@@ -116,19 +129,6 @@ impl GearResolver {
     }
 
     fn create_item_pool(&self) -> Vec<Item> {
-        let excluded_items: Vec<String> = self
-            .excluded_items
-            .iter()
-            .filter(|code| {
-                if self.items.get(code.as_str()).is_none() {
-                    warn!("excluded item '{code}' does not exist, ignoring");
-                    false
-                } else {
-                    true
-                }
-            })
-            .cloned()
-            .collect();
         let owned_items = self
             .available_items
             .keys()
@@ -140,7 +140,7 @@ impl GearResolver {
         } else {
             self.items
                 .iter()
-                .filter(|i| self.is_eligible(i, &excluded_items))
+                .filter(|i| self.is_eligible(i))
                 .collect_vec()
         };
         item_pool = [item_pool, owned_items].concat();
@@ -150,11 +150,11 @@ impl GearResolver {
         item_pool
     }
 
-    fn is_eligible(&self, item: &Item, excluded_items: &[String]) -> bool {
+    fn is_eligible(&self, item: &Item) -> bool {
         if !item.is_equipable() {
             return false;
         }
-        if excluded_items.contains(&item.code().to_string()) {
+        if self.excluded_items.contains(item.code()) {
             return false;
         }
         if !self.filter.from_npc && self.items.is_buyable(item.code()) {
@@ -430,7 +430,7 @@ impl GearResolver {
         }
         self.item_pool
             .iter()
-            .filter(|i| i.is_tool() && i.skill_cooldown_reduction(skill) != 0)
+            .filter(|i| i.is_tool() && i.skill_cooldown_reduction(skill) < 0)
             .min_by_key(|i| i.skill_cooldown_reduction(skill))
     }
 
