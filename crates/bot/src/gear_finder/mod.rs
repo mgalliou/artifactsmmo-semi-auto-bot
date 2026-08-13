@@ -128,8 +128,9 @@ impl GearResolver {
     fn create_item_pool(&self) -> Vec<Item> {
         let owned_items = self
             .available_items
-            .keys()
-            .filter_map(|code| self.items.get(code))
+            .iter()
+            .filter(|(_, quantity)| **quantity > 0)
+            .filter_map(|(code, _)| self.items.get(code))
             .filter(Item::is_equipable)
             .collect_vec();
         let mut item_pool = if self.filter.available_only {
@@ -511,7 +512,10 @@ impl GearResolver {
         let mut sets = vec![];
         for (ring1_index, ring1) in rings.iter().enumerate() {
             for ring2 in &rings[ring1_index..] {
-                if ring1 == ring2 && self.available_items.get(ring1.code()) == Some(&1) {
+                if self.filter.available_only
+                    && ring1 == ring2
+                    && self.available_items.get(ring1.code()) == Some(&1)
+                {
                     continue;
                 }
                 if let Some(set) = RingSet::from_items(ring1, Some(ring2)) {
@@ -719,7 +723,8 @@ mod tests {
     #[test]
     fn gen_ring_sets_respect_single_copy_availability() {
         let resolver = GearResolver::new(ITEMS.clone(), GearPurpose::Combat(monster("chicken")))
-            .with_available_items(HashMap::from([("copper_ring".into(), 1)]));
+            .with_available_items(HashMap::from([("copper_ring".into(), 1)]))
+            .with_filter(Filter::available_only());
         let result = resolver.gen_ring_sets(&[item("copper_ring")]);
         let GearComponent::Rings(set) = &result[0] else {
             panic!("expected Rings")
@@ -728,6 +733,49 @@ mod tests {
         assert_eq!(result.len(), 1);
         assert_eq!(set.ring1().map(Code::code), Some("copper_ring"));
         assert_eq!(set.ring2(), None);
+    }
+
+    #[test]
+    fn gen_ring_sets_ignore_owned_quantity_in_catalog_mode() {
+        let resolver = GearResolver::new(ITEMS.clone(), GearPurpose::Combat(monster("chicken")))
+            .with_available_items(HashMap::from([("copper_ring".into(), 1)]));
+        let result = resolver.gen_ring_sets(&[item("copper_ring")]);
+        let GearComponent::Rings(set) = &result[0] else {
+            panic!("expected Rings")
+        };
+
+        assert_eq!(result.len(), 2);
+        assert_eq!(set.ring1().map(Code::code), Some("copper_ring"));
+        assert_eq!(set.ring2().map(Code::code), Some("copper_ring"));
+    }
+
+    #[test]
+    fn create_item_pool_ignores_zero_quantity_available_items() {
+        let resolver = GearResolver::new(ITEMS.clone(), GearPurpose::Combat(monster("chicken")))
+            .with_available_items(HashMap::from([
+                ("iron_sword".into(), 0),
+                ("forest_ring".into(), 0),
+                ("copper_ring".into(), 1),
+            ]))
+            .with_filter(Filter::available_only());
+        let item_pool = resolver.create_item_pool();
+
+        assert_eq!(item_pool, [item("copper_ring")]);
+    }
+
+    #[test]
+    fn zero_quantity_ring_is_not_equipped() {
+        let resolver = GearResolver::new(ITEMS.clone(), GearPurpose::Combat(monster("chicken")))
+            .with_skill_levels(HashMap::from([(Skill::Combat, 10)]))
+            .with_available_items(HashMap::from([
+                ("iron_sword".into(), 1),
+                ("forest_ring".into(), 0),
+            ]))
+            .with_filter(Filter::available_only());
+        let gear = resolver.resolve().unwrap();
+
+        assert_eq!(gear.ring1, None);
+        assert_eq!(gear.ring2, None);
     }
 
     #[test]
@@ -798,7 +846,11 @@ mod tests {
     fn unique_ring_not_in_both_slots() {
         let resolver = GearResolver::new(ITEMS.clone(), GearPurpose::Combat(monster("blue_slime")))
             .with_skill_levels(HashMap::from([(Skill::Combat, 10)]))
-            .with_available_items(HashMap::from([("forest_ring".into(), 1)]));
+            .with_available_items(HashMap::from([
+                ("iron_sword".into(), 1),
+                ("forest_ring".into(), 1),
+            ]))
+            .with_filter(Filter::available_only());
         let gear = resolver.resolve().unwrap();
         assert!(gear.ring1.is_some());
         assert_ne!(gear.ring1, gear.ring2);
